@@ -27,7 +27,6 @@ def test_transactions(fs):
     print(f'transaction 0 log: {log_0}')
     print(f'transaction 1 log: {log_1}')
 
-
 if __name__ == '__main__':
     # TODO: This test can probably just always use the same network argument so we don't need it from command line
 
@@ -36,42 +35,44 @@ if __name__ == '__main__':
     # start networks
     print('________________________________________________________________________________')
     print('Starting networks')
-    full_service = mobilecoin_network = None
+    mobilecoin_network = None
     mobilecoin_network = local_network.Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
-    full_service = fslib.FullService()
-    local_network.start_and_sync_full_service(full_service, mobilecoin_network)
-
-    try:
-        print('________________________________________________________________________________')
-        print('Importing accounts')
-        # import accounts
-        full_service.setup_accounts()
-        wallet_status = full_service.get_wallet_status()
-
-        # verify accounts have been imported, view initial account state
-        for account_id in full_service.account_ids:
-            balance = full_service.get_account_status(account_id)
-            print(f'account_id {account_id} : balance {balance}')
-
-        # run test suite
-        test_transactions(full_service)
-
-        # allow for transactions to pass through
-        # flakey -- replace with checker function
-        time.sleep(20)
-
-        # verify accounts have been updated with changed state
-        # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
-        for account_id in full_service.account_ids:
-            print(account_id)
-            balance = full_service.get_account_status(account_id)['balance']
-            print(f'account_id {account_id} : balance {balance}')
-        
-        # successful exit on no error
-        local_network.cleanup(full_service, mobilecoin_network)
-        print("Yay test passed!")
-
-    except Exception as e:
-        print(e)
-        local_network.cleanup(full_service, mobilecoin_network)
+    fs = fslib.FullService()
+    with fs as full_service:
+        #full_service = fslib.FullService()
+        print(type(full_service))
+        full_service.sync_full_service_to_network(mobilecoin_network)
+    
+        try:
+            print('________________________________________________________________________________')
+            print('Importing accounts')
+            # import accounts
+            full_service.setup_accounts()
+            wallet_status = full_service.get_wallet_status()
+    
+            # verify accounts have been imported, view initial account state
+            for account_id in full_service.account_ids:
+                balance = full_service.get_account_status(account_id)
+                print(f'account_id {account_id} : balance {balance}')
+    
+            # run test suite
+            test_transactions(full_service)
+    
+            # allow for transactions to pass through
+            # flakey -- replace with checker function
+            time.sleep(20)
+    
+            # verify accounts have been updated with changed state
+            # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
+            for account_id in full_service.account_ids:
+                print(account_id)
+                balance = full_service.get_account_status(account_id)['balance']
+                print(f'account_id {account_id} : balance {balance}')
+            
+            # successful exit on no error
+            local_network.cleanup(full_service, mobilecoin_network)
+            print("Yay test passed!")
+        except Exception as e:
+            print(e)
+            local_network.cleanup(full_service, mobilecoin_network)
