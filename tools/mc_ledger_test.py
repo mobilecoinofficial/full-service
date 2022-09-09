@@ -40,8 +40,6 @@ if __name__ == '__main__':
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
     fs = fslib.FullService()
     with fs as full_service:
-        #full_service = fslib.FullService()
-        print(type(full_service))
         full_service.sync_full_service_to_network(mobilecoin_network)
     
         try:
