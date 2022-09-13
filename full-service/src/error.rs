@@ -315,6 +315,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long.
     InvalidBurnRedemptionMemo(String),
+
+    /// Error converting a TxOut
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
@@ -374,5 +377,11 @@ impl From<B58Error> for WalletTransactionBuilderError {
 impl From<hex::FromHexError> for WalletTransactionBuilderError {
     fn from(src: hex::FromHexError) -> Self {
         Self::FromHexError(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for WalletTransactionBuilderError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }

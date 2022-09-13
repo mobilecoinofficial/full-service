@@ -610,7 +610,7 @@ version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5795cda0897252e34380a27baf884c53aa7ad9990329cdad96d4c5d027015d44"
 dependencies = [
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "time 0.1.43",
 ]
 
@@ -624,7 +624,7 @@ dependencies = [
  "base64 0.13.0",
  "hkdf",
  "hmac",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "rand 0.8.5",
  "sha2",
  "subtle",
@@ -1172,12 +1172,11 @@ checksum = "2fad85553e09a6f881f739c29f0b00b0f01357c743266d478b68951ce23285f3"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fc25a87fa4fd2094bffb06925852034d90a17f0d1e05197d4956d3555752191"
+checksum = "a9c384f161156f5260c24a097c56119f9be8c798586aecc13afbcbe7b7e26bf8"
 dependencies = [
- "matches",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
 ]
 
 [[package]]
@@ -1435,7 +1434,7 @@ dependencies = [
  "libc",
  "libgit2-sys",
  "log 0.4.11",
- "url 2.2.2",
+ "url 2.3.1",
 ]
 
 [[package]]
@@ -1723,11 +1722,10 @@ dependencies = [
 
 [[package]]
 name = "idna"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02e2673c30ee86b5b96a9cb52ad15718aa1f966f5ab9ad54a8b95d5ca33120a9"
+checksum = "e14ddfc70884202db2244c223200c204c2bda1bc6e0998d11b5e024d657209e6"
 dependencies = [
- "matches",
  "unicode-bidi",
  "unicode-normalization",
 ]
@@ -1840,7 +1838,7 @@ dependencies = [
  "sluice",
  "tracing",
  "tracing-futures",
- "url 2.2.2",
+ "url 2.3.1",
  "waker-fn",
 ]
 
@@ -2222,7 +2220,6 @@ dependencies = [
  "mc-attest-verifier-types",
  "mc-common",
  "mc-crypto-digestible",
- "mc-crypto-rand",
  "mc-sgx-css",
  "mc-sgx-types",
  "mc-util-build-script",
@@ -2230,6 +2227,7 @@ dependencies = [
  "mc-util-encodings",
  "mc-util-repr-bytes",
  "prost",
+ "rand_core 0.6.3",
  "rjson",
  "serde",
  "sha2",
@@ -2952,7 +2950,7 @@ dependencies = [
  "retry",
  "serde",
  "tempdir",
- "url 2.2.2",
+ "url 2.3.1",
 ]
 
 [[package]]
@@ -3158,6 +3156,7 @@ dependencies = [
  "mc-crypto-ring-signature-signer",
  "mc-fog-report-validation",
  "mc-transaction-core",
+ "mc-transaction-types",
  "mc-util-from-random",
  "mc-util-serial",
  "prost",
@@ -3217,7 +3216,7 @@ dependencies = [
  "cargo-emit",
  "displaydoc",
  "lazy_static",
- "url 2.2.2",
+ "url 2.3.1",
  "walkdir",
 ]
 
@@ -3378,9 +3377,9 @@ dependencies = [
  "mc-common",
  "mc-crypto-keys",
  "mc-util-host-cert",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "serde",
- "url 2.2.2",
+ "url 2.3.1",
 ]
 
 [[package]]
@@ -3481,7 +3480,7 @@ dependencies = [
  "rayon",
  "serde",
  "toml 0.5.8",
- "url 2.2.2",
+ "url 2.3.1",
 ]
 
 [[package]]
@@ -3838,7 +3837,7 @@ dependencies = [
  "futures-util",
  "js-sys",
  "lazy_static",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "pin-project",
  "rand 0.8.5",
  "thiserror",
@@ -4060,9 +4059,9 @@ checksum = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
 
 [[package]]
 name = "percent-encoding"
-version = "2.1.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4fd5641d01c8f18a23da7b6fe29298ff4b55afcccdf78973b24cf3175fee32e"
+checksum = "478c572c3d73181ff3c2539045f6eb99e5491218eae919370993b890cdbdd98e"
 
 [[package]]
 name = "pin-project"
@@ -4618,7 +4617,7 @@ dependencies = [
  "lazy_static",
  "log 0.4.11",
  "mime 0.3.16",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "pin-project-lite",
  "rustls",
  "rustls-pemfile",
@@ -4628,7 +4627,7 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tokio-util 0.6.10",
- "url 2.2.2",
+ "url 2.3.1",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -4817,7 +4816,7 @@ dependencies = [
  "log 0.4.11",
  "memchr",
  "pear 0.2.3",
- "percent-encoding 2.1.0",
+ "percent-encoding 2.2.0",
  "pin-project-lite",
  "ref-cast",
  "serde",
@@ -5103,7 +5102,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "time 0.3.7",
- "url 2.2.2",
+ "url 2.3.1",
  "uuid",
 ]
 
@@ -6109,14 +6108,13 @@ dependencies = [
 
 [[package]]
 name = "url"
-version = "2.2.2"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a507c383b2d33b5fc35d1861e77e6b383d158b2da5e14fe51b83dfedf6fd578c"
+checksum = "0d68c799ae75762b8c3fe375feb6600ef5602c883c5d21eb51c09f22b83c4643"
 dependencies = [
  "form_urlencoded",
- "idna 0.2.0",
- "matches",
- "percent-encoding 2.1.0",
+ "idna 0.3.0",
+ "percent-encoding 2.2.0",
  "serde",
 ]
 

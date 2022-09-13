@@ -44,9 +44,9 @@ impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
     fn from(src: &mc_transaction_core::MaskedAmount) -> Self {
         Self {
             object: "amount".to_string(),
-            commitment: hex::encode(src.commitment.to_bytes()),
-            masked_value: src.masked_value.to_string(),
-            masked_token_id: hex::encode(&src.masked_token_id),
+            commitment: hex::encode(src.commitment().to_bytes()),
+            masked_value: src.get_masked_value().to_string(),
+            masked_token_id: hex::encode(&src.masked_token_id()),
         }
     }
 }
@@ -60,7 +60,8 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
             &hex::decode(&src.commitment)
                 .map_err(|err| format!("Could not decode hex for amount commitment: {:?}", err))?,
         );
-        Ok(Self {
+
+        let masked_amount = mc_transaction_core::MaskedAmountV1 {
             commitment: CompressedCommitment::from(&commitment_bytes),
             masked_value: src
                 .masked_value
@@ -68,6 +69,8 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
                 .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
             masked_token_id: hex::decode(&src.masked_token_id)
                 .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?,
-        })
+        };
+
+        Ok(mc_transaction_core::MaskedAmount::V1(masked_amount))
     }
 }

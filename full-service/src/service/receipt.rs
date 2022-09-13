@@ -24,7 +24,10 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_core::{get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount};
+use mc_transaction_core::{
+    get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount, MaskedAmountV1,
+    MaskedAmountV2,
+};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -55,6 +58,9 @@ pub enum ReceiptServiceError {
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
+
+    /// Tx Out Conversion Error: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<WalletDbError> for ReceiptServiceError {
@@ -90,6 +96,12 @@ impl From<mc_crypto_keys::KeyError> for ReceiptServiceError {
 impl From<hex::FromHexError> for ReceiptServiceError {
     fn from(src: hex::FromHexError) -> Self {
         Self::HexDecode(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for ReceiptServiceError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }
 
@@ -144,7 +156,19 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
         let public_key: CompressedRistrettoPublic =
             CompressedRistrettoPublic::try_from(src.get_public_key())?;
         let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
-        let amount = MaskedAmount::try_from(src.get_masked_amount())?;
+
+        let amount = if let Some(masked_amount_v1) =
+            MaskedAmountV1::try_from(src.get_masked_amount()).ok()
+        {
+            MaskedAmount::V1(masked_amount_v1)
+        } else if let Some(masked_amount_v2) =
+            MaskedAmountV2::try_from(src.get_masked_amount()).ok()
+        {
+            MaskedAmount::V2(masked_amount_v2)
+        } else {
+            return Err(ReceiptServiceError::ProtoConversionInfallible);
+        };
+
         Ok(ReceiverReceipt {
             public_key,
             confirmation,
@@ -252,13 +276,15 @@ where
         let receiver_tx_receipts: Vec<ReceiverReceipt> = tx_proposal
             .payload_txos
             .iter()
-            .map(|output_txo| ReceiverReceipt {
-                public_key: output_txo.tx_out.public_key,
-                tombstone_block: tx_proposal.tx.prefix.tombstone_block,
-                confirmation: output_txo.confirmation_number.clone(),
-                amount: output_txo.tx_out.masked_amount.clone(),
+            .map(|output_txo| {
+                Ok(ReceiverReceipt {
+                    public_key: output_txo.tx_out.public_key,
+                    tombstone_block: tx_proposal.tx.prefix.tombstone_block,
+                    confirmation: output_txo.confirmation_number.clone(),
+                    amount: output_txo.tx_out.get_masked_amount()?.clone(),
+                })
             })
-            .collect::<Vec<ReceiverReceipt>>();
+            .collect::<Result<Vec<ReceiverReceipt>, ReceiptServiceError>>()?;
         Ok(receiver_tx_receipts)
     }
 }

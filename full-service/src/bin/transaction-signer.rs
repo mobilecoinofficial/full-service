@@ -352,7 +352,11 @@ fn tx_out_belongs_to_account(tx_out: &TxOut, account_view_private_key: &Ristrett
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(account_view_private_key, &tx_out_public_key);
-    tx_out.masked_amount.get_value(&shared_secret).is_ok()
+    tx_out
+        .get_masked_amount()
+        .unwrap()
+        .get_value(&shared_secret)
+        .is_ok()
 }
 
 fn generate_subaddress_spend_public_keys(

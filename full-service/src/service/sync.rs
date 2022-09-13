@@ -389,7 +389,7 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    match tx_out.masked_amount.get_value(&shared_secret) {
+    match tx_out.get_masked_amount().ok()?.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(_) => None,
     }

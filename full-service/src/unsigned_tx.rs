@@ -166,7 +166,7 @@ pub fn decode_amount(
 ) -> Result<(Amount, Scalar), WalletTransactionBuilderError> {
     let tx_public_key = RistrettoPublic::try_from(&tx_out.public_key)?;
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    Ok(tx_out.masked_amount.get_value(&shared_secret)?)
+    Ok(tx_out.get_masked_amount()?.get_value(&shared_secret)?)
 }
 
 #[allow(clippy::type_complexity)]
