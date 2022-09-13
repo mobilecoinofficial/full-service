@@ -54,7 +54,7 @@ jobs:
           submodules: recursive
       
       - name: OG state of docs/SUMMARY.md
-        run: echo docs/SUMMARY.md
+        run: cat docs/SUMMARY.md
 
 
       - name: Checkout version B
@@ -64,7 +64,7 @@ jobs:
           submodules: recursive
       
       - name: Version b's state of docs/SUMMARY.md
-        run: echo docs/SUMMARY.md
+        run: cat docs/SUMMARY.md
 
       # - name: Bootstrap MobileCoin
       #   if: steps.cache-bootstrap.outputs.cache-hit != 'true'
