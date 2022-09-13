@@ -64,25 +64,31 @@ jobs:
       # e.g. {{url}}:{{tag}} to prevent build failures
       image: mobilecoin/builder-install:v0.0.10
     steps:
-      - name: Checkout version A
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: '${{ github.event.inputs.version_a_ref }}'
-          submodules: recursive
+      - name: Variables
+        run: echo '${{ github.event.inputs.version_a_ref }}'
       
-      - name: OG state of docs/SUMMARY.md
-        run: cat docs/SUMMARY.md
+      - name: Variables2
+        run : echo '${{ github.event.inputs.version_b_ref }}'
 
-
-      - name: Checkout version B
-        uses: actions/checkout@v3
-        with:
-          ref: '${{ github.event.inputs.version_a_ref }}'
-          submodules: recursive
-      
-      - name: Version b's state of docs/SUMMARY.md
-        run: cat docs/SUMMARY.md
+#      - name: Checkout version A
+#        uses: actions/checkout@v3
+#        with:
+#          fetch-depth: 0
+#          ref: '${{ github.event.inputs.version_a_ref }}'
+#          submodules: recursive
+#      
+#      - name: OG state of docs/SUMMARY.md
+#        run: cat docs/SUMMARY.md
+#
+#
+#      - name: Checkout version B
+#        uses: actions/checkout@v3
+#        with:
+#          ref: '${{ github.event.inputs.version_a_ref }}'
+#          submodules: recursive
+#      
+#      - name: Version b's state of docs/SUMMARY.md
+#        run: cat docs/SUMMARY.md
 
       # - name: Bootstrap MobileCoin
       #   if: steps.cache-bootstrap.outputs.cache-hit != 'true'
