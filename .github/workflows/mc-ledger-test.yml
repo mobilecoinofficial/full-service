@@ -12,6 +12,7 @@ on:
   push:
     branches:
       - setup-mobilecoin
+      - pouneh/e2e_test_infra
   workflow_dispatch:
 
 # TESTING WITH NEKTOS/ACT
