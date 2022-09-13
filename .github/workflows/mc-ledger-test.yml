@@ -10,10 +10,28 @@ env:
 
 on:
   workflow_dispatch:
+    inputs: 
+      version_a_ref:
+        description: 'Tag or commit-hash for the base version of Full-Service'
+        required: true
+        default: 'v1.10.0-pre.4' # 'v1.9.0' 
+      version_b_ref:
+        description: 'Tag or commit-hash to upgrade Full-Service to'
+        required: true
+        default: 'v1.9.2 '
   push:
     branches:
       - setup-mobilecoin
       - pouneh/e2e_test_infra
+    inputs: 
+      version_a_ref:
+        description: 'Tag or commit-hash for the base version of Full-Service'
+        required: true
+        default: 'v1.10.0-pre.5' #'v1.9.0' 
+      version_b_ref:
+        description: 'Tag or commit-hash to upgrade Full-Service to'
+        required: true
+        default: 'v1.9.2 '
 
 # TESTING WITH NEKTOS/ACT
 # nektos/act is a 3rd party github library that allows for the LOCAL testing of github actions
@@ -50,7 +68,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: v1.10.0-pre.4
+          ref: '${{ github.event.inputs.version_a_ref }}'
           submodules: recursive
       
       - name: OG state of docs/SUMMARY.md
@@ -60,7 +78,7 @@ jobs:
       - name: Checkout version B
         uses: actions/checkout@v3
         with:
-          ref: v1.10.0-pre.5
+          ref: '${{ github.event.inputs.version_a_ref }}'
           submodules: recursive
       
       - name: Version b's state of docs/SUMMARY.md
