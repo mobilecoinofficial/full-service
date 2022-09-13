@@ -9,11 +9,11 @@ env:
   IAS_SPID: ${{ secrets.SGX_SPID }}
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - setup-mobilecoin
       - pouneh/e2e_test_infra
-  workflow_dispatch:
 
 # TESTING WITH NEKTOS/ACT
 # nektos/act is a 3rd party github library that allows for the LOCAL testing of github actions
@@ -49,6 +49,7 @@ jobs:
       - name: Checkout version A
         uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           ref: tag/v1.10.0-pre.4
           submodules: recursive
       
