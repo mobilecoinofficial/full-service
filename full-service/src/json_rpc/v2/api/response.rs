@@ -27,11 +27,10 @@ use crate::{
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
-use mc_transaction_std::TransactionViewOnlySigningData;
+use mc_transaction_std::TransactionSigningData;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 /// Responses from the Full Service Wallet.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
@@ -55,12 +54,11 @@ pub enum JsonCommandResponse {
     },
     build_unsigned_burn_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
-        fog_resolver: FullServiceFogResolver,
+        signing_data: TransactionSigningData,
     },
     build_unsigned_transaction {
         account_id: String,
-        signing_data: TransactionViewOnlySigningData,
+        signing_data: TransactionSigningData,
     },
     check_b58_type {
         b58_type: PrintableWrapperType,

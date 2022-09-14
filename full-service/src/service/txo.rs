@@ -21,6 +21,7 @@ use crate::{
 use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 
 /// Errors for the Txo Service.
@@ -62,6 +63,9 @@ pub enum TxoServiceError {
 
     /// From String Error: {0}
     From(String),
+
+    /// TxBuilderError: {0}
+    TxBuilder(mc_transaction_std::TxBuilderError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -109,6 +113,12 @@ impl From<mc_crypto_keys::KeyError> for TxoServiceError {
 impl From<String> for TxoServiceError {
     fn from(src: String) -> Self {
         Self::From(src)
+    }
+}
+
+impl From<mc_transaction_std::TxBuilderError> for TxoServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
     }
 }
 
@@ -252,7 +262,7 @@ where
             ))
         }
 
-        let (unsigned_tx, fog_resolver) = self.build_transaction(
+        let signing_data = self.build_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -265,8 +275,11 @@ where
 
         let account = Account::get(&AccountID(account_id_hex), &conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let signer = LocalRingSigner::from(&account_key);
 
-        Ok(unsigned_tx.sign(&account_key, fog_resolver)?)
+        let mut rng = rand::thread_rng();
+        let tx = signing_data.sign(&signer, &mut rng)?;
+        Ok(TxProposal::new(tx, signing_data))
     }
 }
 

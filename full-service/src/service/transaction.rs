@@ -21,6 +21,7 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
@@ -29,14 +30,10 @@ use mc_transaction_core::{
 };
 use mc_transaction_std::{
     BurnRedemptionMemo, BurnRedemptionMemoBuilder, MemoBuilder, RTHMemoBuilder,
-    SenderMemoCredential, TransactionViewOnlySigningData,
+    SenderMemoCredential, TransactionSigningData,
 };
 
-use crate::{
-    fog_resolver::FullServiceFogResolver,
-    service::address::{AddressService, AddressServiceError},
-    unsigned_tx::UnsignedTx,
-};
+use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
@@ -107,6 +104,9 @@ pub enum TransactionServiceError {
 
     /// mc_util_serial decode error: {0}
     Decode(mc_util_serial::DecodeError),
+
+    /// Tx Builder Error: {0}
+    TxBuilder(mc_transaction_std::TxBuilderError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -175,6 +175,12 @@ impl From<mc_util_serial::DecodeError> for TransactionServiceError {
     }
 }
 
+impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
     /// Recoverable Transaction History memo.
@@ -218,20 +224,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
-    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
-
-    #[allow(clippy::too_many_arguments)]
-    fn build_transaction_v2(
-        &self,
-        account_id_hex: &str,
-        addresses_and_amounts: &[(String, AmountJSON)],
-        input_txo_ids: Option<&Vec<String>>,
-        fee_value: Option<String>,
-        fee_token_id: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        memo: TransactionMemo,
-    ) -> Result<TransactionViewOnlySigningData, TransactionServiceError>;
+    ) -> Result<TransactionSigningData, TransactionServiceError>;
 
     #[allow(clippy::too_many_arguments)]
     fn build_and_sign_transaction(
@@ -284,7 +277,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
-    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
+    ) -> Result<TransactionSigningData, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -344,84 +337,7 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
-            let unsigned_tx = builder.build(memo)?;
-
-            Ok((unsigned_tx, fog_resolver))
-        })
-    }
-
-    fn build_transaction_v2(
-        &self,
-        account_id_hex: &str,
-        addresses_and_amounts: &[(String, AmountJSON)],
-        input_txo_ids: Option<&Vec<String>>,
-        fee_value: Option<String>,
-        fee_token_id: Option<String>,
-        tombstone_block: Option<String>,
-        max_spendable_value: Option<String>,
-        memo: TransactionMemo,
-    ) -> Result<TransactionViewOnlySigningData, TransactionServiceError> {
-        validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
-        validate_number_outputs(addresses_and_amounts.len() as u64)?;
-
-        let conn = self.wallet_db.get_conn()?;
-        transaction(&conn, || {
-            let mut builder = WalletTransactionBuilder::new(
-                account_id_hex.to_string(),
-                self.ledger_db.clone(),
-                self.fog_resolver_factory.clone(),
-            );
-
-            let mut default_fee_token_id = Mob::ID;
-
-            for (recipient_public_address, amount) in addresses_and_amounts {
-                if !self.verify_address(recipient_public_address)? {
-                    return Err(TransactionServiceError::InvalidPublicAddress(
-                        recipient_public_address.to_string(),
-                    ));
-                };
-                let recipient = b58_decode_public_address(recipient_public_address)?;
-                let amount =
-                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
-                builder.add_recipient(recipient, amount.value, amount.token_id)?;
-                default_fee_token_id = amount.token_id;
-            }
-
-            if let Some(tombstone) = tombstone_block {
-                builder.set_tombstone(tombstone.parse::<u64>()?)?;
-            } else {
-                builder.set_tombstone(0)?;
-            }
-
-            let fee_token_id = match fee_token_id {
-                Some(t) => TokenId::from(t.parse::<u64>()?),
-                None => default_fee_token_id,
-            };
-
-            let fee_value = match fee_value {
-                Some(f) => f.parse::<u64>()?,
-                None => *self.get_network_fees().get(&fee_token_id).ok_or(
-                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
-                )?,
-            };
-
-            builder.set_fee(fee_value, fee_token_id)?;
-
-            builder.set_block_version(self.get_network_block_version());
-
-            if let Some(inputs) = input_txo_ids {
-                builder.set_txos(&conn, inputs)?;
-            } else {
-                let max_spendable = if let Some(msv) = max_spendable_value {
-                    Some(msv.parse::<u64>()?)
-                } else {
-                    None
-                };
-                builder.select_txos(&conn, max_spendable)?;
-            }
-
-            let signing_data = builder.build_v2(memo, &conn)?;
+            let signing_data = builder.build(memo, &conn)?;
 
             Ok(signing_data)
         })
@@ -438,7 +354,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError> {
-        let (unsigned_tx, fog_resolver) = self.build_transaction(
+        let signing_data = self.build_transaction(
             account_id_hex,
             addresses_and_amounts,
             input_txo_ids,
@@ -452,9 +368,12 @@ where
         transaction(&conn, || {
             let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let local_signer = LocalRingSigner::from(&account_key);
 
-            let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver)?;
+            let mut rng = rand::thread_rng();
+            let tx = signing_data.sign(&local_signer, &mut rng)?;
 
+            let tx_proposal = TxProposal::new(tx, signing_data);
             TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)

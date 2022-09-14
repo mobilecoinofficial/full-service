@@ -7,6 +7,7 @@ use mc_transaction_core::{
     tx::{Tx, TxOut, TxOutConfirmationNumber},
     Amount, Token,
 };
+use mc_transaction_std::TransactionSigningData;
 
 use crate::util::b58::b58_decode_public_address;
 
@@ -32,6 +33,12 @@ pub struct TxProposal {
     pub input_txos: Vec<InputTxo>,
     pub payload_txos: Vec<OutputTxo>,
     pub change_txos: Vec<OutputTxo>,
+}
+
+impl TxProposal {
+    pub fn new(tx: Tx, signing_data: TransactionSigningData) -> Self {
+        unimplemented!();
+    }
 }
 
 impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal {

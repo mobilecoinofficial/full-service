@@ -273,7 +273,7 @@ where
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
 
-            let (unsigned_tx, fog_resolver) = service
+            let signing_data = service
                 .build_transaction(
                     &account_id,
                     &[(
@@ -291,8 +291,7 @@ where
 
             JsonCommandResponse::build_unsigned_burn_transaction {
                 account_id,
-                unsigned_tx,
-                fog_resolver,
+                signing_data,
             }
         }
         JsonCommandRequest::build_unsigned_transaction {
@@ -311,7 +310,7 @@ where
                 addresses_and_amounts.push((address, amount));
             }
             let signing_data = service
-                .build_transaction_v2(
+                .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
