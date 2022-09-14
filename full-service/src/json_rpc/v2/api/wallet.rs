@@ -310,8 +310,8 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
-            let (unsigned_tx, fog_resolver) = service
-                .build_transaction(
+            let signing_data = service
+                .build_transaction_v2(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -322,10 +322,10 @@ where
                     TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                unsigned_tx,
-                fog_resolver,
+                signing_data,
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {

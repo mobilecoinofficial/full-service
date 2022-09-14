@@ -29,7 +29,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_std::{
     BurnRedemptionMemo, BurnRedemptionMemoBuilder, MemoBuilder, RTHMemoBuilder,
-    SenderMemoCredential,
+    SenderMemoCredential, TransactionViewOnlySigningData,
 };
 
 use crate::{
@@ -221,6 +221,19 @@ pub trait TransactionService {
     ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
 
     #[allow(clippy::too_many_arguments)]
+    fn build_transaction_v2(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
+    ) -> Result<TransactionViewOnlySigningData, TransactionServiceError>;
+
+    #[allow(clippy::too_many_arguments)]
     fn build_and_sign_transaction(
         &self,
         account_id_hex: &str,
@@ -335,6 +348,82 @@ where
             let unsigned_tx = builder.build(memo)?;
 
             Ok((unsigned_tx, fog_resolver))
+        })
+    }
+
+    fn build_transaction_v2(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
+    ) -> Result<TransactionViewOnlySigningData, TransactionServiceError> {
+        validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
+        validate_number_outputs(addresses_and_amounts.len() as u64)?;
+
+        let conn = self.wallet_db.get_conn()?;
+        transaction(&conn, || {
+            let mut builder = WalletTransactionBuilder::new(
+                account_id_hex.to_string(),
+                self.ledger_db.clone(),
+                self.fog_resolver_factory.clone(),
+            );
+
+            let mut default_fee_token_id = Mob::ID;
+
+            for (recipient_public_address, amount) in addresses_and_amounts {
+                if !self.verify_address(recipient_public_address)? {
+                    return Err(TransactionServiceError::InvalidPublicAddress(
+                        recipient_public_address.to_string(),
+                    ));
+                };
+                let recipient = b58_decode_public_address(recipient_public_address)?;
+                let amount =
+                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
+                builder.add_recipient(recipient, amount.value, amount.token_id)?;
+                default_fee_token_id = amount.token_id;
+            }
+
+            if let Some(tombstone) = tombstone_block {
+                builder.set_tombstone(tombstone.parse::<u64>()?)?;
+            } else {
+                builder.set_tombstone(0)?;
+            }
+
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
+
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
+
+            builder.set_block_version(self.get_network_block_version());
+
+            if let Some(inputs) = input_txo_ids {
+                builder.set_txos(&conn, inputs)?;
+            } else {
+                let max_spendable = if let Some(msv) = max_spendable_value {
+                    Some(msv.parse::<u64>()?)
+                } else {
+                    None
+                };
+                builder.select_txos(&conn, max_spendable)?;
+            }
+
+            let signing_data = builder.build_v2(memo, &conn)?;
+
+            Ok(signing_data)
         })
     }
 

@@ -24,18 +24,23 @@ use crate::{
 };
 use mc_account_keys::PublicAddress;
 use mc_common::{HashMap, HashSet};
+use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::RING_SIZE,
     tokens::Mob,
     tx::{TxIn, TxOut, TxOutMembershipProof},
-    BlockVersion, Token, TokenId,
+    Amount, BlockVersion, Token, TokenId,
 };
 
+use mc_transaction_std::{
+    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, InputViewOnlyMaterials,
+    ReservedSubaddresses, TransactionBuilder, TransactionViewOnlySigningData,
+};
 use mc_util_uri::FogUri;
 
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
@@ -255,6 +260,24 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
     }
 
+    pub fn get_fog_resolver(&self, conn: &Conn) -> Result<FPR, WalletTransactionBuilderError> {
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+        let change_subaddress = account.change_subaddress(conn)?;
+        let change_public_address = change_subaddress.public_address()?;
+
+        let fog_resolver = {
+            let fog_uris = core::slice::from_ref(&change_public_address)
+                .iter()
+                .chain(self.outlays.iter().map(|(receiver, _, _)| receiver))
+                .filter_map(|x| extract_fog_uri(x).transpose())
+                .collect::<Result<Vec<_>, _>>()?;
+            (self.fog_resolver_factory)(&fog_uris)
+                .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
+        };
+
+        Ok(fog_resolver)
+    }
+
     pub fn build(
         &self,
         memo: TransactionMemo,
@@ -414,6 +437,179 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             block_version: self.block_version.unwrap_or(BlockVersion::MAX),
             memo,
         })
+    }
+
+    pub fn build_v2(
+        &self,
+        memo: TransactionMemo,
+        conn: &Conn,
+    ) -> Result<TransactionViewOnlySigningData, WalletTransactionBuilderError> {
+        let mut rng = rand::thread_rng();
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+        let view_account_key = account.view_account_key()?;
+        let view_private_key = view_account_key.view_private_key();
+
+        let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
+        let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        let fee_amount = Amount::new(fee, fee_token_id);
+        let fog_resolver = self.get_fog_resolver(conn)?;
+        let memo_builder = EmptyMemoBuilder::default();
+
+        let mut transaction_builder =
+            TransactionBuilder::new(block_version, fee_amount, fog_resolver, memo_builder)?;
+
+        transaction_builder.set_tombstone_block(self.tombstone);
+
+        if self.tombstone == 0 {
+            return Err(WalletTransactionBuilderError::TombstoneNotSet);
+        }
+
+        if self.inputs.is_empty() {
+            return Err(WalletTransactionBuilderError::NoInputs);
+        }
+
+        // Get membership proofs for our inputs
+        let indexes = self
+            .inputs
+            .iter()
+            .map(|utxo| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
+            })
+            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
+        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
+
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
+            .inputs
+            .clone()
+            .into_iter()
+            .zip(proofs.into_iter())
+            .collect();
+
+        let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
+            .iter()
+            .map(|(utxo, _membership_proof)| {
+                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                self.ledger_db
+                    .get_tx_out_index_by_hash(&txo.hash())
+                    .map_err(WalletTransactionBuilderError::LedgerDB)
+            })
+            .collect::<Result<Vec<u64>, WalletTransactionBuilderError>>()?;
+
+        let rings = self.get_rings(inputs_and_proofs.len(), &excluded_tx_out_indices)?;
+
+        if rings.len() != inputs_and_proofs.len() {
+            return Err(WalletTransactionBuilderError::RingSizeMismatch);
+        }
+
+        if self.outlays.is_empty() {
+            return Err(WalletTransactionBuilderError::NoRecipient);
+        }
+
+        // Unzip each vec of tuples into a tuple of vecs.
+        let mut rings_and_proofs: Vec<(Vec<TxOut>, Vec<TxOutMembershipProof>)> = rings
+            .into_iter()
+            .map(|tuples| tuples.into_iter().unzip())
+            .collect();
+
+        for (utxo, proof) in inputs_and_proofs.iter() {
+            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+            let (mut ring, mut membership_proofs) = rings_and_proofs
+                .pop()
+                .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
+            if ring.len() != membership_proofs.len() {
+                return Err(WalletTransactionBuilderError::RingSizeMismatch);
+            }
+
+            // Add the input to the ring.
+            let position_opt = ring.iter().position(|txo| *txo == db_tx_out);
+            let real_index = match position_opt {
+                Some(position) => {
+                    // The input is already present in the ring.
+                    // This could happen if ring elements are sampled
+                    // randomly from the ledger.
+                    position
+                }
+                None => {
+                    // The input is not already in the ring.
+                    if ring.is_empty() {
+                        // Append the input and its proof of membership.
+                        ring.push(db_tx_out.clone());
+                        membership_proofs.push(proof.clone());
+                    } else {
+                        // Replace the first element of the ring.
+                        ring[0] = db_tx_out.clone();
+                        membership_proofs[0] = proof.clone();
+                    }
+                    // The real input is always the first element. This is
+                    // safe because TransactionBuilder sorts each ring.
+                    0
+                }
+            };
+
+            if ring.len() != membership_proofs.len() {
+                return Err(WalletTransactionBuilderError::RingSizeMismatch);
+            }
+
+            let onetime_key_derive_data = OneTimeKeyDeriveData::SubaddressIndex(
+                utxo.subaddress_index.unwrap_or_default() as u64,
+            );
+            let input_credentials = InputCredentials::new(
+                ring,
+                membership_proofs,
+                real_index,
+                onetime_key_derive_data,
+                *view_private_key,
+            )?;
+
+            transaction_builder.add_input(input_credentials);
+        }
+
+        let mut total_value_per_token = BTreeMap::new();
+        total_value_per_token.insert(fee_token_id, fee);
+
+        for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
+            total_value_per_token
+                .entry(token_id)
+                .and_modify(|value| *value += amount)
+                .or_insert(amount);
+
+            let amount = Amount::new(amount, token_id);
+            transaction_builder.add_output(amount, &receiver, &mut rng)?;
+        }
+
+        let input_value_per_token =
+            inputs_and_proofs
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, (utxo, _proof)| {
+                    acc.entry(TokenId::from(utxo.token_id as u64))
+                        .and_modify(|value| *value += utxo.value as u64)
+                        .or_insert(utxo.value as u64);
+                    acc
+                });
+
+        for (token_id, input_value) in input_value_per_token {
+            let total_value = total_value_per_token.get(&token_id).ok_or_else(|| {
+                WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
+            })?;
+
+            println!("total_value: {}", total_value);
+            println!("input_value: {}", input_value);
+            let change_value = input_value - *total_value;
+            println!("change_value: {}", change_value);
+            let change_amount = Amount::new(change_value, token_id);
+            let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+            transaction_builder.add_change_output(
+                change_amount,
+                &reserved_subaddresses,
+                &mut rng,
+            )?;
+        }
+
+        Ok(
+            transaction_builder
+                .get_signing_data::<ThreadRng, DefaultTxOutputsOrdering>(&mut rng)?,
+        )
     }
 
     /// Get rings.
