@@ -182,7 +182,7 @@ mod e2e_transaction {
         assert_eq!(orphaned, "0");
 
         let txo = TxOut::new(
-            BlockVersion::MAX,
+            BlockVersion::TWO,
             Amount::new(1000000000000, TokenId::from(1)),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),

@@ -185,7 +185,7 @@ fn append_test_block(
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
         new_block = Block::new_with_parent(
-            BlockVersion::MAX,
+            BlockVersion::TWO,
             &parent,
             &Default::default(),
             &block_contents,
@@ -224,7 +224,7 @@ pub fn add_block_to_ledger_db(
         .map(|recipient| {
             TxOut::new(
                 // TODO: allow for subaddress index!
-                BlockVersion::MAX,
+                BlockVersion::TWO,
                 Amount::new(output_value, Mob::ID),
                 recipient,
                 &RistrettoPrivate::from_random(rng),
@@ -465,7 +465,7 @@ pub fn create_test_txo_for_recipient(
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = TxOut::new(BlockVersion::TWO, amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see

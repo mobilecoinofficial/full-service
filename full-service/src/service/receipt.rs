@@ -326,7 +326,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
-            BlockVersion::MAX,
+            BlockVersion::TWO,
             Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
@@ -345,11 +345,18 @@ mod tests {
         proto_confirmation.set_hash(confirmation_number.to_vec());
         proto_tx_receipt.set_confirmation(proto_confirmation);
         let mut proto_commitment = mc_api::external::CompressedRistretto::new();
-        proto_commitment.set_data(txo.masked_amount.commitment.to_bytes().to_vec());
+        proto_commitment.set_data(
+            txo.get_masked_amount()
+                .unwrap()
+                .commitment()
+                .to_bytes()
+                .to_vec(),
+        );
         let mut proto_amount = mc_api::external::MaskedAmount::new();
         proto_amount.set_commitment(proto_commitment);
-        proto_amount.set_masked_value(txo.masked_amount.masked_value);
-        proto_amount.set_masked_token_id(txo.masked_amount.masked_token_id.clone());
+        proto_amount.set_masked_value(*txo.get_masked_amount().unwrap().get_masked_value());
+        proto_amount
+            .set_masked_token_id(txo.get_masked_amount().unwrap().masked_token_id().to_vec());
         proto_tx_receipt.set_masked_amount(proto_amount);
 
         let tx_receipt =
@@ -357,7 +364,7 @@ mod tests {
         assert_eq!(txo.public_key, tx_receipt.public_key);
         assert_eq!(tombstone, tx_receipt.tombstone_block);
         assert_eq!(confirmation_number, tx_receipt.confirmation);
-        assert_eq!(txo.masked_amount, tx_receipt.amount);
+        assert_eq!(txo.get_masked_amount().unwrap(), &tx_receipt.amount);
     }
 
     #[test_with_logger]
@@ -480,7 +487,7 @@ mod tests {
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let txo: TxOut =
             mc_util_serial::decode(&txos_and_statuses[0].0.txo).expect("Could not decode txo");
-        assert_eq!(receipt.amount, txo.masked_amount);
+        assert_eq!(&receipt.amount, txo.get_masked_amount().unwrap());
         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
     }
 
@@ -696,6 +703,7 @@ mod tests {
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
         receipt0.amount = MaskedAmount::new(
+            BlockVersion::TWO,
             Amount::new(18 * MOB, Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
@@ -716,8 +724,12 @@ mod tests {
             .expect("Could not get ristretto public from compressed");
         let shared_secret =
             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
-        receipt0.amount = MaskedAmount::new(Amount::new(18 * MOB, Mob::ID), &shared_secret)
-            .expect("Could not create Amount");
+        receipt0.amount = MaskedAmount::new(
+            BlockVersion::TWO,
+            Amount::new(18 * MOB, Mob::ID),
+            &shared_secret,
+        )
+        .expect("Could not create Amount");
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt0)
             .expect("Could not check status of receipt");

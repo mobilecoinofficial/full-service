@@ -870,7 +870,11 @@ mod tests {
             gift_code_account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
-        let (value, _blinding) = tx_out.masked_amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = tx_out
+            .get_masked_amount()
+            .unwrap()
+            .get_value(&shared_secret)
+            .unwrap();
         assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value

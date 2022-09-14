@@ -95,7 +95,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
-            BlockVersion::MAX,
+            BlockVersion::TWO,
             Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
@@ -107,6 +107,7 @@ mod tests {
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
         let amount = mc_transaction_core::MaskedAmount::new(
+            BlockVersion::TWO,
             Amount::new(rng.next_u64(), Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
