@@ -202,9 +202,11 @@ pub trait AccountModel {
     /// (reserved addresses are not included)
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
 
-    fn view_account_key(self) -> Result<ViewAccountKey, WalletDbError>;
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
 
-    fn view_private_key(self) -> Result<RistrettoPrivate, WalletDbError>;
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -579,17 +581,16 @@ impl AccountModel for Account {
         Ok(highest_subaddress_index as u64 + 1)
     }
 
-    fn view_private_key(self) -> Result<RistrettoPrivate, WalletDbError> {
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
         if self.view_only {
-            let view_account_key: ViewAccountKey = mc_util_serial::decode(&self.account_key)?;
-            return Ok(*view_account_key.view_private_key());
+            return Ok(None);
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        return Ok(*account_key.view_private_key());
+        return Ok(Some(account_key));
     }
 
-    fn view_account_key(self) -> Result<ViewAccountKey, WalletDbError> {
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
         if self.view_only {
             return Ok(mc_util_serial::decode(&self.account_key)?);
         }
@@ -597,6 +598,16 @@ impl AccountModel for Account {
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
         let view_account_key = ViewAccountKey::from(&account_key);
         return Ok(view_account_key);
+    }
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
+        if self.view_only {
+            let view_account_key: ViewAccountKey = mc_util_serial::decode(&self.account_key)?;
+            return Ok(*view_account_key.view_private_key());
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        return Ok(*account_key.view_private_key());
     }
 }
 

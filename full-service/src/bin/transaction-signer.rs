@@ -2,9 +2,9 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
+use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
-    fog_resolver::FullServiceFogResolver,
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         v2::{
@@ -15,9 +15,10 @@ use mc_full_service::{
             },
         },
     },
-    unsigned_tx::UnsignedTx,
+    service::models::tx_proposal::TxProposal,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
+use mc_transaction_std::TransactionSigningData;
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
 
@@ -229,6 +230,8 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
     let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
     let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
+    let signer = LocalRingSigner::from(&account_key);
+    let mut rng = rand::thread_rng();
 
     // Load input txos.
     let request_data =
@@ -238,7 +241,7 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
-    let unsigned_tx: UnsignedTx = serde_json::from_value(
+    let signing_data: TransactionSigningData = serde_json::from_value(
         request_json
             .get("unsigned_tx")
             .expect("Could not find \"unsigned_tx\".")
@@ -246,15 +249,9 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     )
     .unwrap();
 
-    let fog_resolver: FullServiceFogResolver = serde_json::from_value(
-        request_json
-            .get("fog_resolver")
-            .expect("Could not find \"fog_resolver\".")
-            .clone(),
-    )
-    .unwrap();
+    let tx = signing_data.sign(&signer, &mut rng).unwrap();
 
-    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+    let tx_proposal = TxProposal::new(tx, signing_data);
     let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,

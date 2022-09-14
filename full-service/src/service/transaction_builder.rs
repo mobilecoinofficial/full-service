@@ -18,23 +18,22 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::transaction::TransactionMemo,
-    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::PublicAddress;
-use mc_common::{HashMap, HashSet};
+use mc_common::HashSet;
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::RING_SIZE,
     tokens::Mob,
-    tx::{TxIn, TxOut, TxOutMembershipProof},
+    tx::{TxOut, TxOutMembershipProof},
     Amount, BlockVersion, Token, TokenId,
 };
 
 use mc_transaction_std::{
-    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
-    TransactionBuilder, TransactionSigningData,
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+    TransactionSigningData,
 };
 use mc_util_uri::FogUri;
 
@@ -244,17 +243,23 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     ) -> Result<TransactionSigningData, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+
         let view_account_key = account.view_account_key()?;
-        let view_private_key = view_account_key.view_private_key();
+        let view_private_key = account.view_private_key()?;
+        let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
 
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
-        let memo_builder = EmptyMemoBuilder::default();
+        let memo_builder = memo.memo_builder(account.account_key()?)?;
 
-        let mut transaction_builder =
-            TransactionBuilder::new(block_version, fee_amount, fog_resolver, memo_builder)?;
+        let mut transaction_builder = TransactionBuilder::new_with_box(
+            block_version,
+            fee_amount,
+            fog_resolver,
+            memo_builder,
+        )?;
 
         transaction_builder.set_tombstone_block(self.tombstone);
 
@@ -357,7 +362,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 membership_proofs,
                 real_index,
                 onetime_key_derive_data,
-                *view_private_key,
+                view_private_key,
             )?;
 
             transaction_builder.add_input(input_credentials);
@@ -396,7 +401,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let change_value = input_value - *total_value;
             println!("change_value: {}", change_value);
             let change_amount = Amount::new(change_value, token_id);
-            let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
             transaction_builder.add_change_output(
                 change_amount,
                 &reserved_subaddresses,

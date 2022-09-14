@@ -29,7 +29,7 @@ use mc_transaction_core::{
     Amount, Token, TokenId,
 };
 use mc_transaction_std::{
-    BurnRedemptionMemo, BurnRedemptionMemoBuilder, MemoBuilder, RTHMemoBuilder,
+    BurnRedemptionMemo, BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
     SenderMemoCredential, TransactionSigningData,
 };
 
@@ -183,6 +183,9 @@ impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
+    /// Empty Transaction Memo.
+    Empty,
+
     /// Recoverable Transaction History memo.
     RTH,
 
@@ -193,18 +196,25 @@ pub enum TransactionMemo {
 }
 
 impl TransactionMemo {
-    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
+    pub fn memo_builder(
+        &self,
+        account_key: Option<AccountKey>,
+    ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
+            Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
             Self::RTH => {
                 let mut memo_builder = RTHMemoBuilder::default();
-                memo_builder.set_sender_credential(SenderMemoCredential::from(account_key));
+                memo_builder
+                    .set_sender_credential(SenderMemoCredential::from(&account_key.ok_or(
+                        WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts,
+                    )?));
                 memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
+                Ok(Box::new(memo_builder))
             }
             Self::BurnRedemption(memo_data) => {
                 let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
                 memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
+                Ok(Box::new(memo_builder))
             }
         }
     }

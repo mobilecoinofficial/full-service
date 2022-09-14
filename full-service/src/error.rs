@@ -318,6 +318,9 @@ pub enum WalletTransactionBuilderError {
 
     /// Error converting a TxOut: {0}
     TxOutConversion(mc_transaction_core::TxOutConversionError),
+
+    /// RTH is currently unavailable for view only accounts.
+    RTHUnavailableForViewOnlyAccounts,
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
