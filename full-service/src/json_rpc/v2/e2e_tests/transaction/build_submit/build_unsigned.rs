@@ -8,13 +8,13 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::v2::api::test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
-        unsigned_tx::UnsignedTx,
         util::b58::b58_decode_public_address,
     };
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_std::TransactionSigningData;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -151,7 +151,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx: UnsignedTx =
+        let _tx: TransactionSigningData =
             serde_json::from_value(result.get("unsigned_tx").unwrap().clone()).unwrap();
 
         // test creating unsigned tx with addresses_and_amounts
@@ -166,7 +166,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx: UnsignedTx =
+        let _tx: TransactionSigningData =
             serde_json::from_value(result.get("unsigned_tx").unwrap().clone()).unwrap();
     }
 }

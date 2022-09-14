@@ -577,6 +577,7 @@ impl TransactionLogModel for TransactionLog {
 mod tests {
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_ring_signature_signer::LocalRingSigner;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
@@ -635,9 +636,10 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let tx_proposal = TxProposal::new(tx, signing_data);
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -796,9 +798,10 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let tx_proposal = TxProposal::new(tx, signing_data);
 
         let tx_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -876,9 +879,10 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let tx_proposal = TxProposal::new(tx, signing_data);
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
@@ -975,9 +979,10 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let tx_proposal = TxProposal::new(tx, signing_data);
 
         assert_eq!(
             tx_proposal.payload_txos[0].amount.value,
@@ -1043,9 +1048,10 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let tx_proposal = TxProposal::new(tx, signing_data);
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(

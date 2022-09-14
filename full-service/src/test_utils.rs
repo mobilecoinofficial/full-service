@@ -1,3 +1,4 @@
+use crate::service::models::tx_proposal::TxProposal;
 // Copyright (c) 2020-2021 MobileCoin Inc.
 #[cfg(test)]
 use crate::{
@@ -31,6 +32,7 @@ use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
+use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
@@ -531,9 +533,10 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-    let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-    let tx_proposal = unsigned_tx.sign(&src_account_key, fog_resolver).unwrap();
+    let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+    let signer = LocalRingSigner::from(&src_account_key);
+    let tx = signing_data.sign(&signer, &mut rng).unwrap();
+    let tx_proposal = TxProposal::new(tx, signing_data);
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);

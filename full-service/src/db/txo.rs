@@ -1411,6 +1411,7 @@ mod tests {
         HashSet,
     };
     use mc_crypto_rand::RngCore;
+    use mc_crypto_ring_signature_signer::LocalRingSigner;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
@@ -1425,6 +1426,7 @@ mod tests {
             transaction_log::TransactionLogModel,
         },
         service::{
+            models::tx_proposal::TxProposal,
             sync::{sync_account, SyncThread},
             transaction::TransactionMemo,
             transaction_builder::WalletTransactionBuilder,
@@ -2177,9 +2179,10 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&sender_account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&sender_account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

@@ -489,7 +489,7 @@ mod tests {
     use super::*;
     use crate::{
         db::WalletDbError,
-        service::sync::SyncThread,
+        service::{models::tx_proposal::TxProposal, sync::SyncThread},
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
             WalletDbTestContext, MOB,
@@ -497,6 +497,7 @@ mod tests {
     };
     use mc_account_keys::AccountKey;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_ring_signature_signer::LocalRingSigner;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -535,9 +536,10 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, value);
@@ -646,7 +648,7 @@ mod tests {
 
         builder.set_txos(&conn, &vec![txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(TransactionMemo::RTH) {
+        match builder.build(TransactionMemo::RTH, &conn) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -667,9 +669,10 @@ mod tests {
             .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(
@@ -732,9 +735,10 @@ mod tests {
         // pick up both 70 and 80
         builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
@@ -777,7 +781,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(TransactionMemo::RTH) {
+        match builder.build(TransactionMemo::RTH, &conn) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -796,9 +800,10 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
@@ -815,9 +820,10 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -853,9 +859,10 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -874,9 +881,10 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -904,9 +912,10 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
@@ -944,9 +953,11 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
+
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
@@ -998,10 +1009,11 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        // Verify that not setting fee results in default fee
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let signer = LocalRingSigner::from(&account_key);
+        let tx = signing_data.sign(&signer, &mut rng).unwrap();
+        let proposal = TxProposal::new(tx, signing_data);
+
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);

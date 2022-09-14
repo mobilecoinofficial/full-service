@@ -37,7 +37,7 @@ pub struct TxProposal {
 
 impl TxProposal {
     pub fn new(tx: Tx, signing_data: TransactionSigningData) -> Self {
-        unimplemented!();
+        unimplemented!()
     }
 }
 
