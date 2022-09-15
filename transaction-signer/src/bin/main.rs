@@ -3,7 +3,6 @@ use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
     json_rpc::{
@@ -11,12 +10,15 @@ use mc_full_service::{
         v2::{
             api::request::JsonCommandRequest,
             models::{
-                account_key::AccountKey as AccountKeyJSON, account_secrets::AccountSecrets,
-                tx_proposal::TxProposal as TxProposalJSON,
+                account_key::AccountKey as AccountKeyJSON,
+                account_secrets::AccountSecrets,
+                tx_proposal::{
+                    TxProposal as TxProposalJSON, UnsignedTxProposal as UnsignedTxProposalJSON,
+                },
             },
         },
     },
-    service::models::tx_proposal::TxProposal,
+    service::models::tx_proposal::UnsignedTxProposal,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
 use mc_transaction_core::{
@@ -25,7 +27,6 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::TxOut,
 };
-use mc_transaction_std::UnsignedTx;
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
 
@@ -228,18 +229,21 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
         fs::read_to_string(secret_mnemonic).expect("Could not open secret mnemonic file.");
     let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
     let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
-    let signer = LocalRingSigner::from(&account_key);
-    let mut rng = rand::thread_rng();
 
-    // Load input txos.
+    // let signer = LocalRingSigner::from(&account_key);
+    // let mut rng = rand::thread_rng();
+
+    // // Load input txos.
     let request_data =
         fs::read_to_string(sign_request).expect("Could not open generate signing request file.");
-    let request_json: serde_json::Value =
-        serde_json::from_str(&request_data).expect("Malformed generate signing request.");
+    let request_json: serde_json::Value = serde_json::from_str(&request_data).expect(
+        "Malformed generate signing
+    request.",
+    );
     let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
-    let signing_data: UnsignedTx = serde_json::from_value(
+    let unsigned_tx_proposal_json: UnsignedTxProposalJSON = serde_json::from_value(
         request_json
             .get("unsigned_tx")
             .expect("Could not find \"unsigned_tx\".")
@@ -247,15 +251,9 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     )
     .unwrap();
 
-    let tx = signing_data.sign(&signer, &mut rng).unwrap();
+    let unsigned_tx_proposal: UnsignedTxProposal = unsigned_tx_proposal_json.try_into().unwrap();
 
-    let tx_proposal = TxProposal {
-        tx,
-        input_txos: Vec::new(),
-        payload_txos: Vec::new(),
-        change_txos: Vec::new(),
-    };
-
+    let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
     let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,

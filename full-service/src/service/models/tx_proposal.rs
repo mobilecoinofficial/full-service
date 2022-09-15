@@ -90,6 +90,101 @@ impl UnsignedTxProposal {
     }
 }
 
+impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
+    type Error = String;
+
+    fn try_from(
+        src: crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal,
+    ) -> Result<Self, Self::Error> {
+        let unsigned_input_txos = src
+            .unsigned_input_txos
+            .iter()
+            .map(|input_txo| {
+                Ok(UnsignedInputTxo {
+                    tx_out: mc_util_serial::decode(
+                        hex::decode(&input_txo.tx_out_proto)
+                            .map_err(|e| e.to_string())?
+                            .as_slice(),
+                    )
+                    .map_err(|e| e.to_string())?,
+                    subaddress_index: input_txo
+                        .subaddress_index
+                        .parse::<u64>()
+                        .map_err(|e| e.to_string())?,
+                    amount: Amount::try_from(&input_txo.amount)?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let mut payload_txos = Vec::new();
+
+        for txo in src.payload_txos.iter() {
+            let confirmation_number_hex =
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
+            let confirmation_number_bytes: [u8; 32] =
+                confirmation_number_hex.as_slice().try_into().map_err(|_| {
+                    "confirmation number is not the right number of bytes (expecting 32)"
+                })?;
+            let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
+
+            let txo_out_hex = hex::decode(&txo.tx_out_proto).map_err(|e| e.to_string())?;
+            let tx_out =
+                mc_util_serial::decode(txo_out_hex.as_slice()).map_err(|e| e.to_string())?;
+            let recipient_public_address =
+                b58_decode_public_address(&txo.recipient_public_address_b58)
+                    .map_err(|e| e.to_string())?;
+
+            let amount = Amount::try_from(&txo.amount)?;
+
+            let output_txo = OutputTxo {
+                tx_out,
+                recipient_public_address,
+                confirmation_number,
+                amount,
+            };
+
+            payload_txos.push(output_txo);
+        }
+
+        let mut change_txos = Vec::new();
+
+        for txo in src.change_txos.iter() {
+            let confirmation_number_hex =
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
+            let confirmation_number_bytes: [u8; 32] =
+                confirmation_number_hex.as_slice().try_into().map_err(|_| {
+                    "confirmation number is not the right number of bytes (expecting 32)"
+                })?;
+            let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
+
+            let txo_out_hex = hex::decode(&txo.tx_out_proto).map_err(|e| e.to_string())?;
+            let tx_out =
+                mc_util_serial::decode(txo_out_hex.as_slice()).map_err(|e| e.to_string())?;
+            let recipient_public_address =
+                b58_decode_public_address(&txo.recipient_public_address_b58)
+                    .map_err(|e| e.to_string())?;
+
+            let amount = Amount::try_from(&txo.amount)?;
+
+            let output_txo = OutputTxo {
+                tx_out,
+                recipient_public_address,
+                confirmation_number,
+                amount,
+            };
+
+            change_txos.push(output_txo);
+        }
+
+        Ok(Self {
+            unsigned_tx: src.unsigned_tx.clone(),
+            unsigned_input_txos,
+            payload_txos,
+            change_txos,
+        })
+    }
+}
+
 impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxProposal {
     type Error = String;
 

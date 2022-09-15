@@ -21,7 +21,7 @@ use crate::{
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::{TransactionLog, TransactionLogMap},
-                tx_proposal::TxProposal as TxProposalJSON,
+                tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
                 txo::{Txo, TxoMap},
                 wallet_status::WalletStatus,
             },
@@ -273,7 +273,7 @@ where
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
 
-            let unsigned_tx_proposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
                     &account_id,
                     &[(
@@ -287,11 +287,13 @@ where
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
                 )
+                .map_err(format_error)?
+                .try_into()
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                unsigned_tx: unsigned_tx_proposal.unsigned_tx,
+                unsigned_tx_proposal,
             }
         }
         JsonCommandRequest::build_unsigned_transaction {
@@ -309,7 +311,7 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
-            let unsigned_tx_proposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
@@ -320,11 +322,13 @@ where
                     max_spendable_value,
                     TransactionMemo::Empty,
                 )
+                .map_err(format_error)?
+                .try_into()
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                unsigned_tx: unsigned_tx_proposal.unsigned_tx,
+                unsigned_tx_proposal,
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {

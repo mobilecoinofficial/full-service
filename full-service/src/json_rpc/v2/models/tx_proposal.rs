@@ -5,8 +5,16 @@
 use super::amount::Amount as AmountJSON;
 use crate::util::b58::{b58_encode_public_address, B58Error};
 
+use mc_transaction_std::UnsignedTx;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
+
+#[derive(Deserialize, Serialize, Default, Debug)]
+pub struct UnsignedInputTxo {
+    pub tx_out_proto: String,
+    pub amount: AmountJSON,
+    pub subaddress_index: String,
+}
 
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct InputTxo {
@@ -22,6 +30,71 @@ pub struct OutputTxo {
     pub amount: AmountJSON,
     pub recipient_public_address_b58: String,
     pub confirmation_number: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct UnsignedTxProposal {
+    pub unsigned_tx: UnsignedTx,
+    pub unsigned_input_txos: Vec<UnsignedInputTxo>,
+    pub payload_txos: Vec<OutputTxo>,
+    pub change_txos: Vec<OutputTxo>,
+}
+
+impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
+    type Error = String;
+
+    fn try_from(
+        src: crate::service::models::tx_proposal::UnsignedTxProposal,
+    ) -> Result<Self, Self::Error> {
+        let unsigned_input_txos = src
+            .unsigned_input_txos
+            .iter()
+            .map(|input_txo| UnsignedInputTxo {
+                tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
+                amount: AmountJSON::from(&input_txo.amount),
+                subaddress_index: input_txo.subaddress_index.to_string(),
+            })
+            .collect();
+
+        let payload_txos = src
+            .payload_txos
+            .iter()
+            .map(|output_txo| {
+                Ok(OutputTxo {
+                    tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    amount: AmountJSON::from(&output_txo.amount),
+                    recipient_public_address_b58: b58_encode_public_address(
+                        &output_txo.recipient_public_address,
+                    )?,
+                    confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                })
+            })
+            .collect::<Result<Vec<OutputTxo>, B58Error>>()
+            .map_err(|_| "Error".to_string())?;
+
+        let change_txos = src
+            .change_txos
+            .iter()
+            .map(|output_txo| {
+                Ok(OutputTxo {
+                    tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    amount: AmountJSON::from(&output_txo.amount),
+                    recipient_public_address_b58: b58_encode_public_address(
+                        &output_txo.recipient_public_address,
+                    )?,
+                    confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                })
+            })
+            .collect::<Result<Vec<OutputTxo>, B58Error>>()
+            .map_err(|_| "Error".to_string())?;
+
+        Ok(Self {
+            unsigned_tx: src.unsigned_tx.clone(),
+            unsigned_input_txos,
+            payload_txos,
+            change_txos,
+        })
+    }
 }
 
 #[derive(Deserialize, Serialize, Default, Debug)]

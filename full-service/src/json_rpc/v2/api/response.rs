@@ -18,7 +18,7 @@ use crate::{
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
             transaction_log::{TransactionLog, TransactionLogMap},
-            tx_proposal::TxProposal,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::{Txo, TxoMap},
             wallet_status::WalletStatus,
         },
@@ -27,7 +27,6 @@ use crate::{
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
-use mc_transaction_std::UnsignedTx;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -54,11 +53,11 @@ pub enum JsonCommandResponse {
     },
     build_unsigned_burn_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     build_unsigned_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     check_b58_type {
         b58_type: PrintableWrapperType,
