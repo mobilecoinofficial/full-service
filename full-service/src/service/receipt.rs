@@ -326,7 +326,7 @@ mod tests {
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.default_subaddress();
         let txo = TxOut::new(
-            BlockVersion::TWO,
+            BlockVersion::MAX,
             Amount::new(rng.next_u64(), Mob::ID),
             &public_address,
             &RistrettoPrivate::from_random(&mut rng),
@@ -703,7 +703,7 @@ mod tests {
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
         receipt0.amount = MaskedAmount::new(
-            BlockVersion::TWO,
+            BlockVersion::MAX,
             Amount::new(18 * MOB, Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
@@ -725,7 +725,7 @@ mod tests {
         let shared_secret =
             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
         receipt0.amount = MaskedAmount::new(
-            BlockVersion::TWO,
+            BlockVersion::MAX,
             Amount::new(18 * MOB, Mob::ID),
             &shared_secret,
         )
