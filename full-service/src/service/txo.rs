@@ -21,7 +21,6 @@ use crate::{
 use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 
 /// Errors for the Txo Service.
@@ -262,7 +261,7 @@ where
             ))
         }
 
-        let signing_data = self.build_transaction(
+        let unsigned_transaction = self.build_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -275,11 +274,7 @@ where
 
         let account = Account::get(&AccountID(account_id_hex), &conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-        let signer = LocalRingSigner::from(&account_key);
-
-        let mut rng = rand::thread_rng();
-        let tx = signing_data.sign(&signer, &mut rng)?;
-        Ok(TxProposal::new(tx, signing_data))
+        Ok(unsigned_transaction.sign(&account_key)?)
     }
 }
 

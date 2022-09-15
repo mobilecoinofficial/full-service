@@ -321,6 +321,9 @@ pub enum WalletTransactionBuilderError {
 
     /// RTH is currently unavailable for view only accounts.
     RTHUnavailableForViewOnlyAccounts,
+
+    /// Cannot use orphaned txo as an input: {0}
+    CannotUseOrphanedTxoAsInput(String),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {

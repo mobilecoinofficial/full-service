@@ -36,7 +36,7 @@ use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
-use mc_crypto_ring_signature_signer::{LocalRingSigner, NoKeysRingSigner};
+use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{
@@ -459,10 +459,7 @@ where
         )?;
 
         let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
-        let signer = LocalRingSigner::from(&account_key);
-        let mut rng = rand::thread_rng();
-        let tx = signing_data.sign(&signer, &mut rng)?;
-        let tx_proposal = TxProposal::new(tx, signing_data);
+        let tx_proposal = signing_data.sign(&account_key)?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);

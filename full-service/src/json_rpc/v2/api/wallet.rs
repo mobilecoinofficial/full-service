@@ -273,7 +273,7 @@ where
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
 
-            let signing_data = service
+            let unsigned_tx_proposal = service
                 .build_transaction(
                     &account_id,
                     &[(
@@ -289,9 +289,9 @@ where
                 )
                 .map_err(format_error)?;
 
-            JsonCommandResponse::build_unsigned_burn_transaction {
+            JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                signing_data,
+                unsigned_tx: unsigned_tx_proposal.unsigned_tx,
             }
         }
         JsonCommandRequest::build_unsigned_transaction {
@@ -309,7 +309,7 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
-            let signing_data = service
+            let unsigned_tx_proposal = service
                 .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
@@ -318,13 +318,13 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH,
+                    TransactionMemo::Empty,
                 )
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                signing_data,
+                unsigned_tx: unsigned_tx_proposal.unsigned_tx,
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {

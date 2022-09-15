@@ -1,21 +1,31 @@
 use std::convert::{TryFrom, TryInto};
 
-use mc_account_keys::PublicAddress;
+use mc_account_keys::{AccountKey, PublicAddress};
+use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_transaction_core::{
+    onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut, TxOutConfirmationNumber},
     Amount, Token,
 };
-use mc_transaction_std::TransactionSigningData;
+use mc_transaction_std::UnsignedTx;
 
-use crate::util::b58::b58_decode_public_address;
+use crate::{service::transaction::TransactionServiceError, util::b58::b58_decode_public_address};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputTxo {
     pub tx_out: TxOut,
     pub subaddress_index: u64,
     pub key_image: KeyImage,
+    pub amount: Amount,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnsignedInputTxo {
+    pub tx_out: TxOut,
+    pub subaddress_index: u64,
     pub amount: Amount,
 }
 
@@ -35,9 +45,48 @@ pub struct TxProposal {
     pub change_txos: Vec<OutputTxo>,
 }
 
-impl TxProposal {
-    pub fn new(tx: Tx, signing_data: TransactionSigningData) -> Self {
-        unimplemented!()
+#[derive(Clone, Debug)]
+pub struct UnsignedTxProposal {
+    pub unsigned_tx: UnsignedTx,
+    pub unsigned_input_txos: Vec<UnsignedInputTxo>,
+    pub payload_txos: Vec<OutputTxo>,
+    pub change_txos: Vec<OutputTxo>,
+}
+
+impl UnsignedTxProposal {
+    pub fn sign(self, account_key: &AccountKey) -> Result<TxProposal, TransactionServiceError> {
+        let input_txos = self
+            .unsigned_input_txos
+            .iter()
+            .map(|txo| {
+                let tx_out_public_key = RistrettoPublic::try_from(&txo.tx_out.public_key)?;
+                let onetime_private_key = recover_onetime_private_key(
+                    &tx_out_public_key,
+                    account_key.view_private_key(),
+                    &account_key.subaddress_spend_private(txo.subaddress_index),
+                );
+
+                let key_image = KeyImage::from(&onetime_private_key);
+
+                Ok(InputTxo {
+                    tx_out: txo.tx_out.clone(),
+                    subaddress_index: txo.subaddress_index,
+                    key_image,
+                    amount: txo.amount,
+                })
+            })
+            .collect::<Result<Vec<InputTxo>, TransactionServiceError>>()?;
+
+        let signer = LocalRingSigner::from(account_key);
+        let mut rng = rand::thread_rng();
+        let tx = self.unsigned_tx.sign(&signer, &mut rng)?;
+
+        Ok(TxProposal {
+            tx,
+            input_txos,
+            payload_txos: self.payload_txos,
+            change_txos: self.change_txos,
+        })
     }
 }
 

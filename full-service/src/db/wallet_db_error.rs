@@ -146,6 +146,9 @@ pub enum WalletDbError {
 
     /// Expected to find a membership proof for txo with id: {0}
     MissingTxoMembershipProof(String),
+
+    /// Expected to find a key image for a txo with id: {0}
+    MissingKeyImageForInputTxo(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

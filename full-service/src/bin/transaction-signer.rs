@@ -18,7 +18,7 @@ use mc_full_service::{
     service::models::tx_proposal::TxProposal,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
-use mc_transaction_std::TransactionSigningData;
+use mc_transaction_std::UnsignedTx;
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
 
@@ -241,7 +241,7 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
-    let signing_data: TransactionSigningData = serde_json::from_value(
+    let signing_data: UnsignedTx = serde_json::from_value(
         request_json
             .get("unsigned_tx")
             .expect("Could not find \"unsigned_tx\".")
@@ -251,7 +251,13 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
 
     let tx = signing_data.sign(&signer, &mut rng).unwrap();
 
-    let tx_proposal = TxProposal::new(tx, signing_data);
+    let tx_proposal = TxProposal {
+        tx,
+        input_txos: Vec::new(),
+        payload_txos: Vec::new(),
+        change_txos: Vec::new(),
+    };
+
     let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,

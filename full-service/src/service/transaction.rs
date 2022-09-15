@@ -21,7 +21,6 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
-use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
@@ -30,7 +29,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_std::{
     BurnRedemptionMemo, BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
-    SenderMemoCredential, TransactionSigningData,
+    SenderMemoCredential,
 };
 
 use crate::service::address::{AddressService, AddressServiceError};
@@ -38,6 +37,8 @@ use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
+
+use super::models::tx_proposal::UnsignedTxProposal;
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
@@ -107,6 +108,9 @@ pub enum TransactionServiceError {
 
     /// Tx Builder Error: {0}
     TxBuilder(mc_transaction_std::TxBuilderError),
+
+    /// Key Error: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -181,6 +185,12 @@ impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
     }
 }
 
+impl From<mc_crypto_keys::KeyError> for TransactionServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum TransactionMemo {
     /// Empty Transaction Memo.
@@ -234,7 +244,7 @@ pub trait TransactionService {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
-    ) -> Result<TransactionSigningData, TransactionServiceError>;
+    ) -> Result<UnsignedTxProposal, TransactionServiceError>;
 
     #[allow(clippy::too_many_arguments)]
     fn build_and_sign_transaction(
@@ -287,7 +297,7 @@ where
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
-    ) -> Result<TransactionSigningData, TransactionServiceError> {
+    ) -> Result<UnsignedTxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -347,9 +357,9 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let signing_data = builder.build(memo, &conn)?;
+            let unsigned_tx_proposal = builder.build(memo, &conn)?;
 
-            Ok(signing_data)
+            Ok(unsigned_tx_proposal)
         })
     }
 
@@ -364,7 +374,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError> {
-        let signing_data = self.build_transaction(
+        let unsigned_tx_proposal = self.build_transaction(
             account_id_hex,
             addresses_and_amounts,
             input_txo_ids,
@@ -378,12 +388,8 @@ where
         transaction(&conn, || {
             let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let local_signer = LocalRingSigner::from(&account_key);
+            let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
 
-            let mut rng = rand::thread_rng();
-            let tx = signing_data.sign(&local_signer, &mut rng)?;
-
-            let tx_proposal = TxProposal::new(tx, signing_data);
             TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)

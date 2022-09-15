@@ -33,12 +33,13 @@ use mc_transaction_core::{
 
 use mc_transaction_std::{
     DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
-    TransactionSigningData,
 };
 use mc_util_uri::FogUri;
 
 use rand::{rngs::ThreadRng, Rng};
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+
+use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -240,7 +241,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         &self,
         memo: TransactionMemo,
         conn: &Conn,
-    ) -> Result<TransactionSigningData, WalletTransactionBuilderError> {
+    ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
 
@@ -315,8 +316,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .map(|tuples| tuples.into_iter().unzip())
             .collect();
 
+        let mut unsigned_input_txos = Vec::new();
         for (utxo, proof) in inputs_and_proofs.iter() {
+            let subaddress_index = utxo.subaddress_index.ok_or(
+                WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone()),
+            )?;
+
             let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+
             let (mut ring, mut membership_proofs) = rings_and_proofs
                 .pop()
                 .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
@@ -354,9 +361,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 return Err(WalletTransactionBuilderError::RingSizeMismatch);
             }
 
-            let onetime_key_derive_data = OneTimeKeyDeriveData::SubaddressIndex(
-                utxo.subaddress_index.unwrap_or_default() as u64,
-            );
+            let onetime_key_derive_data =
+                OneTimeKeyDeriveData::SubaddressIndex(subaddress_index as u64);
+
+            let unsigned_input_txo = UnsignedInputTxo {
+                tx_out: db_tx_out,
+                subaddress_index: subaddress_index as u64,
+                amount: Amount::new(utxo.value as u64, TokenId::from(utxo.token_id as u64)),
+            };
+            unsigned_input_txos.push(unsigned_input_txo);
+
             let input_credentials = InputCredentials::new(
                 ring,
                 membership_proofs,
@@ -371,6 +385,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut total_value_per_token = BTreeMap::new();
         total_value_per_token.insert(fee_token_id, fee);
 
+        let mut payload_txos = Vec::new();
         for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
             total_value_per_token
                 .entry(token_id)
@@ -378,7 +393,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 .or_insert(amount);
 
             let amount = Amount::new(amount, token_id);
-            transaction_builder.add_output(amount, &receiver, &mut rng)?;
+            let tx_out_context = transaction_builder.add_output(amount, &receiver, &mut rng)?;
+
+            let payload_txo = OutputTxo {
+                tx_out: tx_out_context.tx_out,
+                recipient_public_address: receiver,
+                confirmation_number: tx_out_context.confirmation,
+                amount,
+            };
+            payload_txos.push(payload_txo);
         }
 
         let input_value_per_token =
@@ -391,27 +414,38 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     acc
                 });
 
+        let mut change_txos = Vec::new();
         for (token_id, input_value) in input_value_per_token {
             let total_value = total_value_per_token.get(&token_id).ok_or_else(|| {
                 WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
             })?;
 
-            println!("total_value: {}", total_value);
-            println!("input_value: {}", input_value);
             let change_value = input_value - *total_value;
-            println!("change_value: {}", change_value);
             let change_amount = Amount::new(change_value, token_id);
-            transaction_builder.add_change_output(
+            let tx_out_context = transaction_builder.add_change_output(
                 change_amount,
                 &reserved_subaddresses,
                 &mut rng,
             )?;
+
+            let change_txo = OutputTxo {
+                tx_out: tx_out_context.tx_out,
+                recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
+                confirmation_number: tx_out_context.confirmation,
+                amount: change_amount,
+            };
+            change_txos.push(change_txo);
         }
 
-        Ok(
-            transaction_builder
-                .get_signing_data::<ThreadRng, DefaultTxOutputsOrdering>(&mut rng)?,
-        )
+        let unsigned_tx =
+            transaction_builder.build_unsigned::<ThreadRng, DefaultTxOutputsOrdering>()?;
+
+        Ok(UnsignedTxProposal {
+            unsigned_tx,
+            unsigned_input_txos,
+            payload_txos,
+            change_txos,
+        })
     }
 
     /// Get rings.
@@ -489,7 +523,7 @@ mod tests {
     use super::*;
     use crate::{
         db::WalletDbError,
-        service::{models::tx_proposal::TxProposal, sync::SyncThread},
+        service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
             WalletDbTestContext, MOB,
@@ -497,7 +531,6 @@ mod tests {
     };
     use mc_account_keys::AccountKey;
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_ring_signature_signer::LocalRingSigner;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -536,10 +569,8 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, value);
@@ -669,10 +700,8 @@ mod tests {
             .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(
@@ -735,10 +764,8 @@ mod tests {
         // pick up both 70 and 80
         builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
@@ -800,10 +827,8 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
@@ -820,10 +845,8 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -859,10 +882,8 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -881,10 +902,8 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -912,10 +931,8 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
@@ -953,10 +970,8 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -1009,10 +1024,8 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let signing_data = builder.build(TransactionMemo::RTH, &conn).unwrap();
-        let signer = LocalRingSigner::from(&account_key);
-        let tx = signing_data.sign(&signer, &mut rng).unwrap();
-        let proposal = TxProposal::new(tx, signing_data);
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);
