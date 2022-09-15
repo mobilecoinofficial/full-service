@@ -601,13 +601,7 @@ impl AccountModel for Account {
     }
 
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
-        if self.view_only {
-            let view_account_key: ViewAccountKey = mc_util_serial::decode(&self.account_key)?;
-            return Ok(*view_account_key.view_private_key());
-        }
-
-        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        return Ok(*account_key.view_private_key());
+        Ok(*self.view_account_key()?.view_private_key())
     }
 }
 
