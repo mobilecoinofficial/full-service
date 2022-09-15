@@ -157,20 +157,27 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
             CompressedRistrettoPublic::try_from(src.get_public_key())?;
         let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
 
-        let amount = if let Ok(masked_amount_v2) = MaskedAmountV2::try_from(src.get_masked_amount())
-        {
-            MaskedAmount::V2(masked_amount_v2)
-        } else if let Ok(masked_amount_v1) = MaskedAmountV1::try_from(src.get_masked_amount()) {
-            MaskedAmount::V1(masked_amount_v1)
-        } else {
-            return Err(ReceiptServiceError::ProtoConversionInfallible);
-        };
+        let one_of_masked_amount = src
+            .masked_amount
+            .ok_or(ReceiptServiceError::ProtoConversionInfallible)?;
+        let tx_out_masked_amount =
+            mc_api::external::TxOut_oneof_masked_amount::try_from(one_of_masked_amount)?;
+
+        let masked_amount = MaskedAmount::try_from(&tx_out_masked_amount)?;
+        // let amount = if let Ok(masked_amount_v2) =
+        // MaskedAmountV2::try_from(src.get_masked_amount()) {
+        //     MaskedAmount::V2(masked_amount_v2)
+        // } else if let Ok(masked_amount_v1) =
+        // MaskedAmountV1::try_from(src.get_masked_amount()) {     MaskedAmount:
+        // :V1(masked_amount_v1) } else {
+        //     return Err(ReceiptServiceError::ProtoConversionInfallible);
+        // };
 
         Ok(ReceiverReceipt {
             public_key,
             confirmation,
             tombstone_block: src.get_tombstone_block(),
-            amount,
+            amount: masked_amount,
         })
     }
 }
