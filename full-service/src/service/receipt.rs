@@ -157,14 +157,11 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
             CompressedRistrettoPublic::try_from(src.get_public_key())?;
         let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
 
-        let amount = if let Some(masked_amount_v1) =
-            MaskedAmountV1::try_from(src.get_masked_amount()).ok()
-        {
-            MaskedAmount::V1(masked_amount_v1)
-        } else if let Some(masked_amount_v2) =
-            MaskedAmountV2::try_from(src.get_masked_amount()).ok()
+        let amount = if let Ok(masked_amount_v2) = MaskedAmountV2::try_from(src.get_masked_amount())
         {
             MaskedAmount::V2(masked_amount_v2)
+        } else if let Ok(masked_amount_v1) = MaskedAmountV1::try_from(src.get_masked_amount()) {
+            MaskedAmount::V1(masked_amount_v1)
         } else {
             return Err(ReceiptServiceError::ProtoConversionInfallible);
         };

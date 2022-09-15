@@ -51,6 +51,7 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
                 .map_err(|err| format!("Could not decode hex for txo_public_key: {:?}", err))?,
         )
         .map_err(|err| format!("Could not decode txo public key: {:?}", err))?;
+
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(
             &hex::decode(&src.confirmation)
                 .map_err(|err| format!("Could not decode hex for proof: {:?}", err))?,

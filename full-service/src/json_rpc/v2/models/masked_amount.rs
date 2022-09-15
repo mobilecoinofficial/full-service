@@ -7,6 +7,18 @@ use mc_transaction_core::CompressedCommitment;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum MaskedAmountVersion {
+    V1,
+    V2,
+}
+
+impl Default for MaskedAmountVersion {
+    fn default() -> Self {
+        MaskedAmountVersion::V1
+    }
+}
+
 /// The encrypted amount of pMOB in a Txo.
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct MaskedAmount {
@@ -23,24 +35,23 @@ pub struct MaskedAmount {
     /// shared_secret)` 8 bytes long when used, 0 bytes for older amounts
     /// that don't have this.
     pub masked_token_id: String,
-}
 
-impl From<&mc_api::external::MaskedAmount> for MaskedAmount {
-    fn from(src: &mc_api::external::MaskedAmount) -> Self {
-        Self {
-            commitment: hex::encode(src.get_commitment().get_data()),
-            masked_value: src.get_masked_value().to_string(),
-            masked_token_id: hex::encode(&src.get_masked_token_id()),
-        }
-    }
+    /// The version of the masked amount.
+    pub version: MaskedAmountVersion,
 }
 
 impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
     fn from(src: &mc_transaction_core::MaskedAmount) -> Self {
+        let version = match src {
+            mc_transaction_core::MaskedAmount::V1(_) => MaskedAmountVersion::V1,
+            mc_transaction_core::MaskedAmount::V2(_) => MaskedAmountVersion::V2,
+        };
+
         Self {
             commitment: hex::encode(src.commitment().to_bytes()),
             masked_value: src.get_masked_value().to_string(),
             masked_token_id: hex::encode(&src.masked_token_id()),
+            version,
         }
     }
 }
@@ -55,16 +66,35 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
                 .map_err(|err| format!("Could not decode hex for amount commitment: {:?}", err))?,
         );
 
-        let masked_amount_v1 = mc_transaction_core::MaskedAmountV1 {
-            commitment: CompressedCommitment::from(&commitment_bytes),
-            masked_value: src
-                .masked_value
-                .parse::<u64>()
-                .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
-            masked_token_id: hex::decode(&src.masked_token_id)
-                .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?,
-        };
+        match src.version {
+            MaskedAmountVersion::V1 => {
+                let masked_amount = mc_transaction_core::MaskedAmountV1 {
+                    commitment: CompressedCommitment::from(&commitment_bytes),
+                    masked_value: src
+                        .masked_value
+                        .parse::<u64>()
+                        .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
+                    masked_token_id: hex::decode(&src.masked_token_id).map_err(|err| {
+                        format!("Could not decode hex for masked token id: {:?}", err)
+                    })?,
+                };
 
-        Ok(mc_transaction_core::MaskedAmount::V1(masked_amount_v1))
+                Ok(mc_transaction_core::MaskedAmount::V1(masked_amount))
+            }
+            MaskedAmountVersion::V2 => {
+                let masked_amount = mc_transaction_core::MaskedAmountV2 {
+                    commitment: CompressedCommitment::from(&commitment_bytes),
+                    masked_value: src
+                        .masked_value
+                        .parse::<u64>()
+                        .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
+                    masked_token_id: hex::decode(&src.masked_token_id).map_err(|err| {
+                        format!("Could not decode hex for masked token id: {:?}", err)
+                    })?,
+                };
+
+                Ok(mc_transaction_core::MaskedAmount::V2(masked_amount))
+            }
+        }
     }
 }
