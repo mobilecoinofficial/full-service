@@ -6,7 +6,7 @@ edition = "2021"
 
 [[bin]]
 name = "mc-transaction-signer"
-path = "src/main.rs"
+path = "src/bin/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
