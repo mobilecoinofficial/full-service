@@ -1,20 +1,11 @@
 [package]
-name = "mc-full-service"
-version = "1.9.0"
-authors = ["MobileCoin"]
-edition = "2018"
-
-[[bin]]
-name = "mc-full-service"
-path = "src/bin/main.rs"
-
-[[bin]]
-name = "transaction-signer"
-path = "src/bin/transaction-signer.rs"
+name = "mc-full-service-wallet"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
 
 [dependencies]
 mc-full-service-utils = { path = "../utils" }
-mc-full-service-wallet = { path = "../wallet" }
 
 mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }
@@ -85,3 +76,9 @@ mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", featu
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils"}
 tempdir = "0.3"
 bs58 = "0.4.0"
+
+[build-dependencies]
+# clippy fails to run without this.
+diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
+vergen = "7.0.0"
+anyhow = "1.0"

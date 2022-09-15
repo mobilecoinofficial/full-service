@@ -10,11 +10,10 @@ use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
 use mc_fog_report_resolver::FogResolver;
-use mc_full_service::{
-    check_host,
-    config::APIConfig,
+use mc_full_service::{check_host, config::APIConfig, ValidatorLedgerSyncThread};
+use mc_full_service_wallet::{
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
-    ValidatorLedgerSyncThread, WalletDb, WalletService,
+    WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;

@@ -5,6 +5,7 @@ resolver = "2"
 members = [
     "service",
     "utils",
+    "wallet",
     "validator/api",
     "validator/connection",
     "validator/service",

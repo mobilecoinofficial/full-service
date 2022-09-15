@@ -2812,6 +2812,96 @@ dependencies = [
 name = "mc-full-service"
 version = "1.9.0"
 dependencies = [
+ "base64 0.13.0",
+ "bs58",
+ "chrono",
+ "crossbeam-channel",
+ "diesel",
+ "diesel-derive-enum",
+ "diesel_migrations",
+ "displaydoc",
+ "dotenv",
+ "grpcio",
+ "hex",
+ "mc-account-keys",
+ "mc-account-keys-slip10",
+ "mc-api",
+ "mc-attest-verifier",
+ "mc-blockchain-test-utils",
+ "mc-blockchain-types",
+ "mc-common",
+ "mc-connection",
+ "mc-connection-test-utils",
+ "mc-consensus-enclave-api",
+ "mc-consensus-enclave-measurement",
+ "mc-consensus-scp",
+ "mc-crypto-digestible",
+ "mc-crypto-keys",
+ "mc-crypto-rand",
+ "mc-crypto-ring-signature-signer",
+ "mc-fog-report-connection",
+ "mc-fog-report-resolver",
+ "mc-fog-report-validation",
+ "mc-fog-report-validation-test-utils",
+ "mc-full-service-utils",
+ "mc-full-service-wallet",
+ "mc-ledger-db",
+ "mc-ledger-migration",
+ "mc-ledger-sync",
+ "mc-mobilecoind",
+ "mc-mobilecoind-api",
+ "mc-mobilecoind-json",
+ "mc-sgx-css",
+ "mc-transaction-core",
+ "mc-transaction-std",
+ "mc-transaction-types",
+ "mc-util-from-random",
+ "mc-util-parse",
+ "mc-util-serial",
+ "mc-util-uri",
+ "mc-validator-api",
+ "mc-validator-connection",
+ "num_cpus",
+ "rand 0.8.5",
+ "rayon",
+ "reqwest",
+ "retry",
+ "rocket 0.4.10",
+ "rocket_contrib",
+ "serde",
+ "serde-big-array",
+ "serde_derive",
+ "serde_json",
+ "structopt",
+ "strum",
+ "strum_macros",
+ "tempdir",
+ "tiny-bip39",
+ "uuid",
+]
+
+[[package]]
+name = "mc-full-service-utils"
+version = "1.0.0"
+dependencies = [
+ "displaydoc",
+ "hex",
+ "mc-account-keys",
+ "mc-account-keys-slip10",
+ "mc-api",
+ "mc-crypto-keys",
+ "mc-transaction-core",
+ "mc-util-from-random",
+ "mc-util-serial",
+ "rand 0.8.5",
+ "serde",
+ "tiny-bip39",
+]
+
+[[package]]
+name = "mc-full-service-wallet"
+version = "0.1.0"
+dependencies = [
  "anyhow",
  "base64 0.13.0",
  "bs58",
@@ -2879,24 +2969,6 @@ dependencies = [
  "tiny-bip39",
  "uuid",
  "vergen",
-]
-
-[[package]]
-name = "mc-full-service-utils"
-version = "1.0.0"
-dependencies = [
- "displaydoc",
- "hex",
- "mc-account-keys",
- "mc-account-keys-slip10",
- "mc-api",
- "mc-crypto-keys",
- "mc-transaction-core",
- "mc-util-from-random",
- "mc-util-serial",
- "rand 0.8.5",
- "serde",
- "tiny-bip39",
 ]
 
 [[package]]

@@ -2,7 +2,8 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
-use mc_full_service::{
+use mc_full_service_utils::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex};
+use mc_full_service_wallet::{
     db::{account::AccountID, txo::TxoID},
     fog_resolver::FullServiceFogResolver,
     json_rpc::{
@@ -17,7 +18,6 @@ use mc_full_service::{
     },
     unsigned_tx::UnsignedTx,
 };
-use mc_full_service_utils::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex};
 use std::{convert::TryFrom, fs};
 use structopt::StructOpt;
 
