@@ -587,7 +587,7 @@ impl AccountModel for Account {
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        return Ok(Some(account_key));
+        Ok(Some(account_key))
     }
 
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
@@ -597,7 +597,7 @@ impl AccountModel for Account {
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
         let view_account_key = ViewAccountKey::from(&account_key);
-        return Ok(view_account_key);
+        Ok(view_account_key)
     }
 
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {

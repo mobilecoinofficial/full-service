@@ -318,9 +318,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let mut unsigned_input_txos = Vec::new();
         for (utxo, proof) in inputs_and_proofs.iter() {
-            let subaddress_index = utxo.subaddress_index.ok_or(
-                WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone()),
-            )?;
+            let subaddress_index = utxo.subaddress_index.ok_or_else(|| {
+                WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone())
+            })?;
 
             let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
 
