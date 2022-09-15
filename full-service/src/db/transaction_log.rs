@@ -1094,6 +1094,11 @@ mod tests {
         );
         assert_eq!(input_details1.subaddress_index, Some(0));
 
+        assert_eq!(
+            input_details0.value as u64 + input_details1.value as u64,
+            15 * MOB
+        );
+
         // There is one associated output TXO to this transaction, and its recipient
         // is our own address
         assert_eq!(associated_txos.outputs.len(), 1);
