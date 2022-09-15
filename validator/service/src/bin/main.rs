@@ -44,10 +44,7 @@ fn main() {
     log::debug!(logger, "Verifier: {:?}", verifier);
 
     // Create peer manager.
-    let peer_manager =
-        config
-            .peers_config
-            .create_peer_manager(verifier, config.chain_id.clone(), &logger);
+    let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
@@ -90,7 +87,7 @@ fn main() {
     // Start GRPC service.
     let _service = Service::new(
         &config.listen_uri,
-        config.chain_id,
+        config.peers_config.chain_id,
         ledger_db,
         peer_manager,
         logger,

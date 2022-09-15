@@ -24,7 +24,4 @@ pub struct Config {
     /// How many seconds to wait between polling.
     #[structopt(long, default_value = "5", parse(try_from_str=parse_duration_in_seconds))]
     pub poll_interval: Duration,
-
-    #[structopt(long)]
-    pub chain_id: String,
 }
