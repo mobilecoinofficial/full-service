@@ -420,6 +420,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
             })?;
 
+            if *total_value > input_value {
+                return Err(WalletTransactionBuilderError::InsufficientInputFunds(format!(
+                    "Total value required to send transaction {:?}, but only {:?} in inputs for token_id {:?}",
+                    total_value,
+                    input_value,
+                    token_id.to_string(),
+                )));
+            }
+
             let change_value = input_value - *total_value;
             let change_amount = Amount::new(change_value, token_id);
             let tx_out_context = transaction_builder.add_change_output(
