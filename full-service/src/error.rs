@@ -313,7 +313,7 @@ pub enum WalletTransactionBuilderError {
     /// Error decoding the hex string: {0}
     FromHexError(hex::FromHexError),
 
-    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long. {0}
+    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long: {0}
     InvalidBurnRedemptionMemo(String),
 
     /// Error converting a TxOut: {0}
