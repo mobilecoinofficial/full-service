@@ -65,6 +65,10 @@ pub struct APIConfig {
     /// network directly.
     #[structopt(long)]
     pub validator: Option<ValidatorUri>,
+
+    /// Chain Id
+    #[structopt(long)]
+    pub chain_id: String,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -120,7 +124,7 @@ impl APIConfig {
                 .build(),
         );
 
-        let conn = GrpcFogReportConnection::new("".to_string(), env, logger.clone());
+        let conn = GrpcFogReportConnection::new(self.chain_id.clone(), env, logger.clone());
 
         let verifier = self.get_fog_ingest_verifier();
 
@@ -205,6 +209,7 @@ impl PeersConfig {
         &self,
         verifier: Verifier,
         grpc_env: Arc<grpcio::Environment>,
+        chain_id: String,
         logger: Logger,
     ) -> Vec<ThickClient<HardcodedCredentialsProvider>> {
         self.peers
@@ -213,7 +218,7 @@ impl PeersConfig {
             .iter()
             .map(|client_uri| {
                 ThickClient::new(
-                    "".to_string(),
+                    chain_id.clone(),
                     client_uri.clone(),
                     verifier.clone(),
                     grpc_env.clone(),
@@ -228,6 +233,7 @@ impl PeersConfig {
     pub fn create_peer_manager(
         &self,
         verifier: Verifier,
+        chain_id: String,
         logger: &Logger,
     ) -> ConnectionManager<ThickClient<HardcodedCredentialsProvider>> {
         let grpc_env = Arc::new(
@@ -236,7 +242,7 @@ impl PeersConfig {
                 .name_prefix("peer")
                 .build(),
         );
-        let peers = self.create_peers(verifier, grpc_env, logger.clone());
+        let peers = self.create_peers(verifier, grpc_env, chain_id, logger.clone());
 
         ConnectionManager::new(peers, logger.clone())
     }

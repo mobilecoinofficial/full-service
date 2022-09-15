@@ -111,7 +111,10 @@ fn consensus_backed_full_service(
     log::debug!(logger, "Verifier: {:?}", verifier);
 
     // Create peer manager.
-    let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
+    let peer_manager =
+        config
+            .peers_config
+            .create_peer_manager(verifier, config.chain_id.clone(), &logger);
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
