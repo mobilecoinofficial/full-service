@@ -245,8 +245,8 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
 
     let unsigned_tx_proposal_json: UnsignedTxProposalJSON = serde_json::from_value(
         request_json
-            .get("unsigned_tx")
-            .expect("Could not find \"unsigned_tx\".")
+            .get("unsigned_tx_proposal")
+            .expect("Could not find \"unsigned_tx_proposal\".")
             .clone(),
     )
     .unwrap();
