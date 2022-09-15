@@ -7,7 +7,7 @@ use mc_transaction_core::CompressedCommitment;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum MaskedAmountVersion {
     V1,
     V2,
