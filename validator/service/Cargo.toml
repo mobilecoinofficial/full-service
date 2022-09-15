@@ -10,7 +10,7 @@ name = "mc-validator-service"
 path = "src/bin/main.rs"
 
 [dependencies]
-mc-full-service = { path = "../../service"}
+mc-full-service = { path = "../../full-service/service"}
 mc-validator-api = { path = "../api" }
 
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }

@@ -3,7 +3,7 @@
 //! MobileCoin wallet service
 
 #![feature(proc_macro_hygiene, decl_macro)]
-use diesel::{prelude::*, SqliteConnection};
+use diesel::{prelude::Connection, SqliteConnection};
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
@@ -25,9 +25,9 @@ use std::{
 };
 use structopt::StructOpt;
 
-#[allow(unused_imports)] // Needed for embedded_migrations!
-#[macro_use]
-extern crate diesel_migrations;
+// #[allow(unused_imports)] // Needed for embedded_migrations!
+// #[macro_use]
+// extern crate diesel_migrations;
 
 // Exit codes.
 const EXIT_NO_DATABASE_CONNECTION: i32 = 2;

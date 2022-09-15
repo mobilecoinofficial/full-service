@@ -2814,7 +2814,6 @@ version = "1.9.0"
 dependencies = [
  "base64 0.13.0",
  "diesel",
- "diesel_migrations",
  "displaydoc",
  "dotenv",
  "grpcio",

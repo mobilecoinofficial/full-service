@@ -3,9 +3,9 @@ cargo-features = ["resolver"]
 [workspace]
 resolver = "2"
 members = [
-    "service",
-    "utils",
-    "wallet",
+    "full-service/service",
+    "full-service/utils",
+    "full-service/wallet",
     "validator/api",
     "validator/connection",
     "validator/service",

@@ -1,0 +1,25 @@
+[package]
+name = "mc-full-service-utils"
+version = "1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+mc-account-keys = { path = "../../mobilecoin/account-keys" }
+mc-account-keys-slip10 = { path = "../../mobilecoin/account-keys/slip10" }
+mc-api = { path = "../../mobilecoin/api" }
+mc-crypto-keys = { path = "../../mobilecoin/crypto/keys", default-features = false }
+mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
+mc-util-serial = { path = "../../mobilecoin/util/serial", default-features = false }
+
+displaydoc = {version = "0.2", default-features = false }
+hex = {version = "0.4", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+tiny-bip39 = "1.0"
+
+[dev-dependencies]
+mc-util-from-random = { path = "../../mobilecoin/util/from-random" }
+
+rand = { version = "0.8", default-features = false }
