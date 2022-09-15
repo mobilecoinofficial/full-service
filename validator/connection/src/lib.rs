@@ -242,7 +242,10 @@ impl UserTxConnection for ValidatorConnection {
         if response.get_result() == ProposeTxResult::Ok {
             Ok(response.get_block_count())
         } else {
-            Err(response.get_result().into())
+            Err(ConnectionError::TransactionValidation(
+                response.get_result(),
+                response.get_err_msg().to_owned(),
+            ))
         }
     }
 }

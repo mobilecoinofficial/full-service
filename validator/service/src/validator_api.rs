@@ -158,8 +158,8 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
 
             Err(RetryError::Operation { error, .. }) => {
                 match error {
-                    ConnectionError::TransactionValidation(err) => {
-                        result.set_result(err.into());
+                    ConnectionError::TransactionValidation(err, _) => {
+                        result.set_result(err);
                         Ok(())
                     }
 
