@@ -1,15 +1,18 @@
+# Copyright (c) 2022 MobileCoin, Inc.
+
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
-from . import constants
-import subprocess
-from urllib.parse import urlparse
-import json
 import http.client
-from typing import Tuple
-import time
+import json
 import os
-import shutil
 import pathlib
+import shutil
+import subprocess
+import time
+
+from . import constants
+from typing import Tuple
+from urllib.parse import urlparse
 
 class FullService:
     def __init__(self, remove_wallet_and_ledger=False):
@@ -29,17 +32,14 @@ class FullService:
         if self.remove_wallet_and_ledger:
             try:
                 print(f"Removing ledger/wallet dbs")
-                tmpdir = pathlib.Path('/tmp')
-                shutil.rmtree(tmpdir/'wallet-db')
-                shutil.rmtree(tmpdir/'ledger-db')
+                shutil.rmtree(self.wallet_path)
+                shutil.rmtree(self.ledger_path)
             except Exception as e:
                 print(e) 
-        
-
-
+    
     def start(self):
+        self.wallet_path.mkdir(parents=True, exists_ok=True)
         cmd = ' '.join([
-            'mkdir -p /tmp/wallet-db/',
             f'&& {constants.FULLSERVICE_DIR}/target/release/full-service',
             '--wallet-db /tmp/wallet-db/wallet.db',
             '--ledger-db /tmp/ledger-db/',
@@ -55,7 +55,7 @@ class FullService:
 
     def stop(self):
         try:
-            subprocess.check_output("pkill full-service", shell=True)
+            self.full_service_process.terminate()
         except subprocess.CalledProcessError as exc:
             if exc.returncode != 1:
                 raise
@@ -74,21 +74,17 @@ class FullService:
 
         print(f'request data: {request_data}')
 
-        try:
-            parsed_url = urlparse(url)
-            connection = http.client.HTTPConnection(parsed_url.netloc)
-            connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
-            r = connection.getresponse()
-        except ConnectionError:
-            raise ConnectionError
+        parsed_url = urlparse(url)
+        connection = http.client.HTTPConnection(parsed_url.netloc)
+        connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
+        r = connection.getresponse()
 
-        raw_response = None
         try:
             raw_response = r.read()
             response_data = json.loads(raw_response)
+            print(f'request returned {response_data}')
         except ValueError:
             raise ValueError('API returned invalid JSON:', raw_response)
-        print(f'request returned {response_data}')
 
         # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
         time.sleep(2)
@@ -109,10 +105,8 @@ class FullService:
         })
 
         if 'error' in r:
-            if 'Diesel Error: UNIQUE constraint failed' in r['error']['data']['details']:
-                return True
-            else:
-                return False
+            # If we failed due to a unique constraint, it means the account already exists
+            return 'Diesel Error: UNIQUE constraint failed' in r['error']['data']['details']
         return True
 
     # retrieve accounts from mobilecoin/target/sample_data/keys
