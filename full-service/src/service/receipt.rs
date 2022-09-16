@@ -24,10 +24,7 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_core::{
-    get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount, MaskedAmountV1,
-    MaskedAmountV2,
-};
+use mc_transaction_core::{get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -159,19 +156,10 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
 
         let one_of_masked_amount = src
             .masked_amount
+            .as_ref()
             .ok_or(ReceiptServiceError::ProtoConversionInfallible)?;
-        let tx_out_masked_amount =
-            mc_api::external::TxOut_oneof_masked_amount::try_from(one_of_masked_amount)?;
 
-        let masked_amount = MaskedAmount::try_from(&tx_out_masked_amount)?;
-        // let amount = if let Ok(masked_amount_v2) =
-        // MaskedAmountV2::try_from(src.get_masked_amount()) {
-        //     MaskedAmount::V2(masked_amount_v2)
-        // } else if let Ok(masked_amount_v1) =
-        // MaskedAmountV1::try_from(src.get_masked_amount()) {     MaskedAmount:
-        // :V1(masked_amount_v1) } else {
-        //     return Err(ReceiptServiceError::ProtoConversionInfallible);
-        // };
+        let masked_amount = MaskedAmount::try_from(one_of_masked_amount)?;
 
         Ok(ReceiverReceipt {
             public_key,
@@ -361,7 +349,7 @@ mod tests {
         proto_amount.set_masked_value(*txo.get_masked_amount().unwrap().get_masked_value());
         proto_amount
             .set_masked_token_id(txo.get_masked_amount().unwrap().masked_token_id().to_vec());
-        proto_tx_receipt.set_masked_amount(proto_amount);
+        proto_tx_receipt.set_masked_amount_v2(proto_amount);
 
         let tx_receipt =
             ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
