@@ -1,3 +1,4 @@
+# Copyright (c) 2022 MobileCoin, Inc.
 import local_network
 import time
 
@@ -35,7 +36,6 @@ if __name__ == '__main__':
     # start networks
     print('________________________________________________________________________________')
     print('Starting networks')
-    mobilecoin_network = None
     mobilecoin_network = local_network.Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
     fs = fslib.FullService()
