@@ -6,7 +6,10 @@
 mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc::v2::api::test_utils::{dispatch, setup},
+        json_rpc::v2::{
+            api::test_utils::{dispatch, setup},
+            models::tx_proposal::UnsignedTxProposal,
+        },
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
@@ -14,7 +17,6 @@ mod e2e_transaction {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
-    use mc_transaction_std::UnsignedTx;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -151,8 +153,8 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx: UnsignedTx =
-            serde_json::from_value(result.get("unsigned_tx").unwrap().clone()).unwrap();
+        let _: UnsignedTxProposal =
+            serde_json::from_value(result.get("unsigned_tx_proposal").unwrap().clone()).unwrap();
 
         // test creating unsigned tx with addresses_and_amounts
         let body = json!({
@@ -166,7 +168,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx: UnsignedTx =
-            serde_json::from_value(result.get("unsigned_tx").unwrap().clone()).unwrap();
+        let _: UnsignedTxProposal =
+            serde_json::from_value(result.get("unsigned_tx_proposal").unwrap().clone()).unwrap();
     }
 }

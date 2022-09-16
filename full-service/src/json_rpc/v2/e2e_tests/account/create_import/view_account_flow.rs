@@ -169,7 +169,7 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx = result.get("unsigned_tx").unwrap();
+        let _tx = result.get("unsigned_tx_proposal").unwrap();
 
         // test create sync account request
         let body = json!({
