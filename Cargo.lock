@@ -2863,6 +2863,7 @@ dependencies = [
  "mc-validator-api",
  "mc-validator-connection",
  "num_cpus",
+ "protobuf",
  "rand 0.8.5",
  "rayon",
  "reqwest",

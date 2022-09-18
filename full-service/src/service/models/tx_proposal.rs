@@ -1,6 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use mc_account_keys::{AccountKey, PublicAddress};
+use mc_api::ConversionError;
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_transaction_core::{
@@ -11,6 +12,7 @@ use mc_transaction_core::{
     Amount, Token,
 };
 use mc_transaction_std::UnsignedTx;
+use protobuf::Message;
 
 use crate::{service::transaction::TransactionServiceError, util::b58::b58_decode_public_address};
 
@@ -176,8 +178,16 @@ impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for U
             change_txos.push(output_txo);
         }
 
+        let proto_bytes =
+            hex::decode(&src.unsigned_tx_proto_bytes_hex).map_err(|e| e.to_string())?;
+        let unsigned_tx_external: mc_api::external::UnsignedTx =
+            Message::parse_from_bytes(proto_bytes.as_slice()).map_err(|e| e.to_string())?;
+        let unsigned_tx = (&unsigned_tx_external)
+            .try_into()
+            .map_err(|e: ConversionError| e.to_string())?;
+
         Ok(Self {
-            unsigned_tx: src.unsigned_tx.clone(),
+            unsigned_tx,
             unsigned_input_txos,
             payload_txos,
             change_txos,

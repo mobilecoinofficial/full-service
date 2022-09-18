@@ -5,7 +5,7 @@
 use super::amount::Amount as AmountJSON;
 use crate::util::b58::{b58_encode_public_address, B58Error};
 
-use mc_transaction_std::UnsignedTx;
+use protobuf::Message;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -34,7 +34,7 @@ pub struct OutputTxo {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct UnsignedTxProposal {
-    pub unsigned_tx: UnsignedTx,
+    pub unsigned_tx_proto_bytes_hex: String,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,
     pub payload_txos: Vec<OutputTxo>,
     pub change_txos: Vec<OutputTxo>,
@@ -88,8 +88,14 @@ impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for Unsign
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
             .map_err(|_| "Error".to_string())?;
 
+        let unsigned_tx_external: mc_api::external::UnsignedTx = (&src.unsigned_tx).into();
+        let unsigned_tx_proto_bytes = unsigned_tx_external
+            .write_to_bytes()
+            .map_err(|e| e.to_string())?;
+        let unsigned_tx_proto_bytes_hex = hex::encode(unsigned_tx_proto_bytes.as_slice());
+
         Ok(Self {
-            unsigned_tx: src.unsigned_tx.clone(),
+            unsigned_tx_proto_bytes_hex,
             unsigned_input_txos,
             payload_txos,
             change_txos,
