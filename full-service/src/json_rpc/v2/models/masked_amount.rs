@@ -3,7 +3,6 @@
 //! API definition for the Account object.
 
 use mc_crypto_keys::ReprBytes;
-use mc_transaction_core::CompressedCommitment;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -66,31 +65,29 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
                 .map_err(|err| format!("Could not decode hex for amount commitment: {:?}", err))?,
         );
 
+        let commitment = (&commitment_bytes).into();
+        let masked_value = src
+            .masked_value
+            .parse::<u64>()
+            .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?;
+        let masked_token_id = hex::decode(&src.masked_token_id)
+            .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?;
+
         match src.version {
             MaskedAmountVersion::V1 => {
                 let masked_amount = mc_transaction_core::MaskedAmountV1 {
-                    commitment: CompressedCommitment::from(&commitment_bytes),
-                    masked_value: src
-                        .masked_value
-                        .parse::<u64>()
-                        .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
-                    masked_token_id: hex::decode(&src.masked_token_id).map_err(|err| {
-                        format!("Could not decode hex for masked token id: {:?}", err)
-                    })?,
+                    commitment,
+                    masked_value,
+                    masked_token_id,
                 };
 
                 Ok(mc_transaction_core::MaskedAmount::V1(masked_amount))
             }
             MaskedAmountVersion::V2 => {
                 let masked_amount = mc_transaction_core::MaskedAmountV2 {
-                    commitment: CompressedCommitment::from(&commitment_bytes),
-                    masked_value: src
-                        .masked_value
-                        .parse::<u64>()
-                        .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?,
-                    masked_token_id: hex::decode(&src.masked_token_id).map_err(|err| {
-                        format!("Could not decode hex for masked token id: {:?}", err)
-                    })?,
+                    commitment,
+                    masked_value,
+                    masked_token_id,
                 };
 
                 Ok(mc_transaction_core::MaskedAmount::V2(masked_amount))
