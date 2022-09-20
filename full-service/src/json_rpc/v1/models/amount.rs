@@ -40,15 +40,15 @@ pub struct MaskedAmount {
     pub masked_token_id: String,
 
     /// The version of the masked amount.
-    pub version: MaskedAmountVersion,
+    pub version: Option<MaskedAmountVersion>,
 }
 
 impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
     fn from(src: &mc_transaction_core::MaskedAmount) -> Self {
-        let version = match src {
+        let version = Some(match src {
             mc_transaction_core::MaskedAmount::V1(_) => MaskedAmountVersion::V1,
             mc_transaction_core::MaskedAmount::V2(_) => MaskedAmountVersion::V2,
-        };
+        });
 
         Self {
             object: "amount".to_string(),
@@ -79,7 +79,8 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
             .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?;
 
         match src.version {
-            MaskedAmountVersion::V1 => {
+            // If the version is not specified, assume V1.
+            Some(MaskedAmountVersion::V1) | None => {
                 let masked_amount = mc_transaction_core::MaskedAmountV1 {
                     commitment,
                     masked_value,
@@ -88,7 +89,7 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
 
                 Ok(mc_transaction_core::MaskedAmount::V1(masked_amount))
             }
-            MaskedAmountVersion::V2 => {
+            Some(MaskedAmountVersion::V2) => {
                 let masked_amount = mc_transaction_core::MaskedAmountV2 {
                     commitment,
                     masked_value,
