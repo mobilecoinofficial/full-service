@@ -83,7 +83,7 @@ jobs:
       - name: Build FullService
         shell: bash
         run: |
-          python3 tools/build_full_service.py
+          tools/build_full_service.sh
 
       # # test locally (run local_network.py via exec'ing into the container from the terminal)
       # - name: run bash
