@@ -27,7 +27,8 @@ description: Set up your environment to run full service on Mac or Linux.
        --peer mc://node2.test.mobilecoin.com/ \
        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-       --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
+       --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+       --chain-id test
    ```
 
    * If you downloaded MainNet, run:
@@ -41,7 +42,8 @@ description: Set up your environment to run full service on Mac or Linux.
        --peer mc://node2.prod.mobilecoinww.com/ \
        --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
        --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
-       --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
+       --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+       --chain-id test
    ```
 
 {% hint style="info" %}
