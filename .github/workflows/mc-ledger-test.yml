@@ -78,14 +78,14 @@ jobs:
       - name: Build MobileCoin
         shell: bash
         run: |
-          python3 tools/build_mobilecoin.py
+          tools/build_mobilecoin.sh
       
       - name: Build FullService
         shell: bash
         run: |
           python3 tools/build_full_service.py
 
-      # test locally (run local_network.py via exec'ing into the container from the terminal)
+      # # test locally (run local_network.py via exec'ing into the container from the terminal)
       # - name: run bash
       #   shell: bash
       #   run: /bin/bash
