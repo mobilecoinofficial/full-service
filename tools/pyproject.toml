@@ -6,7 +6,7 @@ authors = ["Your Name <you@example.com>"]
 license = "GPLv3"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.10"
 asyncio = "^3.4.3"
 
 [tool.poetry.dev-dependencies]

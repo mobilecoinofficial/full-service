@@ -2,6 +2,7 @@
 
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
+import asyncio 
 import http.client
 import json
 import os
