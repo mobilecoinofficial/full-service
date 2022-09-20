@@ -1,0 +1,18 @@
+version: 2
+updates:
+- package-ecosystem: cargo
+  directory: "/full-service/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 25
+  labels:
+    - "dependencies"
+    - "rust"
+- package-ecosystem: cargo
+  directory: "/validator/"
+  schedule:
+    interval: daily
+  open-pull-requests-limit: 25
+  labels:
+    - "dependencies"
+    - "rust"
