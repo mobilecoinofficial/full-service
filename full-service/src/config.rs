@@ -11,7 +11,7 @@ use mc_common::{
 use mc_connection::{ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_consensus_scp::QuorumSet;
 use mc_fog_report_connection::GrpcFogReportConnection;
-use mc_fog_report_validation::FogResolver;
+use mc_fog_report_resolver::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_sgx_css::Signature;
 use mc_util_parse::parse_duration_in_seconds;
@@ -120,7 +120,8 @@ impl APIConfig {
                 .build(),
         );
 
-        let conn = GrpcFogReportConnection::new(env, logger.clone());
+        let conn =
+            GrpcFogReportConnection::new(self.peers_config.chain_id.clone(), env, logger.clone());
 
         let verifier = self.get_fog_ingest_verifier();
 
@@ -165,6 +166,10 @@ pub struct PeersConfig {
     /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
     #[structopt(long = "tx-source-url", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
     pub tx_source_urls: Option<Vec<String>>,
+
+    /// Chain Id
+    #[structopt(long)]
+    pub chain_id: String,
 }
 
 impl PeersConfig {
@@ -213,6 +218,7 @@ impl PeersConfig {
             .iter()
             .map(|client_uri| {
                 ThickClient::new(
+                    self.chain_id.clone(),
                     client_uri.clone(),
                     verifier.clone(),
                     grpc_env.clone(),

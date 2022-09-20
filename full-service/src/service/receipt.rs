@@ -55,6 +55,9 @@ pub enum ReceiptServiceError {
 
     /// Error decoding from hex: {0}
     HexDecode(hex::FromHexError),
+
+    /// Tx Out Conversion Error: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<WalletDbError> for ReceiptServiceError {
@@ -90,6 +93,12 @@ impl From<mc_crypto_keys::KeyError> for ReceiptServiceError {
 impl From<hex::FromHexError> for ReceiptServiceError {
     fn from(src: hex::FromHexError) -> Self {
         Self::HexDecode(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for ReceiptServiceError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }
 
@@ -144,12 +153,19 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
         let public_key: CompressedRistrettoPublic =
             CompressedRistrettoPublic::try_from(src.get_public_key())?;
         let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
-        let amount = MaskedAmount::try_from(src.get_masked_amount())?;
+
+        let one_of_masked_amount = src
+            .masked_amount
+            .as_ref()
+            .ok_or(ReceiptServiceError::ProtoConversionInfallible)?;
+
+        let masked_amount = MaskedAmount::try_from(one_of_masked_amount)?;
+
         Ok(ReceiverReceipt {
             public_key,
             confirmation,
             tombstone_block: src.get_tombstone_block(),
-            amount,
+            amount: masked_amount,
         })
     }
 }
@@ -252,13 +268,15 @@ where
         let receiver_tx_receipts: Vec<ReceiverReceipt> = tx_proposal
             .payload_txos
             .iter()
-            .map(|output_txo| ReceiverReceipt {
-                public_key: output_txo.tx_out.public_key,
-                tombstone_block: tx_proposal.tx.prefix.tombstone_block,
-                confirmation: output_txo.confirmation_number.clone(),
-                amount: output_txo.tx_out.masked_amount.clone(),
+            .map(|output_txo| {
+                Ok(ReceiverReceipt {
+                    public_key: output_txo.tx_out.public_key,
+                    tombstone_block: tx_proposal.tx.prefix.tombstone_block,
+                    confirmation: output_txo.confirmation_number.clone(),
+                    amount: output_txo.tx_out.get_masked_amount()?.clone(),
+                })
             })
-            .collect::<Vec<ReceiverReceipt>>();
+            .collect::<Result<Vec<ReceiverReceipt>, ReceiptServiceError>>()?;
         Ok(receiver_tx_receipts)
     }
 }
@@ -319,19 +337,26 @@ mod tests {
         proto_confirmation.set_hash(confirmation_number.to_vec());
         proto_tx_receipt.set_confirmation(proto_confirmation);
         let mut proto_commitment = mc_api::external::CompressedRistretto::new();
-        proto_commitment.set_data(txo.masked_amount.commitment.to_bytes().to_vec());
+        proto_commitment.set_data(
+            txo.get_masked_amount()
+                .unwrap()
+                .commitment()
+                .to_bytes()
+                .to_vec(),
+        );
         let mut proto_amount = mc_api::external::MaskedAmount::new();
         proto_amount.set_commitment(proto_commitment);
-        proto_amount.set_masked_value(txo.masked_amount.masked_value);
-        proto_amount.set_masked_token_id(txo.masked_amount.masked_token_id.clone());
-        proto_tx_receipt.set_masked_amount(proto_amount);
+        proto_amount.set_masked_value(*txo.get_masked_amount().unwrap().get_masked_value());
+        proto_amount
+            .set_masked_token_id(txo.get_masked_amount().unwrap().masked_token_id().to_vec());
+        proto_tx_receipt.set_masked_amount_v2(proto_amount);
 
         let tx_receipt =
             ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
         assert_eq!(txo.public_key, tx_receipt.public_key);
         assert_eq!(tombstone, tx_receipt.tombstone_block);
         assert_eq!(confirmation_number, tx_receipt.confirmation);
-        assert_eq!(txo.masked_amount, tx_receipt.amount);
+        assert_eq!(txo.get_masked_amount().unwrap(), &tx_receipt.amount);
     }
 
     #[test_with_logger]
@@ -454,7 +479,7 @@ mod tests {
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let txo: TxOut =
             mc_util_serial::decode(&txos_and_statuses[0].0.txo).expect("Could not decode txo");
-        assert_eq!(receipt.amount, txo.masked_amount);
+        assert_eq!(&receipt.amount, txo.get_masked_amount().unwrap());
         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
     }
 
@@ -670,6 +695,7 @@ mod tests {
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
         receipt0.amount = MaskedAmount::new(
+            BlockVersion::MAX,
             Amount::new(18 * MOB, Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )
@@ -690,8 +716,12 @@ mod tests {
             .expect("Could not get ristretto public from compressed");
         let shared_secret =
             get_tx_out_shared_secret(bob_account_key.view_private_key(), &public_key);
-        receipt0.amount = MaskedAmount::new(Amount::new(18 * MOB, Mob::ID), &shared_secret)
-            .expect("Could not create Amount");
+        receipt0.amount = MaskedAmount::new(
+            BlockVersion::MAX,
+            Amount::new(18 * MOB, Mob::ID),
+            &shared_secret,
+        )
+        .expect("Could not create Amount");
         let (status, _txo) = service
             .check_receipt_status(&bob_address, &receipt0)
             .expect("Could not check status of receipt");

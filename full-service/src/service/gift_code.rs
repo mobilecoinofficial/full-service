@@ -159,6 +159,9 @@ pub enum GiftCodeServiceError {
 
     /// Wallet Transaction Builder Error: {0}
     WalletTransactionBuilder(WalletTransactionBuilderError),
+
+    /// Tx Out Conversion Error: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -260,6 +263,12 @@ impl From<mc_transaction_core::AmountError> for GiftCodeServiceError {
 impl From<WalletTransactionBuilderError> for GiftCodeServiceError {
     fn from(src: WalletTransactionBuilderError) -> Self {
         Self::WalletTransactionBuilder(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }
 
@@ -562,7 +571,7 @@ where
             &RistrettoPublic::try_from(&gift_txo.public_key)?,
         );
 
-        let (value, _blinding) = gift_txo.masked_amount.get_value(&shared_secret)?;
+        let (value, _blinding) = gift_txo.get_masked_amount()?.get_value(&shared_secret)?;
 
         // Check if the Gift Code has been spent - by convention gift codes are always
         // to the main subaddress index and gift accounts should NEVER have MOB stored
@@ -861,7 +870,11 @@ mod tests {
             gift_code_account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
-        let (value, _blinding) = tx_out.masked_amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = tx_out
+            .get_masked_amount()
+            .unwrap()
+            .get_value(&shared_secret)
+            .unwrap();
         assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value

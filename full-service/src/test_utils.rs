@@ -427,6 +427,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
         .iter()
         .map(|client_uri| {
             ThickClient::new(
+                "local".to_string(),
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),

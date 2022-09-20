@@ -1069,7 +1069,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details0.value as u64, 7 * MOB);
+        assert_eq!(input_details0.value, associated_txos.inputs[0].value);
 
         assert_eq!(
             input_details0
@@ -1084,7 +1084,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(input_details1.value as u64, 8 * MOB);
+        assert_eq!(input_details1.value, associated_txos.inputs[1].value);
 
         assert_eq!(
             input_details1
@@ -1093,6 +1093,11 @@ mod tests {
             TxoStatus::Pending
         );
         assert_eq!(input_details1.subaddress_index, Some(0));
+
+        assert_eq!(
+            input_details0.value as u64 + input_details1.value as u64,
+            15 * MOB
+        );
 
         // There is one associated output TXO to this transaction, and its recipient
         // is our own address

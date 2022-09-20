@@ -301,10 +301,10 @@ pub enum WalletTransactionBuilderError {
     /// Error with the b58 util: {0}
     B58(B58Error),
 
-    /// Error passed up from AmountError
+    /// Error passed up from AmountError: {0}
     AmountError(mc_transaction_core::AmountError),
 
-    /// Error passed up from KeyError
+    /// Error passed up from KeyError: {0}
     KeyError(mc_crypto_keys::KeyError),
 
     /// Transaction is missing inputs for outputs with token id {0}
@@ -313,8 +313,11 @@ pub enum WalletTransactionBuilderError {
     /// Error decoding the hex string: {0}
     FromHexError(hex::FromHexError),
 
-    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long.
+    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long: {0}
     InvalidBurnRedemptionMemo(String),
+
+    /// Error converting a TxOut: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
@@ -374,5 +377,11 @@ impl From<B58Error> for WalletTransactionBuilderError {
 impl From<hex::FromHexError> for WalletTransactionBuilderError {
     fn from(src: hex::FromHexError) -> Self {
         Self::FromHexError(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for WalletTransactionBuilderError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }
