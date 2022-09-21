@@ -3,8 +3,5 @@
   "extends": [
     "config:base"
   ],
-  "cloneSubmodules": true,
-  "git-submodules": {
-    "enabled": true
-  }
+  "cloneSubmodules": true
 }
