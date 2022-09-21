@@ -3,6 +3,7 @@
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
 import asyncio
+from unittest import result
 from urllib import request 
 import aiohttp
 import http.client
@@ -50,8 +51,15 @@ class FullService:
             if exc.returncode != 1:
                 raise
 
+    async def _req(self, method: str, **params: Any) -> dict:
+        logging.info("request: %s", method)
+        response_data = await self.request({"method": method, "params": params})
+        if "error" in result:
+            logging.error(result)
+        return result
+
     # return the result field of the request
-    def _request(self, request_data):
+    async def request(self, request_data):
         self.request_count += 1
         print('sending request to full service')
         url = 'http://127.0.0.1:9090/wallet'
@@ -77,10 +85,7 @@ class FullService:
 
         # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
         time.sleep(2)
-        if 'error' in response_data:
-            return response_data['error']
-        else:
-            return response_data['result']
+        return response_data
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
@@ -88,7 +93,7 @@ class FullService:
             'mnemonic': mnemonic,
             'key_derivation_version': '2',
         }
-        r = self._request({
+        r = self.request({
             "method": "import_account",
             "params": params
         })
@@ -102,7 +107,7 @@ class FullService:
     def sync_status(self, eps=5) -> bool:
         # ping network
         try:
-            r = self._request({
+            r = self.request({
                 "method": "get_network_status"
             })
         except ConnectionError as e:
@@ -122,14 +127,14 @@ class FullService:
 
     # retrieve wallet status
     def get_wallet_status(self):
-        r = self._request({
+        r = self.request({
             "method": "get_wallet_status"
         })
         return r['wallet_status']
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self._request({"method": "get_all_accounts"})
+        r = self.request({"method": "get_all_accounts"})
         print(r)
         return (r['account_ids'], r['account_map'])
 
@@ -138,7 +143,7 @@ class FullService:
         params = {
             "account_id": account_id
         }
-        r = self._request({
+        r = self.request({
             "method": "get_account_status",
             "params": params
         })
@@ -150,7 +155,7 @@ class FullService:
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)]
         }
-        r = self._request({
+        r = self.request({
             "method": "build_and_submit_transaction",
             "params": params,
         })
