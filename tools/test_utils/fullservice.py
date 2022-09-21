@@ -15,6 +15,7 @@ import time
 import logging
 
 from . import constants
+import forest_utils as utils
 from typing import Tuple
 from urllib.parse import urlparse
 
