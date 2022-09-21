@@ -91,15 +91,10 @@ jobs:
       #   run: /bin/bash
       
       # programmatically run the script:
-      - name: Setup Python env using Poetry
+      - name: Install Python 3.10, Setup Env Using Poetry
         shell: bash
-        steps:
-          - uses: actions/checkout@v3
-          - uses: actions/setup-python@v4
-            with:
-              python-version: '3.10' 
         run: | 
-          curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
+          sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt-get update && sudo apt-get install python3.10 && curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
 
       - name: Run Integration
         shell: bash
