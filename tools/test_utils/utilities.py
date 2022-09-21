@@ -7,10 +7,18 @@ import forest_utils as utils
 def main():
     parser = argparse.ArgumentParser(description='Misc utils')
     parser.add_argument('--start', help='Start full service', action='store_true')
+    parser.add_argument('--get-test-accounts', help='Get test accounts', action='store_true')
+    parser.add_argument('--parse-network-type', help='Parse network type command line args', action='store_true')
     args = parser.parse_args()
     if args.start:
         print('starting full service')
         asyncio.run(start(self=None))
+    elif args.get_test_accounts:
+        print('getting test accounts')
+        get_test_accounts(self=None)
+    elif args.parse_network_type:
+        print('parsing network type command line args')
+        parse_network_type_cmd_line_args(self=None)
 
 async def start(self):    
     #self.wallet_path.mkdir(parents=True, exists_ok=True)
