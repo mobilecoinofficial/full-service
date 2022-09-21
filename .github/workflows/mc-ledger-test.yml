@@ -94,7 +94,7 @@ jobs:
       - name: Install Python 3.10, Setup Env Using Poetry
         shell: bash
         run: | 
-          sudo add-apt-repository ppa:deadsnakes/ppa && sudo apt-get update && sudo apt-get install python3.10 && curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
+          curl https://pyenv.run | bash && exec $SHELL && pyenv install 3.10.6 && curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
 
       - name: Run Integration
         shell: bash
