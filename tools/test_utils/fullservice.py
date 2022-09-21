@@ -2,7 +2,9 @@
 
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
-import asyncio 
+import asyncio
+from urllib import request 
+import aiohttp
 import http.client
 import json
 import os
@@ -10,6 +12,7 @@ import pathlib
 import shutil
 import subprocess
 import time
+import logging
 
 from . import constants
 from typing import Tuple
@@ -28,6 +31,7 @@ class FullService:
         self.start()
         return self
     
+    #this is test specific, to be moved 
     def __exit__(self,exc_type, exc_val, exc_tb):
         self.stop()
         if self.remove_wallet_and_ledger:
@@ -54,9 +58,8 @@ class FullService:
             "jsonrpc": "2.0",
             "api_version": "2",
             "id": self.request_count,
+            **request_data
         }
-        request_data = {**request_data, **default_params}
-
         print(f'request data: {request_data}')
 
         parsed_url = urlparse(url)
