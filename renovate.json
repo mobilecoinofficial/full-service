@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:base"
-  ]
+  ],
+  "cargo": {
+    "commitMessageTopic": "Rust crate {{depName}}",
+    "fileMatch": [
+      "Cargo.toml"
+    ],
+    "versioning": "cargo",
+    "rangeStrategy": "bump"
+  }
 }
