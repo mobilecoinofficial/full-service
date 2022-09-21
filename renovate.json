@@ -3,5 +3,8 @@
   "extends": [
     "config:base"
   ],
+  "baseBranches": [
+    "feature/renovate"
+  ],
   "cloneSubmodules": true
 }
