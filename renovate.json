@@ -11,10 +11,6 @@
   ],
   "cloneSubmodules": true,
   "git-submodules": {
-    "enabled": true,
-    "versioning": "git",
-    "fileMatch": [
-      "(^|/)\\.gitmodules$"
-    ]
+    "enabled": true
   }
 }
