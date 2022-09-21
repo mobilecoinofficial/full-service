@@ -99,15 +99,20 @@ jobs:
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
 
+      - name: Setup Python env using Poetry
+        shell: bash
+        run: | 
+          curl -sSL https://install.python-poetry.org | python3 - && cd tools && poetry install 
+
       - name: Build MobileCoin
         shell: bash
         run: |
-          python3 tools/build_mobilecoin.py
+          poetry run python3 tools/build_mobilecoin.py
       
       - name: Build FullService
         shell: bash
         run: |
-          python3 tools/build_full_service.py
+          poetry run python3 tools/build_full_service.py
 
       # test locally (run local_network.py via exec'ing into the container from the terminal)
       # - name: run bash
@@ -118,4 +123,4 @@ jobs:
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/mc_ledger_test.py --network-type a-b-c
+          poetry run python3 tools/mc_ledger_test.py --network-type a-b-c
