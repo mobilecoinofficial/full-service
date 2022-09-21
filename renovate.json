@@ -6,7 +6,7 @@
   "cargo": {
     "commitMessageTopic": "Rust crate {{depName}}",
     "fileMatch": [
-      "Cargo.toml"
+      "(^|/)Cargo\\.toml$"
     ],
     "versioning": "cargo",
     "rangeStrategy": "bump"
