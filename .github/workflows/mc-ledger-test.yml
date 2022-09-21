@@ -93,6 +93,11 @@ jobs:
       # programmatically run the script:
       - name: Setup Python env using Poetry
         shell: bash
+        steps:
+          - uses: actions/checkout@v3
+          - uses: actions/setup-python@v4
+            with:
+              python-version: '3.10' 
         run: | 
           curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
 
