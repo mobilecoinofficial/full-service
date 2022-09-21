@@ -3,12 +3,14 @@
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
 
+
 #todo: organize imports
 
 import asyncio
 from unittest import result
 from urllib import request
 import aiohttp
+
 import http.client
 import json
 import os
@@ -16,6 +18,7 @@ import pathlib
 import shutil
 import subprocess
 import time
+
 import logging
 import ssl 
 import base64
@@ -52,13 +55,16 @@ class FullService:
         self.account_ids = None
         self.request_count = 0
         self.remove_wallet_and_ledger = remove_wallet_and_ledger
+
         if not url:
             url = (
                 utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
             ).removesuffix("/wallet") + "/wallet"
         logging.info("full-service url: %s", url)
         self.url = url
-        
+        self.wallet_path = pathlib.Path('/tmp/wallet-db')
+        self.ledger_path = pathlib.Path('/tmp/ledger-db')
+
         
     def __enter__(self):
         self.remove_wallet_and_ledger = True
@@ -74,7 +80,7 @@ class FullService:
                 shutil.rmtree(self.wallet_path)
                 shutil.rmtree(self.ledger_path)
             except Exception as e:
-                print(e) 
+                print(e)
 
     def stop(self):
         try:
@@ -106,6 +112,7 @@ class FullService:
                 ) as resp:
                     print(resp.json)
                     return await resp.json()
+
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
