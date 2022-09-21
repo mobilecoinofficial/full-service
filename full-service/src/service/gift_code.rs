@@ -441,7 +441,7 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let (unsigned_tx, fog_resolver) = self.build_transaction(
+        let signing_data = self.build_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
@@ -459,7 +459,7 @@ where
         )?;
 
         let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
-        let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver)?;
+        let tx_proposal = signing_data.sign(&account_key)?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);

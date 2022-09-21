@@ -62,6 +62,9 @@ pub enum TxoServiceError {
 
     /// From String Error: {0}
     From(String),
+
+    /// TxBuilderError: {0}
+    TxBuilder(mc_transaction_std::TxBuilderError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -109,6 +112,12 @@ impl From<mc_crypto_keys::KeyError> for TxoServiceError {
 impl From<String> for TxoServiceError {
     fn from(src: String) -> Self {
         Self::From(src)
+    }
+}
+
+impl From<mc_transaction_std::TxBuilderError> for TxoServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
     }
 }
 
@@ -252,7 +261,7 @@ where
             ))
         }
 
-        let (unsigned_tx, fog_resolver) = self.build_transaction(
+        let unsigned_transaction = self.build_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -265,8 +274,7 @@ where
 
         let account = Account::get(&AccountID(account_id_hex), &conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-
-        Ok(unsigned_tx.sign(&account_key, fog_resolver)?)
+        Ok(unsigned_transaction.sign(&account_key)?)
     }
 }
 

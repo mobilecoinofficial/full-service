@@ -2177,9 +2177,8 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&sender_account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&sender_account_key).unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

@@ -9,10 +9,6 @@ build = "build.rs"
 name = "full-service"
 path = "src/bin/main.rs"
 
-[[bin]]
-name = "transaction-signer"
-path = "src/bin/transaction-signer.rs"
-
 [dependencies]
 mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }
@@ -59,6 +55,7 @@ dotenv = "0.15.0"
 grpcio = "0.10.3"
 hex = {version = "0.4", default-features = false }
 num_cpus = "1.12"
+protobuf = "2.27.1"
 rand = { version = "0.8", default-features = false }
 rayon = "1.5"
 reqwest = { version = "0.11.10", default-features = false, features = ["rustls-tls", "gzip"] }
