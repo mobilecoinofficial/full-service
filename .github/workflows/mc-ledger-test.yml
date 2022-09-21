@@ -4,7 +4,6 @@ env:
   SGX_MODE: SW
   IAS_MODE: DEV
   RUST_BACKTRACE: full
-  MC_SEED: a4aa76e4a5ca70c8447dd544a63f180b5a6fe0aff96495802506354c10f2886e
   IAS_API_KEY: ${{ secrets.SGX_PRIMARY_API_KEY }}
   IAS_SPID: ${{ secrets.SGX_SPID }}
 
@@ -66,29 +65,6 @@ jobs:
       # e.g. {{url}}:{{tag}} to prevent build failures
       image: mobilecoin/builder-install:v0.0.10
     steps:
-#      - name: Test
-#        run: echo "Testing upgrade from ${{ github.event.inputs.version_a_ref }} to ${{ github.event.inputs.version_b_ref }}"
-
-#      - name: Checkout version A
-#        uses: actions/checkout@v3
-#        with:
-#          fetch-depth: 0
-#          ref: '${{ github.event.inputs.version_a_ref }}'
-#          submodules: recursive
-#      
-#      - name: OG state of docs/SUMMARY.md
-#        run: cat docs/SUMMARY.md
-#
-#
-#      - name: Checkout version B
-#        uses: actions/checkout@v3
-#        with:
-#          ref: '${{ github.event.inputs.version_a_ref }}'
-#          submodules: recursive
-#      
-#      - name: Version b's state of docs/SUMMARY.md
-#        run: cat docs/SUMMARY.md
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -99,28 +75,28 @@ jobs:
         run: |
           mobilecoin/tools/local-network/bootstrap.sh
 
-      - name: Setup Python env using Poetry
-        shell: bash
-        run: | 
-          curl -sSL https://install.python-poetry.org | python3 - && cd tools && poetry install 
-
       - name: Build MobileCoin
         shell: bash
         run: |
-          poetry run python3 tools/build_mobilecoin.py
+          tools/build_mobilecoin.sh
       
       - name: Build FullService
         shell: bash
         run: |
-          poetry run python3 tools/build_full_service.py
+          tools/build_full_service.sh
 
-      # test locally (run local_network.py via exec'ing into the container from the terminal)
+      # # test locally (run local_network.py via exec'ing into the container from the terminal)
       # - name: run bash
       #   shell: bash
       #   run: /bin/bash
       
       # programmatically run the script:
+      - name: Setup Python env using Poetry
+        shell: bash
+        run: | 
+          curl -sSL https://install.python-poetry.org | python3 - && cd tools && poetry install 
+
       - name: Run Integration
         shell: bash
         run: |
-          poetry run python3 tools/mc_ledger_test.py --network-type a-b-c
+          python3 tools/mc_ledger_test.py --network-type a-b-c
