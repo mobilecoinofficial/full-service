@@ -99,4 +99,4 @@ jobs:
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/mc_ledger_test.py --network-type a-b-c
+          poetry run python3 tools/mc_ledger_test.py --network-type a-b-c
