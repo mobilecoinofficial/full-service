@@ -94,7 +94,7 @@ jobs:
       - name: Setup Python env using Poetry
         shell: bash
         run: | 
-          curl -sSL https://install.python-poetry.org | python3 - && cd tools && poetry install 
+          curl -sSL https://install.python-poetry.org | python3 - && cd tools && poetry install && export PATH="/root/.local/bin:$PATH"
 
       - name: Run Integration
         shell: bash
