@@ -3,12 +3,5 @@
   "extends": [
     "config:base"
   ],
-  "cargo": {
-    "commitMessageTopic": "Rust crate {{depName}}",
-    "fileMatch": [
-      "Cargo.toml"
-    ],
-    "versioning": "cargo",
-    "rangeStrategy": "bump"
-  }
+  "cloneSubmodules": true
 }
