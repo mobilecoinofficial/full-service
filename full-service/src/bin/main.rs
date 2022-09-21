@@ -9,7 +9,7 @@ use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
-use mc_fog_report_validation::FogResolver;
+use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
     config::APIConfig,

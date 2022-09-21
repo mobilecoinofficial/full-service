@@ -2,33 +2,33 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
 use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
-    fog_resolver::FullServiceFogResolver,
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         v2::{
             api::request::JsonCommandRequest,
             models::{
-                account_key::AccountKey as AccountKeyJSON, account_secrets::AccountSecrets,
-                tx_proposal::TxProposal as TxProposalJSON,
+                account_key::AccountKey as AccountKeyJSON,
+                account_secrets::AccountSecrets,
+                tx_proposal::{
+                    TxProposal as TxProposalJSON, UnsignedTxProposal as UnsignedTxProposalJSON,
+                },
             },
         },
     },
-    unsigned_tx::UnsignedTx,
+    service::models::tx_proposal::UnsignedTxProposal,
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
-use std::{convert::TryFrom, fs};
-use structopt::StructOpt;
-
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-
 use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
     tx::TxOut,
 };
+use std::{convert::TryFrom, fs};
+use structopt::StructOpt;
 
 #[derive(Clone, Debug, StructOpt)]
 #[structopt(
@@ -230,31 +230,30 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
     let account_secrets: AccountSecrets = serde_json::from_str(&mnemonic_json).unwrap();
     let account_key = account_key_from_mnemonic_phrase(&account_secrets.mnemonic.unwrap());
 
-    // Load input txos.
+    // let signer = LocalRingSigner::from(&account_key);
+    // let mut rng = rand::thread_rng();
+
+    // // Load input txos.
     let request_data =
         fs::read_to_string(sign_request).expect("Could not open generate signing request file.");
-    let request_json: serde_json::Value =
-        serde_json::from_str(&request_data).expect("Malformed generate signing request.");
+    let request_json: serde_json::Value = serde_json::from_str(&request_data).expect(
+        "Malformed generate signing
+    request.",
+    );
     let account_id = request_json.get("account_id").unwrap().as_str().unwrap();
     assert_eq!(account_secrets.account_id, account_id);
 
-    let unsigned_tx: UnsignedTx = serde_json::from_value(
+    let unsigned_tx_proposal_json: UnsignedTxProposalJSON = serde_json::from_value(
         request_json
-            .get("unsigned_tx")
-            .expect("Could not find \"unsigned_tx\".")
+            .get("unsigned_tx_proposal")
+            .expect("Could not find \"unsigned_tx_proposal\".")
             .clone(),
     )
     .unwrap();
 
-    let fog_resolver: FullServiceFogResolver = serde_json::from_value(
-        request_json
-            .get("fog_resolver")
-            .expect("Could not find \"fog_resolver\".")
-            .clone(),
-    )
-    .unwrap();
+    let unsigned_tx_proposal: UnsignedTxProposal = unsigned_tx_proposal_json.try_into().unwrap();
 
-    let tx_proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
     let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,
@@ -352,7 +351,11 @@ fn tx_out_belongs_to_account(tx_out: &TxOut, account_view_private_key: &Ristrett
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(account_view_private_key, &tx_out_public_key);
-    tx_out.masked_amount.get_value(&shared_secret).is_ok()
+    tx_out
+        .get_masked_amount()
+        .unwrap()
+        .get_value(&shared_secret)
+        .is_ok()
 }
 
 fn generate_subaddress_spend_public_keys(

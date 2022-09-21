@@ -8,10 +8,8 @@ pub mod check_host;
 pub mod config;
 pub mod db;
 mod error;
-pub mod fog_resolver;
 pub mod json_rpc;
 pub mod service;
-pub mod unsigned_tx;
 pub mod util;
 mod validator_ledger_sync;
 

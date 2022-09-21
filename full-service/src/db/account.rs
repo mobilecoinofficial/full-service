@@ -201,6 +201,12 @@ pub trait AccountModel {
     /// Get the next sequentially unassigned subaddress index for the account
     /// (reserved addresses are not included)
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -573,6 +579,29 @@ impl AccountModel for Account {
             .first(conn)?;
 
         Ok(highest_subaddress_index as u64 + 1)
+    }
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+        if self.view_only {
+            return Ok(None);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        Ok(Some(account_key))
+    }
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
+        if self.view_only {
+            return Ok(mc_util_serial::decode(&self.account_key)?);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        let view_account_key = ViewAccountKey::from(&account_key);
+        Ok(view_account_key)
+    }
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
+        Ok(*self.view_account_key()?.view_private_key())
     }
 }
 

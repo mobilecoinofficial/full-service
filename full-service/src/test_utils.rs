@@ -427,6 +427,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
         .iter()
         .map(|client_uri| {
             ThickClient::new(
+                "local".to_string(),
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),
@@ -530,9 +531,8 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-    let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-    let tx_proposal = unsigned_tx.sign(&src_account_key, fog_resolver).unwrap();
+    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);

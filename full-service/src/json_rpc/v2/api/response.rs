@@ -18,7 +18,7 @@ use crate::{
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
             transaction_log::{TransactionLog, TransactionLogMap},
-            tx_proposal::TxProposal,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::{Txo, TxoMap},
             wallet_status::WalletStatus,
         },
@@ -30,7 +30,6 @@ use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProo
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 /// Responses from the Full Service Wallet.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
@@ -54,13 +53,11 @@ pub enum JsonCommandResponse {
     },
     build_unsigned_burn_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
-        fog_resolver: FullServiceFogResolver,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     build_unsigned_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
-        fog_resolver: FullServiceFogResolver,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     check_b58_type {
         b58_type: PrintableWrapperType,

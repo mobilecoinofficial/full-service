@@ -17,26 +17,29 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
-    fog_resolver::{FullServiceFogResolver, FullServiceFullyValidatedFogPubkey},
     service::transaction::TransactionMemo,
-    unsigned_tx::UnsignedTx,
-    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::PublicAddress;
-use mc_common::{HashMap, HashSet};
+use mc_common::HashSet;
+use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::RING_SIZE,
     tokens::Mob,
-    tx::{TxIn, TxOut, TxOutMembershipProof},
-    BlockVersion, Token, TokenId,
+    tx::{TxOut, TxOutMembershipProof},
+    Amount, BlockVersion, Token, TokenId,
 };
 
+use mc_transaction_std::{
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+};
 use mc_util_uri::FogUri;
 
-use rand::Rng;
+use rand::{rngs::ThreadRng, Rng};
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+
+use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -216,10 +219,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    pub fn get_fs_fog_resolver(
-        &self,
-        conn: &Conn,
-    ) -> Result<FullServiceFogResolver, WalletTransactionBuilderError> {
+    pub fn get_fog_resolver(&self, conn: &Conn) -> Result<FPR, WalletTransactionBuilderError> {
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
         let change_subaddress = account.change_subaddress(conn)?;
         let change_public_address = change_subaddress.public_address()?;
@@ -234,31 +234,36 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 .map_err(WalletTransactionBuilderError::FogPubkeyResolver)?
         };
 
-        let mut fully_validated_fog_pubkeys: HashMap<String, FullServiceFullyValidatedFogPubkey> =
-            HashMap::default();
-        for (public_address, _, _) in self.outlays.iter() {
-            let b58_public_address = b58_encode_public_address(public_address)?;
-            if fully_validated_fog_pubkeys.contains_key(&b58_public_address) {
-                continue;
-            }
-            let fog_pubkey = match fog_resolver.get_fog_pubkey(public_address) {
-                Ok(fog_pubkey) => Some(fog_pubkey),
-                Err(_) => None,
-            };
-
-            if let Some(fog_pubkey) = fog_pubkey {
-                let fs_fog_pubkey = FullServiceFullyValidatedFogPubkey::from(fog_pubkey);
-                fully_validated_fog_pubkeys.insert(b58_public_address, fs_fog_pubkey);
-            }
-        }
-
-        Ok(FullServiceFogResolver(fully_validated_fog_pubkeys))
+        Ok(fog_resolver)
     }
 
     pub fn build(
         &self,
         memo: TransactionMemo,
-    ) -> Result<UnsignedTx, WalletTransactionBuilderError> {
+        conn: &Conn,
+    ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
+        let mut rng = rand::thread_rng();
+        let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+
+        let view_account_key = account.view_account_key()?;
+        let view_private_key = account.view_private_key()?;
+        let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+
+        let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
+        let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
+        let fee_amount = Amount::new(fee, fee_token_id);
+        let fog_resolver = self.get_fog_resolver(conn)?;
+        let memo_builder = memo.memo_builder(account.account_key()?)?;
+
+        let mut transaction_builder = TransactionBuilder::new_with_box(
+            block_version,
+            fee_amount,
+            fog_resolver,
+            memo_builder,
+        )?;
+
+        transaction_builder.set_tombstone_block(self.tombstone);
+
         if self.tombstone == 0 {
             return Err(WalletTransactionBuilderError::TombstoneNotSet);
         }
@@ -311,10 +316,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .map(|tuples| tuples.into_iter().unzip())
             .collect();
 
-        let mut inputs_and_real_indices_and_subaddress_indices: Vec<(TxIn, u64, u64)> = Vec::new();
-
+        let mut unsigned_input_txos = Vec::new();
         for (utxo, proof) in inputs_and_proofs.iter() {
+            let subaddress_index = utxo.subaddress_index.ok_or_else(|| {
+                WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone())
+            })?;
+
             let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+
             let (mut ring, mut membership_proofs) = rings_and_proofs
                 .pop()
                 .ok_or(WalletTransactionBuilderError::RingsAndProofsEmpty)?;
@@ -352,32 +361,47 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 return Err(WalletTransactionBuilderError::RingSizeMismatch);
             }
 
-            let tx_in = TxIn {
-                ring,
-                proofs: membership_proofs,
-                input_rules: None,
+            let onetime_key_derive_data =
+                OneTimeKeyDeriveData::SubaddressIndex(subaddress_index as u64);
+
+            let unsigned_input_txo = UnsignedInputTxo {
+                tx_out: db_tx_out,
+                subaddress_index: subaddress_index as u64,
+                amount: Amount::new(utxo.value as u64, TokenId::from(utxo.token_id as u64)),
             };
+            unsigned_input_txos.push(unsigned_input_txo);
 
-            inputs_and_real_indices_and_subaddress_indices.push((
-                tx_in,
-                real_index as u64,
-                utxo.subaddress_index.unwrap() as u64,
-            ));
+            let input_credentials = InputCredentials::new(
+                ring,
+                membership_proofs,
+                real_index,
+                onetime_key_derive_data,
+                view_private_key,
+            )?;
+
+            transaction_builder.add_input(input_credentials);
         }
-
-        let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
 
         let mut total_value_per_token = BTreeMap::new();
         total_value_per_token.insert(fee_token_id, fee);
 
-        let mut outlays_string = Vec::new();
+        let mut payload_txos = Vec::new();
         for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
-            let b58_address = b58_encode_public_address(&receiver)?;
-            outlays_string.push((b58_address, amount, *token_id));
             total_value_per_token
                 .entry(token_id)
                 .and_modify(|value| *value += amount)
                 .or_insert(amount);
+
+            let amount = Amount::new(amount, token_id);
+            let tx_out_context = transaction_builder.add_output(amount, &receiver, &mut rng)?;
+
+            let payload_txo = OutputTxo {
+                tx_out: tx_out_context.tx_out,
+                recipient_public_address: receiver,
+                confirmation_number: tx_out_context.confirmation,
+                amount,
+            };
+            payload_txos.push(payload_txo);
         }
 
         let input_value_per_token =
@@ -390,12 +414,13 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     acc
                 });
 
-        for (token_id, total_value) in total_value_per_token.iter() {
-            let input_value = input_value_per_token.get(token_id).ok_or_else(|| {
+        let mut change_txos = Vec::new();
+        for (token_id, input_value) in input_value_per_token {
+            let total_value = total_value_per_token.get(&token_id).ok_or_else(|| {
                 WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
             })?;
 
-            if total_value > input_value {
+            if *total_value > input_value {
                 return Err(WalletTransactionBuilderError::InsufficientInputFunds(format!(
                     "Total value required to send transaction {:?}, but only {:?} in inputs for token_id {:?}",
                     total_value,
@@ -403,16 +428,32 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     token_id.to_string(),
                 )));
             }
+
+            let change_value = input_value - *total_value;
+            let change_amount = Amount::new(change_value, token_id);
+            let tx_out_context = transaction_builder.add_change_output(
+                change_amount,
+                &reserved_subaddresses,
+                &mut rng,
+            )?;
+
+            let change_txo = OutputTxo {
+                tx_out: tx_out_context.tx_out,
+                recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
+                confirmation_number: tx_out_context.confirmation,
+                amount: change_amount,
+            };
+            change_txos.push(change_txo);
         }
 
-        Ok(UnsignedTx {
-            inputs_and_real_indices_and_subaddress_indices,
-            outlays: outlays_string,
-            fee,
-            fee_token_id: *fee_token_id,
-            tombstone_block_index: self.tombstone,
-            block_version: self.block_version.unwrap_or(BlockVersion::MAX),
-            memo,
+        let unsigned_tx =
+            transaction_builder.build_unsigned::<ThreadRng, DefaultTxOutputsOrdering>()?;
+
+        Ok(UnsignedTxProposal {
+            unsigned_tx,
+            unsigned_input_txos,
+            payload_txos,
+            change_txos,
         })
     }
 
@@ -537,9 +578,8 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, value);
@@ -648,7 +688,7 @@ mod tests {
 
         builder.set_txos(&conn, &vec![txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(TransactionMemo::RTH) {
+        match builder.build(TransactionMemo::RTH, &conn) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -669,9 +709,8 @@ mod tests {
             .set_txos(&conn, &vec![txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(
@@ -734,9 +773,8 @@ mod tests {
         // pick up both 70 and 80
         builder.select_txos(&conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
@@ -779,7 +817,7 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(TransactionMemo::RTH) {
+        match builder.build(TransactionMemo::RTH, &conn) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -798,9 +836,8 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
@@ -817,9 +854,8 @@ mod tests {
 
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
@@ -855,9 +891,8 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -876,9 +911,8 @@ mod tests {
         }
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -906,9 +940,8 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
@@ -946,9 +979,9 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
@@ -1000,10 +1033,9 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
-        // Verify that not setting fee results in default fee
-        let fog_resolver = builder.get_fs_fog_resolver(&conn).unwrap();
-        let unsigned_tx = builder.build(TransactionMemo::RTH).unwrap();
-        let proposal = unsigned_tx.sign(&account_key, fog_resolver).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);

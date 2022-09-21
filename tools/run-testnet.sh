@@ -20,4 +20,4 @@ ${WORK_DIR}/full-service \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
     --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
     --fog-ingest-enclave-css ${WORK_DIR}/ingest-enclave.css \
-    --import-uri http://localhost:9091
+    --chain-id ""
