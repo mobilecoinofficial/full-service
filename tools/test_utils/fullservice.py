@@ -4,7 +4,7 @@
 #   can also use it as a library (or maybe tests will use the CLI's library)
 import asyncio
 from unittest import result
-from urllib import request 
+from urllib import request
 import aiohttp
 import http.client
 import json
@@ -14,19 +14,48 @@ import shutil
 import subprocess
 import time
 import logging
+import ssl 
+import base64
 
+from typing import Any, Optional
 from . import constants
 import forest_utils as utils
 from typing import Tuple
 from urllib.parse import urlparse
 
+if not utils.get_secret("ROOTCRT"):
+    ssl_context: Optional[ssl.SSLContext] = None
+else:
+    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    root = open("rootcrt.pem", "wb")
+    root.write(base64.b64decode(utils.get_secret("ROOTCRT")))
+    root.flush()
+    client = open("client.full.pem", "wb")
+    client.write(base64.b64decode(utils.get_secret("CLIENTCRT")))
+    client.flush()
+
+    ssl_context.load_verify_locations("rootcrt.pem")
+    ssl_context.verify_mode = ssl.CERT_REQUIRED
+    ssl_context.load_cert_chain(certfile="client.full.pem")
+
 class FullService:
+
+    default_url = ()
+
     def __init__(self, remove_wallet_and_ledger=False):
+        super().__init__()
         self.full_service_process = None
         self.account_map = None
         self.account_ids = None
         self.request_count = 0
         self.remove_wallet_and_ledger = remove_wallet_and_ledger
+        if not url:
+            url = (
+                utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
+            ).removesuffix("/wallet") + "/wallet"
+        logging.info("full-service url: %s", url)
+        self.url = url
+        
         
     def __enter__(self):
         self.remove_wallet_and_ledger = True
@@ -61,31 +90,17 @@ class FullService:
     # return the result field of the request
     async def request(self, request_data):
         self.request_count += 1
-        print('sending request to full service')
-        url = 'http://127.0.0.1:9090/wallet'
-        default_params = {
-            "jsonrpc": "2.0",
-            "api_version": "2",
-            "id": self.request_count,
-            **request_data
-        }
+        request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
         print(f'request data: {request_data}')
-
-        parsed_url = urlparse(url)
-        connection = http.client.HTTPConnection(parsed_url.netloc)
-        connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
-        r = connection.getresponse()
-
-        try:
-            raw_response = r.read()
-            response_data = json.loads(raw_response)
-            print(f'request returned {response_data}')
-        except ValueError:
-            raise ValueError('API returned invalid JSON:', raw_response)
-
-        # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
-        time.sleep(2)
-        return response_data
+        async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
+            async with aiohttp.ClientSession(connector=conn) as sess:
+                # this can hang (forever?) if there's no full-service at that url
+                async with sess.post(
+                    self.url,
+                    data=json.dumps(request_data),
+                    headers={"Content-Type": "application/json"},
+                ) as resp:
+                    return await resp.json()
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
