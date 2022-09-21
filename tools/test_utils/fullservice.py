@@ -100,6 +100,7 @@ class FullService:
                     data=json.dumps(request_data),
                     headers={"Content-Type": "application/json"},
                 ) as resp:
+                    print(resp.json)
                     return await resp.json()
 
     def import_account(self, mnemonic) -> bool:
