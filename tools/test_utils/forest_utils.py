@@ -90,6 +90,7 @@ BASE_ADMIN_PORT = 3400
 BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
 
 # TODO make these command line arguments
+# this may not work entirely as expected
 IAS_API_KEY = get_secret('IAS_API_KEY')  # 32 bytes
 IAS_SPID = get_secret('IAS_SPID')  # 16 bytes
 MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..', 'mobilecoin'))
