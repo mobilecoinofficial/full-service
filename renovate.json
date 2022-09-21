@@ -3,6 +3,12 @@
   "extends": [
     "config:base"
   ],
+  "baseBranches": [
+    "feature/renovate-testing"
+  ],
+  "enabledManagers": [
+    "git-submodules"
+  ],
   "cloneSubmodules": true,
   "git-submodules": {
     "enabled": true,
