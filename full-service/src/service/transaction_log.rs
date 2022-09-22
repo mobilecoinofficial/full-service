@@ -202,7 +202,12 @@ mod tests {
             );
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         let address = service
             .assign_address_for_account(&alice_account_id, None)
@@ -227,11 +232,16 @@ mod tests {
                 .unwrap();
 
             {
-                let conn = service.wallet_db.get_conn().unwrap();
+                let conn = service.get_conn().unwrap();
                 add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
             }
 
-            manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+            manually_sync_account(
+                &ledger_db,
+                &service.wallet_db.as_ref().unwrap(),
+                &alice_account_id,
+                &logger,
+            );
         }
 
         let tx_logs = service

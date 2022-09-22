@@ -328,7 +328,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();

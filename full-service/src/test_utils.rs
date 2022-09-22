@@ -681,7 +681,7 @@ fn setup_wallet_service_impl(
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 
     WalletService::new(
-        wallet_db,
+        Some(wallet_db),
         ledger_db,
         peer_manager,
         network_state,

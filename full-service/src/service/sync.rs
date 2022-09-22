@@ -499,7 +499,7 @@ mod tests {
         );
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Import the account
         let _account = service
@@ -574,7 +574,8 @@ mod tests {
     //     );
 
     //     let service = setup_wallet_service(ledger_db.clone(),
-    // logger.clone());     let wallet_db = &service.wallet_db;
+    // logger.clone());     let wallet_db =
+    // &service.wallet_db.as_ref().unwrap();
 
     //     // create view only account
     //     let account = service

@@ -576,7 +576,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         let tx_logs = service
             .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
@@ -721,7 +726,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -772,21 +782,31 @@ mod tests {
         // workaround.
         {
             log::info!(logger, "Adding block from transaction log");
-            let conn = service.wallet_db.get_conn().unwrap();
+            let conn = service.get_conn().unwrap();
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
-            .get_associated_txos(&service.wallet_db.get_conn().unwrap())
+            .get_associated_txos(&service.get_conn().unwrap())
             .unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -794,7 +814,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -802,7 +822,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);
@@ -845,12 +865,22 @@ mod tests {
 
         {
             log::info!(logger, "Adding block from transaction log");
-            let conn = service.wallet_db.get_conn().unwrap();
+            let conn = service.get_conn().unwrap();
             add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         let alice_balance = service
             .get_balance_for_account(&AccountID(alice.id))
@@ -902,7 +932,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         match service.build_and_sign_transaction(
             &alice.id,
@@ -953,7 +988,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // test ouputs
         let mut outputs = Vec::new();

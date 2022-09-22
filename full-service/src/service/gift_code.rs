@@ -809,7 +809,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -848,7 +853,12 @@ mod tests {
         assert!(gift_code_value_opt.is_none());
 
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Now the Gift Code should be Available
         let (status, gift_code_value_opt, _memo) = service
@@ -908,7 +918,7 @@ mod tests {
             .unwrap();
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -933,7 +943,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -985,7 +995,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -1025,7 +1040,12 @@ mod tests {
 
         // Let transaction hit the ledger
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Check that it landed
         let (status, gift_code_value_opt, _memo) = service

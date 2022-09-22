@@ -439,7 +439,7 @@ mod tests {
 
         let _account = manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(account.id.to_string()),
             &logger,
         );

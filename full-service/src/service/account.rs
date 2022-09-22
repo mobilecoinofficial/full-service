@@ -539,7 +539,7 @@ mod tests {
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Create an account.
         let account = service
@@ -622,7 +622,12 @@ mod tests {
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
         let account_id = AccountID(account.id);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 12);
         assert_eq!(account.next_block_index, 12);
@@ -654,7 +659,12 @@ mod tests {
         // Syncing the account does nothing to the block indices since there are no
         // blocks in the ledger.
         let account_id = AccountID(account.id);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
@@ -669,7 +679,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
         let conn = wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);

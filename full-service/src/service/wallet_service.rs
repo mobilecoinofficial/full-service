@@ -27,7 +27,7 @@ pub struct WalletService<
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     /// Wallet database handle.
-    wallet_db: Option<WalletDb>,
+    pub wallet_db: Option<WalletDb>,
 
     /// Ledger database.
     pub ledger_db: LedgerDB,

@@ -158,7 +158,7 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let conn = service.wallet_db.get_conn().unwrap();
+        let conn = service.get_conn().unwrap();
 
         // Create an account.
         let account = service
@@ -184,7 +184,7 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let conn = service.wallet_db.get_conn().unwrap();
+        let conn = service.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
