@@ -97,10 +97,9 @@ impl<
     }
 
     pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
-        Ok(self
-            .wallet_db
+        self.wallet_db
             .as_ref()
             .ok_or(WalletDbError::WalletFunctionsDisabled)?
-            .get_conn()?)
+            .get_conn()
     }
 }
