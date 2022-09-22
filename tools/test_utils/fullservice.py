@@ -2,15 +2,6 @@
 
 # TODO: This should actually be more generic so that the python CLI 
 #   can also use it as a library (or maybe tests will use the CLI's library)
-
-
-#todo: organize imports
-
-import asyncio
-from unittest import result
-from urllib import request
-import aiohttp
-
 import http.client
 import json
 import os
@@ -19,59 +10,25 @@ import shutil
 import subprocess
 import time
 
-import logging
-import ssl 
-import base64
-
-from typing import Any, Optional
 from . import constants
-import forest_utils as utils
 from typing import Tuple
 from urllib.parse import urlparse
 
-if not utils.get_secret("ROOTCRT"):
-    ssl_context: Optional[ssl.SSLContext] = None
-else:
-    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    root = open("rootcrt.pem", "wb")
-    root.write(base64.b64decode(utils.get_secret("ROOTCRT")))
-    root.flush()
-    client = open("client.full.pem", "wb")
-    client.write(base64.b64decode(utils.get_secret("CLIENTCRT")))
-    client.flush()
-
-    ssl_context.load_verify_locations("rootcrt.pem")
-    ssl_context.verify_mode = ssl.CERT_REQUIRED
-    ssl_context.load_cert_chain(certfile="client.full.pem")
-
 class FullService:
-
-    default_url = ()
-
     def __init__(self, remove_wallet_and_ledger=False):
-        super().__init__()
         self.full_service_process = None
         self.account_map = None
         self.account_ids = None
         self.request_count = 0
         self.remove_wallet_and_ledger = remove_wallet_and_ledger
-
-        if not url:
-            url = (
-                utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
-            ).removesuffix("/wallet") + "/wallet"
-        logging.info("full-service url: %s", url)
-        self.url = url
         self.wallet_path = pathlib.Path('/tmp/wallet-db')
         self.ledger_path = pathlib.Path('/tmp/ledger-db')
-
         
     def __enter__(self):
         self.remove_wallet_and_ledger = True
         self.start()
         return self
     
-    #this is test specific, to be moved ?
     def __exit__(self,exc_type, exc_val, exc_tb):
         self.stop()
         if self.remove_wallet_and_ledger:
@@ -80,7 +37,23 @@ class FullService:
                 shutil.rmtree(self.wallet_path)
                 shutil.rmtree(self.ledger_path)
             except Exception as e:
-                print(e)
+                print(e) 
+    
+    def start(self):
+        self.wallet_path.mkdir(parents=True, exist_ok=True)
+        cmd = ' '.join([
+            f'{constants.FULLSERVICE_DIR}/target/release/full-service',
+            f'--wallet-db {self.wallet_path}/wallet.db',
+            f'--ledger-db {self.ledger_path}',
+            '--peer insecure-mc://localhost:3200',
+            '--peer insecure-mc://localhost:3201',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
+            f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
+        ])
+        print('===================================================')
+        print('starting full service')
+        print(cmd)
+        self.full_service_process = subprocess.Popen(cmd, shell=True)
 
     def stop(self):
         try:
@@ -89,30 +62,38 @@ class FullService:
             if exc.returncode != 1:
                 raise
 
-    async def req(self, method: str, **params: Any) -> dict:
-        logging.info("request: %s", method)
-        response_data = await self.request({"method": method, "params": params})
-        if "error" in result:
-            logging.error(result)
-        return result
-
     # return the result field of the request
-    ### is this a breaking change with unittests? 
-    async def request(self, request_data):
+    def _request(self, request_data):
         self.request_count += 1
-        request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
-        print(f'request data: {request_data}')
-        async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
-            async with aiohttp.ClientSession(connector=conn) as sess:
-                # this can hang (forever?) if there's no full-service at that url
-                async with sess.post(
-                    self.url,
-                    data=json.dumps(request_data),
-                    headers={"Content-Type": "application/json"},
-                ) as resp:
-                    print(resp.json)
-                    return await resp.json()
+        print('sending request to full service')
+        url = 'http://127.0.0.1:9090/wallet'
+        default_params = {
+            "jsonrpc": "2.0",
+            "api_version": "2",
+            "id": self.request_count,
+        }
+        request_data = {**request_data, **default_params}
 
+        print(f'request data: {request_data}')
+
+        parsed_url = urlparse(url)
+        connection = http.client.HTTPConnection(parsed_url.netloc)
+        connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
+        r = connection.getresponse()
+
+        try:
+            raw_response = r.read()
+            response_data = json.loads(raw_response)
+            print(f'request returned {response_data}')
+        except ValueError:
+            raise ValueError('API returned invalid JSON:', raw_response)
+
+        # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
+        time.sleep(2)
+        if 'error' in response_data:
+            return response_data['error']
+        else:
+            return response_data['result']
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
@@ -120,7 +101,7 @@ class FullService:
             'mnemonic': mnemonic,
             'key_derivation_version': '2',
         }
-        r = self.request({
+        r = self._request({
             "method": "import_account",
             "params": params
         })
@@ -130,11 +111,24 @@ class FullService:
             return 'Diesel Error: UNIQUE constraint failed' in r['error']['data']['details']
         return True
 
+    # retrieve accounts from mobilecoin/target/sample_data/keys
+    def get_test_accounts(self) -> Tuple[str, str]:
+        print(f'retrieving accounts for account_keys_0 and account_keys_1')
+        keyfile_0 = open(os.path.join(constants.KEY_DIR, 'account_keys_0.json'))
+        keyfile_1 = open(os.path.join(constants.KEY_DIR, 'account_keys_1.json'))
+        keydata_0 = json.load(keyfile_0)
+        keydata_1 = json.load(keyfile_1)
+
+        keyfile_0.close()
+        keyfile_1.close()
+
+        return (keydata_0['mnemonic'], keydata_1['mnemonic'])
+
     # check if full service is synced within margin
     def sync_status(self, eps=5) -> bool:
         # ping network
         try:
-            r = self.req({
+            r = self._request({
                 "method": "get_network_status"
             })
         except ConnectionError as e:
@@ -154,14 +148,27 @@ class FullService:
 
     # retrieve wallet status
     def get_wallet_status(self):
-        r = self.req({
+        r = self._request({
             "method": "get_wallet_status"
         })
         return r['wallet_status']
 
+    # ensure at least two accounts are in the wallet. Some accounts are imported by default, but the number changes.
+    def setup_accounts(self):
+        account_ids, account_map = self.get_all_accounts()
+        if len(account_ids) >= 2:
+            self.account_ids = account_ids
+            self.account_map = account_map
+        else:
+            mnemonic_0, mnemonic_1 = self.get_test_accounts()
+            self.import_account(mnemonic_0)
+            self.import_account(mnemonic_1)
+
+        self.account_ids, self.account_map = self.get_all_accounts()
+
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self.req({"method": "get_all_accounts"})
+        r = self._request({"method": "get_all_accounts"})
         print(r)
         return (r['account_ids'], r['account_map'])
 
@@ -170,7 +177,7 @@ class FullService:
         params = {
             "account_id": account_id
         }
-        r = self.req({
+        r = self._request({
             "method": "get_account_status",
             "params": params
         })
@@ -182,7 +189,7 @@ class FullService:
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)]
         }
-        r = self.req({
+        r = self._request({
             "method": "build_and_submit_transaction",
             "params": params,
         })
