@@ -38,6 +38,7 @@
       * [Get MobileCoin Protocol TXO](v2/api-endpoints/get_mc_protocol_txo.md)
       * [Get TXO Membership Proofs](v2/api-endpoints/get_txo_membership_proofs.md)
       * [Sample Mixins](v2/api-endpoints/sample_mixins.md)
+      * [Validate TXO](v2/api-endpoints/validate_tx_out.md)
     * [Confirmation](v2/transactions/transaction-confirmation/README.md)
       * [Get Confirmations](v2/api-endpoints/get_confirmations.md)
       * [Validate Confirmations](v2/api-endpoints/validate_confirmation.md)
