@@ -91,7 +91,12 @@ jobs:
       #   run: /bin/bash
       
       # programmatically run the script:
+      - name: Install Python 3.10, Setup Env Using Poetry
+        shell: bash
+        run: | 
+          curl https://pyenv.run | bash && exec $SHELL && pyenv install 3.10.6 && curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
+
       - name: Run Integration
         shell: bash
         run: |
-          python3 tools/mc_ledger_test.py --network-type a-b-c
+          poetry run python3 tools/mc_ledger_test.py --network-type a-b-c

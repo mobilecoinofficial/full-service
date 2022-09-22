@@ -79,3 +79,5 @@ dbml-error.log
 
 *__pycache__
 *bin
+fs.secrets
+inputs.json
