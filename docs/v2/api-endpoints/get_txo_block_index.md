@@ -1,4 +1,4 @@
-# Validate TxOut
+# Get TXO Block Index
 
 Allows the public key of a tx out to be checked against the ledger, and if it exists will return the block index
 
@@ -16,7 +16,7 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
 {% tab title="Request Body" %}
 ```text
 {
-    "method": "validate_tx_out",
+    "method": "get_txo_block_index",
     "params": {
         "public_key": "6607d6189a4dc24823f8da6d42884a046947d00d9400e7033d7425d9df152269"
     },
@@ -29,7 +29,7 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
 {% tab title="Response Success" %}
 ```text
 {
-    "method": "validate_tx_out",
+    "method": "get_txo_block_index",
     "result": {
         "block_index": "682053"
     },
@@ -42,7 +42,7 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
 {% tab title="Response Failed" %}
 ```text
 {
-    "method": "validate_tx_out",
+    "method": "get_txo_block_index",
     "error": {
         "code": -32603,
         "message": "InternalError",
