@@ -27,6 +27,9 @@ pub enum WalletServiceError {
     /// Error parsing u64
     U64Parse,
 
+    /// Wallet functions are currently disabled
+    WalletFunctionsDisabled,
+
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 

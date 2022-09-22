@@ -61,29 +61,33 @@ fn main() {
             .port(config.listen_port)
             .unwrap();
 
-    // Connect to the database and run the migrations
-    let conn =
-        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-            eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
-            exit(EXIT_NO_DATABASE_CONNECTION);
-        });
-    WalletDb::set_db_encryption_key_from_env(&conn);
-    WalletDb::try_change_db_encryption_key_from_env(&conn);
-    if !WalletDb::check_database_connectivity(&conn) {
-        eprintln!("Incorrect password for database {:?}.", config.wallet_db);
-        exit(EXIT_WRONG_PASSWORD);
-    };
-    WalletDb::run_migrations(&conn);
-    log::info!(logger, "Connected to database.");
+    let wallet_db = if let Some(wallet_db_path) = config.wallet_db?.to_str().unwrap() {
+        // Connect to the database and run the migrations
+        let conn =
+            SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
+                eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
+                exit(EXIT_NO_DATABASE_CONNECTION);
+            });
+        WalletDb::set_db_encryption_key_from_env(&conn);
+        WalletDb::try_change_db_encryption_key_from_env(&conn);
+        if !WalletDb::check_database_connectivity(&conn) {
+            eprintln!("Incorrect password for database {:?}.", config.wallet_db);
+            exit(EXIT_WRONG_PASSWORD);
+        };
+        WalletDb::run_migrations(&conn);
+        log::info!(logger, "Connected to database.");
 
-    let wallet_db = WalletDb::new_from_url(
-        config
-            .wallet_db
-            .to_str()
-            .expect("Could not get wallet_db path"),
-        10,
-    )
-    .expect("Could not access wallet db");
+        Some(
+            WalletDb::new_from_url(
+                config
+                    .wallet_db
+                    .to_str()
+                    .expect("Could not get wallet_db path"),
+                10,
+            )
+            .expect("Could not access wallet db"),
+        )
+    };
 
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
@@ -95,7 +99,7 @@ fn main() {
 
 fn consensus_backed_full_service(
     config: &APIConfig,
-    wallet_db: WalletDb,
+    wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
 ) {
@@ -174,7 +178,7 @@ fn consensus_backed_full_service(
 fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
-    wallet_db: WalletDb,
+    wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
 ) {

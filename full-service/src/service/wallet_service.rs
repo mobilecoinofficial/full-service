@@ -2,7 +2,11 @@
 
 //! The Wallet Service for interacting with the wallet.
 
-use crate::{db::WalletDb, service::sync::SyncThread};
+use crate::{
+    db::{Conn, WalletDb},
+    error::WalletServiceError,
+    service::sync::SyncThread,
+};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, UserTxConnection,
@@ -24,7 +28,7 @@ pub struct WalletService<
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 > {
     /// Wallet database handle.
-    pub wallet_db: WalletDb,
+    wallet_db: Option<WalletDb>,
 
     /// Ledger database.
     pub ledger_db: LedgerDB,
@@ -40,7 +44,7 @@ pub struct WalletService<
     pub fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
 
     /// Background ledger sync thread.
-    _sync_thread: SyncThread,
+    _sync_thread: Option<SyncThread>,
 
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
@@ -60,7 +64,7 @@ impl<
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        wallet_db: WalletDb,
+        wallet_db: Option<WalletDb>,
         ledger_db: LedgerDB,
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
@@ -68,8 +72,15 @@ impl<
         offline: bool,
         logger: Logger,
     ) -> Self {
-        log::info!(logger, "Starting Wallet TXO Sync Task Thread");
-        let sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let sync_thread = if let Some(wallet_db) = wallet_db {
+            log::info!(logger, "Starting Wallet TXO Sync Task Thread");
+            Some(SyncThread::start(
+                ledger_db.clone(),
+                wallet_db.clone(),
+                logger.clone(),
+            ))
+        };
+
         let mut rng = rand::thread_rng();
         WalletService {
             wallet_db,
@@ -82,5 +93,12 @@ impl<
             offline,
             logger,
         }
+    }
+
+    pub fn get_conn(&self) -> Result<Conn, WalletServiceError> {
+        Ok(self
+            .wallet_db
+            .ok_or(WalletServiceError::WalletFunctionsDisabled)?
+            .get_conn()?)
     }
 }
