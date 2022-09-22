@@ -6,38 +6,15 @@ import forest_utils as utils
 
 def main():
     parser = argparse.ArgumentParser(description='Misc utils')
-    parser.add_argument('--start', help='Start full service', action='store_true')
     parser.add_argument('--get-test-accounts', help='Get test accounts', action='store_true')
     parser.add_argument('--parse-network-type', help='Parse network type command line args', action='store_true')
     args = parser.parse_args()
-    if args.start:
-        print('starting full service')
-        asyncio.run(start(self=None))
-    elif args.get_test_accounts:
+    if args.get_test_accounts:
         print('getting test accounts')
         get_test_accounts(self=None)
     elif args.parse_network_type:
         print('parsing network type command line args')
         parse_network_type_cmd_line_args(self=None)
-
-async def start(self):    
-    #self.wallet_path.mkdir(parents=True, exists_ok=True)
-    cmd = ' '.join([
-        f'&& {utils.get_secret("FULLSERVICE_DIR")}/target/release/full-service',
-        '--wallet-db /tmp/wallet-db/wallet.db',
-        '--ledger-db /tmp/ledger-db/',
-        '--peer insecure-mc://localhost:3200',
-        '--peer insecure-mc://localhost:3201',
-        f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-0',
-        f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-1',
-    ])
-    full_service_process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    stdout, stderr = await full_service_process.communicate()
-    print(f'[{cmd!r} exited with {full_service_process.returncode}]')
-    if stdout:
-        print(f'[stdout]\n{stdout.decode()}')
-    if stderr:
-        print(f'[stderr]\n{stderr.decode()}')
 
 
 # retrieve accounts from mobilecoin/target/sample_data/keys

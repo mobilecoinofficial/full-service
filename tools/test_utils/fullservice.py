@@ -44,8 +44,49 @@ else:
     ssl_context.verify_mode = ssl.CERT_REQUIRED
     ssl_context.load_cert_chain(certfile="client.full.pem")
 
-class FullService:
+class Process:
+    def __init__(self, remove_wallet_and_ledger=False):
+        self.full_service_process = None 
 
+    async def start(self):    
+        #self.wallet_path.mkdir(parents=True, exists_ok=True)
+        cmd = ' '.join([
+            f'&& {utils.get_secret("FULLSERVICE_DIR")}/target/release/full-service',
+            '--wallet-db /tmp/wallet-db/wallet.db',
+            '--ledger-db /tmp/ledger-db/',
+            '--peer insecure-mc://localhost:3200',
+            '--peer insecure-mc://localhost:3201',
+            f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-0',
+            f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-1',
+        ])
+        full_service_process = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await full_service_process.communicate()
+        print(f'[{cmd!r} exited with {full_service_process.returncode}]')
+        if stdout:
+            print(f'[stdout]\n{stdout.decode()}')
+        if stderr:
+            print(f'[stderr]\n{stderr.decode()}')
+
+        #this is test specific, to be moved ?
+    def __exit__(self,exc_type, exc_val, exc_tb):
+        self.stop()
+        if self.remove_wallet_and_ledger:
+            try:
+                print(f"Removing ledger/wallet dbs")
+                shutil.rmtree(self.wallet_path)
+                shutil.rmtree(self.ledger_path)
+            except Exception as e:
+                print(e)
+
+    def stop(self):
+        try:
+            self.full_service_process.terminate()
+        except subprocess.CalledProcessError as exc:
+            if exc.returncode != 1:
+                raise
+
+
+class FullService(Process):
     default_url = ()
 
     def __init__(self, remove_wallet_and_ledger=False):
@@ -71,23 +112,7 @@ class FullService:
         self.start()
         return self
     
-    #this is test specific, to be moved ?
-    def __exit__(self,exc_type, exc_val, exc_tb):
-        self.stop()
-        if self.remove_wallet_and_ledger:
-            try:
-                print(f"Removing ledger/wallet dbs")
-                shutil.rmtree(self.wallet_path)
-                shutil.rmtree(self.ledger_path)
-            except Exception as e:
-                print(e)
 
-    def stop(self):
-        try:
-            self.full_service_process.terminate()
-        except subprocess.CalledProcessError as exc:
-            if exc.returncode != 1:
-                raise
 
     async def req(self, method: str, **params: Any) -> dict:
         logging.info("request: %s", method)
