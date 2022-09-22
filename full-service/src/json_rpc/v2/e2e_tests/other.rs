@@ -124,7 +124,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_validate_tx_out(logger: Logger) {
+    fn test_get_txo_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
@@ -159,7 +159,7 @@ mod e2e_misc {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "validate_tx_out",
+            "method": "get_txo_block_index",
             "params": {
                 "public_key": public_key
             }
@@ -174,7 +174,7 @@ mod e2e_misc {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "validate_tx_out",
+            "method": "get_txo_block_index",
             "params": {
                 "public_key": target_key
             }
