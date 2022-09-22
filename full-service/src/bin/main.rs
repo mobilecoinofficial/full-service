@@ -61,32 +61,26 @@ fn main() {
             .port(config.listen_port)
             .unwrap();
 
-    let wallet_db = if let Some(wallet_db_path) = config.wallet_db?.to_str().unwrap() {
-        // Connect to the database and run the migrations
-        let conn =
-            SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-                eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
+    let wallet_db = match config.wallet_db {
+        Some(ref wallet_db_path_buf) => {
+            let wallet_db_path = wallet_db_path_buf.to_str().unwrap();
+            // Connect to the database and run the migrations
+            let conn = SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
+                eprintln!("Cannot open database {:?}: {:?}", wallet_db_path, err);
                 exit(EXIT_NO_DATABASE_CONNECTION);
             });
-        WalletDb::set_db_encryption_key_from_env(&conn);
-        WalletDb::try_change_db_encryption_key_from_env(&conn);
-        if !WalletDb::check_database_connectivity(&conn) {
-            eprintln!("Incorrect password for database {:?}.", config.wallet_db);
-            exit(EXIT_WRONG_PASSWORD);
-        };
-        WalletDb::run_migrations(&conn);
-        log::info!(logger, "Connected to database.");
+            WalletDb::set_db_encryption_key_from_env(&conn);
+            WalletDb::try_change_db_encryption_key_from_env(&conn);
+            if !WalletDb::check_database_connectivity(&conn) {
+                eprintln!("Incorrect password for database {:?}.", wallet_db_path);
+                exit(EXIT_WRONG_PASSWORD);
+            };
+            WalletDb::run_migrations(&conn);
+            log::info!(logger, "Connected to database.");
 
-        Some(
-            WalletDb::new_from_url(
-                config
-                    .wallet_db
-                    .to_str()
-                    .expect("Could not get wallet_db path"),
-                10,
-            )
-            .expect("Could not access wallet db"),
-        )
+            Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))
+        }
+        None => None,
     };
 
     // Start WalletService based on our configuration

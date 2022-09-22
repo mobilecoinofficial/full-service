@@ -301,7 +301,7 @@ where
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
@@ -384,7 +384,7 @@ where
             max_spendable_value,
             memo,
         )?;
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
@@ -430,7 +430,7 @@ where
         );
 
         if let Some(account_id_hex) = account_id_hex {
-            let conn = self.wallet_db.get_conn()?;
+            let conn = self.get_conn()?;
             let account_id = AccountID(account_id_hex.to_string());
 
             transaction(&conn, || {

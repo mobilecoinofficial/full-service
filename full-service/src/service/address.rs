@@ -80,7 +80,7 @@ where
         account_id: &AccountID,
         metadata: Option<&str>,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
@@ -94,7 +94,7 @@ where
     }
 
     fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(AssignedSubaddress::get(address_b58, &conn)?)
     }
 
@@ -103,7 +103,7 @@ where
         account_id: &AccountID,
         index: i64,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(AssignedSubaddress::get_for_account_by_index(
             &account_id.to_string(),
             index,
@@ -117,7 +117,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(AssignedSubaddress::list_all(
             account_id, offset, limit, &conn,
         )?)

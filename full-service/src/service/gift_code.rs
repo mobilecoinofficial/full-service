@@ -436,7 +436,7 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let from_account = Account::get(from_account_id, &conn)?;
 
         let fee_value = fee.map(|f| f.to_string());
@@ -494,7 +494,7 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
@@ -517,7 +517,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = GiftCode::get(gift_code_b58, &conn)?;
         DecodedGiftCode::try_from(gift_code)
     }
@@ -527,7 +527,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         GiftCode::list_all(&conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
@@ -749,7 +749,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
     }

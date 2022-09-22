@@ -148,7 +148,7 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let transaction_log =
             TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
@@ -156,7 +156,7 @@ where
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;

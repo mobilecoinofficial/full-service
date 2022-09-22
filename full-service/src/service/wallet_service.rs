@@ -3,8 +3,7 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
-    db::{Conn, WalletDb},
-    error::WalletServiceError,
+    db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
 use mc_common::logger::{log, Logger};
@@ -72,13 +71,15 @@ impl<
         offline: bool,
         logger: Logger,
     ) -> Self {
-        let sync_thread = if let Some(wallet_db) = wallet_db {
+        let sync_thread = if let Some(wallet_db) = wallet_db.clone() {
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
             Some(SyncThread::start(
                 ledger_db.clone(),
-                wallet_db.clone(),
+                wallet_db,
                 logger.clone(),
             ))
+        } else {
+            None
         };
 
         let mut rng = rand::thread_rng();
@@ -95,10 +96,11 @@ impl<
         }
     }
 
-    pub fn get_conn(&self) -> Result<Conn, WalletServiceError> {
+    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
         Ok(self
             .wallet_db
-            .ok_or(WalletServiceError::WalletFunctionsDisabled)?
+            .as_ref()
+            .ok_or(WalletDbError::WalletFunctionsDisabled)?
             .get_conn()?)
     }
 }
