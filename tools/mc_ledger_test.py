@@ -57,10 +57,6 @@ if __name__ == '__main__':
             # run test suite
             test_transactions(full_service)
     
-            # allow for transactions to pass through
-            # flakey -- replace with checker function
-            time.sleep(20)
-    
             # verify accounts have been updated with changed state
             # TODO: bundle with test suite, exiting code 0 on success, or code 1 on failure
             for account_id in full_service.account_ids:
