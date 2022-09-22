@@ -673,6 +673,19 @@ where
                 txo: Txo::new(&txo, &status),
             }
         }
+        JsonCommandRequest::get_txo_block_index { public_key } => {
+            let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
+            let public_key: CompressedRistrettoPublic = public_key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(format_error)?;
+            let block_index = service
+                .get_block_index_from_txo_public_key(&public_key)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_txo_block_index {
+                block_index: block_index.to_string(),
+            }
+        }
         JsonCommandRequest::get_txos {
             account_id,
             address,
