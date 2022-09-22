@@ -970,6 +970,19 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
         }
+        JsonCommandRequest::validate_tx_out { public_key } => {
+            let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
+            let public_key: CompressedRistrettoPublic = public_key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(format_error)?;
+            let block_index = service
+                .get_block_index_from_txo_public_key(&public_key)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_tx_out {
+                block_index: block_index.to_string(),
+            }
+        }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
             verified: service.verify_address(&address).map_err(format_error)?,
         },

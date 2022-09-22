@@ -235,6 +235,9 @@ pub enum JsonCommandRequest {
         txo_id: String,
         confirmation: String,
     },
+    validate_tx_out {
+        public_key: String,
+    },
     verify_address {
         address: String,
     },

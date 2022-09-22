@@ -176,6 +176,9 @@ pub enum JsonCommandResponse {
     validate_confirmation {
         validated: bool,
     },
+    validate_tx_out {
+        block_index: String,
+    },
     verify_address {
         verified: bool,
     },

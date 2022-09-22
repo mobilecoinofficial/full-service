@@ -127,6 +127,11 @@ pub trait LedgerService {
         num_mixins: usize,
         excluded_indices: &[u64],
     ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError>;
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -267,5 +272,13 @@ where
             .collect::<Result<Vec<TxOut>, _>>()?;
 
         Ok((tx_outs, proofs))
+    }
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError> {
+        let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
+        Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
 }
