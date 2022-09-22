@@ -673,6 +673,19 @@ where
                 txo: Txo::new(&txo, &status),
             }
         }
+        JsonCommandRequest::get_txo_block_index { public_key } => {
+            let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
+            let public_key: CompressedRistrettoPublic = public_key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(format_error)?;
+            let block_index = service
+                .get_block_index_from_txo_public_key(&public_key)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_txo_block_index {
+                block_index: block_index.to_string(),
+            }
+        }
         JsonCommandRequest::get_txos {
             account_id,
             address,
@@ -969,19 +982,6 @@ where
                 .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
-        }
-        JsonCommandRequest::validate_tx_out { public_key } => {
-            let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
-            let public_key: CompressedRistrettoPublic = public_key_bytes
-                .as_slice()
-                .try_into()
-                .map_err(format_error)?;
-            let block_index = service
-                .get_block_index_from_txo_public_key(&public_key)
-                .map_err(format_error)?;
-            JsonCommandResponse::validate_tx_out {
-                block_index: block_index.to_string(),
-            }
         }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
             verified: service.verify_address(&address).map_err(format_error)?,

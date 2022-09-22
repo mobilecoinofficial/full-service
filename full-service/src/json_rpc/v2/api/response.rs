@@ -139,6 +139,9 @@ pub enum JsonCommandResponse {
     get_txo {
         txo: Txo,
     },
+    get_txo_block_index {
+        block_index: String,
+    },
     get_txos {
         txo_ids: Vec<String>,
         txo_map: TxoMap,
@@ -175,9 +178,6 @@ pub enum JsonCommandResponse {
     },
     validate_confirmation {
         validated: bool,
-    },
-    validate_tx_out {
-        block_index: String,
     },
     verify_address {
         verified: bool,

@@ -173,6 +173,9 @@ pub enum JsonCommandRequest {
     get_txo {
         txo_id: String,
     },
+    get_txo_block_index {
+        public_key: String,
+    },
     get_txos {
         account_id: Option<String>,
         address: Option<String>,
@@ -234,9 +237,6 @@ pub enum JsonCommandRequest {
         account_id: String,
         txo_id: String,
         confirmation: String,
-    },
-    validate_tx_out {
-        public_key: String,
     },
     verify_address {
         address: String,
