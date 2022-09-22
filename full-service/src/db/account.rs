@@ -291,6 +291,10 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
+
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
@@ -398,6 +402,10 @@ impl AccountModel for Account {
 
         let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
         let account_id = AccountID::from(&view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
         let next_block_index = first_block_index;
