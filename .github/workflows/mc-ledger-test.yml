@@ -91,10 +91,15 @@ jobs:
       #   run: /bin/bash
       
       # programmatically run the script:
+      - name: setup pyenv
+        uses: "gabrielfalcao/pyenv-action@v9"
+        with:
+            default: 3.10.6
+
       - name: Install Python 3.10, Setup Env Using Poetry
         shell: bash
         run: | 
-          curl https://pyenv.run | bash && exec $SHELL && pyenv install 3.10.6 && curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
+           curl -sSL https://install.python-poetry.org | python3 - && cd tools && export PATH="/root/.local/bin:$PATH" && poetry install 
 
       - name: Run Integration
         shell: bash
