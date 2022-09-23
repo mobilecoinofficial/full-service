@@ -91,7 +91,7 @@ fn import_account(
             "".to_string(),
             conn,
         )
-        .unwrap();
+        .unwrap_or_else(|| return);
     } else if let Some(entropy) = account_secrets.entropy {
         let entropy_bytes = hex::decode(entropy).unwrap();
         let entropy = RootEntropy::try_from(entropy_bytes.as_slice()).unwrap();
@@ -106,12 +106,13 @@ fn import_account(
             "".to_string(),
             conn,
         )
-        .unwrap();
+        .unwrap_or_else(|| return);
     } else {
-        panic!(
+        println!(
             "No entropy or mnemonic found for account {}",
             account.account_id
         );
+        return;
     };
 
     let body = json!({
