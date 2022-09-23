@@ -6,7 +6,7 @@ edition = "2018"
 build = "build.rs"
 
 [[bin]]
-name = "full-service"
+name = "mc-full-service"
 path = "src/bin/main.rs"
 
 [dependencies]
