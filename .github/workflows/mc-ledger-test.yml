@@ -1,4 +1,4 @@
-name: mc-ledger-test
+name: mc-ledger-test v2
 
 env:
   SGX_MODE: SW
