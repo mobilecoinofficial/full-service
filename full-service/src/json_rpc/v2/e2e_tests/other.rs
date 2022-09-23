@@ -7,7 +7,7 @@ mod e2e_misc {
     use crate::{
         json_rpc::v2::api::test_utils::{
             dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
-            setup_with_api_key, wait_for_sync,
+            setup_no_wallet_db, setup_with_api_key, wait_for_sync,
         },
         test_utils::{
             add_block_with_tx_outs, create_test_received_txo, random_account_with_seed_values, MOB,
@@ -185,5 +185,39 @@ mod e2e_misc {
             error.get("data").unwrap().get("server_error").unwrap(),
             "LedgerDB(NotFound)"
         );
+    }
+
+    #[test_with_logger]
+    fn test_no_wallet_db(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) =
+            setup_no_wallet_db(&mut rng, logger.clone());
+
+        // Because we are not using a ledger_db, this should return an error!
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_accounts",
+            "params": {},
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        let data = error.get("data").unwrap();
+        assert_eq!(
+            data.get("server_error").unwrap(),
+            "Database(WalletFunctionsDisabled)"
+        );
+
+        // This should work just fine since it doesn't interact with the wallet_db
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_network_status"
+        });
+        let res = dispatch(&client, body, &logger);
+
+        // Check that we got a result! (We don't really care what it is, just that it's
+        // working)
+        let _ = res.get("result").unwrap();
     }
 }

@@ -89,6 +89,7 @@ pub const BASE_TEST_BLOCK_HEIGHT: usize = 12;
 
 pub fn create_test_setup(
     mut rng: &mut StdRng,
+    use_wallet_db: bool,
     logger: Logger,
 ) -> (
     rocket::Rocket,
@@ -97,14 +98,17 @@ pub fn create_test_setup(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let db_test_context = WalletDbTestContext::default();
-    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let wallet_db = match use_wallet_db {
+        true => Some(db_test_context.get_db_instance(logger.clone())),
+        false => None,
+    };
     let known_recipients: Vec<PublicAddress> = Vec::new();
     let ledger_db = get_test_ledger(5, &known_recipients, BASE_TEST_BLOCK_HEIGHT, &mut rng);
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), false);
 
     let service = WalletService::new(
-        Some(wallet_db),
+        wallet_db,
         ledger_db.clone(),
         peer_manager,
         network_state.clone(),
@@ -133,7 +137,28 @@ pub fn setup(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, logger);
+        create_test_setup(rng, true, logger);
+
+    let rocket = rocket_instance.manage(APIKeyState("".to_string()));
+    (
+        Client::new(rocket).expect("valid rocket instance"),
+        ledger_db,
+        db_test_context,
+        network_state,
+    )
+}
+
+pub fn setup_no_wallet_db(
+    rng: &mut StdRng,
+    logger: Logger,
+) -> (
+    Client,
+    LedgerDB,
+    WalletDbTestContext,
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+) {
+    let (rocket_instance, ledger_db, db_test_context, network_state) =
+        create_test_setup(rng, false, logger);
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
@@ -155,7 +180,7 @@ pub fn setup_with_api_key(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, logger);
+        create_test_setup(rng, true, logger);
 
     let rocket = rocket_instance.manage(APIKeyState(api_key));
 
