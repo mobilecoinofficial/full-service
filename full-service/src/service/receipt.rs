@@ -199,7 +199,7 @@ where
         address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;
@@ -388,7 +388,7 @@ mod tests {
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -434,7 +434,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.wallet_db.get_conn().unwrap(),
+            &service.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
 
@@ -442,13 +442,13 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.to_string()),
             &logger,
         );
@@ -514,7 +514,7 @@ mod tests {
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -565,7 +565,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.wallet_db.get_conn().unwrap(),
+            &service.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
 
@@ -580,13 +580,13 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.to_string()),
             &logger,
         );
@@ -636,7 +636,7 @@ mod tests {
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -680,17 +680,22 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.wallet_db.get_conn().unwrap(),
+            &service.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         // Bob checks the status, and is expecting an incorrect value, from a
         // transaction with a different shared secret
@@ -707,7 +712,7 @@ mod tests {
 
         // Now check status with a correct shared secret, but the wrong value
         let bob_account_key: AccountKey = mc_util_serial::decode(
-            &Account::get(&bob_account_id, &service.wallet_db.get_conn().unwrap())
+            &Account::get(&bob_account_id, &service.get_conn().unwrap())
                 .expect("Could not get bob account")
                 .account_key,
         )
@@ -771,7 +776,7 @@ mod tests {
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -815,17 +820,22 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.wallet_db.get_conn().unwrap(),
+            &service.get_conn().unwrap(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         // Construct an invalid receipt with an incorrect confirmation number.
         let mut receipt = receipt0.clone();

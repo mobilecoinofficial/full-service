@@ -40,7 +40,7 @@ pub struct APIConfig {
 
     /// Path to WalletDb.
     #[structopt(long, parse(from_os_str))]
-    pub wallet_db: PathBuf,
+    pub wallet_db: Option<PathBuf>,
 
     #[structopt(flatten)]
     pub ledger_db_config: LedgerDbConfig,

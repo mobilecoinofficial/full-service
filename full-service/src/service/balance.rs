@@ -161,7 +161,7 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
 
@@ -189,7 +189,7 @@ where
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
@@ -227,7 +227,7 @@ where
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
         let network_block_height = self.get_network_block_height()?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let accounts = Account::list_all(&conn, None, None)?;
         let mut account_map = HashMap::default();
 
@@ -439,7 +439,7 @@ mod tests {
 
         let _account = manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(account.id.to_string()),
             &logger,
         );

@@ -169,7 +169,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
 
         let txos;
 
@@ -219,7 +219,7 @@ where
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo = Txo::get(&txo_id.to_string(), &conn)?;
         let status = txo.status(&conn)?;
         Ok((txo, status))
@@ -236,7 +236,7 @@ where
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
 
         let account_id_hex = txo_details
@@ -328,7 +328,12 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();

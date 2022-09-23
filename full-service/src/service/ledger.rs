@@ -127,6 +127,11 @@ pub trait LedgerService {
         num_mixins: usize,
         excluded_indices: &[u64],
     ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError>;
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -143,7 +148,7 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let transaction_log =
             TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
@@ -151,7 +156,7 @@ where
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
@@ -267,5 +272,13 @@ where
             .collect::<Result<Vec<TxOut>, _>>()?;
 
         Ok((tx_outs, proofs))
+    }
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError> {
+        let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
+        Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
 }

@@ -246,7 +246,7 @@ where
         let first_block_index = network_block_height; // -1 +1
         let import_block_index = local_block_height; // -1 +1
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let (account_id, _public_address_b58) = Account::create_from_mnemonic(
                 &mnemonic,
@@ -302,7 +302,7 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import(
                 &mnemonic,
@@ -342,7 +342,7 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import_legacy(
                 &RootEntropy::from(&entropy_bytes),
@@ -380,7 +380,7 @@ where
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import_view_only(
                 &view_private_key,
@@ -398,7 +398,7 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<JsonRPCRequest, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
 
         if account.view_only {
@@ -440,12 +440,12 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(Account::list_all(&conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(Account::get(account_id, &conn)?)
     }
 
@@ -453,7 +453,7 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<u64, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
         Ok(account.next_subaddress_index(&conn)?)
     }
@@ -463,7 +463,7 @@ where
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Account::get(account_id, &conn)?.update_name(name, &conn)?;
         Ok(Account::get(account_id, &conn)?)
     }
@@ -474,7 +474,7 @@ where
         txo_ids_and_key_images: Vec<(String, String)>,
         next_subaddress_index: u64,
     ) -> Result<(), AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
 
         if !account.view_only {
@@ -503,7 +503,7 @@ where
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let account = Account::get(account_id, &conn)?;
             account.delete(&conn)?;
@@ -539,7 +539,7 @@ mod tests {
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Create an account.
         let account = service
@@ -622,7 +622,12 @@ mod tests {
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
         let account_id = AccountID(account.id);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 12);
         assert_eq!(account.next_block_index, 12);
@@ -654,7 +659,12 @@ mod tests {
         // Syncing the account does nothing to the block indices since there are no
         // blocks in the ledger.
         let account_id = AccountID(account.id);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
@@ -669,7 +679,7 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
         let conn = wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);

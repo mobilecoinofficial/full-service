@@ -104,7 +104,7 @@ pub fn create_test_setup(
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), false);
 
     let service = WalletService::new(
-        wallet_db,
+        Some(wallet_db),
         ledger_db.clone(),
         peer_manager,
         network_state.clone(),
