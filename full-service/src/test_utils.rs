@@ -658,25 +658,36 @@ pub fn setup_wallet_service(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, false)
+    setup_wallet_service_impl(ledger_db, logger, false, false)
 }
 
 pub fn setup_wallet_service_offline(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, true)
+    setup_wallet_service_impl(ledger_db, logger, true, false)
+}
+
+pub fn setup_wallet_service_no_wallet_db(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    setup_wallet_service_impl(ledger_db, logger, false, true)
 }
 
 fn setup_wallet_service_impl(
     ledger_db: LedgerDB,
     logger: Logger,
     offline: bool,
+    no_wallet_db: bool,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     let db_test_context = WalletDbTestContext::default();
-    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let wallet_db = match no_wallet_db {
+        true => None,
+        false => Some(db_test_context.get_db_instance(logger.clone())),
+    };
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 

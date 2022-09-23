@@ -6,6 +6,9 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
+    /// Wallet functions are currently disabled
+    WalletFunctionsDisabled,
+
     /// View Only Account already exists: {0}
     ViewOnlyAccountAlreadyExists(String),
 

@@ -436,7 +436,7 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let from_account = Account::get(from_account_id, &conn)?;
 
         let fee_value = fee.map(|f| f.to_string());
@@ -494,7 +494,7 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
@@ -517,7 +517,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = GiftCode::get(gift_code_b58, &conn)?;
         DecodedGiftCode::try_from(gift_code)
     }
@@ -527,7 +527,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         GiftCode::list_all(&conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
@@ -749,7 +749,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
     }
@@ -809,7 +809,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -848,7 +853,12 @@ mod tests {
         assert!(gift_code_value_opt.is_none());
 
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Now the Gift Code should be Available
         let (status, gift_code_value_opt, _memo) = service
@@ -908,7 +918,7 @@ mod tests {
             .unwrap();
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -933,7 +943,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -985,7 +995,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -1025,7 +1040,12 @@ mod tests {
 
         // Let transaction hit the ledger
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Check that it landed
         let (status, gift_code_value_opt, _memo) = service
