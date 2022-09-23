@@ -21,6 +21,7 @@ use serde_json::{json, Value};
 use std::convert::TryFrom;
 
 pub fn import_accounts(conn: &Conn, client: &reqwest::blocking::Client, request_uri: &str) {
+    println!("Importing accounts from v1");
     let body = json!({
         "method": "get_all_accounts",
         "jsonrpc": "2.0",
@@ -39,6 +40,7 @@ pub fn import_accounts(conn: &Conn, client: &reqwest::blocking::Client, request_
         .unwrap();
 
     for account_id in account_ids {
+        println!("Importing account: {}", account_id.as_str().unwrap());
         let account: AccountJSON = serde_json::from_value(
             account_map
                 .get(account_id.as_str().unwrap())
@@ -80,7 +82,7 @@ fn import_account(
 
     if let Some(mnemonic) = account_secrets.mnemonic {
         let mnemonic = Mnemonic::from_phrase(&mnemonic, bip39::Language::English).unwrap();
-        Account::import(
+        match Account::import(
             &mnemonic,
             Some(account.name.clone()),
             0,
@@ -90,12 +92,17 @@ fn import_account(
             "".to_string(),
             "".to_string(),
             conn,
-        )
-        .unwrap_or_else(|| return);
+        ) {
+            Ok(_) => {}
+            Err(_) => {
+                println!("Account already exists: {}", account.account_id);
+                return;
+            }
+        }
     } else if let Some(entropy) = account_secrets.entropy {
         let entropy_bytes = hex::decode(entropy).unwrap();
         let entropy = RootEntropy::try_from(entropy_bytes.as_slice()).unwrap();
-        Account::import_legacy(
+        match Account::import_legacy(
             &entropy,
             Some(account.name.clone()),
             0,
@@ -105,8 +112,13 @@ fn import_account(
             "".to_string(),
             "".to_string(),
             conn,
-        )
-        .unwrap_or_else(|| return);
+        ) {
+            Ok(_) => {}
+            Err(_) => {
+                println!("Account already exists: {}", account.account_id);
+                return;
+            }
+        }
     } else {
         println!(
             "No entropy or mnemonic found for account {}",
@@ -149,6 +161,8 @@ fn import_account(
 
         import_tx_log(&transaction_log, conn, request_uri, client);
     }
+
+    print!("Imported account: {} ", account.account_id);
 }
 
 fn import_tx_log(
@@ -161,33 +175,7 @@ fn import_tx_log(
     import_txos(&transaction_log.output_txos, client, conn, request_uri);
     import_txos(&transaction_log.change_txos, client, conn, request_uri);
 
-    let body = json!({
-        "method": "get_mc_protocol_transaction",
-        "jsonrpc": "2.0",
-        "id": 1,
-        "params": {
-            "transaction_log_id": transaction_log.transaction_log_id
-        }
-    });
-
-    let response = send_request(client, request_uri, body);
-
-    let tx_json: JsonTx = serde_json::from_value(
-        response
-            .get("result")
-            .unwrap()
-            .get("transaction")
-            .unwrap()
-            .clone(),
-    )
-    .unwrap();
-
-    let tx = mc_api::external::Tx::try_from(&tx_json).unwrap();
-    let tx = mc_transaction_core::tx::Tx::try_from(&tx).unwrap();
-    let tx_proto_bytes = mc_util_serial::encode(&tx);
-
-    TransactionLog::log_imported_from_v1(transaction_log.clone(), tx_proto_bytes.as_slice(), conn)
-        .unwrap();
+    TransactionLog::log_imported_from_v1(transaction_log.clone(), &[], conn).unwrap();
 }
 
 fn import_txos(

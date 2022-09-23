@@ -79,15 +79,16 @@ fn main() {
             WalletDb::run_migrations(&conn);
             log::info!(logger, "Connected to database.");
 
-            Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))
+            let wallet_db =
+                WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db");
+            if let Some(import_uri) = config.import_uri.clone() {
+                let client = reqwest::blocking::Client::new();
+                import_accounts(&wallet_db.get_conn().unwrap(), &client, &import_uri);
+            }
+            Some(wallet_db)
         }
         None => None,
     };
-
-    if let Some(import_uri) = config.import_uri.clone() {
-        let client = reqwest::blocking::Client::new();
-        import_accounts(&wallet_db.get_conn().unwrap(), &client, &import_uri);
-    }
 
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
