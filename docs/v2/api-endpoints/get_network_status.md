@@ -30,7 +30,10 @@ description: 'Get the current status of the network.'
       object: "network_status",
       "network_block_height": "152918",
       "local_block_height": ""152918,
-      "fee_pmob": "10000000000"
+        "fees": {
+            "0": "400000000",
+            "1": "2560"
+        },
 
     }
   },
