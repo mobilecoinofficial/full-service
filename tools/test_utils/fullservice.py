@@ -225,6 +225,21 @@ class FullService(FullServiceProcess):
         # network is acceptably synced
         return network_block_height - local_block_height < eps
 
+    def sync_full_service_to_network(self, mc_network):
+        network_synced = False
+        count = 0
+        attempt_limit = 100
+        while network_synced is False and count < attempt_limit:
+            count += 1
+            network_synced = self.sync_status()
+            if count % 10 == 0:
+                print(f"attempt: {count}/{attempt_limit}")
+            time.sleep(1)
+        if count >= attempt_limit:
+            raise Exception(f"Full service sync failed after {attempt_limit} attempts")
+        print("Full service synced")
+
+
     # retrieve wallet status
     def get_wallet_status(self):
         r = self.req({"method": "get_wallet_status"})
@@ -257,16 +272,3 @@ class FullService(FullServiceProcess):
         print(r)
         return r["transaction_log"]
 
-    def sync_full_service_to_network(self, mc_network):
-        network_synced = False
-        count = 0
-        attempt_limit = 100
-        while network_synced is False and count < attempt_limit:
-            count += 1
-            network_synced = self.sync_status()
-            if count % 10 == 0:
-                print(f"attempt: {count}/{attempt_limit}")
-            time.sleep(1)
-        if count >= attempt_limit:
-            raise Exception(f"Full service sync failed after {attempt_limit} attempts")
-        print("Full service synced")
