@@ -141,7 +141,7 @@ class FullServiceProcess:
 
 
 class FullService(FullServiceProcess):
-    default_url = ()
+    
 
     def __init__(self, remove_wallet_and_ledger=False):
         super().__init__()
@@ -150,7 +150,7 @@ class FullService(FullServiceProcess):
         self.account_ids = None
         self.request_count = 0
         self.remove_wallet_and_ledger = remove_wallet_and_ledger
-
+        url = ()
         if not url:
             url = (
                 utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
@@ -188,22 +188,6 @@ class FullService(FullServiceProcess):
                 ) as resp:
                     print(resp.json)
                     return await resp.json()
-
-    def import_account(self, mnemonic) -> bool:
-        print(f"importing full service account {mnemonic}")
-        params = {
-            "mnemonic": mnemonic,
-            "key_derivation_version": "2",
-        }
-        r = self.request({"method": "import_account", "params": params})
-
-        if "error" in r:
-            # If we failed due to a unique constraint, it means the account already exists
-            return (
-                "Diesel Error: UNIQUE constraint failed"
-                in r["error"]["data"]["details"]
-            )
-        return True
 
     # check if full service is synced within margin
     def sync_status(self, eps=5) -> bool:
@@ -244,6 +228,23 @@ class FullService(FullServiceProcess):
     def get_wallet_status(self):
         r = self.req({"method": "get_wallet_status"})
         return r["wallet_status"]
+
+
+    def import_account(self, mnemonic) -> bool:
+        print(f"importing full service account {mnemonic}")
+        params = {
+            "mnemonic": mnemonic,
+            "key_derivation_version": "2",
+        }
+        r = self.req({"method": "import_account", "params": params})
+
+        if "error" in r:
+            # If we failed due to a unique constraint, it means the account already exists
+            return (
+                "Diesel Error: UNIQUE constraint failed"
+                in r["error"]["data"]["details"]
+            )
+        return True
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
