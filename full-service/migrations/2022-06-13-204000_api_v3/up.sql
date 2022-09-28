@@ -1,13 +1,12 @@
 DROP TABLE view_only_txos;
 DROP TABLE view_only_subaddresses;
 DROP TABLE view_only_accounts;
-DROP TABLE assigned_subaddresses;
+
 DROP TABLE transaction_txo_types;
 DROP TABLE transaction_logs;
 DROP TABLE txos;
-DROP TABLE accounts;
 
-CREATE TABLE accounts (
+CREATE TABLE NEW_accounts (
   id VARCHAR NOT NULL PRIMARY KEY,
   account_key BLOB NOT NULL,
   entropy BLOB,
@@ -17,8 +16,25 @@ CREATE TABLE accounts (
   import_block_index UNSIGNED BIG INT NULL,
   name VARCHAR NOT NULL DEFAULT '',
   fog_enabled BOOLEAN NOT NULL,
-  view_only BOOLEAN NOT NULL
+  view_only BOOLEAN NOT NULL DEFAULT FALSE
 );
+
+INSERT INTO NEW_accounts SELECT account_id_hex, account_key, entropy, key_derivation_version, first_block_index, next_block_index, import_block_index, name, fog_enabled, FALSE FROM accounts;
+DROP TABLE accounts;
+ALTER TABLE NEW_accounts RENAME TO accounts;
+
+CREATE TABLE NEW_assigned_subaddresses (
+  public_address_b58 VARCHAR NOT NULL PRIMARY KEY,
+  account_id VARCHAR NOT NULL,
+  subaddress_index UNSIGNED BIG INT NOT NULL,
+  comment VARCHAR NOT NULL DEFAULT '',
+  spend_public_key BLOB NOT NULL,
+  FOREIGN KEY (account_id) REFERENCES accounts(id)
+);
+
+INSERT INTO NEW_assigned_subaddresses SELECT assigned_subaddress_b58, account_id_hex, subaddress_index, comment, subaddress_spend_key FROM assigned_subaddresses;
+DROP TABLE assigned_subaddresses;
+ALTER TABLE NEW_assigned_subaddresses RENAME TO assigned_subaddresses;
 
 CREATE TABLE txos (
   id VARCHAR NOT NULL PRIMARY KEY,
@@ -34,15 +50,6 @@ CREATE TABLE txos (
   received_block_index UNSIGNED BIG INT,
   spent_block_index UNSIGNED BIG INT,
   shared_secret BLOB,
-  FOREIGN KEY (account_id) REFERENCES accounts(id)
-);
-
-CREATE TABLE assigned_subaddresses (
-  public_address_b58 VARCHAR NOT NULL PRIMARY KEY,
-  account_id VARCHAR NOT NULL,
-  subaddress_index UNSIGNED BIG INT NOT NULL,
-  comment VARCHAR NOT NULL DEFAULT '',
-  spend_public_key BLOB NOT NULL,
   FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 

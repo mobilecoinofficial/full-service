@@ -1,6 +1,6 @@
 use crate::db::{
-    models::{Migration, NewMigration},
-    schema::__diesel_schema_migrations,
+    models::{AssignedSubaddress, Migration, NewMigration},
+    schema::{__diesel_schema_migrations, assigned_subaddresses},
     WalletDbError,
 };
 use diesel::{
@@ -11,6 +11,7 @@ use diesel::{
 };
 use diesel_migrations::embed_migrations;
 use mc_common::logger::global_log;
+use mc_crypto_keys::RistrettoPublic;
 use std::{env, thread::sleep, time::Duration};
 
 embed_migrations!("migrations/");
@@ -195,6 +196,35 @@ impl WalletDb {
         WalletDb::validate_foreign_keys(conn);
         conn.batch_execute("PRAGMA foreign_keys = ON;")
             .expect("failed enabling foreign keys");
+    }
+
+    pub fn run_proto_conversions_if_necessary(conn: &SqliteConnection) {
+        Self::run_assigned_subaddress_proto_conversions(conn);
+    }
+
+    fn run_assigned_subaddress_proto_conversions(conn: &SqliteConnection) {
+        let assigned_subaddresses = assigned_subaddresses::table
+            .load::<AssignedSubaddress>(conn)
+            .expect("failed querying for assigned subaddresses");
+
+        for assigned_subaddress in assigned_subaddresses {
+            let spend_public_key_bytes = match mc_util_serial::decode::<RistrettoPublic>(
+                &assigned_subaddress.spend_public_key,
+            ) {
+                Ok(spend_public_key) => spend_public_key.to_bytes().to_vec(),
+                Err(_) => continue,
+            };
+
+            diesel::update(
+                assigned_subaddresses::table.filter(
+                    assigned_subaddresses::public_address_b58
+                        .eq(&assigned_subaddress.public_address_b58),
+                ),
+            )
+            .set((assigned_subaddresses::spend_public_key.eq(&spend_public_key_bytes),))
+            .execute(conn)
+            .expect("failed updating assigned subaddress");
+        }
     }
 }
 
