@@ -4,7 +4,6 @@ DROP TABLE view_only_accounts;
 
 DROP TABLE transaction_txo_types;
 DROP TABLE transaction_logs;
-DROP TABLE txos;
 
 CREATE TABLE NEW_accounts (
   id VARCHAR NOT NULL PRIMARY KEY,
@@ -36,7 +35,7 @@ INSERT INTO NEW_assigned_subaddresses SELECT assigned_subaddress_b58, account_id
 DROP TABLE assigned_subaddresses;
 ALTER TABLE NEW_assigned_subaddresses RENAME TO assigned_subaddresses;
 
-CREATE TABLE txos (
+CREATE TABLE NEW_txos (
   id VARCHAR NOT NULL PRIMARY KEY,
   account_id VARCHAR,
   value UNSIGNED BIG INT NOT NULL,
@@ -52,6 +51,10 @@ CREATE TABLE txos (
   shared_secret BLOB,
   FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
+
+INSERT INTO NEW_txos SELECT txo_id_hex, received_account_id_hex, value, token_id, target_key, public_key, e_fog_hint, txo, subaddress_index, key_image, received_block_index, spent_block_index, confirmation FROM txos;
+DROP TABLE txos;
+ALTER TABLE NEW_txos RENAME TO txos;
 
 CREATE TABLE transaction_logs (
     id VARCHAR NOT NULL PRIMARY KEY,

@@ -1,6 +1,6 @@
 use crate::db::{
-    models::{AssignedSubaddress, Migration, NewMigration},
-    schema::{__diesel_schema_migrations, assigned_subaddresses},
+    models::{AssignedSubaddress, Migration, NewMigration, Txo},
+    schema::{__diesel_schema_migrations, assigned_subaddresses, txos},
     WalletDbError,
 };
 use diesel::{
@@ -200,6 +200,7 @@ impl WalletDb {
 
     pub fn run_proto_conversions_if_necessary(conn: &SqliteConnection) {
         Self::run_assigned_subaddress_proto_conversions(conn);
+        Self::run_txo_proto_conversions(conn);
     }
 
     fn run_assigned_subaddress_proto_conversions(conn: &SqliteConnection) {
@@ -224,6 +225,44 @@ impl WalletDb {
             .set((assigned_subaddresses::spend_public_key.eq(&spend_public_key_bytes),))
             .execute(conn)
             .expect("failed updating assigned subaddress");
+        }
+    }
+
+    fn run_txo_proto_conversions(conn: &SqliteConnection) {
+        let txos = txos::table
+            .load::<Txo>(conn)
+            .expect("failed querying for txos");
+
+        for txo in txos {
+            let target_key_bytes = match mc_util_serial::decode::<RistrettoPublic>(&txo.target_key)
+            {
+                Ok(target_key) => target_key.to_bytes().to_vec(),
+                Err(_) => continue,
+            };
+
+            let public_key_bytes = match mc_util_serial::decode::<RistrettoPublic>(&txo.public_key)
+            {
+                Ok(public_key) => public_key.to_bytes().to_vec(),
+                Err(_) => continue,
+            };
+
+            let key_image_bytes = if let Some(key_image) = txo.key_image {
+                match mc_util_serial::decode::<RistrettoPublic>(&key_image) {
+                    Ok(key_image) => Some(key_image.to_bytes().to_vec()),
+                    Err(_) => continue,
+                }
+            } else {
+                None
+            };
+
+            diesel::update(txos::table.filter(txos::txo_id.eq(&txo.txo_id)))
+                .set((
+                    txos::target_key.eq(&target_key_bytes),
+                    txos::public_key.eq(&public_key_bytes),
+                    txos::key_image.eq(&key_image_bytes),
+                ))
+                .execute(conn)
+                .expect("failed updating txo");
         }
     }
 }
