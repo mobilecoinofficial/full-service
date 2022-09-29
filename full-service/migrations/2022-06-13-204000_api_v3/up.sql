@@ -2,9 +2,6 @@ DROP TABLE view_only_txos;
 DROP TABLE view_only_subaddresses;
 DROP TABLE view_only_accounts;
 
-DROP TABLE transaction_txo_types;
-DROP TABLE transaction_logs;
-
 CREATE TABLE NEW_accounts (
   id VARCHAR NOT NULL PRIMARY KEY,
   account_key BLOB NOT NULL,
@@ -35,6 +32,41 @@ INSERT INTO NEW_assigned_subaddresses SELECT assigned_subaddress_b58, account_id
 DROP TABLE assigned_subaddresses;
 ALTER TABLE NEW_assigned_subaddresses RENAME TO assigned_subaddresses;
 
+CREATE TABLE transaction_input_txos (
+  transaction_log_id VARCHAR NOT NULL,
+  txo_id VARCHAR NOT NULL,
+  PRIMARY KEY (transaction_log_id, txo_id),
+  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
+  FOREIGN KEY (txo_id) REFERENCES txos(id)
+);
+
+INSERT INTO transaction_input_txos SELECT transaction_id_hex, txo_id_hex FROM transaction_txo_types WHERE transaction_txo_type = 'txo_used_as_input';
+
+CREATE TABLE transaction_output_txos (
+    transaction_log_id VARCHAR NOT NULL,
+    txo_id VARCHAR NOT NULL,
+    recipient_public_address_b58 VARCHAR NOT NULL,
+    is_change BOOLEAN NOT NULL,
+    PRIMARY KEY (transaction_log_id, txo_id),
+    FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
+    FOREIGN KEY (txo_id) REFERENCES txos(id)
+);
+
+INSERT INTO transaction_output_txos SELECT ttt.transaction_id_hex, ttt.txo_id_hex, txos.recipient_public_address_b58, FALSE 
+FROM transaction_txo_types ttt
+INNER JOIN transaction_logs tl ON ttt.transaction_id_hex = tl.transaction_id_hex
+INNER JOIN txos ON ttt.txo_id_hex = txos.txo_id_hex
+WHERE ttt.transaction_txo_type = 'txo_used_as_output' AND tl.direction = 'tx_direction_sent';
+
+INSERT INTO transaction_output_txos SELECT ttt.transaction_id_hex, ttt.txo_id_hex, asub.public_address_b58, TRUE 
+FROM transaction_txo_types ttt
+INNER JOIN transaction_logs tl ON ttt.transaction_id_hex = tl.transaction_id_hex
+INNER JOIN txos ON ttt.txo_id_hex = txos.txo_id_hex
+INNER JOIN assigned_subaddresses asub ON asub.subaddress_index = txos.subaddress_index AND asub.account_id = txos.received_account_id_hex
+WHERE ttt.transaction_txo_type = 'txo_used_as_change' AND tl.direction = 'tx_direction_sent';
+
+DROP TABLE transaction_txo_types;
+
 CREATE TABLE NEW_txos (
   id VARCHAR NOT NULL PRIMARY KEY,
   account_id VARCHAR,
@@ -56,7 +88,7 @@ INSERT INTO NEW_txos SELECT txo_id_hex, received_account_id_hex, value, token_id
 DROP TABLE txos;
 ALTER TABLE NEW_txos RENAME TO txos;
 
-CREATE TABLE transaction_logs (
+CREATE TABLE NEW_transaction_logs (
     id VARCHAR NOT NULL PRIMARY KEY,
     account_id VARCHAR NOT NULL,
     fee_value UNSIGNED BIG INT NOT NULL,
@@ -70,20 +102,6 @@ CREATE TABLE transaction_logs (
     FOREIGN KEY (account_id) REFERENCES accounts(id)
 );
 
-CREATE TABLE transaction_input_txos (
-  transaction_log_id VARCHAR NOT NULL,
-  txo_id VARCHAR NOT NULL,
-  PRIMARY KEY (transaction_log_id, txo_id),
-  FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
-  FOREIGN KEY (txo_id) REFERENCES txos(id)
-);
-
-CREATE TABLE transaction_output_txos (
-    transaction_log_id VARCHAR NOT NULL,
-    txo_id VARCHAR NOT NULL,
-    recipient_public_address_b58 VARCHAR NOT NULL,
-    is_change BOOLEAN NOT NULL,
-    PRIMARY KEY (transaction_log_id, txo_id),
-    FOREIGN KEY (transaction_log_id) REFERENCES transaction_logs(id),
-    FOREIGN KEY (txo_id) REFERENCES txos(id)
-);
+INSERT INTO NEW_transaction_logs SELECT transaction_id_hex, account_id_hex, fee, 0, submitted_block_index, NULL, finalized_block_index, comment, tx, FALSE FROM transaction_logs WHERE direction = 'tx_direction_sent';
+DROP TABLE transaction_logs;
+ALTER TABLE NEW_transaction_logs RENAME TO transaction_logs;
