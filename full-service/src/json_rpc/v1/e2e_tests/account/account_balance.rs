@@ -90,7 +90,7 @@ mod e2e_account {
                 .unwrap()
                 .parse::<u64>()
                 .expect("Could not parse u64"),
-            10
+            13
         );
     }
 
@@ -188,7 +188,7 @@ mod e2e_account {
                 .unwrap()
                 .parse::<u64>()
                 .expect("Could not parse u64"),
-            10
+            13
         );
 
         // Create a subaddress
