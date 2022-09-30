@@ -182,6 +182,15 @@ mod e2e_account {
             0
         );
 
+        assert_eq!(
+            balance["account_block_height"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            10
+        );
+
         // Create a subaddress
         let body = json!({
             "jsonrpc": "2.0",
