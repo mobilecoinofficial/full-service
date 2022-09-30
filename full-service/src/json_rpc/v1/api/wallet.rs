@@ -608,9 +608,7 @@ where
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             let account_id = AccountID(account_id);
-            let next_subaddress_index = service
-                .get_next_subaddress_index_for_account(&account_id)
-                .map_err(format_error)?;
+            let account = &service.get_account(&account_id).map_err(format_error)?;
             let balance_map = service
                 .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
@@ -618,15 +616,17 @@ where
 
             let network_status = service.get_network_status().map_err(format_error)?;
             JsonCommandResponse::get_balance_for_account {
-                balance: Balance::new(balance_mob, next_subaddress_index, &network_status),
+                balance: Balance::new(
+                    balance_mob,
+                    account.next_block_index as u64,
+                    &network_status,
+                ),
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
             let assigned_subaddress = service.get_address(&address).map_err(format_error)?;
             let account_id = AccountID(assigned_subaddress.account_id);
-            let next_subaddress_index_for_account = service
-                .get_next_subaddress_index_for_account(&account_id)
-                .map_err(format_error)?;
+            let account = &service.get_account(&account_id).map_err(format_error)?;
 
             let balance_map = service
                 .get_balance_for_address(&address)
@@ -637,7 +637,7 @@ where
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::new(
                     balance_mob,
-                    next_subaddress_index_for_account,
+                    account.next_block_index as u64,
                     &service.get_network_status().map_err(format_error)?,
                 ),
             }
