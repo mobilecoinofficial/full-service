@@ -247,14 +247,14 @@ class FullServiceAPIv1(FullServiceProcess):
 
         # retrieve all accounts full service is aware of
         def get_all(self) -> Tuple[list, dict]:
-            r = FullService.req({"method": "get_all_accounts"})
+            r = FullServiceAPIv1.req({"method": "get_all_accounts"})
             print(r)
             return (r["account_ids"], r["account_map"])
 
         # retrieve information about account
         def get_status(self, account_id: str):
             params = {"account_id": account_id}
-            r = FullService.req({"method": "get_account_status", "params": params})
+            r = FullServiceAPIv1.req({"method": "get_account_status", "params": params})
             return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
