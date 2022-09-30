@@ -7,6 +7,7 @@
 # todo: organize imports
 
 import asyncio
+from queue import Full
 from unittest import result
 from urllib import request
 import aiohttp
@@ -140,9 +141,7 @@ class FullServiceProcess:
         await self.full_service_process.terminate()
 
 
-class FullService(FullServiceProcess):
-    
-
+class FullServiceAPIv1(FullServiceProcess):
     def __init__(self, remove_wallet_and_ledger=False):
         super().__init__()
         self.full_service_process = None
@@ -154,7 +153,7 @@ class FullService(FullServiceProcess):
         if not url:
             url = (
                 utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
-            ).removesuffix("/wallet") + "/wallet"
+            ).removesuffix("/wallet") + "wallet"
         logging.info("full-service url: %s", url)
         self.url = url
         self.wallet_path = pathlib.Path("/tmp/wallet-db")
@@ -225,38 +224,38 @@ class FullService(FullServiceProcess):
 
 
     # retrieve wallet status
-    def get_wallet_status(self):
-        r = self.req({"method": "get_wallet_status"})
+    async def get_wallet_status(self):
+        r = await self.req({"method": "get_wallet_status"})
         return r["wallet_status"]
 
+    class Account:
+        def recover(self, mnemonic) -> bool:
+            print(f"importing full service account {mnemonic}")
+            params = {
+                "mnemonic": mnemonic,
+                "key_derivation_version": "2",
+            }
+            r = FullServiceAPIv1.req({"method": "import_account", "params": params})
 
-    def import_account(self, mnemonic) -> bool:
-        print(f"importing full service account {mnemonic}")
-        params = {
-            "mnemonic": mnemonic,
-            "key_derivation_version": "2",
-        }
-        r = self.req({"method": "import_account", "params": params})
+            if "error" in r:
+                # If we failed due to a unique constraint, it means the account already exists
+                return (
+                    "Diesel Error: UNIQUE constraint failed"
+                    in r["error"]["data"]["details"]
+                )
+            return True
 
-        if "error" in r:
-            # If we failed due to a unique constraint, it means the account already exists
-            return (
-                "Diesel Error: UNIQUE constraint failed"
-                in r["error"]["data"]["details"]
-            )
-        return True
+        # retrieve all accounts full service is aware of
+        def get_all(self) -> Tuple[list, dict]:
+            r = FullService.req({"method": "get_all_accounts"})
+            print(r)
+            return (r["account_ids"], r["account_map"])
 
-    # retrieve all accounts full service is aware of
-    def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self.req({"method": "get_all_accounts"})
-        print(r)
-        return (r["account_ids"], r["account_map"])
-
-    # retrieve information about account
-    def get_account_status(self, account_id: str):
-        params = {"account_id": account_id}
-        r = self.req({"method": "get_account_status", "params": params})
-        return r
+        # retrieve information about account
+        def get_status(self, account_id: str):
+            params = {"account_id": account_id}
+            r = FullService.req({"method": "get_account_status", "params": params})
+            return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
     def send_transaction(self, account_id, to_address, amount):
@@ -272,4 +271,11 @@ class FullService(FullServiceProcess):
         )
         print(r)
         return r["transaction_log"]
+
+
+class FullServiceAPIv2:
+    def stub():
+        pass
+
+    
 
