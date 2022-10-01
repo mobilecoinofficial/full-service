@@ -5,6 +5,9 @@
   ],
   "automergeStrategy": "squash",
   "cloneSubmodules": true,
+  "labels": [
+    "dependencies"
+  ],
   "packageRules": [
     {
       "matchUpdateTypes": [
