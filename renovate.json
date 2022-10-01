@@ -3,5 +3,26 @@
   "extends": [
     "config:base"
   ],
-  "cloneSubmodules": true
+  "automergeStrategy": "squash",
+  "cloneSubmodules": true,
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "automerge": true
+    }
+  ],
+  "reviewers": [
+    "team:ramps-eng"
+  ]
 }
