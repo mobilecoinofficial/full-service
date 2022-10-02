@@ -68,7 +68,7 @@ serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
 strum = { version = "0.24.0", features = ["derive"] }
-strum_macros = "0.24.0"
+strum_macros = "0.24.3"
 tiny-bip39 = "1.0"
 uuid = { version = "1.0.0", features = ["serde", "v4"] }
 
