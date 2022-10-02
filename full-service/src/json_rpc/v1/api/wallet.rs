@@ -555,7 +555,28 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match txo.subaddress_index {
+                        Some(subaddress_index) => {
+                            if let Some(account_id) = &txo.account_id {
+                                match service.get_address_for_account(
+                                    &AccountID(account_id.to_string()),
+                                    subaddress_index,
+                                ) {
+                                    Ok(assigned_address) => {
+                                        Some(assigned_address.public_address_b58)
+                                    }
+                                    Err(_) => None,
+                                }
+                            } else {
+                                None
+                            }
+                        }
+                        None => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
@@ -738,7 +759,7 @@ where
 
             let received_txos = service
                 .list_txos(
-                    Some(account_id),
+                    Some(account_id.clone()),
                     None,
                     None,
                     Some(*Mob::ID),
@@ -751,7 +772,22 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match txo.subaddress_index {
+                        Some(subaddress_index) => {
+                            match service.get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            ) {
+                                Ok(assigned_address) => Some(assigned_address.public_address_b58),
+                                Err(_) => None,
+                            }
+                        }
+                        None => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
