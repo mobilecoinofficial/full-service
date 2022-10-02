@@ -84,5 +84,5 @@ bs58 = "0.4.0"
 [build-dependencies]
 # clippy fails to run without this.
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
-vergen = "7.0.0"
+vergen = "7.4.2"
 anyhow = "1.0"
