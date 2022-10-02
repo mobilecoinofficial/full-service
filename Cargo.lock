@@ -796,12 +796,12 @@ dependencies = [
 
 [[package]]
 name = "devise"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74e04ba2d03c5fa0d954c061fc8c9c288badadffc272ebb87679a89846de3ed3"
+checksum = "dd716c4a507adc5a2aa7c2a372d06c7497727e0892b243d3036bc7478a13e526"
 dependencies = [
- "devise_codegen 0.2.0",
- "devise_core 0.2.0",
+ "devise_codegen 0.2.1",
+ "devise_core 0.2.1",
 ]
 
 [[package]]
@@ -816,11 +816,11 @@ dependencies = [
 
 [[package]]
 name = "devise_codegen"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "066ceb7928ca93a9bedc6d0e612a8a0424048b0ab1f75971b203d01420c055d7"
+checksum = "ea7b8290d118127c08e3669da20b331bed56b09f20be5945b7da6c116d8fab53"
 dependencies = [
- "devise_core 0.2.0",
+ "devise_core 0.2.1",
  "quote 0.6.13",
 ]
 
@@ -836,9 +836,9 @@ dependencies = [
 
 [[package]]
 name = "devise_core"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf41c59b22b5e3ec0ea55c7847e5f358d340f3a8d6d53a5cf4f1564967f96487"
+checksum = "d1053e9d5d5aade9bcedb5ab53b78df2b56ff9408a3138ce77eaaef87f932373"
 dependencies = [
  "bitflags",
  "proc-macro2 0.4.30",
@@ -2869,7 +2869,7 @@ dependencies = [
  "rayon",
  "reqwest",
  "retry",
- "rocket 0.4.10",
+ "rocket 0.4.11",
  "rocket_contrib",
  "serde",
  "serde-big-array",
@@ -4019,9 +4019,9 @@ dependencies = [
 
 [[package]]
 name = "pear"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5320f212db967792b67cfe12bd469d08afd6318a249bd917d5c19bc92200ab8a"
+checksum = "32dfa7458144c6af7f9ce6a137ef975466aa68ffa44d4d816ee5934018ba960a"
 dependencies = [
  "pear_codegen 0.1.4",
 ]
@@ -4694,18 +4694,18 @@ checksum = "5510dbde48c4c37bf69123b1f636b6dd5f8dffe1f4e358af03c46a4947dca219"
 
 [[package]]
 name = "rocket"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a7ab1dfdc75bb8bd2be381f37796b1b300c45a3c9145b34d86715e8dd90bf28"
+checksum = "83b9d9dc08c5dcc1d8126a9dd615545e6a358f8c13c883c8dfed8c0376fa355e"
 dependencies = [
  "atty",
  "base64 0.13.0",
  "log 0.4.11",
  "memchr",
  "num_cpus",
- "pear 0.1.4",
- "rocket_codegen 0.4.10",
- "rocket_http 0.4.10",
+ "pear 0.1.5",
+ "rocket_codegen 0.4.11",
+ "rocket_http 0.4.11",
  "state 0.4.1",
  "time 0.1.43",
  "toml 0.4.10",
@@ -4754,15 +4754,15 @@ dependencies = [
 
 [[package]]
 name = "rocket_codegen"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1729e687d6d2cf434d174da84fb948f7fef4fac22d20ce94ca61c28b72dbcf9f"
+checksum = "2810037b5820098af97bd4fdd309e76a8101ceb178147de775c835a2537284fe"
 dependencies = [
- "devise 0.2.0",
+ "devise 0.2.1",
  "glob 0.3.0",
  "indexmap",
  "quote 0.6.13",
- "rocket_http 0.4.10",
+ "rocket_http 0.4.11",
  "version_check 0.9.3",
  "yansi",
 ]
@@ -4793,7 +4793,7 @@ dependencies = [
  "log 0.4.11",
  "notify",
  "r2d2",
- "rocket 0.4.10",
+ "rocket 0.4.11",
  "rocket_contrib_codegen",
  "serde",
  "serde_json",
@@ -4805,7 +4805,7 @@ version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0f2cbcb6c09b3ac0acdf77682ff8c9d1f317361498a773ee50b32be7fddfe2b"
 dependencies = [
- "devise 0.2.0",
+ "devise 0.2.1",
  "quote 0.6.13",
  "version_check 0.9.3",
  "yansi",
@@ -4813,14 +4813,14 @@ dependencies = [
 
 [[package]]
 name = "rocket_http"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6131e6e6d38a9817f4a494ff5da95971451c2eb56a53915579fc9c80f6ef0117"
+checksum = "2bf9cbd128e1f321a2d0bebd2b7cf0aafd89ca43edf69e49b56a5c46e48eb19f"
 dependencies = [
  "cookie 0.11.3",
  "hyper 0.10.16",
  "indexmap",
- "pear 0.1.4",
+ "pear 0.1.5",
  "percent-encoding 1.0.1",
  "smallvec",
  "state 0.4.1",
