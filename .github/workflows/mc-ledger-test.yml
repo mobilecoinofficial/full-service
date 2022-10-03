@@ -20,7 +20,7 @@ on:
         description: 'Tag or commit-hash to upgrade Full-Service to'
         type: string
         required: true
-        default: "v1.9.2"
+        default: 'v1.9.2'
   push:
     branches:
       - setup-mobilecoin
@@ -29,11 +29,11 @@ on:
       version_a_ref:
         description: 'Tag or commit-hash for the base version of Full-Service'
         required: true
-        default: 'v1.10.0-pre.5' #'v1.9.0' 
+        default: 'v1.9.0' 
       version_b_ref:
         description: 'Tag or commit-hash to upgrade Full-Service to'
         required: true
-        default: 'v1.9.2 '
+        default: 'v1.9.2'
 
 # TESTING WITH NEKTOS/ACT
 # nektos/act is a 3rd party github library that allows for the LOCAL testing of github actions
@@ -41,7 +41,7 @@ on:
   # 2 change the runs-on tag to point to `ubuntu-latest` if its set to a self-hosted tag
     # 2.1 `ubuntu-latest` will use Github Action minutes, but is required for testing with nektos/act
     # 2.2 `[self-hosted, Linux, large]` will use a self-hosted machine (free for us), but fails with nektos/act
-  # 3 Below, uncomment the "run bash" step, and comment out the "Run Integration" step
+  # 3 Below, uncomment the 'run bash' step, and comment out the 'Run Integration' step
   # 4 From your full-service root dir, run `act -W .github/workflows/mc-ledger-test.yml`. Nektos/act will run this yml job,
   #    resulting in a containtainer that has all the code built and ready to run for local development. It will look like your
   #    terminal window is hanging on `docker exec cmd=[bash --noprofile --norc -e -o pipefail /var/run/act/workflow/4.sh] user= workdir=`
