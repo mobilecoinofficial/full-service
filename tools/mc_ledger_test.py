@@ -7,11 +7,11 @@ from test_utils import fullservice as fslib
 
 # Shoving the raw request into a python class would allow us to just access these things as members of the class
 # TODO: create a python dataclass to hold these
-balance = 'balance'
-pending = 'pending_pmob'
-unspent = 'unspent_pmob'
-spent = 'spent_pmob'
-fee = 'fee_pmob'
+BALANCE = 'balance'
+PENDING = 'pending_pmob'
+UNSPENT = 'unspent_pmob'
+SPENT = 'spent_pmob'
+FEE = 'fee_pmob'
 
 # run sample test transactions between the first two accounts in full service
 def test_transactions_basic(fs):
@@ -28,32 +28,32 @@ def test_transactions_basic(fs):
     p_mob_amount = 600_000_000
     p_mob_amount_str = str(p_mob_amount)
 
-    acc0_balance0 = (fs.get_account_status(acc0_id))[balance]
-    acc1_balance0 = (fs.get_account_status(acc1_id))[balance]
+    acc0_balance0 = (fs.get_account_status(acc0_id))[BALANCE]
+    acc1_balance0 = (fs.get_account_status(acc1_id))[BALANCE]
     
-    assert int(acc0_balance0[unspent]) > p_mob_amount    
+    assert int(acc0_balance0[UNSPENT]) > p_mob_amount    
 
     log_0 = fs.send_transaction(acc0_id, account_1['main_address'], p_mob_amount_str, False)
     attempts_count = 0
-    while fs.get_account_status(acc0_id)[balance][pending] != '0' and attempts_count < 5:
+    while fs.get_account_status(acc0_id)[BALANCE][PENDING] != '0' and attempts_count < 5:
         time.sleep(1)
         attempts_count += 1
-    acc0_balance1 = fs.get_account_status(acc0_id)[balance]
-    acc1_balance1 = fs.get_account_status(acc1_id)[balance]
-    assert acc0_balance1[pending] == '0' 
-    assert int(acc0_balance1[unspent]) == int(acc0_balance0[unspent]) - p_mob_amount - int(log_0[fee])
-    assert int(acc1_balance1[unspent]) == int(acc1_balance0[unspent]) + p_mob_amount 
+    acc0_balance1 = fs.get_account_status(acc0_id)[BALANCE]
+    acc1_balance1 = fs.get_account_status(acc1_id)[BALANCE]
+    assert acc0_balance1[PENDING] == '0' 
+    assert int(acc0_balance1[UNSPENT]) == int(acc0_balance0[UNSPENT]) - p_mob_amount - int(log_0[FEE])
+    assert int(acc1_balance1[UNSPENT]) == int(acc1_balance0[UNSPENT]) + p_mob_amount 
     
     log_1 = fs.send_transaction(acc1_id, account_0['main_address'], p_mob_amount_str, False)
     attempts_count = 0
-    while fs.get_account_status(acc1_id)[balance][pending] != '0' and attempts_count < 5:
+    while fs.get_account_status(acc1_id)[BALANCE][PENDING] != '0' and attempts_count < 5:
         time.sleep(1)
         attempts_count += 1
-    acc0_balance2 = fs.get_account_status(acc0_id)[balance]
-    acc1_balance2 = fs.get_account_status(acc1_id)[balance]
-    assert acc1_balance2[pending] == '0' 
-    assert int(acc0_balance2[unspent]) == int(acc0_balance1[unspent]) + p_mob_amount
-    assert int(acc1_balance2[unspent]) == int(acc1_balance1[unspent]) - p_mob_amount - int(log_1[fee]) 
+    acc0_balance2 = fs.get_account_status(acc0_id)[BALANCE]
+    acc1_balance2 = fs.get_account_status(acc1_id)[BALANCE]
+    assert acc1_balance2[PENDING] == '0' 
+    assert int(acc0_balance2[UNSPENT]) == int(acc0_balance1[UNSPENT]) + p_mob_amount
+    assert int(acc1_balance2[UNSPENT]) == int(acc1_balance1[UNSPENT]) - p_mob_amount - int(log_1[FEE]) 
 
     print(('________________________________________________________________________________'))
     print('transactions completed')
