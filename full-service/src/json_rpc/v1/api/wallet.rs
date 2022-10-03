@@ -556,23 +556,15 @@ where
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
                 .map(|(txo, _)| {
-                    let subaddress_b58 = match txo.subaddress_index {
-                        Some(subaddress_index) => {
-                            if let Some(account_id) = &txo.account_id {
-                                match service.get_address_for_account(
-                                    &AccountID(account_id.to_string()),
-                                    subaddress_index,
-                                ) {
-                                    Ok(assigned_address) => {
-                                        Some(assigned_address.public_address_b58)
-                                    }
-                                    Err(_) => None,
-                                }
-                            } else {
-                                None
-                            }
-                        }
-                        None => None,
+                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                        (Some(subaddress_index), Some(account_id)) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        _ => None,
                     };
 
                     TransactionLog::new_from_received_txo(txo, subaddress_b58)
@@ -774,15 +766,13 @@ where
                 .iter()
                 .map(|(txo, _)| {
                     let subaddress_b58 = match txo.subaddress_index {
-                        Some(subaddress_index) => {
-                            match service.get_address_for_account(
+                        Some(subaddress_index) => service
+                            .get_address_for_account(
                                 &AccountID(account_id.clone()),
                                 subaddress_index,
-                            ) {
-                                Ok(assigned_address) => Some(assigned_address.public_address_b58),
-                                Err(_) => None,
-                            }
-                        }
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
                         None => None,
                     };
 
