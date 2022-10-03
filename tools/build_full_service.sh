@@ -5,7 +5,5 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PROJECT_DIR=$SCRIPT_DIR/../mobilecoin
 
 echo "building full service..."
-export RUST_LOG=debug
-export SGX_MODE=SW
 export CONSENSUS_ENCLAVE_CSS="$PROJECT_DIR/target/release/consensus-enclave.css"
 cargo build --release -p mc-full-service
