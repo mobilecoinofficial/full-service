@@ -33,7 +33,7 @@ class FullService:
         self.stop()
         if self.remove_wallet_and_ledger:
             try:
-                print(f"Removing ledger/wallet dbs")
+                print(f'Removing ledger/wallet dbs')
                 shutil.rmtree(self.wallet_path)
                 shutil.rmtree(self.ledger_path)
             except Exception as e:
@@ -68,9 +68,9 @@ class FullService:
         print('sending request to full service')
         url = 'http://127.0.0.1:9090/wallet'
         default_params = {
-            "jsonrpc": "2.0",
-            "api_version": "2",
-            "id": self.request_count,
+            'jsonrpc': '2.0',
+            'api_version': '2',
+            'id': self.request_count,
         }
         request_data = {**request_data, **default_params}
 
@@ -102,8 +102,8 @@ class FullService:
             'key_derivation_version': '2',
         }
         r = self._request({
-            "method": "import_account",
-            "params": params
+            'method': 'import_account',
+            'params': params
         })
 
         if 'error' in r:
@@ -129,7 +129,7 @@ class FullService:
         # ping network
         try:
             r = self._request({
-                "method": "get_network_status"
+                'method': 'get_network_status'
             })
         except ConnectionError as e:
             print(e)
@@ -149,7 +149,7 @@ class FullService:
     # retrieve wallet status
     def get_wallet_status(self):
         r = self._request({
-            "method": "get_wallet_status"
+            'method': 'get_wallet_status'
         })
         return r['wallet_status']
 
@@ -168,7 +168,7 @@ class FullService:
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self._request({"method": "get_all_accounts"})
+        r = self._request({'method': 'get_all_accounts'})
         print(r)
         return (r['account_ids'], r['account_map'])
 
@@ -176,23 +176,23 @@ class FullService:
     def get_account_status(self, account_id: str):
         # TODO: Create a python class that represents the account and account status
         params = {
-            "account_id": account_id
+            'account_id': account_id
         }
         r = self._request({
-            "method": "get_account_status",
-            "params": params
+            'method': 'get_account_status',
+            'params': params
         })
         return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
     def send_transaction(self, account_id, to_address, amount, print_flag = True):
         params = {
-            "account_id": account_id,
-            "addresses_and_values": [(to_address, amount)]
+            'account_id': account_id,
+            'addresses_and_values': [(to_address, amount)]
         }
         r = self._request({
-            "method": "build_and_submit_transaction",
-            "params": params,
+            'method': 'build_and_submit_transaction',
+            'params': params,
         })
         if print_flag:
             print(r)
