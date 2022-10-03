@@ -66,7 +66,7 @@ impl fmt::Display for TxDirection {
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Deserialize, PartialEq, Serialize, Default, Debug, Clone)]
 pub struct TransactionLog {
     /// String representing the object's type. Objects of the same type share
     /// the same value.
@@ -146,7 +146,7 @@ impl TransactionLog {
     ) -> Result<Self, String> {
         Ok(TransactionLog {
             object: "transaction_log".to_string(),
-            transaction_log_id: txo.id.to_string(),
+            transaction_log_id: txo.id.clone(),
             direction: TxDirection::Received.to_string(),
             is_sent_recovered: None,
             account_id: txo
@@ -154,13 +154,17 @@ impl TransactionLog {
                 .account_id
                 .ok_or("Txo has no account_id but it is required for a transaction log")?,
             input_txos: vec![],
-            output_txos: vec![],
+            output_txos: vec![TxoAbbrev {
+                txo_id_hex: txo.id.to_string(),
+                recipient_address_id: "".to_string(),
+                value_pmob: txo.value.to_string(),
+            }],
             change_txos: vec![],
             assigned_address_id: assigned_address,
             value_pmob: txo.value.to_string(),
             fee_pmob: None,
             submitted_block_index: None,
-            finalized_block_index: None,
+            finalized_block_index: txo.received_block_index.map(|index| index.to_string()),
             status: TxStatus::Succeeded.to_string(),
             sent_time: None,
             comment: "".to_string(),
@@ -225,7 +229,7 @@ impl TransactionLog {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Deserialize, PartialEq, Serialize, Default, Debug, Clone)]
 pub struct TxoAbbrev {
     pub txo_id_hex: String,
 
