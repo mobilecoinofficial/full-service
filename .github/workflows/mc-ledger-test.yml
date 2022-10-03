@@ -6,6 +6,7 @@ env:
   RUST_BACKTRACE: full
   IAS_API_KEY: ${{ secrets.SGX_PRIMARY_API_KEY }}
   IAS_SPID: ${{ secrets.SGX_SPID }}
+  MC_LOG: warn
 
 on:
   workflow_dispatch:
