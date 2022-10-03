@@ -41,7 +41,6 @@ def test_transactions_basic(fs):
     acc0_balance1 = fs.get_account_status(acc0_id)[balance]
     acc1_balance1 = fs.get_account_status(acc1_id)[balance]
     assert acc0_balance1[pending] == '0' 
-    breakpoint()
     assert int(acc0_balance1[unspent]) == int(acc0_balance0[unspent]) - p_mob_amount - int(log_0[fee])
     assert int(acc1_balance1[unspent]) == int(acc1_balance0[unspent]) + p_mob_amount 
     
