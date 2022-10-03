@@ -174,6 +174,7 @@ class FullService:
 
     # retrieve information about account
     def get_account_status(self, account_id: str):
+        # TODO: Create a python class that represents the account and account status
         params = {
             "account_id": account_id
         }
@@ -184,7 +185,7 @@ class FullService:
         return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
-    def send_transaction(self, account_id, to_address, amount):
+    def send_transaction(self, account_id, to_address, amount, print_flag = True):
         params = {
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)]
@@ -193,7 +194,8 @@ class FullService:
             "method": "build_and_submit_transaction",
             "params": params,
         })
-        print(r)
+        if print_flag:
+            print(r)
         return r['transaction_log']
 
     def sync_full_service_to_network(self, mc_network):
