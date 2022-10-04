@@ -29,7 +29,7 @@ class FullService:
         self.start()
         return self
     
-    def __exit__(self,exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.stop()
         if self.remove_wallet_and_ledger:
             try:
