@@ -555,7 +555,20 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                        (Some(subaddress_index), Some(account_id)) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        _ => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
@@ -738,7 +751,7 @@ where
 
             let received_txos = service
                 .list_txos(
-                    Some(account_id),
+                    Some(account_id.clone()),
                     None,
                     None,
                     Some(*Mob::ID),
@@ -751,7 +764,20 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match txo.subaddress_index {
+                        Some(subaddress_index) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        None => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
