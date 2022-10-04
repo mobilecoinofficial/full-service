@@ -58,32 +58,7 @@ class FullServiceProcess:
         self.peer2 = utils.get_secret("PEER2")
         # this is a lot of variables... 
 
-    async def start(self, cmd):
-        # self.cmd = cmd 
-        # I was trying to source the cmd string from __init__, but this didn't seem to work.
-        # self.wallet_path.mkdir(parents=True, exists_ok=True)
-        cmd = " ".join(
-            [
-                f"{self.full_service_dir}/target/release/full-service",
-                "--wallet-db {self.wallet_path}/wallet.db",
-                "--ledger-db {self.ledger_path}",
-                "--peer {self.peer1}",
-                "--peer {self.peer2}",
-                f"--tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/",
-                f"--tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/",
-            ]
-        )
-        full_service_process = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await full_service_process.communicate()
-        print(f"[{cmd!r} exited with {full_service_process.returncode}]")
-        if stdout:
-            print(f"[stdout]\n{stdout.decode()}")
-        if stderr:
-            print(f"[stderr]\n{stderr.decode()}")
-
-    async def start_local(self):
+    async def start(self):
         cmd = " ".join(
             [
                 f'{utils.get_secret("FULLSERVICE_DIR")}/target/release/full-service',
@@ -93,28 +68,6 @@ class FullServiceProcess:
                 "--peer insecure-mc://localhost:3201",
                 f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-0',
                 f'--tx-source-url file://{utils.get_secret("MOBILECOIN_DIR")}/target/release/mc-local-network/node-ledger-distribution-1',
-            ]
-        )
-        full_service_process = await asyncio.create_subprocess_shell(
-            cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await full_service_process.communicate()
-        print(f"[{cmd!r} exited with {full_service_process.returncode}]")
-        if stdout:
-            print(f"[stdout]\n{stdout.decode()}")
-        if stderr:
-            print(f"[stderr]\n{stderr.decode()}")
-
-    async def start_testnet(self):
-        cmd = " ".join(
-            [
-                f'{utils.get_secret("FULLSERVICE_DIR")}/target/release/full-service',
-                "--wallet-db /tmp/wallet-db/wallet4.db",
-                "--ledger-db /tmp/ledger-db/",
-                "--peer mc://node1.test.mobilecoin.com/",
-                "--peer mc://node2.test.mobilecoin.com/",
-                f"--tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/",
-                f"--tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/",
             ]
         )
         full_service_process = await asyncio.create_subprocess_shell(
