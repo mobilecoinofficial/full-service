@@ -122,7 +122,7 @@ class FullService:
         return (keydata_0['mnemonic'], keydata_1['mnemonic'])
 
     # check if full service is synced within margin
-    def sync_status(self, eps=5) -> bool:
+    def sync_status(self) -> bool:
         # ping network
         try:
             r = self._request({
@@ -141,7 +141,7 @@ class FullService:
         local_block_height = int(r['network_status']['local_block_height'])
 
         # network is acceptably synced
-        return (network_block_height - local_block_height < eps)
+        return (network_block_height == local_block_height )
 
     # retrieve wallet status
     def get_wallet_status(self):
