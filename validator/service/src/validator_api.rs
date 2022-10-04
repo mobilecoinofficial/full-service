@@ -11,8 +11,8 @@ use mc_connection::{
 use mc_fog_report_connection::{Error as FogConnectionError, GrpcFogReportConnection};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_util_grpc::{
-    rpc_database_err, rpc_internal_error, rpc_invalid_arg_error, rpc_logger, rpc_permissions_error,
-    send_result,
+    check_request_chain_id, rpc_database_err, rpc_internal_error, rpc_invalid_arg_error,
+    rpc_logger, rpc_permissions_error, send_result,
 };
 use mc_util_uri::FogUri;
 use mc_validator_api::{
@@ -48,6 +48,9 @@ pub struct ValidatorApi<UTC: UserTxConnection + 'static> {
     /// Fog report connection.
     fog_report_connection: GrpcFogReportConnection,
 
+    /// Chain id.
+    chain_id: String,
+
     /// Logger.
     logger: Logger,
 }
@@ -59,6 +62,7 @@ impl<UTC: UserTxConnection + 'static> Clone for ValidatorApi<UTC> {
             conn_manager: self.conn_manager.clone(),
             submit_node_offset: self.submit_node_offset.clone(),
             fog_report_connection: self.fog_report_connection.clone(),
+            chain_id: self.chain_id.clone(),
             logger: self.logger.clone(),
         }
     }
@@ -76,7 +80,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             conn_manager,
             submit_node_offset: Arc::new(AtomicUsize::new(0)),
             fog_report_connection: GrpcFogReportConnection::new(
-                chain_id,
+                chain_id.clone(),
                 Arc::new(
                     EnvBuilder::new()
                         .name_prefix("FogReportGrpc".to_string())
@@ -84,6 +88,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
                 ),
                 logger.clone(),
             ),
+            chain_id,
             logger,
         }
     }
@@ -227,6 +232,15 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             )),
         }
     }
+
+    /// Check the chain-id, if available.
+    fn maybe_check_request_chain_id(&self, ctx: &RpcContext) -> Result<(), RpcStatus> {
+        if self.chain_id.is_empty() {
+            return Ok(());
+        }
+
+        check_request_chain_id(&self.chain_id, ctx)
+    }
 }
 
 impl<UTC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<UTC> {
@@ -237,6 +251,10 @@ impl<UTC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<UTC> {
         sink: UnarySink<ArchiveBlocks>,
     ) {
         mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            if let Err(err) = self.maybe_check_request_chain_id(&ctx) {
+                return send_result(ctx, sink, Err(err), &self.logger);
+            }
+
             send_result(
                 ctx,
                 sink,
@@ -248,6 +266,10 @@ impl<UTC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<UTC> {
 
     fn propose_tx(&mut self, ctx: RpcContext, request: Tx, sink: UnarySink<ProposeTxResponse>) {
         mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            if let Err(err) = self.maybe_check_request_chain_id(&ctx) {
+                return send_result(ctx, sink, Err(err), &self.logger);
+            }
+
             send_result(ctx, sink, self.propose_tx_impl(request, logger), logger)
         })
     }
@@ -259,6 +281,10 @@ impl<UTC: UserTxConnection + 'static> GrpcValidatorApi for ValidatorApi<UTC> {
         sink: UnarySink<FetchFogReportResponse>,
     ) {
         mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {
+            if let Err(err) = self.maybe_check_request_chain_id(&ctx) {
+                return send_result(ctx, sink, Err(err), &self.logger);
+            }
+
             send_result(
                 ctx,
                 sink,
