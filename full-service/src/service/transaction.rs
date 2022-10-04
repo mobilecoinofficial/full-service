@@ -355,7 +355,7 @@ where
 
             builder.set_fee(fee_value, fee_token_id)?;
 
-            builder.set_block_version(self.get_network_block_version());
+            builder.set_block_version(self.get_network_block_version()?);
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs)?;

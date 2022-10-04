@@ -10,7 +10,7 @@ use crate::{
     },
     WalletService,
 };
-use mc_blockchain_types::{Block, BlockContents, BlockVersion};
+use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError};
 use mc_common::HashSet;
 use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -27,7 +27,7 @@ use rand::Rng;
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{collections::BTreeMap, convert::TryFrom, iter::empty};
+use std::{collections::BTreeMap, convert::TryFrom};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -64,6 +64,9 @@ pub enum LedgerServiceError {
 
     /// Inconsistent last block info
     InconsistentLastBlockInfo,
+
+    /// Block version: {0}
+    BlockVersion(BlockVersionError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -96,6 +99,12 @@ impl From<mc_crypto_keys::KeyError> for LedgerServiceError {
     }
 }
 
+impl From<BlockVersionError> for LedgerServiceError {
+    fn from(src: BlockVersionError) -> Self {
+        Self::BlockVersion(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
@@ -115,7 +124,7 @@ pub trait LedgerService {
 
     fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError>;
 
-    fn get_network_block_version(&self) -> BlockVersion;
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError>;
 
     fn get_tx_out_proof_of_memberships(
         &self,
@@ -205,20 +214,31 @@ where
             .ok_or(LedgerServiceError::NoLastBlockInfo)
     }
 
-    fn get_network_block_version(&self) -> BlockVersion {
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {
         if self.peer_manager.is_empty() {
-            BlockVersion::MAX
+            Ok(BlockVersion::MAX)
         } else {
-            let block_version = self
+            // Get the last block information from all nodes we are aware of, in parallel.
+            let last_block_infos = self
                 .peer_manager
                 .conns()
                 .par_iter()
-                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-                .map(|block_info| block_info.network_block_version)
-                .max()
-                .unwrap_or(*BlockVersion::MAX);
+                .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+                .collect::<Vec<_>>();
 
-            BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
+            // Ensure that all nodes agree on the block version.
+            if last_block_infos
+                .windows(2)
+                .any(|window| window[0].network_block_version != window[1].network_block_version)
+            {
+                return Err(LedgerServiceError::InconsistentLastBlockInfo);
+            }
+
+            let network_block_version = last_block_infos
+                .get(0)
+                .map(|info| info.network_block_version)
+                .ok_or(LedgerServiceError::NoLastBlockInfo)?;
+            Ok(BlockVersion::try_from(network_block_version)?)
         }
     }
 

@@ -219,7 +219,7 @@ where
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
             fees: self.get_network_fees()?,
-            block_version: *self.get_network_block_version(),
+            block_version: *self.get_network_block_version()?,
         })
     }
 
