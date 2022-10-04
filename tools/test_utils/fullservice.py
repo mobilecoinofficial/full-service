@@ -160,8 +160,7 @@ class FullService:
             mnemonic_0, mnemonic_1 = self.get_test_accounts()
             self.import_account(mnemonic_0)
             self.import_account(mnemonic_1)
-
-        self.account_ids, self.account_map = self.get_all_accounts()
+            self.account_ids, self.account_map = self.get_all_accounts()
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
