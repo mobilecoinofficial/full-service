@@ -1,10 +1,5 @@
 # Copyright (c) 2022 MobileCoin, Inc.
 
-# TODO: This should actually be more generic so that the python CLI
-#   can also use it as a library (or maybe tests will use the CLI's library)
-
-
-# todo: organize imports
 
 import asyncio
 from queue import Full
@@ -64,11 +59,6 @@ class FullServiceAPIv1():
         self.url = url
         self.wallet_path = pathlib.Path("/tmp/wallet-db")
         self.ledger_path = pathlib.Path("/tmp/ledger-db")
-
-    def __enter__(self):
-        self.remove_wallet_and_ledger = True
-        self.start()
-        return self
 
     async def req(self, method: str, **params: Any) -> dict:
         logging.info("request: %s", method)
