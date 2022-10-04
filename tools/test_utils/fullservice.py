@@ -90,10 +90,7 @@ class FullService:
 
         # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
         time.sleep(2)
-        if 'error' in response_data:
-            return response_data['error']
-        else:
-            return response_data['result']
+        return response_data
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
@@ -130,7 +127,7 @@ class FullService:
         try:
             r = self._request({
                 'method': 'get_network_status'
-            })
+            })['result']
         except ConnectionError as e:
             print(e)
             return False
@@ -150,7 +147,7 @@ class FullService:
     def get_wallet_status(self):
         r = self._request({
             'method': 'get_wallet_status'
-        })
+        })['result']
         return r['wallet_status']
 
     # ensure at least two accounts are in the wallet. Some accounts are imported by default, but the number changes.
@@ -168,7 +165,7 @@ class FullService:
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self._request({'method': 'get_all_accounts'})
+        r = self._request({'method': 'get_all_accounts'})['result']
         print(r)
         return (r['account_ids'], r['account_map'])
 
@@ -181,7 +178,7 @@ class FullService:
         r = self._request({
             'method': 'get_account_status',
             'params': params
-        })
+        })['result']
         return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
@@ -193,7 +190,7 @@ class FullService:
         r = self._request({
             'method': 'build_and_submit_transaction',
             'params': params,
-        })
+        })['result']
         if print_flag:
             print(r)
         return r['transaction_log']
