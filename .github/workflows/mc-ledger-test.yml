@@ -64,7 +64,7 @@ jobs:
     container:
       # image should be kept up to date with the url and tag listed in mobilecoin/.mobconf
       # e.g. {{url}}:{{tag}} to prevent build failures
-      image: mobilecoin/builder-install:v0.0.10
+      image: mobilecoin/builder-install:v0.0.17
     steps:
       - name: Checkout
         uses: actions/checkout@v3
