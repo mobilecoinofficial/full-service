@@ -129,12 +129,10 @@ class FullServiceAPIv1(Request):
 
 class Account(FullServiceAPIv1):
     async def create(self, **kwargs):
-        params = []
         r = await self.req(method="create_account", **kwargs)
         return r['result']['account']
 
     async def recover(self, **kwargs) -> bool:
-        params = []
         r = await self.req(method="import_account", **kwargs)
 
         if "error" in r:
