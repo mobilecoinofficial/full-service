@@ -126,7 +126,7 @@ class FullServiceAPIv1():
         return r["wallet_status"]
 
     class Account:
-        async def create_account(self, name=None):
+        async def create(self, name=None):
             r = await req({
                 "method": "create_account",
                 "params": {
@@ -151,25 +151,66 @@ class FullServiceAPIv1():
                 )
             return True
 
+        async def recover_fog(self, mnemonic, name, key_derivation_version, fog_report_url, fog_report_id, fog_authority_spki):
+            params = {
+                "mnemonic": mnemonic,
+                "key_derivation_version": "2",
+                "fog_report_url": fog_report_url,
+                "fog_report_id": fog_report_id,
+                "fog_authority_spki": fog_authority_spki
+            }
+            r = await req({"method": "import_account", "params": params})
+
+            if "error" in r:
+                # If we failed due to a unique constraint, it means the account already exists
+                return (
+                    "Diesel Error: UNIQUE constraint failed"
+                    in r["error"]["data"]["details"]
+                )
+            return True
+
+        async def update_account_name(self, account_id, name):
+            r = await req({
+                "method": "update_account_name",
+                "params": {
+                    "account_id": account_id,
+                    "name": name,
+                }
+            })
+            return r['account']
+
+        async def remove_account(self, account_id):
+            return await req({
+                "method": "remove_account",
+                "params": {"account_id": account_id}
+            })
+
+        async def export_account_secrets(self, account_id):
+            r = await req({
+                "method": "export_account_secrets",
+                "params": {"account_id": account_id}
+            })
+            return r['account_secrets']
+
         # retrieve all accounts full service is aware of
-        def get_all(self) -> Tuple[list, dict]:
-            r = req({"method": "get_all_accounts"})
+        async def get_all(self) -> Tuple[list, dict]:
+            r = await req({"method": "get_all_accounts"})
             print(r)
             return (r["account_ids"], r["account_map"])
 
         # retrieve information about account
-        def get_status(self, account_id: str):
+        async def get_status(self, account_id: str):
             params = {"account_id": account_id}
-            r = req({"method": "get_account_status", "params": params})
+            r = await req({"method": "get_account_status", "params": params})
             return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
-    def send_transaction(self, account_id, to_address, amount):
+    async def send_transaction(self, account_id, to_address, amount):
         params = {
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)],
         }
-        r = req(
+        r = await req(
             {
                 "method": "build_and_submit_transaction",
                 "params": params,
