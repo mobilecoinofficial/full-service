@@ -42,6 +42,31 @@ else:
     ssl_context.load_cert_chain(certfile="client.full.pem")
 
 
+async def req(self, method: str, **params: Any) -> dict:
+    logging.info("request: %s", method)
+    response_data = await self.request({"method": method, "params": params})
+    if "error" in result:
+        logging.error(result)
+    return result
+
+# return the result field of the request
+### is this a breaking change with unittests?
+async def request(self, request_data):
+    self.request_count += 1
+    request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
+    print(f"request data: {request_data}")
+    async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
+        async with aiohttp.ClientSession(connector=conn) as sess:
+            # this can hang (forever?) if there's no full-service at that url
+            async with sess.post(
+                self.url,
+                data=json.dumps(request_data),
+                headers={"Content-Type": "application/json"},
+            ) as resp:
+                print(resp.json)
+                return await resp.json()
+
+
 class FullServiceAPIv1():
     def __init__(self, remove_wallet_and_ledger=False):
         super().__init__()
@@ -59,30 +84,6 @@ class FullServiceAPIv1():
         self.url = url
         self.wallet_path = pathlib.Path("/tmp/wallet-db")
         self.ledger_path = pathlib.Path("/tmp/ledger-db")
-
-    async def req(self, method: str, **params: Any) -> dict:
-        logging.info("request: %s", method)
-        response_data = await self.request({"method": method, "params": params})
-        if "error" in result:
-            logging.error(result)
-        return result
-
-    # return the result field of the request
-    ### is this a breaking change with unittests?
-    async def request(self, request_data):
-        self.request_count += 1
-        request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
-        print(f"request data: {request_data}")
-        async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
-            async with aiohttp.ClientSession(connector=conn) as sess:
-                # this can hang (forever?) if there's no full-service at that url
-                async with sess.post(
-                    self.url,
-                    data=json.dumps(request_data),
-                    headers={"Content-Type": "application/json"},
-                ) as resp:
-                    print(resp.json)
-                    return await resp.json()
 
     # check if full service is synced within margin
     def sync_status(self, eps=5) -> bool:
@@ -121,7 +122,7 @@ class FullServiceAPIv1():
 
     # retrieve wallet status
     async def get_wallet_status(self):
-        r = await self.req({"method": "get_wallet_status"})
+        r = await req({"method": "get_wallet_status"})
         return r["wallet_status"]
 
     class Account:
@@ -131,7 +132,7 @@ class FullServiceAPIv1():
                 "mnemonic": mnemonic,
                 "key_derivation_version": "2",
             }
-            r = FullServiceAPIv1.req({"method": "import_account", "params": params})
+            r = req({"method": "import_account", "params": params})
 
             if "error" in r:
                 # If we failed due to a unique constraint, it means the account already exists
@@ -143,14 +144,14 @@ class FullServiceAPIv1():
 
         # retrieve all accounts full service is aware of
         def get_all(self) -> Tuple[list, dict]:
-            r = FullServiceAPIv1.req({"method": "get_all_accounts"})
+            r = req({"method": "get_all_accounts"})
             print(r)
             return (r["account_ids"], r["account_map"])
 
         # retrieve information about account
         def get_status(self, account_id: str):
             params = {"account_id": account_id}
-            r = FullServiceAPIv1.req({"method": "get_account_status", "params": params})
+            r = req({"method": "get_account_status", "params": params})
             return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
@@ -159,7 +160,7 @@ class FullServiceAPIv1():
             "account_id": account_id,
             "addresses_and_values": [(to_address, amount)],
         }
-        r = self.req(
+        r = req(
             {
                 "method": "build_and_submit_transaction",
                 "params": params,
