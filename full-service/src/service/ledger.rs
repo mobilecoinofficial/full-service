@@ -19,12 +19,10 @@ use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
-    tokens::Mob,
     tx::{Tx, TxOut, TxOutMembershipProof},
-    Token, TokenId,
+    TokenId,
 };
 use rand::Rng;
-use std::iter::FromIterator;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
@@ -60,6 +58,12 @@ pub enum LedgerServiceError {
 
     /// Insufficient Tx Outs
     InsufficientTxOuts,
+
+    /// No node responded to the last block info request
+    NoLastBlockInfo,
+
+    /// Inconsistent last block info
+    InconsistentLastBlockInfo,
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -109,7 +113,7 @@ pub trait LedgerService {
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
-    fn get_network_fees(&self) -> BTreeMap<TokenId, u64>;
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError>;
 
     fn get_network_block_version(&self) -> BlockVersion;
 
@@ -177,7 +181,7 @@ where
         Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
-    fn get_network_fees(&self) -> BTreeMap<TokenId, u64> {
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError> {
         // Get the last block information from all nodes we are aware of, in parallel.
         let last_block_infos = self
             .peer_manager
@@ -186,22 +190,19 @@ where
             .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
             .collect::<Vec<_>>();
 
-        if last_block_infos.is_empty() {
-            // If we don't have any peers, return just the default MOB fee.
-            // TODO this should actually be an error.
-            return BTreeMap::from_iter(vec![(Mob::ID, Mob::MINIMUM_FEE)]);
-        }
-
         // Ensure that all nodes agree on the minimum fee map.
         if last_block_infos
             .windows(2)
             .any(|window| window[0].minimum_fees != window[1].minimum_fees)
         {
-            todo!();
+            return Err(LedgerServiceError::InconsistentLastBlockInfo);
         }
 
-        // Guaranteed not to fail since we verified last_block_infos is not empty.
-        last_block_infos[0].minimum_fees.clone()
+        // Return the fee map.
+        last_block_infos
+            .get(0)
+            .map(|info| info.minimum_fees.clone())
+            .ok_or(LedgerServiceError::NoLastBlockInfo)
     }
 
     fn get_network_block_version(&self) -> BlockVersion {
