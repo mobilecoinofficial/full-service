@@ -126,13 +126,22 @@ class FullServiceAPIv1():
         return r["wallet_status"]
 
     class Account:
-        def recover(self, mnemonic) -> bool:
+        async def create_account(self, name=None):
+            r = await req({
+                "method": "create_account",
+                "params": {
+                    "name": name,
+                }
+            })
+            return r['account']
+
+        async def recover(self, mnemonic) -> bool:
             print(f"importing full service account {mnemonic}")
             params = {
                 "mnemonic": mnemonic,
                 "key_derivation_version": "2",
             }
-            r = req({"method": "import_account", "params": params})
+            r = await req({"method": "import_account", "params": params})
 
             if "error" in r:
                 # If we failed due to a unique constraint, it means the account already exists
