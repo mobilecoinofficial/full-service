@@ -51,6 +51,7 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
                 .map_err(|err| format!("Could not decode hex for txo_public_key: {:?}", err))?,
         )
         .map_err(|err| format!("Could not decode txo public key: {:?}", err))?;
+
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(
             &hex::decode(&src.confirmation)
                 .map_err(|err| format!("Could not decode hex for proof: {:?}", err))?,
@@ -102,6 +103,7 @@ mod tests {
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
         let amount = mc_transaction_core::MaskedAmount::new(
+            BlockVersion::MAX,
             Amount::new(rng.next_u64(), Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )

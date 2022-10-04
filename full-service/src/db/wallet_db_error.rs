@@ -6,6 +6,9 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
+    /// Wallet functions are currently disabled
+    WalletFunctionsDisabled,
+
     /// View Only Account already exists: {0}
     ViewOnlyAccountAlreadyExists(String),
 
@@ -143,6 +146,12 @@ pub enum WalletDbError {
 
     /// Expected to find TxOut as an outlay
     ExpectedTxOutAsOutlay,
+
+    /// Expected to find a membership proof for txo with id: {0}
+    MissingTxoMembershipProof(String),
+
+    /// Expected to find a key image for a txo with id: {0}
+    MissingKeyImageForInputTxo(String),
 }
 
 impl From<diesel::result::Error> for WalletDbError {

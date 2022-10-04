@@ -18,7 +18,7 @@ use crate::{
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
             transaction_log::{TransactionLog, TransactionLogMap},
-            tx_proposal::TxProposal,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::{Txo, TxoMap},
             wallet_status::WalletStatus,
         },
@@ -26,11 +26,10 @@ use crate::{
     service::receipt::ReceiptTransactionStatus,
     util::b58::PrintableWrapperType,
 };
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{fog_resolver::FullServiceFogResolver, unsigned_tx::UnsignedTx};
 /// Responses from the Full Service Wallet.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
@@ -44,14 +43,21 @@ pub enum JsonCommandResponse {
         transaction_log: TransactionLog,
         tx_proposal: TxProposal,
     },
+    build_burn_transaction {
+        tx_proposal: TxProposal,
+        transaction_log_id: String,
+    },
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,
     },
+    build_unsigned_burn_transaction {
+        account_id: String,
+        unsigned_tx_proposal: UnsignedTxProposal,
+    },
     build_unsigned_transaction {
         account_id: String,
-        unsigned_tx: UnsignedTx,
-        fog_resolver: FullServiceFogResolver,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     check_b58_type {
         b58_type: PrintableWrapperType,
@@ -133,9 +139,16 @@ pub enum JsonCommandResponse {
     get_txo {
         txo: Txo,
     },
+    get_txo_block_index {
+        block_index: String,
+    },
     get_txos {
         txo_ids: Vec<String>,
         txo_map: TxoMap,
+    },
+    get_txo_membership_proofs {
+        outputs: Vec<JsonTxOut>,
+        membership_proofs: Vec<JsonTxOutMembershipProof>,
     },
     get_wallet_status {
         wallet_status: WalletStatus,
@@ -151,6 +164,10 @@ pub enum JsonCommandResponse {
     },
     remove_account {
         removed: bool,
+    },
+    sample_mixins {
+        mixins: Vec<JsonTxOut>,
+        membership_proofs: Vec<JsonTxOutMembershipProof>,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,

@@ -14,11 +14,13 @@ use crate::{
         models::{Account, GiftCode},
         transaction, WalletDbError,
     },
+    error::WalletTransactionBuilderError,
     service::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
+        ledger::LedgerService,
         models::tx_proposal::TxProposal,
-        transaction::{TransactionService, TransactionServiceError},
+        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
     },
@@ -44,7 +46,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, BlockVersion, Token,
+    Amount, Token,
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
@@ -151,6 +153,15 @@ pub enum GiftCodeServiceError {
 
     /// Invalid Fog Uri: {0}
     InvalidFogUri(String),
+
+    /// Amount Error: {0}
+    Amount(mc_transaction_core::AmountError),
+
+    /// Wallet Transaction Builder Error: {0}
+    WalletTransactionBuilder(WalletTransactionBuilderError),
+
+    /// Tx Out Conversion Error: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -240,6 +251,24 @@ impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
 impl From<AddressServiceError> for GiftCodeServiceError {
     fn from(src: AddressServiceError) -> Self {
         Self::AddressService(src)
+    }
+}
+
+impl From<mc_transaction_core::AmountError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_core::AmountError) -> Self {
+        Self::Amount(src)
+    }
+}
+
+impl From<WalletTransactionBuilderError> for GiftCodeServiceError {
+    fn from(src: WalletTransactionBuilderError) -> Self {
+        Self::WalletTransactionBuilder(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }
 
@@ -407,12 +436,12 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let from_account = Account::get(from_account_id, &conn)?;
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let tx_proposal = self.build_transaction(
+        let signing_data = self.build_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
@@ -426,8 +455,11 @@ where
             None,
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
-            None,
+            TransactionMemo::RTH,
         )?;
+
+        let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
+        let tx_proposal = signing_data.sign(&account_key)?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
@@ -462,7 +494,7 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = transaction(&conn, || GiftCode::create(gift_code_b58, value, &conn))?;
 
         self.submit_transaction(
@@ -485,7 +517,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let gift_code = GiftCode::get(gift_code_b58, &conn)?;
         DecodedGiftCode::try_from(gift_code)
     }
@@ -495,7 +527,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         GiftCode::list_all(&conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
@@ -539,7 +571,7 @@ where
             &RistrettoPublic::try_from(&gift_txo.public_key)?,
         );
 
-        let (value, _blinding) = gift_txo.masked_amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = gift_txo.get_masked_amount()?.get_value(&shared_secret)?;
 
         // Check if the Gift Code has been spent - by convention gift codes are always
         // to the main subaddress index and gift accounts should NEVER have MOB stored
@@ -584,7 +616,7 @@ where
             GiftCodeStatus::GiftCodeAvailable => {}
         }
 
-        let gift_value = gift_value.unwrap();
+        let gift_value = gift_value.ok_or(GiftCodeServiceError::GiftCodeNotYetAvailable)?;
 
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
         let gift_account_key = transfer_payload.account_key;
@@ -673,7 +705,7 @@ where
         let mut memo_builder = RTHMemoBuilder::default();
         memo_builder.set_sender_credential(SenderMemoCredential::from(&gift_account_key));
         memo_builder.enable_destination_memo();
-        let block_version = BlockVersion::MAX;
+        let block_version = self.get_network_block_version();
         let fee = Amount::new(Mob::MINIMUM_FEE, Mob::ID);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
@@ -717,7 +749,7 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || GiftCode::get(gift_code_b58, &conn)?.delete(&conn))?;
         Ok(true)
     }
@@ -777,7 +809,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -816,7 +853,12 @@ mod tests {
         assert!(gift_code_value_opt.is_none());
 
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Now the Gift Code should be Available
         let (status, gift_code_value_opt, _memo) = service
@@ -838,7 +880,11 @@ mod tests {
             gift_code_account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key).unwrap(),
         );
-        let (value, _blinding) = tx_out.masked_amount.get_value(&shared_secret).unwrap();
+        let (value, _blinding) = tx_out
+            .get_masked_amount()
+            .unwrap()
+            .get_value(&shared_secret)
+            .unwrap();
         assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value
@@ -872,7 +918,7 @@ mod tests {
             .unwrap();
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -897,7 +943,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -949,7 +995,12 @@ mod tests {
             &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
@@ -989,7 +1040,12 @@ mod tests {
 
         // Let transaction hit the ledger
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Check that it landed
         let (status, gift_code_value_opt, _memo) = service

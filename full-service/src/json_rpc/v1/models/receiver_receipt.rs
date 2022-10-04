@@ -107,6 +107,7 @@ mod tests {
         rng.fill_bytes(&mut proof_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(proof_bytes);
         let amount = mc_transaction_core::MaskedAmount::new(
+            BlockVersion::MAX,
             Amount::new(rng.next_u64(), Mob::ID),
             &RistrettoPublic::from_random(&mut rng),
         )

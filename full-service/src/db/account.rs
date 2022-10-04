@@ -201,6 +201,12 @@ pub trait AccountModel {
     /// Get the next sequentially unassigned subaddress index for the account
     /// (reserved addresses are not included)
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -284,6 +290,10 @@ impl AccountModel for Account {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
@@ -392,6 +402,10 @@ impl AccountModel for Account {
 
         let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
         let account_id = AccountID::from(&view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
         let next_block_index = first_block_index;
@@ -573,6 +587,29 @@ impl AccountModel for Account {
             .first(conn)?;
 
         Ok(highest_subaddress_index as u64 + 1)
+    }
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+        if self.view_only {
+            return Ok(None);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        Ok(Some(account_key))
+    }
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
+        if self.view_only {
+            return Ok(mc_util_serial::decode(&self.account_key)?);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        let view_account_key = ViewAccountKey::from(&account_key);
+        Ok(view_account_key)
+    }
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
+        Ok(*self.view_account_key()?.view_private_key())
     }
 }
 

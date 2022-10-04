@@ -139,7 +139,8 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
+        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+        --chain-id test
     ```
 
    See [Parameters](#parameters) for full list of available options.
@@ -199,7 +200,8 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
    **Listen and Port**
@@ -219,7 +221,8 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
    See [Parameters](#parameters) for full list of available options.
@@ -228,13 +231,14 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
 | Param            | Purpose                  | Requirements              |
 | :--------------- | :----------------------- | :------------------------ |
-| `wallet-db`      | Path to wallet file      | Created if does not exist |
 | `ledger-db`      | Path to ledger directory | Created if does not exist |
 | `peer`           | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
 | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
+| `chain-id`       | The chain id of the network we expect to interact with | String |
 
 | Opional Param | Purpose                  | Requirements              |
 | :------------ | :----------------------- | :------------------------ |
+| `wallet-db`   | Path to wallet file. If not set, will disable any endpoints that require a wallet_db  | Created if does not exist |
 | `listen-host` | Host to listen on.      | Default: 127.0.0.1 |
 | `listen-port` | Port to start webserver on. | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
@@ -280,7 +284,8 @@ The recommended flow to get balance and submit transaction is the following:
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
 1. *ONLINE MACHINE and USB*: Copy the ledger and the full-service binary to USB.
@@ -322,7 +327,8 @@ The recommended flow to get balance and submit transaction is the following:
     ./target/release/full-service \
         --wallet-db /keyfs/wallet.db \
         --ledger-db /keyfs/ledger-db/ \
-        --offline
+        --offline \
+        --chain-id test
     ```
 
 1. *OFFLINE MACHINE*: You can now [create](#create-account) or [import](#import-account) your

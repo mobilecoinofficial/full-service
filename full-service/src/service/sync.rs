@@ -389,7 +389,7 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    match tx_out.masked_amount.get_value(&shared_secret) {
+    match tx_out.get_masked_amount().ok()?.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(_) => None,
     }
@@ -499,7 +499,7 @@ mod tests {
         );
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Import the account
         let _account = service
@@ -574,7 +574,8 @@ mod tests {
     //     );
 
     //     let service = setup_wallet_service(ledger_db.clone(),
-    // logger.clone());     let wallet_db = &service.wallet_db;
+    // logger.clone());     let wallet_db =
+    // &service.wallet_db.as_ref().unwrap();
 
     //     // create view only account
     //     let account = service

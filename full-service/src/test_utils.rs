@@ -9,7 +9,10 @@ use crate::{
         WalletDb, WalletDbError,
     },
     error::SyncError,
-    service::{sync::sync_account, transaction_builder::WalletTransactionBuilder},
+    service::{
+        sync::sync_account, transaction::TransactionMemo,
+        transaction_builder::WalletTransactionBuilder,
+    },
     WalletService,
 };
 use diesel::{
@@ -424,6 +427,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
         .iter()
         .map(|client_uri| {
             ThickClient::new(
+                "local".to_string(),
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),
@@ -513,7 +517,6 @@ pub fn create_test_minted_and_change_txos(
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-    logger: Logger,
 ) -> TransactionLog {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -522,14 +525,14 @@ pub fn create_test_minted_and_change_txos(
         AccountID::from(&src_account_key).to_string(),
         ledger_db,
         get_resolver_factory(&mut rng).unwrap(),
-        logger,
     );
 
     let conn = wallet_db.get_conn().unwrap();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder.build(&conn).unwrap();
+    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -612,7 +615,6 @@ pub fn builder_for_random_recipient(
     account_key: &AccountKey,
     ledger_db: &LedgerDB,
     mut rng: &mut StdRng,
-    logger: &Logger,
 ) -> (
     PublicAddress,
     WalletTransactionBuilder<MockFogPubkeyResolver>,
@@ -622,7 +624,6 @@ pub fn builder_for_random_recipient(
         AccountID::from(account_key).to_string(),
         ledger_db.clone(),
         get_resolver_factory(&mut rng).unwrap(),
-        logger.clone(),
     );
 
     let recipient_account_key = AccountKey::random(&mut rng);
@@ -642,7 +643,7 @@ pub fn get_resolver_factory(
         let pubkey = RistrettoPublic::from(&fog_private_key);
         fog_pubkey_resolver
             .expect_get_fog_pubkey()
-            .return_once(move |_recipient| {
+            .returning(move |_| {
                 Ok(FullyValidatedFogPubkey {
                     pubkey,
                     pubkey_expiry: 10000,
@@ -657,25 +658,36 @@ pub fn setup_wallet_service(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, false)
+    setup_wallet_service_impl(ledger_db, logger, false, false)
 }
 
 pub fn setup_wallet_service_offline(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, true)
+    setup_wallet_service_impl(ledger_db, logger, true, false)
+}
+
+pub fn setup_wallet_service_no_wallet_db(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    setup_wallet_service_impl(ledger_db, logger, false, true)
 }
 
 fn setup_wallet_service_impl(
     ledger_db: LedgerDB,
     logger: Logger,
     offline: bool,
+    no_wallet_db: bool,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     let db_test_context = WalletDbTestContext::default();
-    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let wallet_db = match no_wallet_db {
+        true => None,
+        false => Some(db_test_context.get_db_instance(logger.clone())),
+    };
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 

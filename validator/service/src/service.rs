@@ -19,6 +19,7 @@ pub struct Service {
 impl Service {
     pub fn new<C: BlockchainConnection + UserTxConnection + 'static>(
         listen_uri: &ValidatorUri,
+        chain_id: String,
         ledger_db: LedgerDB,
         conn_manager: ConnectionManager<C>,
         logger: Logger,
@@ -30,9 +31,13 @@ impl Service {
         let health_service = HealthService::new(None, logger.clone()).into_service();
 
         // Validator API service.
-        let validator_service =
-            ValidatorApi::new(ledger_db.clone(), conn_manager.clone(), logger.clone())
-                .into_service();
+        let validator_service = ValidatorApi::new(
+            chain_id,
+            ledger_db.clone(),
+            conn_manager.clone(),
+            logger.clone(),
+        )
+        .into_service();
 
         // Blockchain API service.
         let blockchain_service =

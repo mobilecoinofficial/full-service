@@ -161,15 +161,23 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
+
+        let network_fees = self.get_network_fees();
 
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let balance =
-                    Self::get_balance_inner(Some(&account_id.to_string()), None, token_id, conn)?;
+                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let balance = Self::get_balance_inner(
+                    Some(&account_id.to_string()),
+                    None,
+                    token_id,
+                    default_token_fee,
+                    conn,
+                )?;
                 Ok((token_id, balance))
             })
             .collect::<Result<BTreeMap<TokenId, Balance>, BalanceServiceError>>()?;
@@ -181,16 +189,24 @@ where
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
+        let network_fees = self.get_network_fees();
 
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let balance = Self::get_balance_inner(None, Some(address), token_id, conn)?;
+                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let balance = Self::get_balance_inner(
+                    None,
+                    Some(address),
+                    token_id,
+                    default_token_fee,
+                    conn,
+                )?;
                 Ok((token_id, balance))
             })
             .collect::<Result<BTreeMap<TokenId, Balance>, BalanceServiceError>>()?;
@@ -211,7 +227,7 @@ where
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
         let network_block_height = self.get_network_block_height()?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let accounts = Account::list_all(&conn, None, None)?;
         let mut account_map = HashMap::default();
 
@@ -219,14 +235,21 @@ where
 
         let mut min_synced_block_index = network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
+        let network_fees = self.get_network_fees();
 
         for account in accounts {
             let account_id = AccountID(account.id.clone());
             let token_ids = account.clone().get_token_ids(&conn)?;
 
             for token_id in token_ids {
-                let balance =
-                    Self::get_balance_inner(Some(&account_id.to_string()), None, token_id, &conn)?;
+                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let balance = Self::get_balance_inner(
+                    Some(&account_id.to_string()),
+                    None,
+                    token_id,
+                    default_token_fee,
+                    &conn,
+                )?;
                 balance_per_token
                     .entry(token_id)
                     .and_modify(|b: &mut Balance| {
@@ -275,6 +298,7 @@ where
         account_id_hex: Option<&str>,
         public_address_b58: Option<&str>,
         token_id: TokenId,
+        default_token_fee: &u64,
         conn: &Conn,
     ) -> Result<Balance, BalanceServiceError> {
         let unspent = sum_query_result(Txo::list_unspent(
@@ -337,8 +361,14 @@ where
             )?)
         };
 
-        let spendable_txos_result =
-            Txo::list_spendable(account_id_hex, None, public_address_b58, *token_id, conn)?;
+        let spendable_txos_result = Txo::list_spendable(
+            account_id_hex,
+            None,
+            public_address_b58,
+            *token_id,
+            *default_token_fee,
+            conn,
+        )?;
 
         Ok(Balance {
             max_spendable: spendable_txos_result.max_spendable_in_wallet,
@@ -409,7 +439,7 @@ mod tests {
 
         let _account = manually_sync_account(
             &ledger_db,
-            &service.wallet_db,
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(account.id.to_string()),
             &logger,
         );

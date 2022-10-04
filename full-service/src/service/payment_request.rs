@@ -100,7 +100,7 @@ where
         amount: Amount,
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
 
         let assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
             &account_id,

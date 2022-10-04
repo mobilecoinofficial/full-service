@@ -10,6 +10,7 @@ use crate::json_rpc::{
     },
 };
 
+use mc_mobilecoind_json::data_types::JsonTxOut;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -53,6 +54,16 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
     },
+    build_burn_transaction {
+        account_id: String,
+        amount: Amount,
+        redemption_memo_hex: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
     build_transaction {
         account_id: String,
         addresses_and_amounts: Option<Vec<(String, Amount)>>,
@@ -64,13 +75,26 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
     },
-    build_unsigned_transaction {
+    build_unsigned_burn_transaction {
         account_id: String,
-        recipient_public_address: Option<String>,
-        amount: Option<Amount>,
+        amount: Amount,
+        redemption_memo_hex: Option<String>,
+        input_txo_ids: Option<Vec<String>>,
         fee_value: Option<String>,
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+    },
+    build_unsigned_transaction {
+        account_id: String,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
+        recipient_public_address: Option<String>,
+        amount: Option<Amount>,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
     },
     check_b58_type {
         b58_code: String,
@@ -149,6 +173,9 @@ pub enum JsonCommandRequest {
     get_txo {
         txo_id: String,
     },
+    get_txo_block_index {
+        public_key: String,
+    },
     get_txos {
         account_id: Option<String>,
         address: Option<String>,
@@ -158,6 +185,9 @@ pub enum JsonCommandRequest {
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
+    },
+    get_txo_membership_proofs {
+        outputs: Vec<JsonTxOut>,
     },
     get_wallet_status,
     import_account {
@@ -184,6 +214,10 @@ pub enum JsonCommandRequest {
     },
     remove_account {
         account_id: String,
+    },
+    sample_mixins {
+        num_mixins: u64,
+        excluded_outputs: Vec<JsonTxOut>,
     },
     submit_transaction {
         tx_proposal: TxProposal,

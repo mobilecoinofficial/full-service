@@ -3,23 +3,24 @@
 //! End-to-end tests for the Full Service Wallet API.
 
 #[cfg(test)]
-mod e2e_account {
+mod e2e_transaction {
     use crate::{
         db::account::AccountID,
-        json_rpc::v2::api::test_utils::{dispatch, setup},
+        json_rpc::v2::{
+            api::test_utils::{dispatch, setup},
+            models::tx_proposal::UnsignedTxProposal,
+        },
         test_utils::{add_block_to_ledger_db, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
-    fn test_e2e_view_only_account_flow(logger: Logger) {
-        // create normal account
+    fn test_build_unsigned_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
@@ -139,24 +140,7 @@ mod e2e_account {
         let vo_account_id = account.get("id").unwrap();
         assert_eq!(vo_account_id, account_id);
 
-        // test update name
-        let name = "Look at these coins";
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "update_account_name",
-            "params": {
-                "account_id": vo_account_id,
-                "name": name,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account = result.get("account").unwrap();
-        let account_name = account.get("name").unwrap();
-        assert_eq!(name, account_name);
-
-        // test creating unsigned tx
+        // test creating unsigned tx with recipient public address and amount
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
@@ -169,50 +153,22 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let _tx = result.get("unsigned_tx_proposal").unwrap();
+        let _: UnsignedTxProposal =
+            serde_json::from_value(result.get("unsigned_tx_proposal").unwrap().clone()).unwrap();
 
-        // test create sync account request
+        // test creating unsigned tx with addresses_and_amounts
         let body = json!({
             "jsonrpc": "2.0",
             "id": 2,
-            "method": "create_view_only_account_sync_request",
+            "method": "build_unsigned_transaction",
             "params": {
                 "account_id": account_id,
+                "addresses_and_amounts": [[main_address, { "value": "50000000000000", "token_id": "0"}]]
             }
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let unverified_txos = result
-            .get("incomplete_txos_encoded")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(unverified_txos.len(), 1);
-
-        // test remove
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "remove_account",
-            "params": {
-                "account_id": vo_account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let removed = result.get("removed").unwrap().as_bool().unwrap();
-        assert!(removed);
-
-        // test get-all
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "get_accounts",
-            "params": {}
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let account_ids = result.get("account_ids").unwrap().as_array().unwrap();
-        assert_eq!(account_ids.len(), 0);
+        let _: UnsignedTxProposal =
+            serde_json::from_value(result.get("unsigned_tx_proposal").unwrap().clone()).unwrap();
     }
 }

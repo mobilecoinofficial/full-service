@@ -72,17 +72,25 @@ impl TryFrom<&Account> for AccountSecrets {
                 .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
 
             let entropy = match src.key_derivation_version {
-                1 => Some(hex::encode(src.entropy.as_ref().unwrap())),
+                1 => {
+                    let entropy = src.entropy.as_ref().ok_or("No entropy found")?;
+                    Some(hex::encode(entropy))
+                }
                 _ => None,
             };
 
             let mnemonic = match src.key_derivation_version {
-                2 => Some(
-                    Mnemonic::from_entropy(src.entropy.as_ref().unwrap(), Language::English)
-                        .unwrap()
-                        .phrase()
-                        .to_string(),
-                ),
+                2 => {
+                    let entropy = src.entropy.as_ref().ok_or("No entropy found")?;
+                    Some(
+                        Mnemonic::from_entropy(entropy, Language::English)
+                            .map_err(|err| {
+                                format!("Could not decode mnemonic from entropy: {:?}", err)
+                            })?
+                            .phrase()
+                            .to_string(),
+                    )
+                }
                 _ => None,
             };
 

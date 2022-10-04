@@ -21,34 +21,48 @@ use crate::{
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::{TransactionLog, TransactionLogMap},
-                tx_proposal::TxProposal as TxProposalJSON,
+                tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
                 txo::{Txo, TxoMap},
                 wallet_status::WalletStatus,
             },
         },
         wallet::{ApiKeyGuard, WalletState},
     },
-    service,
     service::{
-        account::AccountService, address::AddressService, balance::BalanceService,
-        confirmation_number::ConfirmationService, ledger::LedgerService,
-        models::tx_proposal::TxProposal, payment_request::PaymentRequestService,
-        receipt::ReceiptService, transaction::TransactionService,
-        transaction_log::TransactionLogService, txo::TxoService, WalletService,
+        self,
+        account::AccountService,
+        address::AddressService,
+        balance::BalanceService,
+        confirmation_number::ConfirmationService,
+        ledger::LedgerService,
+        models::tx_proposal::TxProposal,
+        payment_request::PaymentRequestService,
+        receipt::ReceiptService,
+        transaction::{TransactionMemo, TransactionService},
+        transaction_log::TransactionLogService,
+        txo::TxoService,
+        WalletService,
     },
     util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
         PrintableWrapperType,
     },
 };
+use mc_account_keys::burn_address;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
+use mc_transaction_std::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
-use std::{collections::HashMap, convert::TryFrom, str::FromStr};
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+};
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
@@ -136,7 +150,7 @@ where
             }
 
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
-                .build_and_submit(
+                .build_sign_and_submit_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -145,8 +159,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_and_submit_transaction {
                 transaction_log: TransactionLog::new(
                     &transaction_log,
@@ -154,6 +170,49 @@ where
                     &value_map,
                 ),
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+            }
+        }
+        JsonCommandRequest::build_burn_transaction {
+            account_id,
+            amount,
+            redemption_memo_hex,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
+            let tx_proposal = service
+                .build_and_sign_transaction(
+                    &account_id,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                    TransactionMemo::BurnRedemption(memo_data),
+                )
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_burn_transaction {
+                tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
+                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -175,7 +234,7 @@ where
             }
 
             let tx_proposal = service
-                .build_transaction(
+                .build_and_sign_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -183,12 +242,58 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    None,
+                    TransactionMemo::RTH,
                 )
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
                 transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+            }
+        }
+        JsonCommandRequest::build_unsigned_burn_transaction {
+            account_id,
+            amount,
+            redemption_memo_hex,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+        } => {
+            let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
+            if let Some(redemption_memo_hex) = redemption_memo_hex {
+                if redemption_memo_hex.len() != BurnRedemptionMemo::MEMO_DATA_LEN * 2 {
+                    return Err(format_error(format!(
+                        "Invalid redemption memo length: {}. Must be 128 characters (64 bytes).",
+                        redemption_memo_hex.len()
+                    )));
+                }
+
+                hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
+            }
+
+            let unsigned_tx_proposal: UnsignedTxProposal = service
+                .build_transaction(
+                    &account_id,
+                    &[(
+                        b58_encode_public_address(&burn_address()).map_err(format_error)?,
+                        amount,
+                    )],
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                    TransactionMemo::BurnRedemption(memo_data),
+                )
+                .map_err(format_error)?
+                .try_into()
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_unsigned_transaction {
+                account_id,
+                unsigned_tx_proposal,
             }
         }
         JsonCommandRequest::build_unsigned_transaction {
@@ -198,24 +303,32 @@ where
             fee_value,
             fee_token_id,
             tombstone_block,
+            addresses_and_amounts,
+            input_txo_ids,
+            max_spendable_value,
         } => {
-            let mut addresses_and_amounts = Vec::new();
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
-            let (unsigned_tx, fog_resolver) = service
-                .build_unsigned_transaction(
+            let unsigned_tx_proposal: UnsignedTxProposal = service
+                .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
+                    input_txo_ids.as_ref(),
                     fee_value,
                     fee_token_id,
                     tombstone_block,
+                    max_spendable_value,
+                    TransactionMemo::Empty,
                 )
+                .map_err(format_error)?
+                .try_into()
                 .map_err(format_error)?;
+
             JsonCommandResponse::build_unsigned_transaction {
                 account_id,
-                unsigned_tx,
-                fog_resolver,
+                unsigned_tx_proposal,
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
@@ -560,6 +673,19 @@ where
                 txo: Txo::new(&txo, &status),
             }
         }
+        JsonCommandRequest::get_txo_block_index { public_key } => {
+            let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
+            let public_key: CompressedRistrettoPublic = public_key_bytes
+                .as_slice()
+                .try_into()
+                .map_err(format_error)?;
+            let block_index = service
+                .get_block_index_from_txo_public_key(&public_key)
+                .map_err(format_error)?;
+            JsonCommandResponse::get_txo_block_index {
+                block_index: block_index.to_string(),
+            }
+        }
         JsonCommandRequest::get_txos {
             account_id,
             address,
@@ -606,6 +732,40 @@ where
                     .map(|(t, _)| t.id.clone())
                     .collect(),
                 txo_map,
+            }
+        }
+        JsonCommandRequest::get_txo_membership_proofs { outputs } => {
+            let public_keys = outputs
+                .clone()
+                .into_iter()
+                .map(|tx_out| {
+                    let public_key_bytes = hex::decode(tx_out.public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    Ok(public_key)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let indices = service
+                .get_indices_from_txo_public_keys(&public_keys)
+                .map_err(format_error)?;
+
+            let membership_proofs = service
+                .get_tx_out_proof_of_memberships(&indices)
+                .map_err(format_error)?
+                .iter()
+                .map(|proof| {
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+                    Ok(json_proof)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::get_txo_membership_proofs {
+                outputs,
+                membership_proofs,
             }
         }
         JsonCommandRequest::get_wallet_status => JsonCommandResponse::get_wallet_status {
@@ -724,6 +884,53 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
+        JsonCommandRequest::sample_mixins {
+            num_mixins,
+            excluded_outputs,
+        } => {
+            let public_keys = excluded_outputs
+                .into_iter()
+                .map(|tx_out| {
+                    let public_key_bytes = hex::decode(tx_out.public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    Ok(public_key)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let excluded_indices = service
+                .get_indices_from_txo_public_keys(&public_keys)
+                .map_err(format_error)?;
+            let (mixins, membership_proofs) = service
+                .sample_mixins(num_mixins as usize, &excluded_indices)
+                .map_err(format_error)?;
+
+            let mixins = mixins
+                .iter()
+                .map(|tx_out| {
+                    let tx_out: mc_api::external::TxOut =
+                        tx_out.try_into().map_err(format_error)?;
+                    let json_tx_out = JsonTxOut::from(&tx_out);
+                    Ok(json_tx_out)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let membership_proofs = membership_proofs
+                .iter()
+                .map(|proof| {
+                    let proof: mc_api::external::TxOutMembershipProof =
+                        proof.try_into().map_err(format_error)?;
+                    let json_proof = JsonTxOutMembershipProof::from(&proof);
+                    Ok(json_proof)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            JsonCommandResponse::sample_mixins {
+                mixins,
+                membership_proofs,
+            }
+        }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,

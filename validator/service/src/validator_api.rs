@@ -65,12 +65,18 @@ impl<UTC: UserTxConnection + 'static> Clone for ValidatorApi<UTC> {
 }
 
 impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
-    pub fn new(ledger_db: LedgerDB, conn_manager: ConnectionManager<UTC>, logger: Logger) -> Self {
+    pub fn new(
+        chain_id: String,
+        ledger_db: LedgerDB,
+        conn_manager: ConnectionManager<UTC>,
+        logger: Logger,
+    ) -> Self {
         Self {
             ledger_db,
             conn_manager,
             submit_node_offset: Arc::new(AtomicUsize::new(0)),
             fog_report_connection: GrpcFogReportConnection::new(
+                chain_id,
                 Arc::new(
                     EnvBuilder::new()
                         .name_prefix("FogReportGrpc".to_string())
@@ -157,8 +163,8 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
 
             Err(RetryError::Operation { error, .. }) => {
                 match error {
-                    ConnectionError::TransactionValidation(err) => {
-                        result.set_result(err.into());
+                    ConnectionError::TransactionValidation(err, _) => {
+                        result.set_result(err);
                         Ok(())
                     }
 

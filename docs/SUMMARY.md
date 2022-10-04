@@ -36,6 +36,9 @@
       * [Get TXO](v2/api-endpoints/get_txo.md)
       * [Get TXOs](v2/api-endpoints/get_txos.md)
       * [Get MobileCoin Protocol TXO](v2/api-endpoints/get_mc_protocol_txo.md)
+      * [Get TXO Membership Proofs](v2/api-endpoints/get_txo_membership_proofs.md)
+      * [Sample Mixins](v2/api-endpoints/sample_mixins.md)
+      * [Get TXO Block Index](v2/api-endpoints/get_txo_block_index.md)
     * [Confirmation](v2/transactions/transaction-confirmation/README.md)
       * [Get Confirmations](v2/api-endpoints/get_confirmations.md)
       * [Validate Confirmations](v2/api-endpoints/validate_confirmation.md)
@@ -130,5 +133,6 @@
 * [Resolve Disputes](tutorials/resolve-disputes.md)
 * [View Only Account](usage/view-only-account/README.md)
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
+* [No Wallet Mode](usage/no-wallet-db/no-wallet-db.md)
 
 ## Frequently Asked Questions
