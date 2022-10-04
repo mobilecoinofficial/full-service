@@ -26,5 +26,3 @@ if not MOB_RELEASE or MOB_RELEASE == '0':
 if 'MC_LOG' not in os.environ:
     os.environ[
         'MC_LOG'] = 'debug,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error'
-if 'FS_LOG' not in os.environ:
-    os.environ['FS_LOG'] = 'info'
