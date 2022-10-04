@@ -68,11 +68,13 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
             .collect::<Vec<_>>();
 
         // Must have at least one node to get the last block info from.
-        let latest_network_block = last_block_infos.first().ok_or(rpc_precondition_error(
-            "last_block_infos",
-            "No last block information available",
-            logger,
-        ))?;
+        let latest_network_block = last_block_infos.first().ok_or_else(|| {
+            rpc_precondition_error(
+                "last_block_infos",
+                "No last block information available",
+                logger,
+            )
+        })?;
 
         // Ensure that all nodes agree on the minimum fee map.
         if last_block_infos

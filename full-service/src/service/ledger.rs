@@ -201,7 +201,7 @@ where
         }
 
         // Guaranteed not to fail since we verified last_block_infos is not empty.
-        return last_block_infos[0].minimum_fees.clone();
+        last_block_infos[0].minimum_fees.clone()
     }
 
     fn get_network_block_version(&self) -> BlockVersion {
