@@ -10,25 +10,26 @@ use crate::{
     },
     WalletService,
 };
-use mc_blockchain_types::{Block, BlockContents, BlockVersion};
+use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError};
 use mc_common::HashSet;
-use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
+use mc_connection::{
+    BlockInfo, BlockchainConnection, RetryableBlockchainConnection, UserTxConnection,
+};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
-    tokens::Mob,
     tx::{Tx, TxOut, TxOutMembershipProof},
-    Token, TokenId,
+    TokenId,
 };
 use rand::Rng;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{cmp, collections::BTreeMap, convert::TryFrom, iter::empty};
+use std::{collections::BTreeMap, convert::TryFrom};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -59,6 +60,15 @@ pub enum LedgerServiceError {
 
     /// Insufficient Tx Outs
     InsufficientTxOuts,
+
+    /// No node responded to the last block info request
+    NoLastBlockInfo,
+
+    /// Inconsistent last block info
+    InconsistentLastBlockInfo,
+
+    /// Block version: {0}
+    BlockVersion(BlockVersionError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -91,6 +101,12 @@ impl From<mc_crypto_keys::KeyError> for LedgerServiceError {
     }
 }
 
+impl From<BlockVersionError> for LedgerServiceError {
+    fn from(src: BlockVersionError) -> Self {
+        Self::BlockVersion(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
@@ -108,9 +124,11 @@ pub trait LedgerService {
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
-    fn get_network_fees(&self) -> BTreeMap<TokenId, u64>;
+    fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
 
-    fn get_network_block_version(&self) -> BlockVersion;
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError>;
+
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError>;
 
     fn get_tx_out_proof_of_memberships(
         &self,
@@ -176,42 +194,37 @@ where
         Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
-    fn get_network_fees(&self) -> BTreeMap<TokenId, u64> {
-        let mut fees = self
+    fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError> {
+        // Get the last block information from all nodes we are aware of, in parallel.
+        let last_block_infos = self
             .peer_manager
             .conns()
             .par_iter()
-            .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-            .map(|block_info| block_info.minimum_fees)
-            .reduce(BTreeMap::new, |mut acc, fees| {
-                for (token_id, fee) in fees {
-                    acc.entry(token_id)
-                        .and_modify(|e| *e = cmp::max(*e, fee))
-                        .or_insert(fee);
-                }
-                acc
-            });
-        fees.entry(Mob::ID)
-            .and_modify(|e| *e = cmp::max(*e, Mob::MINIMUM_FEE))
-            .or_insert(Mob::MINIMUM_FEE);
-        fees
+            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .collect::<Vec<_>>();
+
+        // Ensure that all nodes agree on the latest block version and network fees.
+        if last_block_infos.windows(2).any(|window| {
+            window[0].network_block_version != window[1].network_block_version
+                || window[0].minimum_fees != window[1].minimum_fees
+        }) {
+            return Err(LedgerServiceError::InconsistentLastBlockInfo);
+        }
+
+        last_block_infos
+            .first()
+            .cloned()
+            .ok_or(LedgerServiceError::NoLastBlockInfo)
     }
 
-    fn get_network_block_version(&self) -> BlockVersion {
-        if self.peer_manager.is_empty() {
-            BlockVersion::MAX
-        } else {
-            let block_version = self
-                .peer_manager
-                .conns()
-                .par_iter()
-                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-                .map(|block_info| block_info.network_block_version)
-                .max()
-                .unwrap_or(*BlockVersion::MAX);
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError> {
+        Ok(self.get_latest_block_info()?.minimum_fees)
+    }
 
-            BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
-        }
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {
+        Ok(BlockVersion::try_from(
+            self.get_latest_block_info()?.network_block_version,
+        )?)
     }
 
     fn get_tx_out_proof_of_memberships(
