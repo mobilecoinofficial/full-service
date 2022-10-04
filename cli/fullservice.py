@@ -42,32 +42,34 @@ else:
     ssl_context.load_cert_chain(certfile="client.full.pem")
 
 
-async def req(self, method: str, **params: Any) -> dict:
-    logging.info("request: %s", method)
-    response_data = await self.request({"method": method, "params": params})
-    if "error" in result:
-        logging.error(result)
-    return result
 
-# return the result field of the request
-### is this a breaking change with unittests?
-async def request(self, request_data):
-    self.request_count += 1
-    request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
-    print(f"request data: {request_data}")
-    async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
-        async with aiohttp.ClientSession(connector=conn) as sess:
-            # this can hang (forever?) if there's no full-service at that url
-            async with sess.post(
-                self.url,
-                data=json.dumps(request_data),
-                headers={"Content-Type": "application/json"},
-            ) as resp:
-                print(resp.json)
-                return await resp.json()
+class Request:
+    async def req(self, method: str, **params: Any) -> dict:
+        logging.info("request: %s", method)
+        response_data = await self.request({"method": method, "params": params})
+        if "error" in str(response_data):
+            logging.error(response_data)
+        else:
+            print(response_data)
+        return response_data
+
+    async def request(self, request_data):
+        self.request_count += 1
+        request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
+        print(f"request data: {request_data}")
+        async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
+            async with aiohttp.ClientSession(connector=conn) as sess:
+                # this can hang (forever?) if there's no full-service at that url
+                async with sess.post(
+                    self.url,
+                    data=json.dumps(request_data),
+                    headers={"Content-Type": "application/json"},
+                ) as resp:
+                    #print(resp.json)
+                    return await resp.json()
 
 
-class FullServiceAPIv1():
+class FullServiceAPIv1(Request):
     def __init__(self, remove_wallet_and_ledger=False):
         super().__init__()
         self.full_service_process = None
@@ -125,84 +127,74 @@ class FullServiceAPIv1():
         r = await req({"method": "get_wallet_status"})
         return r["wallet_status"]
 
-    class Account:
-        async def create(self, name=None):
-            r = await req({
-                "method": "create_account",
-                "params": {
-                    "name": name,
-                }
-            })
-            return r['account']
+class Account(FullServiceAPIv1):
+    async def create(self, **kwargs):
+        params = []
+        r = await self.req(method="create_account", **kwargs)
+        return r['result']['account']
 
-        async def recover(self, mnemonic) -> bool:
-            print(f"importing full service account {mnemonic}")
-            params = {
-                "mnemonic": mnemonic,
-                "key_derivation_version": "2",
+    async def recover(self, mnemonic) -> bool:
+        print(f"importing full service account {mnemonic}")
+        params = {
+            "mnemonic": mnemonic,
+            "key_derivation_version": "2",
+        }
+        r = await req({"method": "import_account", "params": params})
+
+        if "error" in r:
+            # If we failed due to a unique constraint, it means the account already exists
+            return (
+                "Diesel Error: UNIQUE constraint failed"
+                in r["error"]["data"]["details"]
+            )
+        return True
+
+    async def recover_fog(self, **kwargs):
+        params = []
+        r = await req({"method": "import_account", "params": params})
+
+        if "error" in r:
+            # If we failed due to a unique constraint, it means the account already exists
+            return (
+                "Diesel Error: UNIQUE constraint failed"
+                in r["error"]["data"]["details"]
+            )
+        return True
+
+    async def update_account_name(self, account_id, name):
+        r = await req({
+            "method": "update_account_name",
+            "params": {
+                "account_id": account_id,
+                "name": name,
             }
-            r = await req({"method": "import_account", "params": params})
+        })
+        return r['account']
 
-            if "error" in r:
-                # If we failed due to a unique constraint, it means the account already exists
-                return (
-                    "Diesel Error: UNIQUE constraint failed"
-                    in r["error"]["data"]["details"]
-                )
-            return True
+    async def remove_account(self, account_id):
+        return await req({
+            "method": "remove_account",
+            "params": {"account_id": account_id}
+        })
 
-        async def recover_fog(self, mnemonic, name, key_derivation_version, fog_report_url, fog_report_id, fog_authority_spki):
-            params = {
-                "mnemonic": mnemonic,
-                "key_derivation_version": "2",
-                "fog_report_url": fog_report_url,
-                "fog_report_id": fog_report_id,
-                "fog_authority_spki": fog_authority_spki
-            }
-            r = await req({"method": "import_account", "params": params})
+    async def export_account_secrets(self, account_id):
+        r = await req({
+            "method": "export_account_secrets",
+            "params": {"account_id": account_id}
+        })
+        return r['account_secrets']
 
-            if "error" in r:
-                # If we failed due to a unique constraint, it means the account already exists
-                return (
-                    "Diesel Error: UNIQUE constraint failed"
-                    in r["error"]["data"]["details"]
-                )
-            return True
+    # retrieve all accounts full service is aware of
+    async def get_all() -> Tuple[list, dict]:
+        r = await req(method="get_all_accounts")
+        print(r)
+        return (r["account_ids"], r["account_map"])
 
-        async def update_account_name(self, account_id, name):
-            r = await req({
-                "method": "update_account_name",
-                "params": {
-                    "account_id": account_id,
-                    "name": name,
-                }
-            })
-            return r['account']
-
-        async def remove_account(self, account_id):
-            return await req({
-                "method": "remove_account",
-                "params": {"account_id": account_id}
-            })
-
-        async def export_account_secrets(self, account_id):
-            r = await req({
-                "method": "export_account_secrets",
-                "params": {"account_id": account_id}
-            })
-            return r['account_secrets']
-
-        # retrieve all accounts full service is aware of
-        async def get_all(self) -> Tuple[list, dict]:
-            r = await req({"method": "get_all_accounts"})
-            print(r)
-            return (r["account_ids"], r["account_map"])
-
-        # retrieve information about account
-        async def get_status(self, account_id: str):
-            params = {"account_id": account_id}
-            r = await req({"method": "get_account_status", "params": params})
-            return r
+    # retrieve information about account
+    async def get_status(self, account_id: str):
+        params = {"account_id": account_id}
+        r = await req({"method": "get_account_status", "params": params})
+        return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
     async def send_transaction(self, account_id, to_address, amount):
