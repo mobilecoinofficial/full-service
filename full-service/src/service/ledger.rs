@@ -24,11 +24,12 @@ use mc_transaction_core::{
     Token, TokenId,
 };
 use rand::Rng;
+use std::iter::FromIterator;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{cmp, collections::BTreeMap, convert::TryFrom, iter::empty};
+use std::{collections::BTreeMap, convert::TryFrom, iter::empty};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -177,24 +178,30 @@ where
     }
 
     fn get_network_fees(&self) -> BTreeMap<TokenId, u64> {
-        let mut fees = self
+        // Get the last block information from all nodes we are aware of, in parallel.
+        let last_block_infos = self
             .peer_manager
             .conns()
             .par_iter()
-            .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-            .map(|block_info| block_info.minimum_fees)
-            .reduce(BTreeMap::new, |mut acc, fees| {
-                for (token_id, fee) in fees {
-                    acc.entry(token_id)
-                        .and_modify(|e| *e = cmp::max(*e, fee))
-                        .or_insert(fee);
-                }
-                acc
-            });
-        fees.entry(Mob::ID)
-            .and_modify(|e| *e = cmp::max(*e, Mob::MINIMUM_FEE))
-            .or_insert(Mob::MINIMUM_FEE);
-        fees
+            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .collect::<Vec<_>>();
+
+        if last_block_infos.is_empty() {
+            // If we don't have any peers, return just the default MOB fee.
+            // TODO this should actually be an error.
+            return BTreeMap::from_iter(vec![(Mob::ID, Mob::MINIMUM_FEE)]);
+        }
+
+        // Ensure that all nodes agree on the minimum fee map.
+        if last_block_infos
+            .windows(2)
+            .any(|window| window[0].minimum_fees != window[1].minimum_fees)
+        {
+            todo!();
+        }
+
+        // Guaranteed not to fail since we verified last_block_infos is not empty.
+        return last_block_infos[0].minimum_fees.clone();
     }
 
     fn get_network_block_version(&self) -> BlockVersion {
