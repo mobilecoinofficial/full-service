@@ -145,18 +145,6 @@ class Account(FullServiceAPIv1):
             )
         return True
 
-    async def recover_fog(self, **kwargs):
-        params = []
-        r = await self.req(method="import_account", **kwargs)
-
-        if "error" in r:
-            # If we failed due to a unique constraint, it means the account already exists
-            return (
-                "Diesel Error: UNIQUE constraint failed"
-                in r["error"]["data"]["details"]
-            )
-        return True
-
     async def update_account_name(self, account_id, name):
         r = await self.req({
             "method": "update_account_name",
