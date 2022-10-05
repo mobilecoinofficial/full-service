@@ -17,7 +17,7 @@ use crate::{
     service::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
-        ledger::LedgerService,
+        ledger::{LedgerService, LedgerServiceError},
         transaction::{TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
@@ -53,8 +53,6 @@ use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
-
-use super::ledger::LedgerServiceError;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
