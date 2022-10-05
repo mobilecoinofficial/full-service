@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-connection"
-version = "1.0.0"
+version = "1.9.5"
 authors = ["MobileCoin"]
 edition = "2018"
 
