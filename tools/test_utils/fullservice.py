@@ -49,6 +49,7 @@ class FullService:
             '--peer insecure-mc://localhost:3201',
             f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-0',
             f'--tx-source-url file://{constants.MOBILECOIN_DIR}/target/release/mc-local-network/node-ledger-distribution-1',
+            f'--chain-id local',
         ])
         print('===================================================')
         print('starting full service')

@@ -187,6 +187,7 @@ class Node:
             f'--scp-debug-dump {constants.WORK_DIR}/scp-debug-dump-{self.node_num}',
             f'--sealed-block-signing-key {constants.WORK_DIR}/consensus-sealed-block-signing-key-{self.node_num}',
             f'--tokens={self.tokens_config_file}',
+            f'--chain-id local'
         ])
 
         print(
