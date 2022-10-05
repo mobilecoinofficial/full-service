@@ -15,7 +15,9 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::{
-        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
+        ledger::{LedgerService, LedgerServiceError},
+        transaction_builder::WalletTransactionBuilder,
+        WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
@@ -84,6 +86,9 @@ pub enum TransactionServiceError {
 
     /// Ledger DB Error: {0}
     LedgerDB(mc_ledger_db::Error),
+
+    /// Ledger service error: {0}
+    LedgerService(LedgerServiceError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -137,6 +142,12 @@ impl From<diesel::result::Error> for TransactionServiceError {
 impl From<mc_ledger_db::Error> for TransactionServiceError {
     fn from(src: mc_ledger_db::Error) -> Self {
         Self::LedgerDB(src)
+    }
+}
+
+impl From<LedgerServiceError> for TransactionServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
@@ -227,7 +238,7 @@ where
 
             builder.set_fee(match fee {
                 Some(f) => f.parse()?,
-                None => self.get_network_fee(),
+                None => self.get_network_fee()?,
             })?;
 
             let unsigned_tx = builder.build_unsigned(&conn)?;
@@ -276,10 +287,10 @@ where
 
             builder.set_fee(match fee {
                 Some(f) => f.parse()?,
-                None => self.get_network_fee(),
+                None => self.get_network_fee()?,
             })?;
 
-            builder.set_block_version(self.get_network_block_version());
+            builder.set_block_version(self.get_network_block_version()?);
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs, log_tx_proposal.unwrap_or_default())?;

@@ -17,6 +17,7 @@ use crate::{
     service::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
+        ledger::LedgerService,
         transaction::{TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
@@ -43,7 +44,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, BlockVersion, Token,
+    Amount, Token,
 };
 use mc_transaction_std::{
     InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
@@ -52,6 +53,8 @@ use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
+
+use super::ledger::LedgerServiceError;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -150,6 +153,9 @@ pub enum GiftCodeServiceError {
 
     /// Invalid Fog Uri: {0}
     InvalidFogUri(String),
+
+    /// Ledger service error: {0}
+    LedgerService(LedgerServiceError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -239,6 +245,12 @@ impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
 impl From<AddressServiceError> for GiftCodeServiceError {
     fn from(src: AddressServiceError) -> Self {
         Self::AddressService(src)
+    }
+}
+
+impl From<LedgerServiceError> for GiftCodeServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
@@ -654,7 +666,7 @@ where
         let mut memo_builder = RTHMemoBuilder::default();
         memo_builder.set_sender_credential(SenderMemoCredential::from(&gift_account_key));
         memo_builder.enable_destination_memo();
-        let block_version = BlockVersion::MAX;
+        let block_version = self.get_network_block_version()?;
         let fee = Amount::new(Mob::MINIMUM_FEE, Mob::ID);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
