@@ -261,8 +261,8 @@ where
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
-            fee_pmob: self.get_network_fee(),
-            block_version: *self.get_network_block_version(),
+            fee_pmob: self.get_network_fee()?,
+            block_version: *self.get_network_block_version()?,
         })
     }
 
