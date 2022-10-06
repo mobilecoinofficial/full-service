@@ -29,8 +29,8 @@ def test_transactions_basic(fs):
     p_mob_amount_str = str(p_mob_amount)
 
     acc0_balance0 = (fs.get_account_status(acc0_id))[BALANCE]
+
     acc1_balance0 = (fs.get_account_status(acc1_id))[BALANCE]
-    
     assert int(acc0_balance0[UNSPENT]) > p_mob_amount    
 
     log_0 = fs.send_transaction(acc0_id, account_1['main_address'], p_mob_amount_str, False)
@@ -68,9 +68,10 @@ if __name__ == '__main__':
     print('Starting networks')
     mobilecoin_network = local_network.Network()
     mobilecoin_network.default_entry_point(args.network_type, args.block_version)
-    with fslib.FullService() as fs:
+    with fslib.FullService(True) as fs:
+        # Give full service process time to adequately start up
+        time.sleep(5)
         fs.sync_full_service_to_network(mobilecoin_network)
-    
         try:
             print('________________________________________________________________________________')
             print('Importing accounts')
