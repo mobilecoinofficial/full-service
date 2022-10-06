@@ -10,8 +10,11 @@ import shutil
 import subprocess
 import time
 
+import asyncio
+import aiohttp
+
 from . import constants
-from typing import Tuple
+from typing import Tuple, Any
 from urllib.parse import urlparse
 
 class FullService:
@@ -23,9 +26,9 @@ class FullService:
         self.remove_wallet_and_ledger = remove_wallet_and_ledger
         self.wallet_path = pathlib.Path('/tmp/wallet-db')
         self.ledger_path = pathlib.Path('/tmp/ledger-db')
+        self.url = 'http://127.0.0.1:9090/wallet'
         
     def __enter__(self):
-        self.remove_wallet_and_ledger = True
         self.start()
         return self
     
@@ -63,35 +66,30 @@ class FullService:
             if exc.returncode != 1:
                 raise
 
-    # return the result field of the request
-    def _request(self, request_data):
-        self.request_count += 1
-        print('sending request to full service')
-        url = 'http://127.0.0.1:9090/wallet'
-        default_params = {
-            'jsonrpc': '2.0',
-            'api_version': '2',
-            'id': self.request_count,
-        }
-        request_data = {**request_data, **default_params}
-
-        print(f'request data: {request_data}')
-
-        parsed_url = urlparse(url)
-        connection = http.client.HTTPConnection(parsed_url.netloc)
-        connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
-        r = connection.getresponse()
-
-        try:
-            raw_response = r.read()
-            response_data = json.loads(raw_response)
-            print(f'request returned {response_data}')
-        except ValueError:
-            raise ValueError('API returned invalid JSON:', raw_response)
-
-        # TODO requests might be flakey due to timing issues... waiting 2 seconds to bypass most of these issues
-        time.sleep(2)
+    def req(self, method: str, **params: Any) -> dict:
+        #print("request: %s", method)
+        loop = asyncio.get_event_loop()
+        requestdata = {"method": method, "params": params} if len(params) > 0 else {"method":method}
+        response_data = loop.run_until_complete(self.request(requestdata))
+        if "error" in response_data:
+            print("Errored response: {response_data}")
         return response_data
+
+    # return the result field of the request
+    ### is this a breaking change with unittests?
+    async def request(self, rdat):
+        self.request_count += 1
+        request_data = {"jsonrpc": "2.0", "id": self.request_count, **rdat}
+        #print(f"request data: {request_data}")
+        async with aiohttp.TCPConnector() as conn:
+            async with aiohttp.ClientSession(connector=conn) as sess:
+                # this can hang (forever?) if there's no full-service at that url
+                async with sess.post(
+                    self.url,
+                    data=json.dumps(request_data),
+                    headers={"Content-Type": "application/json"},
+                ) as resp:
+                    return await resp.json()
 
     def import_account(self, mnemonic) -> bool:
         print(f'importing full service account {mnemonic}')
@@ -99,10 +97,7 @@ class FullService:
             'mnemonic': mnemonic,
             'key_derivation_version': '2',
         }
-        r = self._request({
-            'method': 'import_account',
-            'params': params
-        })
+        r = self.req(method='import_account', **params)
 
         if 'error' in r:
             # If we failed due to a unique constraint, it means the account already exists
@@ -126,9 +121,7 @@ class FullService:
     def sync_status(self) -> bool:
         # ping network
         try:
-            r = self._request({
-                'method': 'get_network_status'
-            })['result']
+            r = self.req(method='get_network_status')['result']
         except ConnectionError as e:
             print(e)
             return False
@@ -146,9 +139,7 @@ class FullService:
 
     # retrieve wallet status
     def get_wallet_status(self):
-        r = self._request({
-            'method': 'get_wallet_status'
-        })['result']
+        r = self.req(method='get_wallet_status')['result']
         return r['wallet_status']
 
     # ensure at least two accounts are in the wallet. Some accounts are imported by default, but the number changes.
@@ -165,8 +156,7 @@ class FullService:
 
     # retrieve all accounts full service is aware of
     def get_all_accounts(self) -> Tuple[list, dict]:
-        r = self._request({'method': 'get_all_accounts'})['result']
-        print(r)
+        r = self.req(method = 'get_all_accounts')['result']
         return (r['account_ids'], r['account_map'])
 
     # retrieve information about account
@@ -175,10 +165,10 @@ class FullService:
         params = {
             'account_id': account_id
         }
-        r = self._request({
-            'method': 'get_account_status',
-            'params': params
-        })['result']
+        r = self.req(
+            method = 'get_account_status',
+            **params
+        )['result']
         return r
 
     # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
@@ -187,10 +177,10 @@ class FullService:
             'account_id': account_id,
             'addresses_and_values': [(to_address, amount)]
         }
-        r = self._request({
-            'method': 'build_and_submit_transaction',
-            'params': params,
-        })['result']
+        r = self.req(
+            method = 'build_and_submit_transaction',
+            **params,
+        )['result']
         if print_flag:
             print(r)
         return r['transaction_log']
