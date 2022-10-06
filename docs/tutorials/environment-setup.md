@@ -20,7 +20,7 @@ description: Set up your environment to run full service on Mac or Linux.
 
    ```text
    mkdir -p testnet-dbs
-   RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
+   RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./mc-full-service \
        --wallet-db ./testnet-dbs/wallet.db \
        --ledger-db ./testnet-dbs/ledger-db/ \
        --peer mc://node1.test.mobilecoin.com/ \
@@ -35,7 +35,7 @@ description: Set up your environment to run full service on Mac or Linux.
 
    ```text
      mkdir -p mainnet-dbs
-     RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
+     RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./mc-full-service \
        --wallet-db ./mainnet-dbs/wallet.db \
        --ledger-db ./mainnet-dbs/ledger-db/ \
        --peer mc://node1.prod.mobilecoinww.com/ \
