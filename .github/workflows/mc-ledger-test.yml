@@ -3,7 +3,7 @@ name: mc-ledger-test
 env:
   SGX_MODE: SW
   IAS_MODE: DEV
-  MC_LOG: warn
+  RUST_LOG: warn
 
 on:
   workflow_dispatch:
@@ -83,7 +83,11 @@ jobs:
         run: |
           tools/build_full_service.sh
 
-      # # test locally (run local_network.py via exec'ing into the container from the terminal)
+      - name: python dependencies
+        shell: bash
+        run: pip install aiohttp
+
+      # test locally (run local_network.py via exec'ing into the container from the terminal)
       # - name: run bash
       #   shell: bash
       #   run: /bin/bash
