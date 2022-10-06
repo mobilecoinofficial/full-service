@@ -28,6 +28,7 @@ pub struct ValidatorLedgerSyncThread {
 impl ValidatorLedgerSyncThread {
     pub fn new(
         validator_uri: &ValidatorUri,
+        chain_id: String,
         poll_interval: Duration,
         ledger_db: LedgerDB,
         network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
@@ -35,7 +36,7 @@ impl ValidatorLedgerSyncThread {
     ) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
 
-        let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+        let validator_conn = ValidatorConnection::new(validator_uri, chain_id, logger.clone());
 
         let thread_stop_requested = stop_requested.clone();
         let join_handle = Some(
