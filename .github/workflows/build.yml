@@ -20,20 +20,23 @@ jobs:
       contents: write
     strategy:
       matrix:
-        os: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo], [self-hosted, Linux, large]]
+        runner-tags: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo], [self-hosted, Linux, large]]
         namespace: [test, prod]
         include:
-          - os: [self-hosted, macOS, X64, cargo]
+          - runner: [self-hosted, macOS, X64, cargo]
+            os: mac
             container: null
-          - os: [self-hosted, macOS, ARM64, cargo]
+          - runner: [self-hosted, macOS, ARM64, cargo]
+            os: mac
             container: null
-          - os: [self-hosted, Linux, large]
+          - runner: [self-hosted, Linux, large]
+            os: linux
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test
             network: testnet
           - namespace: prod
             network: mainnet
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner-tags }}
     container: ${{ matrix.container }}
 
     steps:
@@ -43,6 +46,7 @@ jobs:
           submodules: recursive
 
       - name: Brew Bundle
+        if: ${{ matrix.os }} == mac
         run: |
           brew bundle
       
