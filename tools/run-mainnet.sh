@@ -27,9 +27,9 @@ mkdir -p ${WALLET_DB_DIR}
 ${FS_DIR}/full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
-    --peer mc://node1.prod.mobilecoinww.com/ \
-    --peer mc://node2.prod.mobilecoinww.com/ \
-    --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
-    --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
+    --peer mc://node1.$NAMESPACE.mobilecoinww.com/ \
+    --peer mc://node2.$NAMESPACE.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node1.$NAMESPACE.mobilecoinww.com/ \
+    --tx-source-url https://ledger.mobilecoinww.com/node2.$NAMESPACE.mobilecoinww.com/ \
     --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
     --chain-id main
