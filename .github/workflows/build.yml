@@ -27,7 +27,7 @@ jobs:
             container: none
           - os: [self-hosted, macOS, ARM64, cargo]
             container: none
-          - os: [self-hosted, Linux, large],
+          - os: [self-hosted, Linux, large]
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test
             network: testnet
