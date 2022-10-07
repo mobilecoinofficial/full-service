@@ -1,3 +1,5 @@
+#!/bin/bash
+# Copyright (c) 2022 The MobileCoin Foundation
 NAMESPACE=prod
 
 WORK_DIR="$HOME/.mobilecoin/${NAMESPACE}"
