@@ -15,7 +15,7 @@ on:
       - '*.dev-build.*'
 
 jobs:
-  build_and_release:
+  build:
     permissions:
       contents: write
     strategy:
