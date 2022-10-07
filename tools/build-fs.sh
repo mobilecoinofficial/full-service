@@ -1,7 +1,6 @@
 #!/bin/bash
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 
-# TODO: add a way to specify  'testnet'
 # TODO: add a way to specify a different sigstruct directory
 
 # Net can be main/test/local
