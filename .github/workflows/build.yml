@@ -49,10 +49,6 @@ jobs:
         if: matrix.os == 'mac'
         run: |
           brew bundle
-      
-      - name: Git Submodule
-        run: |
-          git submodule update --checkout --init --recursive
 
       - name: Consensus SigStruct
         run: |
