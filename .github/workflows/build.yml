@@ -30,7 +30,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     - container:
       image: mobilecoin/rust-sgx-base:latest
-    if: ${{ matrix.os }} == [self-hosted, Linux, large]
 
     steps:
       - name: Checkout
