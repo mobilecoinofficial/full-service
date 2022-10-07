@@ -78,4 +78,4 @@ dbml-error.log
 
 __pycache__
 
-*bin
+/tools/*.bin
