@@ -80,6 +80,7 @@ class FullService:
     async def request(self, rdat):
         self.request_count += 1
         request_data = {"jsonrpc": "2.0", "id": self.request_count, **rdat}
+        print(request_data)
         #print(f"request data: {request_data}")
         async with aiohttp.TCPConnector() as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
