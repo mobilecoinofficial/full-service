@@ -15,7 +15,7 @@ on:
       - '*.dev-build.*'
 
 jobs:
-  build:
+  build-and-release:
     permissions:
       contents: write
     strategy:
@@ -28,7 +28,7 @@ jobs:
           - namespace: prod
             network: mainnet
     runs-on: ${{ matrix.os }}
-    - container:
+    container:
       image: mobilecoin/rust-sgx-base:latest
 
     steps:
