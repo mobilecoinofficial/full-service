@@ -15,6 +15,7 @@ if [ $NET == "local" ]; then
 echo "Local networks are not currently supported with this script"
 exit 1
 elif [ $NET == "test" ]; then
+echo "Building Full Service with testnet settings"
 NAMESPACE="test"
 SM=SW
 IM=DEV
@@ -23,7 +24,7 @@ NAMESPACE="prod"
 SM=HW
 IM=PROD
 else
-echo "Network specified is not valid. Try 'test' or 'main'"
+echo "Network specified is not valid. Try 'test' or 'main'. Default is test"
 exit 1
 fi
 
