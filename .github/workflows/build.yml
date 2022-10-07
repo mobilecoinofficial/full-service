@@ -20,14 +20,14 @@ jobs:
       contents: write
     strategy:
       matrix:
+        os: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo]]
         include:
-          - os: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo]]
           - namespace: test
             network: testnet
           - namespace: prod
             network: mainnet
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
