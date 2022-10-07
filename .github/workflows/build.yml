@@ -21,6 +21,7 @@ jobs:
     strategy:
       matrix:
         os: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo]]
+        namespace: [test, prod]
         include:
           - namespace: test
             network: testnet
