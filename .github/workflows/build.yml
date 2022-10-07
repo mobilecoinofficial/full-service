@@ -46,7 +46,7 @@ jobs:
           submodules: recursive
 
       - name: Brew Bundle
-        if: ${{ matrix.os }} == mac
+        if: ${{ matrix.os }} == 'mac'
         run: |
           brew bundle
       
