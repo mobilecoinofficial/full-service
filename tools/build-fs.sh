@@ -33,19 +33,13 @@ LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 mkdir -p ${WORK_DIR}
 
 CONSENSUS_ENCLAVE_CSS="$WORK_DIR/consensus-enclave.css"
-INGEST_ENCLAVE_CSS="$WORK_DIR/ingest-enclave.css"
 
 (cd ${WORK_DIR} && CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
 curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
-
-(cd ${WORK_DIR} && INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
-
 
 echo "building full service..."
 SGX_MODE=$SM \
 IAS_MODE=$IM \
 CONSENSUS_ENCLAVE_CSS=$CONSENSUS_ENCLAVE_CSS \
-INGEST_ENCLAVE_CSS=$INGEST_ENCLAVE_CSS \
 cargo build --release -p mc-full-service
 
