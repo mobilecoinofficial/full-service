@@ -16,7 +16,7 @@ if [ $# -gt 0 ]; then
 NET=$1
 fi
 
-if [ $NET -eq "test" ] || [ $NET -eq "main" ]; then
+if [ $NET == "test" ] || [ $NET == "main" ]; then
     if [ $NET == "test" ]; then
     echo "Building Full Service with testnet settings"
     NAMESPACE="test"
