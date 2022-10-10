@@ -2,12 +2,16 @@ import urllib.request
 import re
 import json
 
-lines = (
+lines = [
+    line
+    for line in (
     urllib.request.urlopen("http://localhost:9090/wallet/v2")
     .read()
     .decode()
     .split("\n\n")[3:] # we want everything after the first three lines (or so)
 )
+if line
+]
 
 def get_classes(lines):
     # the unique set of things that start with capital letters and aren't the special cases None or V1
