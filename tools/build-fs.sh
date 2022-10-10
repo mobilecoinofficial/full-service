@@ -13,7 +13,7 @@ if [ $# -gt 0 ]; then
     NET=$1
 fi
 
-if [ $NET == "test" ] || [ $NET == "main" ]; then
+if [ ! -z "$NET" ] && ([ $NET == "test" ] || [ $NET == "main" ]); then
     if [ $NET == "test" ]; then
         NAMESPACE="test"
         export SGX_MODE=HW
@@ -33,7 +33,6 @@ else
     echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS"
 fi
 
-exit 0
 
 echo "building full service..."
 cargo build --release
