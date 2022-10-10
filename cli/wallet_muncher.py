@@ -9,14 +9,6 @@ lines = (
     .split("\n\n")[3:] # we want everything after the first three lines (or so)
 )
 
-# class Postman: # decode the json file exported from postman
-#     def main():
-#         with open("/Users/zoey/v2.postman_collection.json", "r") as f:
-#             data = f.read() 
-#             lines = json.loads(data) # convert to string
-#             print(lines)
-
-
 def get_classes(lines):
     # the unique set of things that start with capital letters and aren't the special cases None or V1
     return set(
