@@ -20,7 +20,7 @@ if [ $# -eq 0 ] || [ $1 != "--no-build" ]; then
     INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
 
     $SCRIPT_DIR/build-fs.sh $NET
-    cp $SCRIPT_DIR/../target/release/full-service $WORK_DIR
+    cp $SCRIPT_DIR/../target/release/mc-full-service $WORK_DIR
 fi
 
 
@@ -37,7 +37,7 @@ fi
 
 
 mkdir -p ${WALLET_DB_DIR}
-$WORK_DIR/full-service \
+$WORK_DIR/mc-full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
     --peer mc://node1.$NAMESPACE.mobilecoinww.com/ \
