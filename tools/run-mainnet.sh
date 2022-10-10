@@ -19,7 +19,7 @@ if [ $# -eq 0 ] || [ $1 != "--no-build" ]; then
     INGEST_ENCLAVE_CSS="$WORK_DIR/ingest-enclave.css"
 
     $SCRIPT_DIR/build-fs.sh $NET
-    cp SCRIPT_DIR/../target/release/full-service $WORK_DIR
+    cp $SCRIPT_DIR/../target/release/full-service $WORK_DIR
 fi
 
 if [ -z "$INGEST_ENCLAVE_CSS" ]; then
