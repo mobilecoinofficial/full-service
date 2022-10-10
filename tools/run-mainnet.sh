@@ -9,7 +9,7 @@ LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 INGEST_DOWNLOAD_LOCATION="$WORK_DIR/ingest-enclave.css"
 
 # Pass "--no-build" if the user just wants to run what they have in  
-# .mobilecoin/main instead of building and copying over a new exectuable
+# WORK_DIR instead of building and copying over a new exectuable
 if [ $# -eq 0 ] || [ $1 != "--no-build" ]; then
     echo "Building"
     mkdir -p ${WORK_DIR}
