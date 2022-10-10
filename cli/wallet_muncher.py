@@ -42,4 +42,14 @@ def return_method_and_parameters(current_line):
     [parameters := parameters.replace(to_remove, "") for to_remove in useless_typing]
     return method, json.loads(parameters)
 
-
+methods_and_parameters = [return_method_and_parameters(line) for line in lines]
+for method, parameters in methods_and_parameters:
+    if parameters and list(parameters.keys())[0] == "account_id":
+        empty_str = '""'
+        arguments = ", ".join(
+            [
+                f"{key} = {value or empty_str}"
+                for (key, value) in list(parameters.items())[1:]
+            ]
+        )
+        pass
