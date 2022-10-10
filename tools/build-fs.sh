@@ -17,15 +17,15 @@ NET=$1
 fi
 
 if [ $NET == "test" ] || [ $NET == "main" ]; then
+    echo "potato"
     if [ $NET == "test" ]; then
-    echo "Building Full Service with testnet settings"
-    NAMESPACE="test"
-    export SGX_MODE=HW
-    export IAS_MODE=PROD
+        NAMESPACE="test"
+        export SGX_MODE=HW
+        export IAS_MODE=PROD
     elif [ $NET == "main" ]; then
-    NAMESPACE="prod"
-    export SGX_MODE=HW
-    export IAS_MODE=PROD
+        NAMESPACE="prod"
+        export SGX_MODE=HW
+        export IAS_MODE=PROD
     fi 
     
     WORK_DIR="$HOME/.mobilecoin/${NET}"
@@ -36,6 +36,8 @@ if [ $NET == "test" ] || [ $NET == "main" ]; then
 else
     echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS "
 fi
+
+exit 0
 
 echo "building full service..."
 cargo build --release
