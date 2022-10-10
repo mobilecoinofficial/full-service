@@ -14,7 +14,6 @@ if [ $# -gt 0 ]; then
 fi
 
 if [ $NET == "test" ] || [ $NET == "main" ]; then
-    echo "potato"
     if [ $NET == "test" ]; then
         NAMESPACE="test"
         export SGX_MODE=HW
