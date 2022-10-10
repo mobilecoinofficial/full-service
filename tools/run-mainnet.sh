@@ -1,6 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2022 The MobileCoin Foundation
 NAMESPACE=prod
+NET=main
 
 WORK_DIR="$HOME/.mobilecoin/${NAMESPACE}"
 WALLET_DB_DIR="${WORK_DIR}/wallet-db"
@@ -13,7 +14,7 @@ INGEST_ENCLAVE_CSS="$WORK_DIR/ingest-enclave.css"
 (cd ${WORK_DIR} && INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
 curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
-$SCRIPT_DIR/build-fs.sh main
+$SCRIPT_DIR/build-fs.sh $NET
 
 # Default is to run whatver binary is sitting in the directory under mobilecoin named $NAMESPACE
 # However, the build script by default drops the binary in the release folder.
@@ -32,4 +33,4 @@ ${FS_DIR}/full-service \
     --tx-source-url https://ledger.mobilecoinww.com/node1.$NAMESPACE.mobilecoinww.com/ \
     --tx-source-url https://ledger.mobilecoinww.com/node2.$NAMESPACE.mobilecoinww.com/ \
     --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
-    --chain-id main
+    --chain-id $NET
