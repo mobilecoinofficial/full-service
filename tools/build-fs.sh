@@ -10,7 +10,7 @@
 
 # Net can be main/test/local
 if [ $# -gt 0 ]; then
-NET=$1
+    NET=$1
 fi
 
 if [ $NET == "test" ] || [ $NET == "main" ]; then
