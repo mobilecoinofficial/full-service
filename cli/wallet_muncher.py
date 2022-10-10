@@ -30,14 +30,17 @@ def return_method_and_parameters(current_line):
         method, parameters = (
             [
                 current_line := current_line.replace(x, f'"{x[:-1]}": ').replace(':":', '":')
-                for x in re.findall(pattern="[\w_]+:", string=current_line)
+                for x in sorted_arguments
             ][-1]
             .replace("None", "null") # make it json
             .split(" ", 1) # method is the first word
         )
+    elif current_line:
+        method, parameters = current_line, "{}"
+    parameters = parameters.replace("V1", '"V1"') # make sure V1 is in quotes
     # mutates parameters to remove useless typing items once at a time
     [parameters := parameters.replace(to_remove, "") for to_remove in useless_typing]
-    return method, parameters
+    return method, json.loads(parameters)
 
 def get_function_parameters(lines):
     #functions = return_method_and_parameters[0][0].split("(", 1)[1].replace("\n", "")
