@@ -42,24 +42,4 @@ def return_method_and_parameters(current_line):
     [parameters := parameters.replace(to_remove, "") for to_remove in useless_typing]
     return method, json.loads(parameters)
 
-def get_function_parameters(lines):
-    #functions = return_method_and_parameters[0][0].split("(", 1)[1].replace("\n", "")
-    return set(
-        [x for x in re.findall("[a-z]\w+:", "\n".join(lines)) if x not in ["None", "V1"]]
-    )
 
-
-# current_classes = get_classes(lines)
-
-return_method_and_parameters(lines[7]) # not subscriptable? function...
-
-# seperate paramaters by quotes
-# def seperate_parameters():
-#     para = pickline() 
-#     parameters = str(para).replace(" ", "").split(",")
-#     return parameters
-    
-
-# if __name__ == "__main__":
-#     return_method_and_parameters(lines[7])
-#     #Postman.main()
