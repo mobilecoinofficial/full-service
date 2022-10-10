@@ -36,5 +36,4 @@ export CONSENSUS_ENCLAVE_CSS="$WORK_DIR/consensus-enclave.css"
 curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
 echo "building full service..."
-cargo build --release -p mc-full-service
-
+cargo build --release
