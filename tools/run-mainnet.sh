@@ -7,9 +7,8 @@ WORK_DIR="$HOME/.mobilecoin/${NET}"
 WALLET_DB_DIR="${WORK_DIR}/wallet-db"
 LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 
-
-# Default is to run whatver binary is sitting in the directory under mobilecoin named $NAMESPACE
-# If the user just wants to run what they have in .mobilecoin/main instead of building a new exectuable
+# Pass "--no-build" if the user just wants to run what they have in  
+# .mobilecoin/main instead of building and copying over a new exectuable
 if [ $# -eq 0 ] || [ $1 != "--no-build" ]; then
     echo "Building"
     mkdir -p ${WORK_DIR}
