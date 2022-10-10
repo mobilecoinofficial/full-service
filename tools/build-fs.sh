@@ -4,9 +4,7 @@
 # TODO: add a way to specify a different sigstruct directory
 
 # Net can be main/test/local
-if [ $# -eq 0 ]; then
-NET="test"
-else
+if [ $# -gt 0 ]; then
 NET=$1
 fi
 
