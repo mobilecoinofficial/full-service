@@ -5,7 +5,7 @@ import json
 lines = [
     line
     for line in (
-    urllib.request.urlopen("http://localhost:9090/wallet/v2")
+    urllib.request.urlopen("http://localhost:9090/wallet/")
     .read()
     .decode()
     .split("\n\n")[3:] # we want everything after the first three lines (or so)
@@ -21,15 +21,20 @@ def get_classes(lines):
 
 
 def return_method_and_parameters(current_line):
+    current_line = current_line.replace("JsonU64(0)", "0") # v1 api uses json floats for fees 
     useless_typing = get_classes([current_line])
-    method, parameters = (
-        [
-            current_line := current_line.replace(x, f'"{x[:-1]}": ')
-            for x in re.findall(pattern="[\w_]+:", string=current_line)
-        ][-1]
-        .replace("None", "null") # make it json
-        .split(" ", 1) # method is the first word
-    )
+    arguments = re.findall(pattern="[\w_+: ", string=current_line)
+    # sort arguments by length, longest to shortest 
+    sorted_arguments = list(sorted(arguments, key=lambda x: -len(x)))
+    if current_line.count(" ") > 1: # if there's no spaces there are no arguments
+        method, parameters = (
+            [
+                current_line := current_line.replace(x, f'"{x[:-1]}": ')
+                for x in re.findall(pattern="[\w_]+:", string=current_line)
+            ][-1]
+            .replace("None", "null") # make it json
+            .split(" ", 1) # method is the first word
+        )
     # mutates parameters to remove useless typing items once at a time
     [parameters := parameters.replace(to_remove, "") for to_remove in useless_typing]
     return method, parameters
