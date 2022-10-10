@@ -148,10 +148,10 @@ impl WalletDb {
         // We need to perform this first check in case this is a fresh database, in
         // which case there will be no migrations table.
         if let Ok(migrations) = __diesel_schema_migrations::table.load::<Migration>(conn) {
-            println!("Number of migrations applied: {:?}", migrations.len());
+            global_log::info!("Number of migrations applied: {:?}", migrations.len());
 
             if migrations.len() == 1 && migrations[0].version == "20220613204000" {
-                println!("Retroactively inserting missing migrations");
+                global_log::info!("Retroactively inserting missing migrations");
                 let missing_migrations = vec![
                     NewMigration::new("20202109165203"),
                     NewMigration::new("20210303035127"),
@@ -203,17 +203,34 @@ impl WalletDb {
         Self::run_assigned_subaddress_proto_conversions(conn);
     }
 
+    /// Prior to v2.0.0, the spend public key of a subaddress was stored as
+    /// protobuf bytes unnecessarily. This converts those to raw bytes instead,
+    /// which is what users will most likely be expecting.
+    ///
+    /// This is a one-time conversion, so we check if the conversion has already
+    /// happened, and if it has we do nothing.
     fn run_assigned_subaddress_proto_conversions(conn: &SqliteConnection) {
+        global_log::info!("Checking for assigned subaddress proto conversions");
         let assigned_subaddresses = assigned_subaddresses::table
             .load::<AssignedSubaddress>(conn)
             .expect("failed querying for assigned subaddresses");
 
         for assigned_subaddress in assigned_subaddresses {
+            // Checking if the data is encoded as protobuf bytes, and if it is, we turn it
+            // into raw bytes instead.
+            //
+            // If the spend public key is already raw bytes, we can assume the rest of the
+            // subaddresses are too, so we can return early.
             let spend_public_key_bytes = match mc_util_serial::decode::<RistrettoPublic>(
                 &assigned_subaddress.spend_public_key,
             ) {
                 Ok(spend_public_key) => spend_public_key.to_bytes().to_vec(),
-                Err(_) => continue,
+                Err(_) => {
+                    global_log::info!(
+                        "Assigned subaddress proto conversion already done, skipping..."
+                    );
+                    return;
+                }
             };
 
             diesel::update(
@@ -225,6 +242,8 @@ impl WalletDb {
             .set((assigned_subaddresses::spend_public_key.eq(&spend_public_key_bytes),))
             .execute(conn)
             .expect("failed updating assigned subaddress");
+
+            global_log::info!("Assigned subaddress proto conversion done");
         }
     }
 }
