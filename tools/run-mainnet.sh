@@ -9,9 +9,9 @@ LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 
 
 # Default is to run whatver binary is sitting in the directory under mobilecoin named $NAMESPACE
-# However, the build script by default drops the binary in the release folder.
-if [ $# -eq 0 ] || [ $1 != '--no-build']; then
-
+# If the user just wants to run what they have in .mobilecoin/main instead of building a new exectuable
+if [ $# -eq 0 ] || [ $1 != "--no-build" ]; then
+    echo "Building"
     mkdir -p ${WORK_DIR}
     SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
@@ -21,6 +21,11 @@ if [ $# -eq 0 ] || [ $1 != '--no-build']; then
 
     $SCRIPT_DIR/build-fs.sh $NET
     cp SCRIPT_DIR/../target/release/full-service $WORK_DIR
+fi
+
+if [ -z "$INGEST_ENCLAVE_CSS" ]; then
+    echo "If running with --no-build, please export a path for the fog-ingest-enclave-css as INGEST_ENCLAVE_CSS"
+    exit 1
 fi
 
 mkdir -p ${WALLET_DB_DIR}
