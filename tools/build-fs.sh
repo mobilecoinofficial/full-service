@@ -16,8 +16,8 @@ exit 1
 elif [ $NET == "test" ]; then
 echo "Building Full Service with testnet settings"
 NAMESPACE="test"
-export SGX_MODE=SW
-export IAS_MODE=DEV
+export SGX_MODE=HW
+export IAS_MODE=PROD
 elif [ $NET == "main" ]; then
 NAMESPACE="prod"
 export SGX_MODE=HW
