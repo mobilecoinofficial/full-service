@@ -17,8 +17,8 @@ NET=$1
 fi
 
 if [ -z ${NET} ] || [ $NET -ne "test" ] || [ $NET -ne "main" ]; then
-echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS "
-else 
+    echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS "
+elif [ $NET -eq "test" ] || [ $NET -eq "main" ]; then
     if [ $NET == "test" ]; then
     echo "Building Full Service with testnet settings"
     NAMESPACE="test"
@@ -35,6 +35,8 @@ else
     export CONSENSUS_ENCLAVE_CSS="$WORK_DIR/consensus-enclave.css"
     (cd ${WORK_DIR} && CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
         curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+else
+    echo "Not sure what happens here..."
 fi
 
 echo "building full service..."
