@@ -29,7 +29,7 @@ def return_method_and_parameters(current_line):
     if current_line.count(" ") > 1: # if there's no spaces there are no arguments
         method, parameters = (
             [
-                current_line := current_line.replace(x, f'"{x[:-1]}": ')
+                current_line := current_line.replace(x, f'"{x[:-1]}": ').replace(':":', '":')
                 for x in re.findall(pattern="[\w_]+:", string=current_line)
             ][-1]
             .replace("None", "null") # make it json
