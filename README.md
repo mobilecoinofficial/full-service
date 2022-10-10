@@ -132,7 +132,7 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     mkdir -p /tmp/wallet-db/
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
@@ -278,7 +278,7 @@ The recommended flow to get balance and submit transaction is the following:
 1. *ONLINE MACHINE*: Sync ledger by running full service.
 
     ```sh
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
@@ -292,7 +292,7 @@ The recommended flow to get balance and submit transaction is the following:
 
     ```sh
     cp -r /tmp/ledger-db /media/
-    cp ./target/release/full-service /media/
+    cp ./target/release/mc-full-service /media/
     ```
 
 1. *OFFLINE MACHINE*: Create a ramdisk to store sensitive material.
@@ -318,13 +318,13 @@ The recommended flow to get balance and submit transaction is the following:
 
     ```sh
     cp /media/ledger-db /keyfs/ledger-db
-    cp /media/full-service /keyfs/full-service
+    cp /media/mc-full-service /keyfs/mc-full-service
     ```
 
 1. *OFFLINE MACHINE*: Run full service in offline mode.
 
     ```sh
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /keyfs/wallet.db \
         --ledger-db /keyfs/ledger-db/ \
         --offline \
