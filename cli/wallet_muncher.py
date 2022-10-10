@@ -50,7 +50,7 @@ def return_method_and_parameters(current_line):
 
 methods_and_parameters = [return_method_and_parameters(line) for line in lines]
 for method, parameters in methods_and_parameters:
-    if parameters and list(parameters.keys())[0] == "account_id":
+    if parameters and list(parameters.keys())[0]:
         empty_str = '""'
         all_args = ", ".join(
             [
