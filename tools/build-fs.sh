@@ -7,9 +7,6 @@
 #   - SGX_MODE
 #   - IAS_MODE
 #   - CONSENSUS_ENCLAVE_CSS
-#   - NAMESPACE (if no namespace is present, we use 'default')
-
-# TODO: 
 
 # Net can be main/test/local
 if [ $# -gt 0 ]; then
