@@ -33,6 +33,5 @@ else
     echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS"
 fi
 
-
 echo "building full service..."
 cargo build --release
