@@ -13,7 +13,7 @@ if [ $# -gt 0 ]; then
     NET=$1
 fi
 
-if ([ "$NET" == "test" ] || [ "$NET" == "main" ]); then
+if [ "$NET" == "test" ] || [ "$NET" == "main" ]; then
     if [ $NET == "test" ]; then
         NAMESPACE="test"
         export SGX_MODE=HW
