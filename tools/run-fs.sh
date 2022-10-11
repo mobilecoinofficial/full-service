@@ -2,11 +2,6 @@
 # Copyright (c) 2022 The MobileCoin Foundation
 
 NET="$1"
-if [ "$NET" != "main" ] && [ "$NET" != "test" ] && [ "$NET" != "alpha" ]; 
-    # TODO: add support for local network
-    echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
-    exit 1
-
 
 if [ $NET == "main" ]; then
     NAMESPACE="prod"
@@ -20,7 +15,11 @@ elif [ $NET == "alpha" ]; then
     NAMESPACE=$NET
     PEER_DOMAIN="alpha.development.mobilecoin.com/"
     TX_SOURCE_URL="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
-fi 
+else
+    # TODO: add support for local network
+    echo "Unknown network"
+    echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
+    exit 1
 
 WORK_DIR="$HOME/.mobilecoin/${NET}"
 WALLET_DB_DIR="${WORK_DIR}/wallet-db"
