@@ -34,7 +34,6 @@ if [ "$NET" == "test" ] || [ "$NET" == "main" ] || [ "$NET" == "alpha" ]; then
     WORK_DIR="$HOME/.mobilecoin/${NET}"
     export CONSENSUS_ENCLAVE_CSS="$WORK_DIR/consensus-enclave.css"
     mkdir -p ${WORK_DIR}
-
     
     if ! test -f "$CONSENSUS_ENCLAVE_CSS" && [ $CONSENSUS_SIGSTRUCT_URI != ""]; then
         (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
@@ -44,7 +43,6 @@ if [ "$NET" == "test" ] || [ "$NET" == "main" ] || [ "$NET" == "alpha" ]; then
         echo "Missing consensus enclave at $CONSENSUS_ENCLAVE_CSS"
         exit 1
     fi
-
 else
     echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS"
 fi
