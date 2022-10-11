@@ -32,7 +32,7 @@ if [ "$NET" == "main" ] || [ "$NET" == "test" ] || [ "$NET" == "alpha" ]; then
     if [ $NET == "alpha" ]; then  
         if ! test -f "$INGEST_DOWNLOAD_LOCATION"; then
             if test -f "$WORK_DIR/libingest-enclave.css"; then
-                export INGEST_ENCLAVE_CSS="$WORK_DIR/libconsensus-enclave.css"
+                export INGEST_ENCLAVE_CSS="$WORK_DIR/libingest-enclave.css"
             else
                 echo "Please place the ingest enclave for alphanet in $WORK_DIR"
                 echo "Ask ops for the consensus and ingest enclaves."
@@ -41,7 +41,7 @@ if [ "$NET" == "main" ] || [ "$NET" == "test" ] || [ "$NET" == "alpha" ]; then
         else
             export INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
         fi
-    # We always want to download the most recent enclaves for the networks wehn building the FS binary
+    # We always want to download the most recent enclaves for the networks when building the FS binary
     elif [ "$2" != "--no-build" ] ; then
         (cd ${WORK_DIR} && INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
         curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
