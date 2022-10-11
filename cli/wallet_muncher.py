@@ -50,12 +50,12 @@ def return_method_and_parameters(current_line):
 
 methods_and_parameters = [return_method_and_parameters(line) for line in lines]
 for method, parameters in methods_and_parameters:
-    if parameters and list(parameters.keys())[0]:
+    if parameters and list(parameters.keys())[0] == "account_id":
         empty_str = '""'
         all_args = ", ".join(
             [
                 f"{key} = {value or empty_str}"
-                for (key, value) in list(parameters.items())
+                for (key, value) in list(parameters.items())[1:]
             ]
         )
         rpc_params = ", " + ", ".join(
