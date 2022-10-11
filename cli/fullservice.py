@@ -2,6 +2,7 @@
 
 
 import asyncio
+from email.policy import default
 from queue import Full
 from unittest import result
 from urllib import request
@@ -21,10 +22,18 @@ import base64
 from typing import Any, Optional
 import re
 
+
 # from . import constants
 import forest_utils as utils
 from typing import Tuple
 from urllib.parse import urlparse
+
+# To do:
+# Sub-classes
+# Typing 
+# Testing, but it should work. 
+# V1 
+# Organize imports. 
 
 if not utils.get_secret("ROOTCRT"):
     ssl_context: Optional[ssl.SSLContext] = None
@@ -43,7 +52,8 @@ else:
 
 
 
-class Request:        
+class Request:
+    url = 'http://localhost:9090/wallet/v2'        
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         response_data = await self.request(request_data)
@@ -54,8 +64,8 @@ class Request:
         return response_data
 
     async def request(self, request_data: dict):
-        self.request_count += 1
-        request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
+        #self.request_count += 1
+        request_data = {"jsonrpc": "2.0", "id": '1', **request_data}
         print(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
@@ -68,11 +78,7 @@ class Request:
                     #print(resp.json)
                     return await resp.json()
 
-# To do:
-# Sub-classes
-# Typing 
-# Testing, but it should work. 
-# V1 
+
 class FullServiceAPIv2(Request):
     async def assign_address_for_account(self, account_id, metadata=""):
         return await self.req(
@@ -456,11 +462,12 @@ class FullServiceAPIv2(Request):
                 "params": {"address": address, "receiver_receipt": receiver_receipt},
             }
         )
+    
+    #async def create_account(self, name="", fog_info=""):
 
-
-    async def create_account(self, name="", fog_info=""):
+    async def create_account(self, name=""):
         return await self.req(
-            {"method": "create_account", "params": {"name": name, "fog_info": fog_info}}
+            {"method": "create_account", "params": {"name": name}}
         )
 
 
@@ -1243,3 +1250,6 @@ class FullServiceAPIv1(Request):
 
 	async def verify_address(self, address=""):
 		return await self.req({"method": "verify_address", "params": {"address": address}})
+
+if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(FullServiceAPIv2().run())
