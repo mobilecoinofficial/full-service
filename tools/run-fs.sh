@@ -1,14 +1,8 @@
 #!/bin/bash
 # Copyright (c) 2022 The MobileCoin Foundation
 
-
-# Usage: run-fs.sh NET [--no-build]
-
-# Design for main/test/alpha.
-# TODO: add support for local network
-
 if [ $# -gt 0 ]; then
-    NET=$1
+    NET="$1"
 fi
 
 if [ "$NET" == "main" ] || [ "$NET" == "test" ] || [ "$NET" == "alpha" ]; then
@@ -89,6 +83,7 @@ if [ "$NET" == "main" ] || [ "$NET" == "test" ] || [ "$NET" == "alpha" ]; then
         --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
         --chain-id $NET
 else
+    # TODO: add support for local network
     echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
 fi
 
