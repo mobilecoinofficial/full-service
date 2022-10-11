@@ -407,10 +407,10 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 To add or edit tables:
 
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
-   version: 
+   version:  
 
    ```
-   cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="22a4a4b973db2b7aadaf088b3279dbbe52176896" diesel_cli --no-default-features --features sqlite
+   cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="026f6379715d27c8be48396e5ca9059f4a263198" diesel_cli --no-default-features --features sqlite
    ```
 
 1. `cd full-service`
