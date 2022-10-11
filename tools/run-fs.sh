@@ -33,7 +33,7 @@ mkdir -p ${WORK_DIR}
 
 
 if ! test -f "$INGEST_DOWNLOAD_LOCATION" && [ $INGEST_SIGSTRUCT_URI != ""]; then
-    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
+    (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 fi
 
 if [ -z "$INGEST_ENCLAVE_CSS" ]; then
