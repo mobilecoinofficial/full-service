@@ -11,11 +11,6 @@ import ssl
 #import forest_utils as utils
 import aiocmd
 
-# To do:
-# Sub-classes
-# Typing 
-# Testing, but it should work. 
-
 # IGNORE ME, I AM VERY BAD AND SHOULD BE IGNORED 
 # but i *kind of* work just fine :))
 
