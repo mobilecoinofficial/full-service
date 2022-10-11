@@ -72,6 +72,7 @@ class Request:
 # Sub-classes
 # Typing 
 # Testing, but it should work. 
+# V1 
 class FullServiceAPIv2(Request):
     async def assign_address_for_account(self, account_id, metadata=""):
         return await self.req(
