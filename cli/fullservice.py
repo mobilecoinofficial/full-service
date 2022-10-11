@@ -7,7 +7,6 @@ from unittest import result
 from urllib import request
 import aiohttp
 
-import http.client
 import json
 import os
 import pathlib
@@ -20,6 +19,7 @@ import ssl
 import base64
 
 from typing import Any, Optional
+import re
 
 # from . import constants
 import forest_utils as utils
@@ -43,17 +43,17 @@ else:
 
 
 
-class Request:
-    async def req(self, method: str, **params: Any) -> dict:
-        logging.info("request: %s", method)
-        response_data = await self.request({"method": method, "params": params})
+class Request:        
+    async def req(self, request_data: dict) -> dict:
+        logging.info("request: %s", request_data.get("method"))
+        response_data = await self.request(request_data)
         if "error" in str(response_data):
             logging.error(response_data)
         else:
             print(response_data)
         return response_data
 
-    async def request(self, request_data):
+    async def request(self, request_data: dict):
         self.request_count += 1
         request_data = {"jsonrpc": "2.0", "id": self.request_count, **request_data}
         print(f"request data: {request_data}")
@@ -68,135 +68,596 @@ class Request:
                     #print(resp.json)
                     return await resp.json()
 
-
-class FullServiceAPIv1(Request):
-    def __init__(self, remove_wallet_and_ledger=False):
-        super().__init__()
-        self.full_service_process = None
-        self.account_map = None
-        self.account_ids = None
-        self.request_count = 0
-        self.remove_wallet_and_ledger = remove_wallet_and_ledger
-        url = ()
-        if not url:
-            url = (
-                utils.get_secret("FULL_SERVICE_URL") or "http://localhost:9090/"
-            ).removesuffix("/wallet") + "wallet"
-        logging.info("full-service url: %s", url)
-        self.url = url
-        self.wallet_path = pathlib.Path("/tmp/wallet-db")
-        self.ledger_path = pathlib.Path("/tmp/ledger-db")
-
-    # check if full service is synced within margin
-    def sync_status(self, eps=5) -> bool:
-        # ping network
-        try:
-            r = self.req({"method": "get_network_status"})
-        except ConnectionError as e:
-            print(e)
-            return False
-
-        # network offline
-        if int(r["network_status"]["network_block_height"]) == 0:
-            return False
-
-        # network online
-        network_block_height = int(r["network_status"]["network_block_height"])
-        local_block_height = int(r["network_status"]["local_block_height"])
-
-        # network is acceptably synced
-        return network_block_height - local_block_height < eps
-
-    def sync_full_service_to_network(self, mc_network):
-        network_synced = False
-        count = 0
-        attempt_limit = 100
-        while network_synced is False and count < attempt_limit:
-            count += 1
-            network_synced = self.sync_status()
-            if count % 10 == 0:
-                print(f"attempt: {count}/{attempt_limit}")
-            time.sleep(1)
-        if count >= attempt_limit:
-            raise Exception(f"Full service sync failed after {attempt_limit} attempts")
-        print("Full service synced")
-
-
-    # retrieve wallet status
-    async def get_wallet_status(self):
-        r = await self.req({"method": "get_wallet_status"})
-        return r["wallet_status"]
-
-class Account(FullServiceAPIv1):
-    async def create(self, **kwargs):
-        r = await self.req(method="create_account", **kwargs)
-        return r['result']['account']
-
-    async def recover(self, **kwargs) -> bool:
-        r = await self.req(method="import_account", **kwargs)
-
-        if "error" in r:
-            # If we failed due to a unique constraint, it means the account already exists
-            return (
-                "Diesel Error: UNIQUE constraint failed"
-                in r["error"]["data"]["details"]
-            )
-        return True
-
-    async def update_account_name(self, account_id, name):
-        r = await self.req({
-            "method": "update_account_name",
-            "params": {
-                "account_id": account_id,
-                "name": name,
+# To do:
+# Sub-classes
+# Typing 
+# Testing, but it should work. 
+class FullServiceAPIv2(Request):
+    async def assign_address_for_account(self, account_id, metadata=""):
+        return await self.req(
+            {
+                "method": "assign_address_for_account",
+                "params": {"account_id": account_id, "metadata": metadata},
             }
-        })
-        return r['account']
+    )
 
-    async def remove_account(self, account_id):
-        return await self.req({
-            "method": "remove_account",
-            "params": {"account_id": account_id}
-        })
 
-    async def export_account_secrets(self, account_id):
-        r = await self.req({
-            "method": "export_account_secrets",
-            "params": {"account_id": account_id}
-        })
-        return r['account_secrets']
-
-    # retrieve all accounts full service is aware of
-    async def get_all(self) -> Tuple[list, dict]:
-        r = await self.req(method="get_all_accounts")
-        print(r)
-        return (r["account_ids"], r["account_map"])
-
-    # retrieve information about account
-    async def get_status(self, account_id: str):
-        params = {"account_id": account_id}
-        r = await self.req({"method": "get_account_status", "params": params})
-        return r
-
-    # build and submit a transaction from `account_id` to `to_address` for `amount` of pmob
-    async def send_transaction(self, account_id, to_address, amount):
-        params = {
-            "account_id": account_id,
-            "addresses_and_values": [(to_address, amount)],
-        }
-        r = await self.req(
+    async def build_and_submit_transaction(
+        self,
+        account_id,
+        addresses_and_amounts="",
+        recipient_public_address="",
+        amount="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+        comment="",
+    ):
+        return await self.req(
             {
                 "method": "build_and_submit_transaction",
-                "params": params,
+                "params": {
+                    "account_id": account_id,
+                    "addresses_and_amounts": addresses_and_amounts,
+                    "recipient_public_address": recipient_public_address,
+                    "amount": amount,
+                    "input_txo_ids": input_txo_ids,
+                    "fee_value": fee_value,
+                    "fee_token_id": fee_token_id,
+                    "tombstone_block": tombstone_block,
+                    "max_spendable_value": max_spendable_value,
+                    "comment": comment,
+                },
             }
         )
-        print(r)
-        return r["transaction_log"]
 
 
-class FullServiceAPIv2:
-    def stub():
-        pass
+    async def build_burn_transaction(
+        self,
+        account_id,
+        amount={"value": "", "token_id": ""},
+        redemption_memo_hex="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
+        return await self.req(
+            {
+                "method": "build_burn_transaction",
+                "params": {
+                    "account_id": account_id,
+                    "amount": amount,
+                    "redemption_memo_hex": redemption_memo_hex,
+                    "input_txo_ids": input_txo_ids,
+                    "fee_value": fee_value,
+                    "fee_token_id": fee_token_id,
+                    "tombstone_block": tombstone_block,
+                    "max_spendable_value": max_spendable_value,
+                },
+            }
+        )
 
-    
+
+    async def build_transaction(
+        self,
+        account_id,
+        addresses_and_amounts="",
+        recipient_public_address="",
+        amount="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
+        return await self.req(
+            {
+                "method": "build_transaction",
+                "params": {
+                    "account_id": account_id,
+                    "addresses_and_amounts": addresses_and_amounts,
+                    "recipient_public_address": recipient_public_address,
+                    "amount": amount,
+                    "input_txo_ids": input_txo_ids,
+                    "fee_value": fee_value,
+                    "fee_token_id": fee_token_id,
+                    "tombstone_block": tombstone_block,
+                    "max_spendable_value": max_spendable_value,
+                },
+            }
+        )
+
+
+    async def build_unsigned_burn_transaction(
+        self,
+        account_id,
+        amount={"value": "", "token_id": ""},
+        redemption_memo_hex="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
+        return await self.req(
+            {
+                "method": "build_unsigned_burn_transaction",
+                "params": {
+                    "account_id": account_id,
+                    "amount": amount,
+                    "redemption_memo_hex": redemption_memo_hex,
+                    "input_txo_ids": input_txo_ids,
+                    "fee_value": fee_value,
+                    "fee_token_id": fee_token_id,
+                    "tombstone_block": tombstone_block,
+                    "max_spendable_value": max_spendable_value,
+                },
+            }
+        )
+
+
+    async def build_unsigned_transaction(
+        self,
+        account_id,
+        addresses_and_amounts="",
+        recipient_public_address="",
+        amount="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
+        return await self.req(
+            {
+                "method": "build_unsigned_transaction",
+                "params": {
+                    "account_id": account_id,
+                    "addresses_and_amounts": addresses_and_amounts,
+                    "recipient_public_address": recipient_public_address,
+                    "amount": amount,
+                    "input_txo_ids": input_txo_ids,
+                    "fee_value": fee_value,
+                    "fee_token_id": fee_token_id,
+                    "tombstone_block": tombstone_block,
+                    "max_spendable_value": max_spendable_value,
+                },
+            }
+        )
+
+
+    async def create_payment_request(
+        self, account_id, subaddress_index="", amount={"value": "", "token_id": ""}, memo=""
+    ):
+        return await self.req(
+            {
+                "method": "create_payment_request",
+                "params": {
+                    "account_id": account_id,
+                    "subaddress_index": subaddress_index,
+                    "amount": amount,
+                    "memo": memo,
+                },
+            }
+        )
+
+
+    async def create_view_only_account_import_request(
+        self,
+        account_id,
+    ):
+        return await self.req(
+            {
+                "method": "create_view_only_account_import_request",
+                "params": {
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def create_view_only_account_sync_request(
+        self,
+        account_id,
+    ):
+        return await self.req(
+            {
+                "method": "create_view_only_account_sync_request",
+                "params": {
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def export_account_secrets(
+        self,
+        account_id,
+    ):
+        return await self.req(
+            {
+                "method": "export_account_secrets",
+                "params": {
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def get_account_status(
+        self,
+        account_id,
+    ):
+        return await self.req(
+            {
+                "method": "get_account_status",
+                "params": {
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def get_address_for_account(self, account_id, index=""):
+        return await self.req(
+            {
+                "method": "get_address_for_account",
+                "params": {"account_id": account_id, "index": index},
+            }
+        )
+
+
+    async def get_addresses(self, account_id, offset="", limit=""):
+        return await self.req(
+            {
+                "method": "get_addresses",
+                "params": {"account_id": account_id, "offset": offset, "limit": limit},
+            }
+        )
+
+
+    async def get_transaction_logs(
+        self, account_id, min_block_index="", max_block_index="", offset="", limit=""
+    ):
+        return await self.req(
+            {
+                "method": "get_transaction_logs",
+                "params": {
+                    "account_id": account_id,
+                    "min_block_index": min_block_index,
+                    "max_block_index": max_block_index,
+                    "offset": offset,
+                    "limit": limit,
+                },
+            }
+        )
+
+
+    async def get_txos(
+        self,
+        account_id,
+        address="",
+        status="",
+        token_id="",
+        min_received_block_index="",
+        max_received_block_index="",
+        offset="",
+        limit="",
+    ):
+        return await self.req(
+            {
+                "method": "get_txos",
+                "params": {
+                    "account_id": account_id,
+                    "address": address,
+                    "status": status,
+                    "token_id": token_id,
+                    "min_received_block_index": min_received_block_index,
+                    "max_received_block_index": max_received_block_index,
+                    "offset": offset,
+                    "limit": limit,
+                },
+            }
+        )
+
+
+    async def remove_account(
+        self,
+        account_id,
+    ):
+        return await self.req(
+            {
+                "method": "remove_account",
+                "params": {
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def sync_view_only_account(
+        self, account_id, completed_txos="", next_subaddress_index=""
+    ):
+        return await self.req(
+            {
+                "method": "sync_view_only_account",
+                "params": {
+                    "account_id": account_id,
+                    "completed_txos": completed_txos,
+                    "next_subaddress_index": next_subaddress_index,
+                },
+            }
+        )
+
+
+    async def update_account_name(self, account_id, name=""):
+        return await self.req(
+            {
+                "method": "update_account_name",
+                "params": {"account_id": account_id, "name": name},
+            }
+        )
+
+
+    async def validate_confirmation(self, account_id, txo_id="", confirmation=""):
+        return await self.req(
+            {
+                "method": "validate_confirmation",
+                "params": {
+                    "account_id": account_id,
+                    "txo_id": txo_id,
+                    "confirmation": confirmation,
+                },
+            }
+        )
+
+
+    async def get_network_status(self):
+        return await self.req({"method": "get_network_status", "params": {}})
+
+
+    async def get_wallet_status(self):
+        return await self.req({"method": "get_wallet_status", "params": {}})
+
+
+    async def version(self):
+        return await self.req({"method": "version", "params": {}})
+
+
+    async def check_b58_type(self, b58_code=""):
+        return await self.req(
+            {"method": "check_b58_type", "params": {"b58_code": b58_code}}
+        )
+
+
+    async def check_receiver_receipt_status(
+        self,
+        address="",
+        receiver_receipt={
+            "public_key": "",
+            "confirmation": "",
+            "tombstone_block": "",
+            "amount": {
+                "commitment": "",
+                "masked_value": "",
+                "masked_token_id": "",
+                "version": "V1",
+            },
+        },
+    ):
+        return await self.req(
+            {
+                "method": "check_receiver_receipt_status",
+                "params": {"address": address, "receiver_receipt": receiver_receipt},
+            }
+        )
+
+
+    async def create_account(self, name="", fog_info=""):
+        return await self.req(
+            {"method": "create_account", "params": {"name": name, "fog_info": fog_info}}
+        )
+
+
+    async def create_receiver_receipts(
+        self,
+        tx_proposal={
+            "input_txos": [],
+            "payload_txos": [],
+            "change_txos": [],
+            "fee_amount": {"value": "", "token_id": ""},
+            "tombstone_block_index": "",
+            "tx_proto": "",
+        },
+    ):
+        return await self.req(
+            {"method": "create_receiver_receipts", "params": {"tx_proposal": tx_proposal}}
+        )
+
+
+    async def get_accounts(self, offset="", limit=""):
+        return await self.req(
+            {"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
+        )
+
+
+    async def get_address(self, public_address_b58=""):
+        return await self.req(
+            {"method": "get_address", "params": {"public_address_b58": public_address_b58}}
+        )
+
+
+    async def get_address_status(self, address=""):
+        return await self.req(
+            {"method": "get_address_status", "params": {"address": address}}
+        )
+
+
+    async def get_block(self, block_index=""):
+        return await self.req(
+            {"method": "get_block", "params": {"block_index": block_index}}
+        )
+
+
+    async def get_confirmations(self, transaction_log_id=""):
+        return await self.req(
+            {
+                "method": "get_confirmations",
+                "params": {"transaction_log_id": transaction_log_id},
+            }
+        )
+
+
+    async def get_mc_protocol_transaction(self, transaction_log_id=""):
+        return await self.req(
+            {
+                "method": "get_mc_protocol_transaction",
+                "params": {"transaction_log_id": transaction_log_id},
+            }
+        )
+
+
+    async def get_mc_protocol_txo(self, txo_id=""):
+        return await self.req(
+            {"method": "get_mc_protocol_txo", "params": {"txo_id": txo_id}}
+        )
+
+
+    async def get_transaction_log(self, transaction_log_id=""):
+        return await self.req(
+            {
+                "method": "get_transaction_log",
+                "params": {"transaction_log_id": transaction_log_id},
+            }
+        )
+
+
+    async def get_txo(self, txo_id=""):
+        return await self.req({"method": "get_txo", "params": {"txo_id": txo_id}})
+
+
+    async def get_txo_block_index(self, public_key=""):
+        return await self.req(
+            {"method": "get_txo_block_index", "params": {"public_key": public_key}}
+        )
+
+
+    async def get_txo_membership_proofs(self, outputs=""):
+        return await self.req(
+            {"method": "get_txo_membership_proofs", "params": {"outputs": outputs}}
+        )
+
+
+    async def import_account(
+        self,
+        mnemonic="",
+        key_derivation_version="",
+        name="",
+        first_block_index="",
+        next_subaddress_index="",
+        fog_info="",
+    ):
+        return await self.req(
+            {
+                "method": "import_account",
+                "params": {
+                    "mnemonic": mnemonic,
+                    "key_derivation_version": key_derivation_version,
+                    "name": name,
+                    "first_block_index": first_block_index,
+                    "next_subaddress_index": next_subaddress_index,
+                    "fog_info": fog_info,
+                },
+            }
+        )
+
+
+    async def import_account_from_legacy_root_entropy(
+        self,
+        entropy="",
+        name="",
+        first_block_index="",
+        next_subaddress_index="",
+        fog_info="",
+    ):
+        return await self.req(
+            {
+                "method": "import_account_from_legacy_root_entropy",
+                "params": {
+                    "entropy": entropy,
+                    "name": name,
+                    "first_block_index": first_block_index,
+                    "next_subaddress_index": next_subaddress_index,
+                    "fog_info": fog_info,
+                },
+            }
+        )
+
+
+    async def import_view_only_account(
+        self,
+        view_private_key="",
+        spend_public_key="",
+        name="",
+        first_block_index="",
+        next_subaddress_index="",
+    ):
+        return await self.req(
+            {
+                "method": "import_view_only_account",
+                "params": {
+                    "view_private_key": view_private_key,
+                    "spend_public_key": spend_public_key,
+                    "name": name,
+                    "first_block_index": first_block_index,
+                    "next_subaddress_index": next_subaddress_index,
+                },
+            }
+        )
+
+
+    async def sample_mixins(self, num_mixins="", excluded_outputs=""):
+        return await self.req(
+            {
+                "method": "sample_mixins",
+                "params": {"num_mixins": num_mixins, "excluded_outputs": excluded_outputs},
+            }
+        )
+
+
+    async def submit_transaction(
+        self,
+        tx_proposal={
+            "input_txos": [],
+            "payload_txos": [],
+            "change_txos": [],
+            "fee_amount": {"value": "", "token_id": ""},
+            "tombstone_block_index": "",
+            "tx_proto": "",
+        },
+        comment="",
+        account_id="",
+    ):
+        return await self.req(
+            {
+                "method": "submit_transaction",
+                "params": {
+                    "tx_proposal": tx_proposal,
+                    "comment": comment,
+                    "account_id": account_id,
+                },
+            }
+        )
+
+
+    async def verify_address(self, address=""):
+        return await self.req({"method": "verify_address", "params": {"address": address}})
+
+
+
+        
 
