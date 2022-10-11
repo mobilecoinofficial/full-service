@@ -407,10 +407,18 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 To add or edit tables:
 
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
-   version: `cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="22a4a4b973db2b7aadaf088b3279dbbe52176896" diesel_cli --no-default-features --features sqlite`
+   version: 
+
+   ```
+   cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="22a4a4b973db2b7aadaf088b3279dbbe52176896" diesel_cli --no-default-features --features sqlite
+   ```
+
 1. `cd full-service`
+
 1. Create a migration with `diesel migration generate <migration_name>`
+
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
+
 1. Run the migration with `diesel migration run --database-url /tmp/db.db`, and test delete
    with `diesel migration redo --database-url /tmp/db.db`
 
