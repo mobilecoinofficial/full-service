@@ -28,11 +28,7 @@ if [ -z "$INGEST_ENCLAVE_CSS" ] ; then
     if ! test -f "$INGEST_DOWNLOAD_LOCATION"; then
         (cd ${WORK_DIR} && INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
         curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
-        INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
-    else
-        echo "If running with --no-build, please export a path for the fog-ingest-enclave-css as INGEST_ENCLAVE_CSS"
-        exit 1
-    fi
+    INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
 fi
 
 
