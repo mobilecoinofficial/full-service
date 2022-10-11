@@ -28,6 +28,7 @@ elif [ "$NET" == "alpha" ]; then
     CONSENSUS_SIGSTRUCT_URI=""
 else
     echo "Using current environment's SGX_MODE, IAS_MODE, CONSENSUS_ENCLAVE_CSS"
+    CONSENSUS_SIGSTRUCT_URI=""
     if [ "$NET" == "" ]; then
         NET="default"
 fi 
