@@ -31,6 +31,7 @@ else
     CONSENSUS_SIGSTRUCT_URI=""
     if [ "$NET" == "" ]; then
         NET="default"
+    fi
 fi 
     
 WORK_DIR="$HOME/.mobilecoin/${NET}"
