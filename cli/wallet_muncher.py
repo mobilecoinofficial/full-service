@@ -2,6 +2,9 @@ import urllib.request
 import re
 import json
 
+# This script takes in a Full Service URL, parses it, and converts it into valid JSON.
+# Then prints function definitions which can be piped into a file and used in fullservice.py 
+
 lines = [
     line
     for line in (
