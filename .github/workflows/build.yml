@@ -65,9 +65,9 @@ jobs:
         run: |
           mkdir -pv build_artifacts/${{ matrix.network }}/bin
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
-          cp target/release/mc-full-service build_artifacts/${{ matrix.network }}/bin/
-          cp target/release/mc-transaction-signer build_artifacts/${{ matrix.network }}/bin/
-          cp target/release/mc-validator-service build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/mc-full-service build_artifacts/${{ matrix.network }}
+          cp target/release/mc-transaction-signer build_artifacts/${{ matrix.network }}
+          cp target/release/mc-validator-service build_artifacts/${{ matrix.network }}
 
       - name: Create Artifact
         run: |
