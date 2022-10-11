@@ -24,13 +24,10 @@ jobs:
         namespace: [test, prod]
         include:
           - runner-tags: [self-hosted, macOS, X64, cargo]
-            os: mac
             container: null
           - runner-tags: [self-hosted, macOS, ARM64, cargo]
-            os: mac
             container: null
           - runner-tags: [self-hosted, Linux, large]
-            os: linux
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test
             network: testnet
@@ -46,7 +43,7 @@ jobs:
           submodules: recursive
 
       - name: Brew Bundle
-        if: matrix.os == 'mac'
+        if: runner.os == 'macOS'
         run: |
           brew bundle
 
@@ -75,19 +72,19 @@ jobs:
       - name: Create Artifact
         run: |
           mkdir -pv artifact
-          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: full-service_${{ runner.os }}_${{ matrix.network }}_x86
-          path: artifact/${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
+          path: artifact/${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz
 
       - name: Create Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
@@ -96,4 +93,4 @@ jobs:
           draft: true
           prerelease: true
           files: |
-            release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
+            release/${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz
