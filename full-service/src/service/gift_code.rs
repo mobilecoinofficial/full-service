@@ -18,7 +18,7 @@ use crate::{
     service::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
-        ledger::LedgerService,
+        ledger::{LedgerService, LedgerServiceError},
         models::tx_proposal::TxProposal,
         transaction::{TransactionMemo, TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
@@ -162,6 +162,9 @@ pub enum GiftCodeServiceError {
 
     /// Tx Out Conversion Error: {0}
     TxOutConversion(mc_transaction_core::TxOutConversionError),
+
+    /// Ledger service error: {0}
+    LedgerService(LedgerServiceError),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -269,6 +272,12 @@ impl From<WalletTransactionBuilderError> for GiftCodeServiceError {
 impl From<mc_transaction_core::TxOutConversionError> for GiftCodeServiceError {
     fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
         Self::TxOutConversion(src)
+    }
+}
+
+impl From<LedgerServiceError> for GiftCodeServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
@@ -705,7 +714,7 @@ where
         let mut memo_builder = RTHMemoBuilder::default();
         memo_builder.set_sender_credential(SenderMemoCredential::from(&gift_account_key));
         memo_builder.enable_destination_memo();
-        let block_version = self.get_network_block_version();
+        let block_version = self.get_network_block_version()?;
         let fee = Amount::new(Mob::MINIMUM_FEE, Mob::ID);
         let mut transaction_builder =
             TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;

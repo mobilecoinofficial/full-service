@@ -83,6 +83,15 @@ mod e2e_account {
                 .to_string(),
             (42 * MOB - Mob::MINIMUM_FEE).to_string()
         );
+
+        assert_eq!(
+            balance["account_block_height"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            13
+        );
     }
 
     #[test_with_logger]
@@ -171,6 +180,15 @@ mod e2e_account {
                 .parse::<u64>()
                 .expect("Could not parse u64"),
             0
+        );
+
+        assert_eq!(
+            balance["account_block_height"]
+                .as_str()
+                .unwrap()
+                .parse::<u64>()
+                .expect("Could not parse u64"),
+            13
         );
 
         // Create a subaddress

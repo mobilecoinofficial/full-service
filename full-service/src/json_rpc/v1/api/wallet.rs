@@ -555,7 +555,20 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                        (Some(subaddress_index), Some(account_id)) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        _ => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
@@ -608,9 +621,7 @@ where
         }
         JsonCommandRequest::get_balance_for_account { account_id } => {
             let account_id = AccountID(account_id);
-            let next_subaddress_index = service
-                .get_next_subaddress_index_for_account(&account_id)
-                .map_err(format_error)?;
+            let account = &service.get_account(&account_id).map_err(format_error)?;
             let balance_map = service
                 .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
@@ -618,15 +629,17 @@ where
 
             let network_status = service.get_network_status().map_err(format_error)?;
             JsonCommandResponse::get_balance_for_account {
-                balance: Balance::new(balance_mob, next_subaddress_index, &network_status),
+                balance: Balance::new(
+                    balance_mob,
+                    account.next_block_index as u64,
+                    &network_status,
+                ),
             }
         }
         JsonCommandRequest::get_balance_for_address { address } => {
             let assigned_subaddress = service.get_address(&address).map_err(format_error)?;
             let account_id = AccountID(assigned_subaddress.account_id);
-            let next_subaddress_index_for_account = service
-                .get_next_subaddress_index_for_account(&account_id)
-                .map_err(format_error)?;
+            let account = &service.get_account(&account_id).map_err(format_error)?;
 
             let balance_map = service
                 .get_balance_for_address(&address)
@@ -637,7 +650,7 @@ where
             JsonCommandResponse::get_balance_for_address {
                 balance: Balance::new(
                     balance_mob,
-                    next_subaddress_index_for_account,
+                    account.next_block_index as u64,
                     &service.get_network_status().map_err(format_error)?,
                 ),
             }
@@ -738,7 +751,7 @@ where
 
             let received_txos = service
                 .list_txos(
-                    Some(account_id),
+                    Some(account_id.clone()),
                     None,
                     None,
                     Some(*Mob::ID),
@@ -751,7 +764,20 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| TransactionLog::try_from(txo))
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match txo.subaddress_index {
+                        Some(subaddress_index) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        None => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 

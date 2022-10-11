@@ -12,11 +12,11 @@ on:
   push:
     tags:
       - 'v*-pre.*'
-      - '*-force-build*'
+      - '*.dev-build.*'
 
 jobs:
   macos-x64:
-    runs-on: [self-hosted, macOS, X64]
+    runs-on: [self-hosted, macOS, X64, cargo]
     permissions:
       contents: write
     strategy:
@@ -53,10 +53,6 @@ jobs:
 
       - name: Cargo Build
         run: |
-          export PATH="/usr/local/opt/openssl@3/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/openssl@3/lib"
-          export CPPFLAGS="-I/usr/local/opt/openssl@3/include"
-          export PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
           cargo build --release
 
       - name: Copy binaries to cache folder
@@ -78,13 +74,13 @@ jobs:
           name: full-service_${{ runner.os }}_${{ matrix.network }}_x86
           path: artifact/${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
 
-      - name: Create Release
+      - name: Create Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Upload Release
+      - name: Upload Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
@@ -94,7 +90,7 @@ jobs:
             release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
 
   macos-arm64:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, macOS, ARM64, cargo]
     permissions:
       contents: write
     strategy:
@@ -131,10 +127,6 @@ jobs:
 
       - name: Cargo Build
         run: |
-          export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
-          export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
           cargo build --release
 
       - name: Copy binaries to cache folder
@@ -156,13 +148,13 @@ jobs:
           name: full-service_${{ runner.os }}_${{ matrix.network }}_arm64
           path: artifact/${{ github.sha }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
 
-      - name: Create Release
+      - name: Create Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Upload Release
+      - name: Upload Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
@@ -224,13 +216,13 @@ jobs:
           name: full-service_${{ runner.os }}_${{ matrix.network }}
           path: artifact/${{ github.sha }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
 
-      - name: Create Release
+      - name: Create Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Upload Release
+      - name: Upload Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:

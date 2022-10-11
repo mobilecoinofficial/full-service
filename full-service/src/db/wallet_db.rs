@@ -1,4 +1,8 @@
-use crate::db::WalletDbError;
+use crate::db::{
+    models::{Migration, NewMigration},
+    schema::__diesel_schema_migrations,
+    WalletDbError,
+};
 use diesel::{
     connection::SimpleConnection,
     prelude::*,
@@ -138,6 +142,44 @@ impl WalletDb {
     }
 
     pub fn run_migrations(conn: &SqliteConnection) {
+        // check for and retroactively insert any missing migrations if there is a later
+        // migration without the prior ones.
+        // We need to perform this first check in case this is a fresh database, in
+        // which case there will be no migrations table.
+        if let Ok(migrations) = __diesel_schema_migrations::table.load::<Migration>(conn) {
+            println!("Number of migrations applied: {:?}", migrations.len());
+
+            if migrations.len() == 1 && migrations[0].version == "20220613204000" {
+                println!("Retroactively inserting missing migrations");
+                let missing_migrations = vec![
+                    NewMigration::new("20202109165203"),
+                    NewMigration::new("20210303035127"),
+                    NewMigration::new("20210307192850"),
+                    NewMigration::new("20210308031049"),
+                    NewMigration::new("20210325042338"),
+                    NewMigration::new("20210330021521"),
+                    NewMigration::new("20210331220723"),
+                    NewMigration::new("20210403183001"),
+                    NewMigration::new("20210409050201"),
+                    NewMigration::new("20210420182449"),
+                    NewMigration::new("20210625225113"),
+                    NewMigration::new("20211214005344"),
+                    NewMigration::new("20220208225206"),
+                    NewMigration::new("20220215200456"),
+                    NewMigration::new("20220228190052"),
+                    NewMigration::new("20220328194805"),
+                    NewMigration::new("20220427170453"),
+                    NewMigration::new("20220513170243"),
+                    NewMigration::new("20220601162825"),
+                ];
+
+                diesel::insert_into(__diesel_schema_migrations::table)
+                    .values(&missing_migrations)
+                    .execute(conn)
+                    .expect("failed inserting migration");
+            }
+        }
+
         // Our migrations sometimes violate foreign keys, so disable foreign key checks
         // while we apply them.
         // This has to happen outside the scope of a transaction. Quoting

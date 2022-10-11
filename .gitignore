@@ -77,7 +77,6 @@ dbml-error.log
 *.profraw
 
 
-*__pycache__
-*bin
-fs.secrets
-inputs.json
+__pycache__
+
+/tools/*.bin

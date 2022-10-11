@@ -7,7 +7,10 @@ mod e2e_transaction {
     use crate::{
         db::account::AccountID,
         json_rpc,
-        json_rpc::v1::api::test_utils::{dispatch, setup},
+        json_rpc::v1::{
+            api::test_utils::{dispatch, setup},
+            models::transaction_log::{TransactionLog, TxoAbbrev},
+        },
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
@@ -207,6 +210,102 @@ mod e2e_transaction {
         assert_eq!(unspent, "100000000000103".to_string());
         assert_eq!(pending, "0");
         assert_eq!(spent, "0");
+    }
+
+    #[test_with_logger]
+    fn test_received_transaction_log(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+
+        // Add some transactions.
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_logs_for_account",
+            "params": {
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_log_id = result
+            .get("transaction_log_ids")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        let tx_log_json = result
+            .get("transaction_log_map")
+            .unwrap()
+            .get(tx_log_id)
+            .unwrap();
+
+        let txo_abbrev_expected = TxoAbbrev {
+            txo_id_hex: tx_log_id.to_string(),
+            recipient_address_id: "".to_string(),
+            value_pmob: 100.to_string(),
+        };
+
+        let tx_log_expected = TransactionLog {
+            object: "transaction_log".to_string(),
+            transaction_log_id: tx_log_id.to_string(),
+            direction: "tx_direction_received".to_string(),
+            is_sent_recovered: None,
+            account_id: account_id.to_string(),
+            input_txos: vec![],
+            output_txos: vec![txo_abbrev_expected],
+            change_txos: vec![],
+            assigned_address_id: Some(b58_public_address.to_string()),
+            value_pmob: 100.to_string(),
+            fee_pmob: None,
+            submitted_block_index: None,
+            finalized_block_index: Some(12.to_string()),
+            status: "tx_status_succeeded".to_string(),
+            sent_time: None,
+            comment: "".to_string(),
+            failure_code: None,
+            failure_message: None,
+        };
+
+        let tx_log: TransactionLog = serde_json::from_value(tx_log_json.clone()).unwrap();
+
+        assert_eq!(tx_log, tx_log_expected);
     }
 
     #[test_with_logger]

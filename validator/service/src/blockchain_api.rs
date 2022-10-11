@@ -7,13 +7,14 @@ use mc_common::logger::Logger;
 use mc_connection::{BlockchainConnection, ConnectionManager, RetryableBlockchainConnection};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{tokens::Mob, Token};
-use mc_util_grpc::{rpc_database_err, rpc_logger, send_result};
+use mc_util_grpc::{rpc_database_err, rpc_logger, rpc_precondition_error, send_result};
 use mc_validator_api::{
     consensus_common::{BlocksRequest, BlocksResponse, LastBlockInfoResponse},
     consensus_common_grpc::{create_blockchain_api, BlockchainApi as GrpcBlockchainApi},
     empty::Empty,
 };
 use rayon::prelude::*; // For par_iter
+use std::{collections::HashMap, iter::FromIterator};
 
 pub struct BlockchainApi<BC: BlockchainConnection + 'static> {
     /// Ledger DB.
@@ -53,26 +54,72 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
         &self,
         logger: &Logger,
     ) -> Result<LastBlockInfoResponse, RpcStatus> {
-        let num_blocks = self
+        let latest_local_block = self
             .ledger_db
-            .num_blocks()
+            .get_latest_block()
             .map_err(|err| rpc_database_err(err, logger))?;
 
-        let mut resp = LastBlockInfoResponse::new();
-        resp.set_index(num_blocks - 1);
-
-        // Iterate an owned list of connections in parallel, get the block info for
-        // each, and extract the fee. If no fees are returned, use the hard-coded
-        // minimum.
-        let minimum_fee = self
+        // Get the last block information from all nodes we are aware of, in parallel.
+        let last_block_infos = self
             .conn_manager
             .conns()
             .par_iter()
             .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
-            .filter_map(|block_info| block_info.minimum_fee_or_none(&Mob::ID))
-            .max()
-            .unwrap_or(Mob::MINIMUM_FEE);
-        resp.set_mob_minimum_fee(minimum_fee);
+            .collect::<Vec<_>>();
+
+        // Must have at least one node to get the last block info from.
+        let latest_network_block = last_block_infos.first().ok_or_else(|| {
+            rpc_precondition_error(
+                "last_block_infos",
+                "No last block information available",
+                logger,
+            )
+        })?;
+
+        // Ensure that all nodes agree on the minimum fee map.
+        if last_block_infos
+            .windows(2)
+            .any(|window| window[0].minimum_fees != window[1].minimum_fees)
+        {
+            return Err(rpc_precondition_error(
+                "minimum_fees",
+                "Some nodes do not agree on the minimum fees",
+                logger,
+            ));
+        }
+
+        let mut resp = LastBlockInfoResponse::new();
+
+        // It's possible the network is at a higher block index than we are, but until
+        // we have fully synced to that block index, there is no point in
+        // reporting it to full-service since we won't have block data for these blocks
+        // untill we have caught up.
+        resp.set_index(latest_local_block.index);
+
+        // In theory the network could be at a higher block version than we are, but
+        // this is an intermittent issue and will resolve itself once we are
+        // fully synced. The alternative would've been to try and get the block
+        // version from the last_block_infos array, but it is possible to run
+        // into an edgecase where not all nodes agree on the block version (which could
+        // happen at a very brief period when a new version is being enabled).
+        // Simply choosing the max block version will allow a malicious node to poison
+        // us, so we choose not to worry about any of that and instead use the
+        // local ledger as the source of truth.
+        resp.set_network_block_version(latest_local_block.version);
+
+        // Use minimum fee information from the network (which we previously verified
+        // all nodes agree on).
+        resp.set_mob_minimum_fee(
+            latest_network_block
+                .minimum_fee_or_none(&Mob::ID)
+                .unwrap_or(Mob::MINIMUM_FEE),
+        );
+        resp.set_minimum_fees(HashMap::from_iter(
+            latest_network_block
+                .minimum_fees
+                .iter()
+                .map(|(token_id, fee)| (**token_id, *fee)),
+        ));
 
         Ok(resp)
     }
