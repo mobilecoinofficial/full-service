@@ -5,7 +5,7 @@ import json
 lines = [
     line
     for line in (
-        urllib.request.urlopen("http://localhost:9090/wallet/")
+        urllib.request.urlopen("http://localhost:9090/wallet/v2")
         .read()
         .decode()
         .split("\n\n")[3:]  # we want everything after the first three lines (or so)
@@ -55,7 +55,41 @@ for method, parameters in methods_and_parameters:
         all_args = ", ".join(
             [
                 f"{key} = {value or empty_str}"
-                for (key, value) in list(parameters.items())[1:]
+                for (key, value) in list(parameters.items())
             ]
         )
-        print(all_args)
+        rpc_params = ", " + ", ".join(
+            [f'"{key}": {key}' for (key, value) in list(parameters.items())[1:]]
+        )
+        stub = f"""async def {method}(self, account_id, {all_args}):"""
+        stub += f"""\n\t return await self.req({{"method": "{method}", "params": {{"account_id": account_id"""
+        stub += rpc_params
+        stub += "}})"
+        print(stub)
+
+for method, parameters in methods_and_parameters:
+    if not parameters:
+        empty_str = '""'
+        stub = f"""async def {method}(self):"""
+        stub += (
+            f"""\n\t return await self.req({{"method": "{method}", "params": {{}}}})"""
+        )
+        print(stub)
+
+for method, parameters in methods_and_parameters:
+    if parameters and list(parameters.keys())[0] != "account_id":
+        empty_str = '""'
+        all_args = ", ".join(
+            [
+                f"{key} = {value or empty_str}"
+                for (key, value) in list(parameters.items())
+            ]
+        )
+        rpc_params = ", ".join(
+            [f'"{key}": {key}' for (key, value) in list(parameters.items())]
+        )
+        stub = f"""async def {method}(self, {all_args}):"""
+        stub += f"""\n\t return await self.req({{"method": "{method}", "params": {{"""
+        stub += rpc_params
+        stub += "}})"
+        print(stub)
