@@ -7,7 +7,7 @@ env:
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
-# only perform these build steps on pre-release
+# only perform these build steps on pre-release or forced dev build
 on:
   push:
     tags:
@@ -15,7 +15,7 @@ on:
       - '*.dev-build.*'
 
 jobs:
-  build-and-release:
+  build-and-pre-release:
     permissions:
       contents: write
     strategy:
@@ -77,7 +77,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: full-service_${{ runner.os }}_${{ matrix.network }}_x86
+          name: full-service_${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}
           path: artifact/${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz
 
       - name: Create Prerelease
