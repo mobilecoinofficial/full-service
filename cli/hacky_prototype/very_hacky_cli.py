@@ -1,6 +1,7 @@
 # Copyright (c) 2022 MobileCoin, Inc.
 
 import asyncio
+from inspect import ArgSpec
 import aiohttp
 import json
 import logging
@@ -16,7 +17,7 @@ import aiocmd
 # Testing, but it should work. 
 
 # IGNORE ME, I AM VERY BAD AND SHOULD BE IGNORED 
-# BUT I WORK LOL 
+# but i *kind of* work just fine :))
 
 # if not utils.get_secret("ROOTCRT"):
 #     ssl_context: Optional[ssl.SSLContext] = None
@@ -49,7 +50,7 @@ class Request:
         #self.request_count += 1
         request_data = {"jsonrpc": "2.0", "id": '1', **request_data}
         print(f"request data: {request_data}")
-        async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
+        async with aiohttp.TCPConnector() as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
                 # this can hang (forever?) if there's no full-service at that url
                 async with sess.post(
@@ -469,6 +470,9 @@ class FullServiceAPIv2(Request, aiocmd.PromptToolkitCmd):
 
 
 	async def do_get_accounts(self, offset="", limit=""):
+		if offset == '' and limit == '':
+			return await self.req({"method": "get_accounts", "params": {}})
+
 		return await self.req(
 			{"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
 		)

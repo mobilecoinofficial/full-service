@@ -1,6 +1,5 @@
 # Copyright (c) 2022 MobileCoin, Inc.
 
-
 import asyncio
 import aiohttp
 import json
@@ -9,6 +8,7 @@ import base64
 from typing import Optional
 import ssl
 import forest_utils as utils
+
 
 # To do:
 # Sub-classes
@@ -1055,6 +1055,9 @@ class FullServiceAPIv1(Request):
 
 
 	async def get_accounts(self, offset="", limit=""):
+		if offset == '' and limit == '':
+			return await self.req({"method": "get_accounts", "params": {}})
+
 		return await self.req(
 			{"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
 		)
