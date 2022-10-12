@@ -51,11 +51,11 @@ if [ "$2" != "--no-build" ]; then
     echo "Building"
     SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     $SCRIPT_DIR/build-fs.sh $NET
-    cp $SCRIPT_DIR/../target/release/mc-full-service $WORK_DIR
+    cp $SCRIPT_DIR/../target/release/full-service $WORK_DIR
 fi 
 
 mkdir -p ${WALLET_DB_DIR}
-$WORK_DIR/mc-full-service \
+$WORK_DIR/full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
     --peer mc://node1.${PEER_DOMAIN} \
