@@ -168,7 +168,7 @@ pub struct PeersConfig {
     pub tx_source_urls: Option<Vec<String>>,
 
     /// Chain Id
-    #[structopt(long)]
+    #[structopt(default_value = "", long)]
     pub chain_id: String,
 }
 
