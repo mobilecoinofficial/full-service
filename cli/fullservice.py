@@ -14,7 +14,6 @@ import forest_utils as utils
 # Sub-classes
 # Typing 
 # Testing, but it should work. 
-# Make a list of optional params and handle them 
 
 if not utils.get_secret("ROOTCRT"):
     ssl_context: Optional[ssl.SSLContext] = None
