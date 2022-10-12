@@ -32,8 +32,7 @@ else:
 
 
 class Request:
-    url = "http://localhost:9090/wallet/v2"
-
+    url = utils.get_secret('URL')
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         request_data["params"] = {
@@ -1179,6 +1178,3 @@ class FullServiceAPIv1(Request):
             {"method": "verify_address", "params": {"address": address}}
         )
 
-
-if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(FullServiceAPIv2().run())
