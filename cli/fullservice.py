@@ -37,6 +37,7 @@ class Request:
     url = 'http://localhost:9090/wallet/v2'        
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
+        request_data['params'] = {k:v for k,v in request_data['params'].items() if v} # handle optional params 
         response_data = await self.request(request_data)
         if "error" in str(response_data):
             logging.error(response_data)
@@ -1055,9 +1056,6 @@ class FullServiceAPIv1(Request):
 
 
 	async def get_accounts(self, offset="", limit=""):
-		if offset == '' and limit == '':
-			return await self.req({"method": "get_accounts", "params": {}})
-
 		return await self.req(
 			{"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
 		)

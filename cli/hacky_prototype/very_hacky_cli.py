@@ -34,6 +34,7 @@ class Request:
     url = 'http://localhost:9090/wallet/v2'        
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
+        request_data['params'] = {k:v for k,v in request_data['params'].items() if v} # handle optional arguments 
         response_data = await self.request(request_data)
         if "error" in str(response_data):
             logging.error(response_data)
@@ -97,6 +98,8 @@ class FullServiceAPIv2(Request, aiocmd.PromptToolkitCmd):
 				},
 			}
 		)
+
+	
 
 
 	async def do_build_burn_transaction(
@@ -465,9 +468,6 @@ class FullServiceAPIv2(Request, aiocmd.PromptToolkitCmd):
 
 
 	async def do_get_accounts(self, offset="", limit=""):
-		if offset == '' and limit == '':
-			return await self.req({"method": "get_accounts", "params": {}})
-
 		return await self.req(
 			{"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
 		)
