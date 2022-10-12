@@ -38,7 +38,7 @@ WORK_DIR="$HOME/.mobilecoin/${NET}"
 CONSENSUS_DOWNLOAD_LOCATION="$WORK_DIR/consensus-enclave.css"
 mkdir -p ${WORK_DIR}
 
-if ! test -f "$CONSENSUS_DOWNLOAD_LOCATION" && [ $CONSENSUS_SIGSTRUCT_URI != ""]; then
+if ! test -f "$CONSENSUS_DOWNLOAD_LOCATION" && [ "$CONSENSUS_SIGSTRUCT_URI" != "" ]; then
     (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 fi
 

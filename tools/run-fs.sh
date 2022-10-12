@@ -32,7 +32,7 @@ INGEST_DOWNLOAD_LOCATION="$WORK_DIR/ingest-enclave.css"
 mkdir -p ${WORK_DIR}
 
 
-if ! test -f "$INGEST_DOWNLOAD_LOCATION" && [ $INGEST_SIGSTRUCT_URI != ""]; then
+if ! test -f "$INGEST_DOWNLOAD_LOCATION" && [ "$INGEST_SIGSTRUCT_URI" != "" ]; then
     (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 fi
 
