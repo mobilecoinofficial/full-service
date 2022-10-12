@@ -53,7 +53,7 @@ def load_secrets(env: Optional[str] = None, overwrite: bool = False) -> None:
         env = os.environ.get("ENV", "dev")
     try:
         logging.info("loading secrets from %s_secrets", env)
-        secrets = parse_secrets(open(f"{env}_secrets").read())
+        secrets = parse_secrets(open(f"config").read())
         if overwrite:
             new_env = secrets
         else:
