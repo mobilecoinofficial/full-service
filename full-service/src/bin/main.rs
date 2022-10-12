@@ -76,6 +76,7 @@ fn main() {
                 exit(EXIT_WRONG_PASSWORD);
             };
             WalletDb::run_migrations(&conn);
+            WalletDb::run_proto_conversions_if_necessary(&conn);
             log::info!(logger, "Connected to database.");
 
             Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))
@@ -176,7 +177,11 @@ fn validator_backed_full_service(
     rocket_config: rocket::Config,
     logger: Logger,
 ) {
-    let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+    let validator_conn = ValidatorConnection::new(
+        validator_uri,
+        config.peers_config.chain_id.clone(),
+        logger.clone(),
+    );
 
     // Create the ledger_db.
     let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
@@ -210,6 +215,7 @@ fn validator_backed_full_service(
     // Create the ledger sync thread.
     let _ledger_sync_thread = ValidatorLedgerSyncThread::new(
         validator_uri,
+        config.peers_config.chain_id.clone(),
         config.poll_interval,
         ledger_db.clone(),
         network_state.clone(),

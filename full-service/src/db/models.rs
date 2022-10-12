@@ -3,8 +3,8 @@
 //! DB Models
 
 use super::schema::{
-    accounts, assigned_subaddresses, gift_codes, transaction_input_txos, transaction_logs,
-    transaction_output_txos, txos,
+    __diesel_schema_migrations, accounts, assigned_subaddresses, gift_codes,
+    transaction_input_txos, transaction_logs, transaction_output_txos, txos,
 };
 
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -225,4 +225,25 @@ pub struct GiftCode {
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
     pub value: i64,
+}
+
+#[derive(Queryable, Insertable)]
+#[table_name = "__diesel_schema_migrations"]
+pub struct Migration {
+    pub version: String,
+    pub run_on: chrono::NaiveDateTime,
+}
+
+#[derive(Insertable)]
+#[table_name = "__diesel_schema_migrations"]
+pub struct NewMigration {
+    pub version: String,
+}
+
+impl NewMigration {
+    pub fn new(version: &str) -> Self {
+        Self {
+            version: version.to_string(),
+        }
+    }
 }
