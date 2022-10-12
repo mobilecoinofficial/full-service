@@ -165,7 +165,7 @@ where
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
 
-        let network_fees = self.get_network_fees();
+        let network_fees = self.get_network_fees()?;
 
         let balances = distinct_token_ids
             .into_iter()
@@ -194,7 +194,7 @@ where
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
-        let network_fees = self.get_network_fees();
+        let network_fees = self.get_network_fees()?;
 
         let balances = distinct_token_ids
             .into_iter()
@@ -218,8 +218,8 @@ where
         Ok(NetworkStatus {
             network_block_height: self.get_network_block_height()?,
             local_block_height: self.ledger_db.num_blocks()?,
-            fees: self.get_network_fees(),
-            block_version: *self.get_network_block_version(),
+            fees: self.get_network_fees()?,
+            block_version: *self.get_network_block_version()?,
         })
     }
 
@@ -235,7 +235,7 @@ where
 
         let mut min_synced_block_index = network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
-        let network_fees = self.get_network_fees();
+        let network_fees = self.get_network_fees()?;
 
         for account in accounts {
             let account_id = AccountID(account.id.clone());

@@ -13,8 +13,10 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount as AmountJSON,
     service::{
-        ledger::LedgerService, models::tx_proposal::TxProposal,
-        transaction_builder::WalletTransactionBuilder, WalletService,
+        ledger::{LedgerService, LedgerServiceError},
+        models::tx_proposal::TxProposal,
+        transaction_builder::WalletTransactionBuilder,
+        WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
@@ -109,6 +111,9 @@ pub enum TransactionServiceError {
     /// Tx Builder Error: {0}
     TxBuilder(mc_transaction_std::TxBuilderError),
 
+    /// Ledger service error: {0}
+    LedgerService(LedgerServiceError),
+
     /// Key Error: {0}
     Key(mc_crypto_keys::KeyError),
 }
@@ -188,6 +193,12 @@ impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
 impl From<mc_crypto_keys::KeyError> for TransactionServiceError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::Key(src)
+    }
+}
+
+impl From<LedgerServiceError> for TransactionServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
@@ -337,14 +348,14 @@ where
 
             let fee_value = match fee_value {
                 Some(f) => f.parse::<u64>()?,
-                None => *self.get_network_fees().get(&fee_token_id).ok_or(
+                None => *self.get_network_fees()?.get(&fee_token_id).ok_or(
                     TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
                 )?,
             };
 
             builder.set_fee(fee_value, fee_token_id)?;
 
-            builder.set_block_version(self.get_network_block_version());
+            builder.set_block_version(self.get_network_block_version()?);
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs)?;
