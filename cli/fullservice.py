@@ -9,12 +9,6 @@ from typing import Optional
 import ssl
 import forest_utils as utils
 
-
-# To do:
-# Sub-classes
-# Typing
-# Testing, but it should work.
-
 if not utils.get_secret("ROOTCRT"):
     ssl_context: Optional[ssl.SSLContext] = None
 else:
@@ -47,7 +41,6 @@ class Request:
         return response_data
 
     async def request(self, request_data: dict):
-        # self.request_count += 1
         request_data = {"jsonrpc": "2.0", "id": "1", **request_data}
         print(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
