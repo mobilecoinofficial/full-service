@@ -6,10 +6,10 @@ if (NODE_MAJOR_VERSION < 12) {
 
 // Imports
 const client = require('../test_lib/send-request-encrypted');
-const full_service_path = "/wallet";
+const full_service_path = "/wallet/v2";
 const public_mirror_path = "/encrypted-request";
 const wait_time_ms = 10000;
-const fields = ["method", "params", "jsonrpc", "id", "block_index", "mnemonic", "key_derivation_version", "name", "account_id", "recipient_public_address", "value_pmob", "offset", "limit", "subaddress_index", "memo", "amount_pmob", "address", "transaction_log_id", "txo_id", "confirmation"];
+const fields = ["method", "params", "jsonrpc", "id", "block_index", "mnemonic", "key_derivation_version", "name", "account_id", "recipient_public_address", "value_pmob", "offset", "limit", "subaddress_index", "memo", "amount_pmob", "address", "transaction_log_id", "txo_id", "confirmation", "amount", "value", "token_id"];
 
 function getFuncName() {
     return getFuncName.caller.name
@@ -17,21 +17,21 @@ function getFuncName() {
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 async function runAllTests(public_mirror_host, public_mirror_port, full_service_host, full_service_port, key_file, mnemonic) {
     try {
-        await testGetBlock(public_mirror_host, public_mirror_port, key_file);
+        let blockJSON = await testGetBlock(public_mirror_host, public_mirror_port, key_file);
         let accountJSON = await testImportAccount(full_service_host, full_service_port, mnemonic);
         let accountInfo = JSON.parse(accountJSON);
-        let accountId = accountInfo["result"]["account"]["account_id"];
+        let accountId = accountInfo["result"]["account"]["id"];
         let mainAddress = accountInfo["result"]["account"]["main_address"];
         console.log(`account_id: ${accountId}, main_address: ${mainAddress}`);
         let balanceJSON = await waitForBalanceToBeSynced(public_mirror_host, public_mirror_port, key_file, accountId);
         let balanceInfo = JSON.parse(balanceJSON);
-        localBlockHeight = balanceInfo["result"]["balance"]["local_block_height"];
-        accountBlockHeight = balanceInfo["result"]["balance"]["account_block_height"];
+        localBlockHeight = balanceInfo["result"]["local_block_height"];
+        accountBlockHeight = balanceInfo["result"]["account_block_height"];
         console.log(balanceJSON);
 
         let transactionJSON = await testBuildAndSubmitTransaction(full_service_host, full_service_port, accountId, mainAddress, "1");
         let transactionInfo = JSON.parse(transactionJSON);
-        let transactionLogId = transactionInfo["result"]["transaction_log"]["transaction_log_id"];
+        let transactionLogId = transactionInfo["result"]["transaction_log"]["id"];
         let transactionBlockIndex = transactionInfo["result"]["transaction_log"]["submitted_block_index"];
         let outputTxoHex = transactionInfo["result"]["transaction_log"]["output_txos"][0]["txo_id_hex"];
         console.log(`transactionLogId: ${transactionLogId}`);
@@ -40,7 +40,7 @@ async function runAllTests(public_mirror_host, public_mirror_port, full_service_
         let addresses = await testGetAddressesForAccount(public_mirror_host, public_mirror_port, key_file, accountId);
         let accountStatus = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, accountId);
         let paymentRequest = await testCreatePaymentRequest(public_mirror_host, public_mirror_port, key_file, accountId, 1, 1);
-        let balance = await testGetBalanceForAddress(public_mirror_host, public_mirror_port, key_file, mainAddress);
+        let balance = await testGetAddressStatus(public_mirror_host, public_mirror_port, key_file, mainAddress);
         let addressVerification = await testVerifyAddress(public_mirror_host, public_mirror_port, key_file, mainAddress);
         let walletStatus = await testWalletStatus(public_mirror_host, public_mirror_port, key_file);
         let networkStatus = await testNetworkStatus(public_mirror_host, public_mirror_port, key_file);
@@ -89,7 +89,7 @@ async function testBuildAndSubmitTransaction(full_service_host, full_service_por
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": recipient_address,
-                "value_pmob": value_pmob
+                "amount": { "value": value_pmob, "token_id": "0" }
             },
             "jsonrpc": "2.0",
             "id": 1
@@ -121,10 +121,10 @@ async function testGetBlock(public_mirror_host, public_mirror_port, key_file) {
         throw `Error in ${getFuncName()}: ${error}`;
     }
 }
-async function testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id) {
+async function testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id) {
     try {
         let request = {
-            "method": "get_balance_for_account",
+            "method": "get_account_status",
             "params": {
                 "account_id": account_id
             },
@@ -140,14 +140,14 @@ async function testGetBalanceForAccount(public_mirror_host, public_mirror_port, 
     }
 }
 async function waitForBalanceToBeSynced(public_mirror_host, public_mirror_port, key_file, account_id) {
-    let balanceJSON = await testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id);
+    let balanceJSON = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id);
     let balanceInfo = JSON.parse(balanceJSON);
-    let balance_synced = balanceInfo["result"]["balance"]["is_synced"];
+    let balance_synced = balanceInfo["result"]["account"]["next_block_index"] >= balanceInfo["result"]["network_block_height"];
     while (!balance_synced) {
         await timer(wait_time_ms);
-        balanceJSON = await testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id);
+        balanceJSON = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id);
         balanceInfo = JSON.parse(balanceJSON);
-        balance_synced = balanceInfo["result"]["balance"]["is_synced"];
+        balance_synced = balanceInfo["result"]["account"]["next_block_index"] >= balanceInfo["result"]["network_block_height"];
     }
     return balanceJSON;
 }
@@ -210,10 +210,10 @@ async function testCreatePaymentRequest(public_mirror_host, public_mirror_port, 
         throw `Error in ${getFuncName()}: ${error}`;
     }
 }
-async function testGetBalanceForAddress(public_mirror_host, public_mirror_port, key_file, address) {
+async function testGetAddressStatus(public_mirror_host, public_mirror_port, key_file, address) {
     try {
         let request = {
-            "method": "get_balance_for_address",
+            "method": "get_address_status",
             "params": {
                 "address": address
             },
@@ -283,9 +283,10 @@ async function testNetworkStatus(public_mirror_host, public_mirror_port, key_fil
 async function testGetTransactionLogsForBlock(public_mirror_host, public_mirror_port, key_file, block_index) {
     try {
         let request = {
-            "method": "get_all_transaction_logs_for_block",
+            "method": "get_transaction_logs",
             "params": {
-                "block_index": block_index
+                "min_block_index": block_index,
+                "max_block_index": block_index
             },
             "jsonrpc": "2.0",
             "id": 1
@@ -302,7 +303,7 @@ async function testGetTransactionLogsForBlock(public_mirror_host, public_mirror_
 async function testGetTransactionLogsForAccount(public_mirror_host, public_mirror_port, key_file, account_id, offset, limit) {
     try {
         let request = {
-            "method": "get_transaction_logs_for_account",
+            "method": "get_transaction_logs",
             "params": {
                 "account_id": account_id,
                 "offset": offset,
@@ -343,7 +344,7 @@ async function waitForTransactionToBeSynced(public_mirror_host, public_mirror_po
     let transactionLogsJSON = await testGetTransactionLogsById(public_mirror_host, public_mirror_port, key_file, transaction_log_id);
     let transactionInfo = JSON.parse(transactionLogsJSON);
     let transaction_status = transactionInfo["result"]["transaction_log"]["status"];
-    while (transaction_status === "tx_status_pending") {
+    while (transaction_status === "pending") {
         await timer(wait_time_ms);
         transactionLogsJSON = await testGetTransactionLogsById(public_mirror_host, public_mirror_port, key_file, transaction_log_id);
         transactionInfo = JSON.parse(transactionLogsJSON);

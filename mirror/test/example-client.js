@@ -1,5 +1,5 @@
 
-const client = require('./test/test_lib/send-request-encrypted');
+const client = require('./test_lib/send-request-encrypted');
 
 // Command line parsing
 if (process.argv.length != 6) {
