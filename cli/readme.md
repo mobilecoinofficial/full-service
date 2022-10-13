@@ -10,7 +10,6 @@ from fullservice import FullServiceAPIv2 as v2
 import asyncio 
 
 async def main():
-    a = v2()
     existing_accounts = await v2.get_accounts()
     print(existing_accounts)
 
