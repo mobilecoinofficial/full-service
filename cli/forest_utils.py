@@ -7,7 +7,7 @@ import os
 from typing import Optional, cast, Dict
 
 
-def FuckAiohttp(record: logging.LogRecord) -> bool:
+def MuteAiohttp(record: logging.LogRecord) -> bool:
     str_msg = str(getattr(record, "msg", ""))
     if "was destroyed but it is pending" in str_msg:
         return False
@@ -26,7 +26,7 @@ console_handler.setLevel(
     ((os.getenv("LOGLEVEL") or os.getenv("LOG_LEVEL")) or "DEBUG").upper()
 )
 console_handler.setFormatter(fmt)
-console_handler.addFilter(FuckAiohttp)
+console_handler.addFilter(MuteAiohttp)
 logger.addHandler(console_handler)
 logging.getLogger("asyncio").setLevel("INFO")
 
@@ -111,5 +111,5 @@ if get_secret("LOGFILES"):
     handler = logging.FileHandler("debug.log")
     handler.setLevel("DEBUG")
     handler.setFormatter(fmt)
-    handler.addFilter(FuckAiohttp)
+    handler.addFilter(MuteAiohttp)
     logger.addHandler(handler)
