@@ -81,29 +81,7 @@ def get_secret(key: str, env: Optional[str] = None) -> str:
         return ""
     return secret
 
-
-## Parameters for easy access and ergonomic use
-
-BASE_CLIENT_PORT = 3200
-BASE_PEER_PORT = 3300
-BASE_ADMIN_PORT = 3400
-BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
-
-# TODO make these command line arguments
-# this may not work entirely as expected
-IAS_API_KEY = get_secret('IAS_API_KEY')  # 32 bytes
-IAS_SPID = get_secret('IAS_SPID')  # 16 bytes
-MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..', 'mobilecoin'))
-FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-MOB_RELEASE = get_secret('MOB_RELEASE', '1')
-TARGET_DIR = 'target/release'
-KEY_DIR = os.path.join(MOBILECOIN_DIR, 'target/sample_data/keys')
-WORK_DIR = os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
-LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
-MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
-CLI_PORT = 31337
-
-
+URL = os.getenv('URL')
 
 #### Configure logging to file
 
