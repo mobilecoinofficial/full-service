@@ -60,6 +60,6 @@ $WORK_DIR/validator-service \
     --peer mc://node2.${PEER_DOMAIN} \
     --tx-source-url ${TX_SOURCE_URL}/node1.${PEER_DOMAIN} \
     --tx-source-url ${TX_SOURCE_URL}/node2.${PEER_DOMAIN}  \
-    --listen-uri "validator://localhost:5554/?tls-chain=server.crt&tls-key=server.key" \
+    --listen-uri "validator://localhost:5554/?tls-chain=$WORK_DIR/server.crt&tls-key=$WORK_DIR/server.key" \
     --chain-id $NET
     

@@ -58,6 +58,6 @@ mkdir -p ${WALLET_DB_DIR}
 $WORK_DIR/full-service \
     --wallet-db ${WALLET_DB_DIR}/wallet.db \
     --ledger-db ${LEDGER_DB_DIR} \
-    --validator "validator://localhost:5554/?ca-bundle=server.crt&tls-hostname=localhost" \
+    --validator "validator://localhost:5554/?ca-bundle=$WORK_DIR/server.crt&tls-hostname=localhost" \
     --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
     --chain-id $NET
