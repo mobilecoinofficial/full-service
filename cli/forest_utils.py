@@ -52,7 +52,6 @@ def load_secrets(env: Optional[str] = None, overwrite: bool = False) -> None:
     if not env:
         env = os.environ.get("ENV", "dev")
     try:
-        logging.info("loading secrets from %s_secrets", env)
         secrets = parse_secrets(open(f"config").read())
         if overwrite:
             new_env = secrets
@@ -81,7 +80,7 @@ def get_secret(key: str, env: Optional[str] = None) -> str:
         return ""
     return secret
 
-URL = os.getenv('URL')
+#URL = os.getenv('URL')
 
 #### Configure logging to file
 
