@@ -9,7 +9,7 @@ on:
 
 jobs:
   release:
-    runs-on: [self-hosted, Linux-X64, large]
+    runs-on: [self-hosted, Linux, X64]
     # Needs write permission for publishing release
     permissions:
       contents: write
