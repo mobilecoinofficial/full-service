@@ -2813,7 +2813,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "1.9.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "base64 0.13.0",
@@ -3146,7 +3146,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-signer"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "base64 0.13.0",
  "hex",
@@ -3416,7 +3416,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-api"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -3432,7 +3432,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-connection"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "displaydoc",
  "futures",
@@ -3451,7 +3451,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-service"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "grpcio",
  "mc-attest-verifier",
