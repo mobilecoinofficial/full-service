@@ -418,6 +418,12 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
 
 ### Running Tests
 
+The simple way:
+```
+./tools/test.sh
+```
+
+Under the covers, this runs:
 ```
 SGX_MODE=HW \
 IAS_MODE=DEV \
@@ -426,6 +432,8 @@ cargo test
 ```
 
 Note: providing the `CONSENSUS_ENCLAVE_CSS` allows us to bypass the enclave build.
+
+Also note: On OSX there is sometimes weird behavior when first running the test suite where some tests will fail.  Opening a new terminal tab and running them again typically resolves this.
 
 ### Linting
 
