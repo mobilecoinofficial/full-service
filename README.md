@@ -41,14 +41,31 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 
 ### Build and Run
 
-Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012). Download Xcode 12, add it to your applications folder, then set your system to use it with:
+Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
+
+Download the latest Xcode 12 and add it to your applications folder.
+
+If you are on OSX Monterey or higher, you will need to fake the version to get OSX to allow you to open it.  Follow these steps (for Xcode 12.5.1):
+
 ```sh
-sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Developer
+# Change build version to Xcode 13.1
+/usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 19466' /Applications/Xcode_12.5.1.app/Contents/Info.plist
+
+# Open Xcode (system will check build version and cache it)
+open /Applications/Xcode_12.5.1.app/
+
+# Revert Xcode's build version
+/usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 18212' /Applications/Xcode_12.5.1.app/Contents/Info.plist
+```
+
+Then set your system to use it with:
+```sh
+sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 ```
 
 1. Install Rust from https://www.rust-lang.org/tools/install
 
-2. Install dependencies.
+2. Install dependencies (from this top-level full-service directory).
 
    On Ubuntu:
     ```sh
@@ -62,12 +79,22 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
 
+   Ubuntu:
     ```
     PATH="/usr/local/opt/openssl@3/bin:$PATH"
     LDFLAGS="-L/usr/local/opt/openssl@3/lib"
     CPPFLAGS="-I/usr/local/opt/openssl@3/include"
     PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
     ```
+
+   MacOS:
+    ```sh
+   echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
+   export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+   export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+   export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+    ```
+   
 
 4. Pull submodule.
 
@@ -107,9 +134,16 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
 7. Put this line in your .bashrc or .zhrc:
+
+   Ubuntu:
     ```sh
     export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
     ```
+
+   OSX:
+   ```sh
+   echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
+   ```
 
 8. Build
     ```sh
@@ -132,7 +166,7 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     mkdir -p /tmp/wallet-db/
-    ./target/release/mc-full-service \
+    ./target/release/full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
