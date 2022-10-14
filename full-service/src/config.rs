@@ -3,6 +3,7 @@
 //! Config definition and processing for Wallet Service.
 
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_blockchain_types::BlockData;
 use mc_common::{
     logger::{log, Logger},
     ResponderId,
@@ -10,10 +11,9 @@ use mc_common::{
 use mc_connection::{ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_consensus_scp::QuorumSet;
 use mc_fog_report_connection::GrpcFogReportConnection;
-use mc_fog_report_validation::FogResolver;
+use mc_fog_report_resolver::FogResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_sgx_css::Signature;
-use mc_transaction_core::BlockData;
 use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
@@ -40,7 +40,7 @@ pub struct APIConfig {
 
     /// Path to WalletDb.
     #[structopt(long, parse(from_os_str))]
-    pub wallet_db: PathBuf,
+    pub wallet_db: Option<PathBuf>,
 
     #[structopt(flatten)]
     pub ledger_db_config: LedgerDbConfig,
@@ -120,7 +120,8 @@ impl APIConfig {
                 .build(),
         );
 
-        let conn = GrpcFogReportConnection::new(env, logger.clone());
+        let conn =
+            GrpcFogReportConnection::new(self.peers_config.chain_id.clone(), env, logger.clone());
 
         let verifier = self.get_fog_ingest_verifier();
 
@@ -165,6 +166,10 @@ pub struct PeersConfig {
     /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
     #[structopt(long = "tx-source-url", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
     pub tx_source_urls: Option<Vec<String>>,
+
+    /// Chain Id
+    #[structopt(default_value = "", long)]
+    pub chain_id: String,
 }
 
 impl PeersConfig {
@@ -213,6 +218,7 @@ impl PeersConfig {
             .iter()
             .map(|client_uri| {
                 ThickClient::new(
+                    self.chain_id.clone(),
                     client_uri.clone(),
                     verifier.clone(),
                     grpc_env.clone(),
@@ -326,12 +332,8 @@ impl LedgerDbConfig {
                     let block_data = get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
                     let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
-                    db.append_block(
-                        block_data.block(),
-                        block_data.contents(),
-                        block_data.signature().clone(),
-                    )
-                    .expect("Failed to appened initial transactions");
+                    db.append_block_data(&block_data)
+                        .expect("Failed to appened initial transactions");
                     log::info!(logger, "Bootstrapping completed!");
                 }
             }

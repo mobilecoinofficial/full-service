@@ -3,67 +3,12 @@
 //! DB Models
 
 use super::schema::{
-    accounts, assigned_subaddresses, gift_codes, transaction_logs, transaction_txo_types, txos,
-    view_only_accounts, view_only_subaddresses, view_only_txos,
+    __diesel_schema_migrations, accounts, assigned_subaddresses, gift_codes,
+    transaction_input_txos, transaction_logs, transaction_output_txos, txos,
 };
 
+use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::Serialize;
-
-// The following string constants are used in lieu of proper enum plumbing for
-// SQLite3 with Diesel at the time of authorship. Ideally, we will migrate to
-// enums at some point.
-
-/// A TXO owned by an account in this wallet that has not yet been spent.
-pub const TXO_STATUS_UNSPENT: &str = "txo_status_unspent";
-
-/// A TXO owned by an account in this wallet that is used by a pending
-/// transaction.
-pub const TXO_STATUS_PENDING: &str = "txo_status_pending";
-
-/// A TXO owned by an account in this wallet that has been spent.
-pub const TXO_STATUS_SPENT: &str = "txo_status_spent";
-
-/// A TXO created by an account in this wallet for use as an output in an
-/// outgoing transaction.
-pub const TXO_STATUS_SECRETED: &str = "txo_status_secreted";
-
-/// The TXO is owned by this wallet, but not yet spendable (i.e., receiving
-/// subaddress is unknown).
-pub const TXO_STATUS_ORPHANED: &str = "txo_status_orphaned";
-
-/// A Txo that has been created locally, but is not yet in the ledger.
-pub const TXO_TYPE_MINTED: &str = "txo_type_minted";
-
-/// A Txo in the ledger that belongs to an account in this wallet.
-pub const TXO_TYPE_RECEIVED: &str = "txo_type_received";
-
-/// A transaction that has been built locally.
-pub const TX_STATUS_BUILT: &str = "tx_status_built";
-
-/// A transaction that has been submitted to the MobileCoin network.
-pub const TX_STATUS_PENDING: &str = "tx_status_pending";
-
-/// A transaction that appears to have been processed by the MobileCoin network.
-pub const TX_STATUS_SUCCEEDED: &str = "tx_status_succeeded";
-
-/// A transaction that was rejected by the MobileCoin network, or that expired
-/// before it could be processed.
-pub const TX_STATUS_FAILED: &str = "tx_status_failed";
-
-/// A transaction created by an account in this wallet.
-pub const TX_DIRECTION_SENT: &str = "tx_direction_sent";
-
-/// A TxOut received by an account in this wallet.
-pub const TX_DIRECTION_RECEIVED: &str = "tx_direction_received";
-
-/// A transaction output that is used as an input to a new transaction.
-pub const TXO_USED_AS_INPUT: &str = "txo_used_as_input";
-
-/// A transaction output that is used as an output of a new transaction.
-pub const TXO_USED_AS_OUTPUT: &str = "txo_used_as_output";
-
-/// A transaction output used as a change output of a new transaction.
-pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
 
 /// An Account entity.
 ///
@@ -71,25 +16,11 @@ pub const TXO_USED_AS_CHANGE: &str = "txo_used_as_change";
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Account {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID, derived from the account data.
-    pub account_id_hex: String,
-    /// Private keys for viewing and spending the MobileCoin belonging to an
-    /// account.
+    /// Primary key, derived from the account data.
+    pub id: String,
     pub account_key: Vec<u8>,
-    /// The private entropy for this account, used to derive the view and send
-    /// keys which comprise the account_key.
-    pub entropy: Vec<u8>,
-    /// Which version of key derivation we are using.
+    pub entropy: Option<Vec<u8>>,
     pub key_derivation_version: i32,
-    /// Default subadress that is given out to refer to this account.
-    pub main_subaddress_index: i64,
-    /// Subaddress used to return transaction "change" to self.
-    pub change_subaddress_index: i64,
-    /// The next unused subaddress index. (Assumes indices are used sequentially
-    /// from 0).
-    pub next_subaddress_index: i64,
     /// Index of the first block where this account may have held funds.
     pub first_block_index: i64,
     /// Index of the next block to inspect for transactions related to this
@@ -101,56 +32,8 @@ pub struct Account {
     pub import_block_index: Option<i64>,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
-    /// Fog enabled address
     pub fog_enabled: bool,
-}
-
-/// A View Only Account entity.
-///
-/// Contains the account view private key
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(id)]
-pub struct ViewOnlyAccount {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID, derived from the account data.
-    pub account_id_hex: String,
-    /// private key for viewing MobileCoin belonging to an account.
-    pub view_private_key: Vec<u8>,
-    /// Index of the first block where this account may have held funds.
-    pub first_block_index: i64,
-    /// Index of the next block to inspect for transactions related to this
-    /// account.
-    pub next_block_index: i64,
-    /// Default subadress that is given out to refer to this account.
-    pub main_subaddress_index: i64,
-    /// Subaddress used to return transaction "change" to self.
-    pub change_subaddress_index: i64,
-    /// The next unused subaddress index. (Assumes indices are used sequentially
-    /// from 0).
-    pub next_subaddress_index: i64,
-    /// account history prior to this block index is derived from the public
-    /// ledger, and does not reflect client-side
-    /// user events.
-    pub import_block_index: i64,
-    /// Name of this account.
-    pub name: String, /* empty string for nullable */
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_accounts` table.
-#[derive(Insertable)]
-#[table_name = "view_only_accounts"]
-pub struct NewViewOnlyAccount<'a> {
-    pub account_id_hex: &'a str,
-    pub view_private_key: &'a [u8],
-    pub first_block_index: i64,
-    pub next_block_index: i64,
-    pub main_subaddress_index: i64,
-    pub change_subaddress_index: i64,
-    pub next_subaddress_index: i64,
-    pub import_block_index: i64,
-    pub name: &'a str,
+    pub view_only: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`
@@ -158,18 +41,16 @@ pub struct NewViewOnlyAccount<'a> {
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount<'a> {
-    pub account_id_hex: &'a str,
+    pub id: &'a str,
     pub account_key: &'a [u8],
-    pub entropy: &'a [u8],
+    pub entropy: Option<&'a [u8]>,
     pub key_derivation_version: i32,
-    pub main_subaddress_index: i64,
-    pub change_subaddress_index: i64,
-    pub next_subaddress_index: i64,
     pub first_block_index: i64,
     pub next_block_index: i64,
     pub import_block_index: Option<i64>,
     pub name: &'a str,
     pub fog_enabled: bool,
+    pub view_only: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this
@@ -180,10 +61,9 @@ pub struct NewAccount<'a> {
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[primary_key(id)]
 pub struct Txo {
-    /// Primary key
-    pub id: i32,
-    /// An additional ID derived from the contents of the ledger TxOut.
-    pub txo_id_hex: String,
+    /// Primary key derived from the contents of the ledger TxOut
+    pub id: String,
+    pub account_id: Option<String>,
     /// The value of this transaction output, in picoMob.
     pub value: i64,
     /// The token of this transaction output.
@@ -202,20 +82,23 @@ pub struct Txo {
     pub key_image: Option<Vec<u8>>,
     /// Block index containing this Txo.
     pub received_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub confirmation: Option<Vec<u8>>,
-    /// The recipient public address. Blank for unknown.
-    pub recipient_public_address_b58: String,
-    pub minted_account_id_hex: Option<String>,
-    pub received_account_id_hex: Option<String>,
+    pub shared_secret: Option<Vec<u8>>,
+}
+
+impl Txo {
+    pub fn public_key(&self) -> Result<CompressedRistrettoPublic, mc_util_serial::DecodeError> {
+        let public_key: CompressedRistrettoPublic = mc_util_serial::decode(&self.public_key)?;
+        Ok(public_key)
+    }
 }
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
 #[derive(Insertable)]
 #[table_name = "txos"]
 pub struct NewTxo<'a> {
-    pub txo_id_hex: &'a str,
+    pub id: &'a str,
+    pub account_id: Option<String>,
     pub value: i64,
     pub token_id: i64,
     pub target_key: &'a [u8],
@@ -225,192 +108,105 @@ pub struct NewTxo<'a> {
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a [u8]>,
     pub received_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub confirmation: Option<&'a [u8]>,
-    pub recipient_public_address_b58: String,
-    pub minted_account_id_hex: Option<String>,
-    pub received_account_id_hex: Option<String>,
-}
-
-/// TXOs that can be decrypted with the view-private-key for a
-/// view-only-account.
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
-#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
-#[primary_key(id)]
-pub struct ViewOnlyTxo {
-    /// Primary key
-    pub id: i32,
-    /// id derrived from txo contents - will be the same for a given txo across
-    /// databases
-    pub txo_id_hex: String,
-    /// The serialized TxOut.
-    pub txo: Vec<u8>,
-    /// Pre-computed key image for this Txo
-    pub key_image: Option<Vec<u8>>,
-    /// the subaddress index this txo belongs to
-    pub subaddress_index: Option<i64>,
-    /// The value of this transaction output, in picoMob.
-    pub value: i64,
-    /// The token of this transaction output.
-    pub token_id: i64,
-    /// The serialized public_key of the TxOut.
-    pub public_key: Vec<u8>,
-    /// account_id_hex of the view_only_account that received this txo
-    pub view_only_account_id_hex: String,
-    /// When this txo was submitted to consensus in a transaction
-    pub submitted_block_index: Option<i64>,
-    /// What tombstone block index this txo must be accepted by before
-    /// becoming invalid
-    pub pending_tombstone_block_index: Option<i64>,
-    /// What index this txo was received on the ledger
-    pub received_block_index: Option<i64>,
-    /// Which block this txo was spent at
-    pub spent_block_index: Option<i64>,
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_txos` table.
-#[derive(Insertable)]
-#[table_name = "view_only_txos"]
-pub struct NewViewOnlyTxo<'a> {
-    pub txo: &'a [u8],
-    pub txo_id_hex: &'a str,
-    pub key_image: Option<&'a [u8]>,
-    pub subaddress_index: Option<i64>,
-    pub value: i64,
-    pub token_id: i64,
-    pub public_key: &'a [u8],
-    pub view_only_account_id_hex: &'a str,
-    pub submitted_block_index: Option<i64>,
-    pub pending_tombstone_block_index: Option<i64>,
-    pub received_block_index: Option<i64>,
-    pub spent_block_index: Option<i64>,
-}
-
-/// TXOs that can be decrypted with the view-private-key for a
-/// view-only-account.
-#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug, Associations)]
-#[belongs_to(ViewOnlyAccount, foreign_key = "view_only_account_id_hex")]
-#[primary_key(id)]
-#[table_name = "view_only_subaddresses"]
-pub struct ViewOnlySubaddress {
-    /// Primary key
-    pub id: i32,
-    /// The pub address b58 string
-    pub public_address_b58: String,
-    /// The serialized TxOut.
-    pub subaddress_index: i64,
-    /// account_id_hex of the view_only_account that received this txo
-    pub view_only_account_id_hex: String,
-    /// comment
-    pub comment: String,
-    /// public spend key
-    pub public_spend_key: Vec<u8>,
-}
-
-/// A structure that can be inserted to create a new entity in the
-/// `view_only_subaddresses` table.
-#[derive(Insertable)]
-#[table_name = "view_only_subaddresses"]
-pub struct NewViewOnlySubaddress<'a> {
-    pub public_address_b58: &'a str,
-    pub view_only_account_id_hex: &'a str,
-    pub subaddress_index: i64,
-    pub comment: &'a str,
-    pub public_spend_key: &'a [u8],
+    pub shared_secret: Option<&'a [u8]>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
 /// funds received from that contact.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id_hex")]
-#[primary_key(id)]
+#[belongs_to(Account, foreign_key = "account_id")]
+#[primary_key(public_address_b58)]
 #[table_name = "assigned_subaddresses"]
 pub struct AssignedSubaddress {
-    pub id: i32,
-    pub assigned_subaddress_b58: String,
-    pub account_id_hex: String,
-    pub address_book_entry: Option<i64>,
-    pub public_address: Vec<u8>,
+    pub public_address_b58: String,
+    pub account_id: String,
     pub subaddress_index: i64,
-    pub comment: String,               // empty string for nullable
-    pub subaddress_spend_key: Vec<u8>, // FIXME: WS-28 - Index on subaddress_spend_key?
+    pub comment: String,
+    pub spend_public_key: Vec<u8>,
 }
 
 /// A structure that can be inserted to create a new AssignedSubaddress entity.
 #[derive(Insertable)]
 #[table_name = "assigned_subaddresses"]
 pub struct NewAssignedSubaddress<'a> {
-    pub assigned_subaddress_b58: &'a str,
-    pub account_id_hex: &'a str,
-    pub address_book_entry: Option<i64>,
-    pub public_address: &'a [u8],
+    pub public_address_b58: &'a str,
+    pub account_id: &'a str,
     pub subaddress_index: i64,
     pub comment: &'a str,
-    pub subaddress_spend_key: &'a [u8],
+    pub spend_public_key: &'a [u8],
 }
 
 /// The status of a sent transaction OR a received transaction output.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id_hex")]
-#[belongs_to(AssignedSubaddress, foreign_key = "assigned_subaddress_b58")]
+#[belongs_to(Account, foreign_key = "account_id")]
 #[primary_key(id)]
 #[table_name = "transaction_logs"]
 pub struct TransactionLog {
-    pub id: i32,
-    pub transaction_id_hex: String,
-    pub account_id_hex: String,
-    pub assigned_subaddress_b58: Option<String>,
-    pub value: i64,
-    pub fee: Option<i64>,
-    // Statuses: built, pending, succeeded, failed
-    pub status: String,
-    pub sent_time: Option<i64>,
+    pub id: String,
+    pub account_id: String,
+    pub fee_value: i64,
+    pub fee_token_id: i64,
     pub submitted_block_index: Option<i64>,
+    pub tombstone_block_index: Option<i64>,
     pub finalized_block_index: Option<i64>,
-    pub comment: String, // empty string for nullable
-    // Directions: sent, received
-    pub direction: String,
-    pub tx: Option<Vec<u8>>,
+    pub comment: String,
+    pub tx: Vec<u8>,
+    pub failed: bool,
 }
 
 /// A structure that can be inserted to create a new TransactionLog entity.
 #[derive(Insertable)]
 #[table_name = "transaction_logs"]
 pub struct NewTransactionLog<'a> {
-    pub transaction_id_hex: &'a str,
-    pub account_id_hex: &'a str,
-    pub assigned_subaddress_b58: Option<&'a str>,
-    pub value: i64,
-    pub fee: Option<i64>,
-    pub status: &'a str,
-    pub sent_time: Option<i64>,
+    pub id: &'a str,
+    pub account_id: &'a str,
+    pub fee_value: i64,
+    pub fee_token_id: i64,
     pub submitted_block_index: Option<i64>,
+    pub tombstone_block_index: Option<i64>,
     pub finalized_block_index: Option<i64>,
     pub comment: &'a str,
-    pub direction: &'a str,
-    pub tx: Option<&'a [u8]>,
+    pub tx: &'a [u8],
+    pub failed: bool,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(TransactionLog, foreign_key = "transaction_id_hex")]
-#[belongs_to(Txo, foreign_key = "txo_id_hex")]
-#[table_name = "transaction_txo_types"]
-#[primary_key(transaction_id_hex, txo_id_hex)]
-pub struct TransactionTxoType {
-    pub transaction_id_hex: String,
-    pub txo_id_hex: String,
-    // Statuses: input, output, change
-    pub transaction_txo_type: String,
+#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
+#[belongs_to(Txo, foreign_key = "txo_id")]
+#[table_name = "transaction_input_txos"]
+#[primary_key(transaction_log_id, txo_id)]
+pub struct TransactionInputTxo {
+    pub transaction_log_id: String,
+    pub txo_id: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_txo_types"]
-pub struct NewTransactionTxoType<'a> {
-    pub transaction_id_hex: &'a str,
-    pub txo_id_hex: &'a str,
-    pub transaction_txo_type: &'a str,
+#[table_name = "transaction_input_txos"]
+pub struct NewTransactionInputTxo<'a> {
+    pub transaction_log_id: &'a str,
+    pub txo_id: &'a str,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
+#[belongs_to(Txo, foreign_key = "txo_id")]
+#[table_name = "transaction_output_txos"]
+#[primary_key(transaction_log_id, txo_id)]
+pub struct TransactionOutputTxo {
+    pub transaction_log_id: String,
+    pub txo_id: String,
+    pub recipient_public_address_b58: String,
+    pub is_change: bool,
+}
+
+#[derive(Insertable)]
+#[table_name = "transaction_output_txos"]
+pub struct NewTransactionOutputTxo<'a> {
+    pub transaction_log_id: &'a str,
+    pub txo_id: &'a str,
+    pub recipient_public_address_b58: &'a str,
+    pub is_change: bool,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
@@ -429,4 +225,25 @@ pub struct GiftCode {
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
     pub value: i64,
+}
+
+#[derive(Queryable, Insertable)]
+#[table_name = "__diesel_schema_migrations"]
+pub struct Migration {
+    pub version: String,
+    pub run_on: chrono::NaiveDateTime,
+}
+
+#[derive(Insertable)]
+#[table_name = "__diesel_schema_migrations"]
+pub struct NewMigration {
+    pub version: String,
+}
+
+impl NewMigration {
+    pub fn new(version: &str) -> Self {
+        Self {
+            version: version.to_string(),
+        }
+    }
 }

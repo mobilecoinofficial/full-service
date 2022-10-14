@@ -5,10 +5,9 @@
 use crate::{
     db::{
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo, ViewOnlyAccount},
+        models::{Account, AssignedSubaddress, NewAccount, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         Conn, WalletDbError,
     },
     util::constants::{
@@ -20,19 +19,27 @@ use crate::{
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, RootIdentity, CHANGE_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_ledger_db::LedgerDB;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_transaction_core::TokenId;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {
-    fn from(src: &AccountKey) -> AccountID {
+    fn from(src: &AccountKey) -> Self {
+        let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
+        AccountID::from(&main_subaddress)
+    }
+}
+
+impl From<&ViewAccountKey> for AccountID {
+    fn from(src: &ViewAccountKey) -> Self {
         let main_subaddress = src.subaddress(DEFAULT_SUBADDRESS_INDEX);
         AccountID::from(&main_subaddress)
     }
@@ -45,15 +52,16 @@ impl From<&PublicAddress> for AccountID {
     }
 }
 
+impl From<String> for AccountID {
+    fn from(src: String) -> Self {
+        Self(src)
+    }
+}
+
 impl fmt::Display for AccountID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
-}
-
-pub struct ViewOnlyAccountImportPackage {
-    pub account: Account,
-    pub subaddresses: Vec<AssignedSubaddress>,
 }
 
 pub trait AccountModel {
@@ -71,7 +79,6 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -89,7 +96,6 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -107,7 +113,6 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -122,7 +127,6 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -137,7 +141,17 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError>;
+
+    /// Import a view only account.
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -145,7 +159,11 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * Vector of all Accounts in the DB
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
     ///
@@ -170,6 +188,25 @@ pub trait AccountModel {
 
     /// Delete an account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
+
+    /// Get change public address
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get main public address
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get all of the token ids present for the account
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
+
+    /// Get the next sequentially unassigned subaddress index for the account
+    /// (reserved addresses are not included)
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -182,7 +219,6 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -202,7 +238,6 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
-            ledger_db,
             conn,
         )
     }
@@ -216,7 +251,6 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -238,7 +272,6 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
-            ledger_db,
             conn,
         )
     }
@@ -252,92 +285,54 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
         let account_id = AccountID::from(account_key);
 
-        if ViewOnlyAccount::get(&account_id.to_string(), conn).is_ok() {
-            return Err(WalletDbError::ViewOnlyAccountAlreadyExists(
-                account_id.to_string(),
-            ));
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
         }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
-        let change_subaddress_index = if fog_enabled {
-            DEFAULT_SUBADDRESS_INDEX as i64
-        } else {
-            CHANGE_SUBADDRESS_INDEX as i64
-        };
-
-        let next_subaddress_index = if fog_enabled {
-            1
-        } else {
-            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64
-        };
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
 
         let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(account_key), /* FIXME: WS-6 - add
-                                                                * encryption */
-            entropy,
+            id: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(account_key),
+            entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index,
-            next_subaddress_index,
             first_block_index: first_block_index as i64,
             next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
             name,
             fog_enabled,
+            view_only: false,
         };
 
         diesel::insert_into(accounts::table)
             .values(&new_account)
             .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            ledger_db,
-            conn,
-        )?;
+        let main_subaddress_b58 =
+            AssignedSubaddress::create(account_key, DEFAULT_SUBADDRESS_INDEX, "Main", conn)?;
+
+        AssignedSubaddress::create(account_key, CHANGE_SUBADDRESS_INDEX, "Change", conn)?;
+
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
-                None,
                 LEGACY_CHANGE_SUBADDRESS_INDEX,
                 "Legacy Change",
-                ledger_db,
                 conn,
             )?;
 
-            AssignedSubaddress::create(
-                account_key,
-                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                       * always for main? */
-                CHANGE_SUBADDRESS_INDEX,
-                "Change",
-                ledger_db,
-                conn,
-            )?;
-
-            for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(
-                    account_key,
-                    None,
-                    subaddress_index as u64,
-                    "",
-                    ledger_db,
-                    conn,
-                )?;
+            for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
+                AssignedSubaddress::create(account_key, subaddress_index as u64, "", conn)?;
             }
         }
 
@@ -353,7 +348,6 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
@@ -365,7 +359,6 @@ impl AccountModel for Account {
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
-            ledger_db,
             conn,
         )?;
         Account::get(&account_id, conn)
@@ -380,7 +373,6 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        ledger_db: &LedgerDB,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
@@ -392,25 +384,106 @@ impl AccountModel for Account {
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
-            ledger_db,
             conn,
         )?;
         Account::get(&account_id, conn)
     }
 
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
+    fn import_view_only(
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        Ok(accounts::table
-            .select(accounts::all_columns)
-            .load::<Account>(conn)?)
+        let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
+        let account_id = AccountID::from(&view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
+        let next_block_index = first_block_index;
+
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
+
+        let new_account = NewAccount {
+            id: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(&view_account_key),
+            entropy: None,
+            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+            first_block_index,
+            next_block_index,
+            import_block_index: Some(import_block_index as i64),
+            name: &name.unwrap_or_else(|| "".to_string()),
+            fog_enabled: false,
+            view_only: true,
+        };
+
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            DEFAULT_SUBADDRESS_INDEX,
+            "Main",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            LEGACY_CHANGE_SUBADDRESS_INDEX,
+            "Legacy Change",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            &view_account_key,
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
+
+        for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
+            AssignedSubaddress::create_for_view_only_account(
+                &view_account_key,
+                subaddress_index as u64,
+                "",
+                conn,
+            )?;
+        }
+
+        Account::get(&account_id, conn)
+    }
+
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let mut query = accounts::table.into_boxed();
+
+        if let (Some(offset), Some(limit)) = (offset, limit) {
+            query = query.limit(limit as i64).offset(offset as i64);
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        match accounts
-            .filter(dsl_account_id_hex.eq(account_id.to_string()))
+        match accounts::table
+            .filter(accounts::id.eq(account_id.to_string()))
             .get_result::<Account>(conn)
         {
             Ok(a) => Ok(a),
@@ -427,13 +500,8 @@ impl AccountModel for Account {
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
-        if let Some(received_account_id_hex) = txo.received_account_id_hex {
-            let account = Account::get(&AccountID(received_account_id_hex), conn)?;
-            accounts.push(account);
-        }
-
-        if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
-            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
+        if let Some(account_id) = txo.account_id {
+            let account = Account::get(&AccountID(account_id), conn)?;
             accounts.push(account);
         }
 
@@ -441,10 +509,10 @@ impl AccountModel for Account {
     }
 
     fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::name.eq(new_name))
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::name.eq(new_name))
             .execute(conn)?;
         Ok(())
     }
@@ -454,38 +522,101 @@ impl AccountModel for Account {
         next_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index as i64))
+        use crate::db::schema::accounts;
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::next_block_index.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }
 
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
         // Delete transaction logs associated with this account
-        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+        TransactionLog::delete_all_for_account(&self.id, conn)?;
 
         // Delete associated assigned subaddresses
-        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+        AssignedSubaddress::delete_all(&self.id, conn)?;
 
         // Delete references to the account in the Txos table.
-        Txo::scrub_account(&self.account_id_hex, conn)?;
+        Txo::scrub_account(&self.id, conn)?;
 
-        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
+        diesel::delete(accounts::table.filter(accounts::id.eq(&self.id))).execute(conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;
 
         Ok(())
     }
+
+    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(&self.id, CHANGE_SUBADDRESS_INDEX as i64, conn)
+    }
+
+    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+        AssignedSubaddress::get_for_account_by_index(
+            &self.id,
+            DEFAULT_SUBADDRESS_INDEX as i64,
+            conn,
+        )
+    }
+
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let distinct_token_ids = txos::table
+            .filter(txos::account_id.eq(&self.id))
+            .select(txos::token_id)
+            .distinct()
+            .load::<i64>(conn)?
+            .into_iter()
+            .map(|i| TokenId::from(i as u64))
+            .collect();
+
+        Ok(distinct_token_ids)
+    }
+
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+
+        let highest_subaddress_index: i64 = assigned_subaddresses::table
+            .filter(assigned_subaddresses::account_id.eq(&self.id))
+            .order_by(assigned_subaddresses::subaddress_index.desc())
+            .select(diesel::dsl::max(assigned_subaddresses::subaddress_index))
+            .select(assigned_subaddresses::subaddress_index)
+            .first(conn)?;
+
+        Ok(highest_subaddress_index as u64 + 1)
+    }
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+        if self.view_only {
+            return Ok(None);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        Ok(Some(account_key))
+    }
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
+        if self.view_only {
+            return Ok(mc_util_serial::decode(&self.account_key)?);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        let view_account_key = ViewAccountKey::from(&account_key);
+        Ok(view_account_key)
+    }
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
+        Ok(*self.view_account_key()?.view_private_key())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{get_test_ledger, WalletDbTestContext};
+    use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
@@ -498,7 +629,6 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -513,7 +643,6 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &ledger_db,
                 &conn,
             )
             .unwrap();
@@ -522,31 +651,28 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account, acc);
 
         // Verify that the subaddress table entries were updated for main and change
         let subaddresses = AssignedSubaddress::list_all(
-            &account_id_hex.to_string(),
+            Some(account_id_hex.to_string()),
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -584,29 +710,25 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &ledger_db,
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 2);
 
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
-            id: 2,
-            account_id_hex: account_id_hex_secondary.to_string(),
+            id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
-            entropy: root_id_secondary.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 50,
             next_block_index: 50,
             import_block_index: Some(50),
             name: "".to_string(),
             fog_enabled: false,
+            view_only: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -627,7 +749,7 @@ mod tests {
             .delete(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
@@ -648,7 +770,6 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         // Test providing entropy.
         let root_id = RootIdentity::from_random(&mut rng);
@@ -664,14 +785,13 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &ledger_db,
                 &conn,
             )
             .unwrap();
             account_id_hex
         };
         let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        let decoded_entropy = RootEntropy::try_from(account.entropy.as_slice()).unwrap();
+        let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         assert_eq!(decoded_account_key, account_key);
@@ -683,7 +803,6 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_id_hex = {
@@ -697,7 +816,6 @@ mod tests {
                 "fog//some.fog.url".to_string(),
                 "".to_string(),
                 "DefinitelyARealFOGAuthoritySPKI".to_string(),
-                &ledger_db,
                 &conn,
             )
             .unwrap();
@@ -706,36 +824,85 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: [
-                10, 34, 10, 32, 135, 37, 92, 17, 29, 203, 205, 96, 6, 72, 229, 193, 11, 153, 50, 3,
-                233, 116, 186, 132, 203, 190, 186, 77, 17, 15, 246, 254, 22, 4, 161, 13, 18, 34,
-                10, 32, 207, 106, 86, 24, 232, 51, 148, 230, 19, 117, 228, 119, 164, 182, 133, 190,
-                22, 197, 0, 66, 5, 57, 33, 188, 231, 11, 121, 197, 253, 113, 40, 3, 26, 17, 102,
-                111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108, 42, 23,
-                13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26, 43, 138,
-                220, 146, 60, 162,
+                10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
+                23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
+                18, 34, 10, 32, 24, 98, 18, 92, 9, 50, 142, 184, 114, 99, 34, 125, 211, 54, 146,
+                33, 98, 71, 179, 56, 136, 67, 98, 97, 230, 228, 31, 194, 119, 169, 189, 8, 26, 17,
+                102, 111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108,
+                42, 23, 13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26,
+                43, 138, 220, 146, 60, 162,
             ]
             .to_vec(),
-            entropy: root_id.root_entropy.bytes.to_vec(),
+            entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: 0,
-            next_subaddress_index: 1,
+
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
+            view_only: false,
+        };
+        assert_eq!(expected_account, acc);
+    }
+
+    #[test_with_logger]
+    fn test_import_view_only_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+
+        let account = {
+            let conn = wallet_db.get_conn().unwrap();
+            let account = Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                Some("View Only Account".to_string()),
+                12,
+                None,
+                None,
+                &conn,
+            )
+            .unwrap();
+            account
         };
 
-        assert_eq!(expected_account, acc);
+        {
+            let conn = wallet_db.get_conn().unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        let expected_account = Account {
+            id: account.id.to_string(),
+            account_key: [
+                10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
+                222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,
+                18, 34, 10, 32, 28, 19, 114, 110, 204, 131, 192, 90, 192, 83, 149, 201, 140, 112,
+                168, 124, 195, 19, 252, 208, 160, 39, 44, 28, 108, 143, 40, 149, 53, 137, 20, 47,
+            ]
+            .to_vec(),
+            entropy: None,
+            key_derivation_version: 2,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: Some(12),
+            name: "View Only Account".to_string(),
+            fog_enabled: false,
+            view_only: true,
+        };
+        assert_eq!(expected_account, account);
     }
 }

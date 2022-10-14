@@ -1,19 +1,16 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
-
+#[cfg(test)]
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{
-            Account, TransactionLog, Txo, ViewOnlyAccount, TXO_USED_AS_CHANGE, TXO_USED_AS_OUTPUT,
-        },
+        models::{Account, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
-        view_only_account::ViewOnlyAccountModel,
         WalletDb, WalletDbError,
     },
     error::SyncError,
     service::{
-        sync::{sync_account, sync_view_only_account},
+        sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
@@ -25,28 +22,31 @@ use diesel::{
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_verifier::Verifier;
+use mc_blockchain_test_utils::make_block_metadata;
+use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
+use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
-use mc_mobilecoind::payments::TxProposal;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Block, BlockContents, Token, MAX_BLOCK_VERSION,
+    Amount, Token, TokenId,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
 use std::{
+    collections::BTreeMap,
     convert::TryFrom,
     env,
     path::PathBuf,
@@ -172,7 +172,11 @@ pub fn generate_ledger_db(path: &str) -> LedgerDB {
     db
 }
 
-fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) -> u64 {
+fn append_test_block(
+    ledger_db: &mut LedgerDB,
+    block_contents: BlockContents,
+    mut rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
     let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
 
     let new_block;
@@ -181,7 +185,7 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
         new_block = Block::new_with_parent(
-            MAX_BLOCK_VERSION,
+            BlockVersion::MAX,
             &parent,
             &Default::default(),
             &block_contents,
@@ -190,8 +194,10 @@ fn append_test_block(ledger_db: &mut LedgerDB, block_contents: BlockContents) ->
         new_block = Block::new_origin_block(&block_contents.outputs);
     }
 
+    let block_metadata = make_block_metadata(new_block.id.clone(), &mut rng);
+
     ledger_db
-        .append_block(&new_block, &block_contents, None)
+        .append_block(&new_block, &block_contents, None, Some(&block_metadata))
         .expect("failed writing initial transactions");
 
     ledger_db.num_blocks().expect("failed to get block height")
@@ -218,6 +224,7 @@ pub fn add_block_to_ledger_db(
         .map(|recipient| {
             TxOut::new(
                 // TODO: allow for subaddress index!
+                BlockVersion::MAX,
                 Amount::new(output_value, Mob::ID),
                 recipient,
                 &RistrettoPrivate::from_random(rng),
@@ -233,33 +240,28 @@ pub fn add_block_to_ledger_db(
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_with_tx_proposal(ledger_db: &mut LedgerDB, tx_proposal: TxProposal) -> u64 {
-    let block_contents = BlockContents {
-        key_images: tx_proposal.tx.key_images(),
-        outputs: tx_proposal.tx.prefix.outputs.clone(),
-        validated_mint_config_txs: Vec::new(),
-        mint_txs: Vec::new(),
-    };
-    append_test_block(ledger_db, block_contents)
-}
-
-pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx) -> u64 {
+pub fn add_block_with_tx(
+    ledger_db: &mut LedgerDB,
+    tx: Tx,
+    rng: &mut (impl CryptoRng + RngCore),
+) -> u64 {
     let block_contents = BlockContents {
         key_images: tx.key_images(),
         outputs: tx.prefix.outputs.clone(),
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn add_block_from_transaction_log(
     ledger_db: &mut LedgerDB,
     conn: &PooledConnection<CM<SqliteConnection>>,
     transaction_log: &TransactionLog,
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
 
@@ -267,7 +269,7 @@ pub fn add_block_from_transaction_log(
     output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
-        .map(|txo| mc_util_serial::decode(&txo.txo).unwrap())
+        .map(|(txo, _)| mc_util_serial::decode(&txo.txo).unwrap())
         .collect();
 
     let input_txos: Vec<Txo> = associated_txos.inputs.clone();
@@ -284,13 +286,14 @@ pub fn add_block_from_transaction_log(
         mint_txs: Vec::new(),
     };
 
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn add_block_with_tx_outs(
     ledger_db: &mut LedgerDB,
     outputs: &[TxOut],
     key_images: &[KeyImage],
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let block_contents = BlockContents {
         key_images: key_images.to_vec(),
@@ -298,7 +301,7 @@ pub fn add_block_with_tx_outs(
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
-    append_test_block(ledger_db, block_contents)
+    append_test_block(ledger_db, block_contents, rng)
 }
 
 pub fn setup_peer_manager_and_network_state(
@@ -312,14 +315,25 @@ pub fn setup_peer_manager_and_network_state(
     let (peers, node_ids) = if offline {
         (vec![], vec![])
     } else {
-        let peer1 = MockBlockchainConnection::new(test_client_uri(1), ledger_db.clone(), 0);
-        let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0);
+        let mut minimum_fees = BTreeMap::new();
+        minimum_fees.insert(Mob::ID, Mob::MINIMUM_FEE);
+        minimum_fees.insert(TokenId::from(1), 1024);
+        let fee_map = FeeMap::try_from(minimum_fees).unwrap();
+
+        let peer1 = MockBlockchainConnection::new(
+            test_client_uri(1),
+            ledger_db.clone(),
+            0,
+            fee_map.clone(),
+        );
+        let peer2 =
+            MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0, fee_map);
 
         (
             vec![peer1.clone(), peer2.clone()],
             vec![
-                peer1.uri().responder_id().unwrap(),
-                peer2.uri().responder_id().unwrap(),
+                peer1.uri().host_and_port_responder_id().unwrap(),
+                peer2.uri().host_and_port_responder_id().unwrap(),
             ],
         )
     };
@@ -346,6 +360,7 @@ pub fn add_block_with_db_txos(
     wallet_db: &WalletDb,
     output_txo_ids: &[String],
     key_images: &[KeyImage],
+    rng: &mut (impl CryptoRng + RngCore),
 ) -> u64 {
     let outputs: Vec<TxOut> = output_txo_ids
         .iter()
@@ -359,7 +374,7 @@ pub fn add_block_with_db_txos(
         })
         .collect();
 
-    add_block_with_tx_outs(ledger_db, &outputs, key_images)
+    add_block_with_tx_outs(ledger_db, &outputs, key_images, rng)
 }
 
 // Sync account to most recent block
@@ -382,34 +397,6 @@ pub fn manually_sync_account(
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
         account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
-        if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
-            break;
-        }
-    }
-    account
-}
-
-// Sync view-only-account to most recent block
-pub fn manually_sync_view_only_account(
-    ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
-    view_only_account_id: &str,
-    logger: &Logger,
-) -> ViewOnlyAccount {
-    let mut account: ViewOnlyAccount;
-    loop {
-        match sync_view_only_account(&ledger_db, &wallet_db, &view_only_account_id, &logger) {
-            Ok(_) => {}
-            Err(SyncError::Database(WalletDbError::Diesel(
-                diesel::result::Error::DatabaseError(_kind, info),
-            ))) if info.message() == "database is locked" => {
-                log::trace!(logger, "Database locked. Will retry");
-                std::thread::sleep(Duration::from_millis(500));
-            }
-            Err(e) => panic!("Could not sync account due to {:?}", e),
-        }
-        account =
-            ViewOnlyAccount::get(&view_only_account_id, &wallet_db.get_conn().unwrap()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -440,6 +427,7 @@ pub fn setup_grpc_peer_manager_and_network_state(
         .iter()
         .map(|client_uri| {
             ThickClient::new(
+                "local".to_string(),
                 client_uri.clone(),
                 verifier.clone(),
                 grpc_env.clone(),
@@ -477,7 +465,7 @@ pub fn create_test_txo_for_recipient(
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(amount, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
@@ -529,8 +517,7 @@ pub fn create_test_minted_and_change_txos(
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-    logger: Logger,
-) -> ((String, u64), (String, u64)) {
+) -> TransactionLog {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -538,51 +525,26 @@ pub fn create_test_minted_and_change_txos(
         AccountID::from(&src_account_key).to_string(),
         ledger_db,
         get_resolver_factory(&mut rng).unwrap(),
-        logger,
     );
 
     let conn = wallet_db.get_conn().unwrap();
-    builder.add_recipient(recipient, value).unwrap();
-    builder.select_txos(&conn, None, false).unwrap();
+    builder.add_recipient(recipient, value, Mob::ID).unwrap();
+    builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let tx_proposal = builder.build(&conn).unwrap();
+    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    // Create minted for the destination output.
-    assert_eq!(tx_proposal.outlay_index_to_tx_out_index.len(), 1);
-    let outlay_txo_index = tx_proposal.outlay_index_to_tx_out_index[&0];
-    let tx_out = tx_proposal.tx.prefix.outputs[outlay_txo_index].clone();
-    let processed_output = Txo::create_minted(
-        &AccountID::from(&src_account_key).to_string(),
-        &tx_out,
+    TransactionLog::log_submitted(
         &tx_proposal,
-        outlay_txo_index,
+        10,
+        "".to_string(),
+        &AccountID::from(&src_account_key).to_string(),
         &conn,
     )
-    .unwrap();
-    assert!(processed_output.recipient.is_some());
-    assert_eq!(processed_output.txo_type, TXO_USED_AS_OUTPUT);
-
-    // Create minted for the change output.
-    let change_txo_index = if outlay_txo_index == 0 { 1 } else { 0 };
-    let change_tx_out = tx_proposal.tx.prefix.outputs[change_txo_index].clone();
-    let processed_change = Txo::create_minted(
-        &AccountID::from(&src_account_key).to_string(),
-        &change_tx_out,
-        &tx_proposal,
-        change_txo_index,
-        &conn,
-    )
-    .unwrap();
-    assert_eq!(processed_change.recipient, None,);
-    // Change starts as an output, and is updated to change when scanned.
-    assert_eq!(processed_change.txo_type, TXO_USED_AS_CHANGE);
-    (
-        (processed_output.txo_id_hex, processed_output.value as u64),
-        (processed_change.txo_id_hex, processed_change.value as u64),
-    )
+    .unwrap()
 }
 
 // Seed a local account with some Txos in the ledger
@@ -605,7 +567,6 @@ pub fn random_account_with_seed_values(
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &ledger_db,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -636,6 +597,8 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 None,
+                None,
+                None,
                 Some(0),
                 &wallet_db.get_conn().unwrap(),
             )
@@ -652,7 +615,6 @@ pub fn builder_for_random_recipient(
     account_key: &AccountKey,
     ledger_db: &LedgerDB,
     mut rng: &mut StdRng,
-    logger: &Logger,
 ) -> (
     PublicAddress,
     WalletTransactionBuilder<MockFogPubkeyResolver>,
@@ -662,7 +624,6 @@ pub fn builder_for_random_recipient(
         AccountID::from(account_key).to_string(),
         ledger_db.clone(),
         get_resolver_factory(&mut rng).unwrap(),
-        logger.clone(),
     );
 
     let recipient_account_key = AccountKey::random(&mut rng);
@@ -682,7 +643,7 @@ pub fn get_resolver_factory(
         let pubkey = RistrettoPublic::from(&fog_private_key);
         fog_pubkey_resolver
             .expect_get_fog_pubkey()
-            .return_once(move |_recipient| {
+            .returning(move |_| {
                 Ok(FullyValidatedFogPubkey {
                     pubkey,
                     pubkey_expiry: 10000,
@@ -697,25 +658,36 @@ pub fn setup_wallet_service(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, false)
+    setup_wallet_service_impl(ledger_db, logger, false, false)
 }
 
 pub fn setup_wallet_service_offline(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, true)
+    setup_wallet_service_impl(ledger_db, logger, true, false)
+}
+
+pub fn setup_wallet_service_no_wallet_db(
+    ledger_db: LedgerDB,
+    logger: Logger,
+) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+    setup_wallet_service_impl(ledger_db, logger, false, true)
 }
 
 fn setup_wallet_service_impl(
     ledger_db: LedgerDB,
     logger: Logger,
     offline: bool,
+    no_wallet_db: bool,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     let db_test_context = WalletDbTestContext::default();
-    let wallet_db = db_test_context.get_db_instance(logger.clone());
+    let wallet_db = match no_wallet_db {
+        true => None,
+        false => Some(db_test_context.get_db_instance(logger.clone())),
+    };
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 

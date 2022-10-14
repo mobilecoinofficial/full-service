@@ -82,10 +82,10 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     NAMESPACE=test
-
+   
     CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
-
+   
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
     ```
@@ -99,15 +99,19 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
     sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
     ```
 
-   Put this line in your .bashrc:
+   Put this line in your .bashrc or .zhrc:
     ```sh
     source /opt/intel/sgxsdk/environment
     ```
 
    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
-7. Build
+7. Put this line in your .bashrc or .zhrc:
+    ```sh
+    export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
+    ```
 
+8. Build
     ```sh
     SGX_MODE=HW \
     IAS_MODE=PROD \
@@ -116,26 +120,27 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
     cargo build --release -p mc-full-service
     ```
 
-1. Set database password if using encryption.
+9. Set database password if using encryption.
     ```sh
     read -rs MC_PASSWORD
     export MC_PASSWORD=$MC_PASSWORD
     ```
-8. Run
+10. Run
 
 
    TestNet Example
 
     ```sh
     mkdir -p /tmp/wallet-db/
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css
+        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+        --chain-id test
     ```
 
    See [Parameters](#parameters) for full list of available options.
@@ -185,9 +190,9 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
     ```sh
     mkdir -p /opt/full-service/data
-
+   
     chown 1000:1000 /opt/full-service/data
-
+   
     docker run -it -p 127.0.0.1:9090:9090 \
         -v /opt/full-service/data:data \
         --name full-service \
@@ -195,7 +200,8 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
    **Listen and Port**
@@ -215,7 +221,8 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
    See [Parameters](#parameters) for full list of available options.
@@ -224,13 +231,14 @@ sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Deve
 
 | Param            | Purpose                  | Requirements              |
 | :--------------- | :----------------------- | :------------------------ |
-| `wallet-db`      | Path to wallet file      | Created if does not exist |
 | `ledger-db`      | Path to ledger directory | Created if does not exist |
 | `peer`           | URI of consensus node. Used to submit <br /> transactions and to check the network <br /> block height. | MC URI format |
 | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
+| `chain-id`       | The chain id of the network we expect to interact with | String |
 
 | Opional Param | Purpose                  | Requirements              |
 | :------------ | :----------------------- | :------------------------ |
+| `wallet-db`   | Path to wallet file. If not set, will disable any endpoints that require a wallet_db  | Created if does not exist |
 | `listen-host` | Host to listen on.      | Default: 127.0.0.1 |
 | `listen-port` | Port to start webserver on. | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
@@ -270,20 +278,21 @@ The recommended flow to get balance and submit transaction is the following:
 1. *ONLINE MACHINE*: Sync ledger by running full service.
 
     ```sh
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /tmp/wallet-db/wallet.db \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
         --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --chain-id test
     ```
 
 1. *ONLINE MACHINE and USB*: Copy the ledger and the full-service binary to USB.
 
     ```sh
     cp -r /tmp/ledger-db /media/
-    cp ./target/release/full-service /media/
+    cp ./target/release/mc-full-service /media/
     ```
 
 1. *OFFLINE MACHINE*: Create a ramdisk to store sensitive material.
@@ -309,16 +318,17 @@ The recommended flow to get balance and submit transaction is the following:
 
     ```sh
     cp /media/ledger-db /keyfs/ledger-db
-    cp /media/full-service /keyfs/full-service
+    cp /media/mc-full-service /keyfs/mc-full-service
     ```
 
 1. *OFFLINE MACHINE*: Run full service in offline mode.
 
     ```sh
-    ./target/release/full-service \
+    ./target/release/mc-full-service \
         --wallet-db /keyfs/wallet.db \
         --ledger-db /keyfs/ledger-db/ \
-        --offline
+        --offline \
+        --chain-id test
     ```
 
 1. *OFFLINE MACHINE*: You can now [create](#create-account) or [import](#import-account) your
@@ -342,7 +352,7 @@ The recommended flow to get balance and submit transaction is the following:
     }
     }' \
     -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
-
+   
     cp /keyfs/tx_proposal.json /media/
     ```
 

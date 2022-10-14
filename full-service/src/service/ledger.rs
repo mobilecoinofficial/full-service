@@ -5,26 +5,31 @@
 use crate::{
     db::{
         models::{TransactionLog, Txo},
-        transaction_log::TransactionLogModel,
+        transaction_log::{TransactionID, TransactionLogModel},
         txo::TxoModel,
     },
     WalletService,
 };
-use mc_connection::{BlockchainConnection, RetryableBlockchainConnection, UserTxConnection};
+use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError};
+use mc_common::HashSet;
+use mc_connection::{
+    BlockInfo, BlockchainConnection, RetryableBlockchainConnection, UserTxConnection,
+};
+use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
-    tokens::Mob,
-    tx::{Tx, TxOut},
-    Block, BlockContents, BlockVersion, Token,
+    tx::{Tx, TxOut, TxOutMembershipProof},
+    TokenId,
 };
+use rand::Rng;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{convert::TryFrom, iter::empty};
+use std::{collections::BTreeMap, convert::TryFrom};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -43,6 +48,27 @@ pub enum LedgerServiceError {
      * received transactions do not have transaction objects.
      */
     NoTxInTransaction,
+
+    /// Error converting from hex string to bytes.
+    FromHex(hex::FromHexError),
+
+    /// Key Error from mc_crypto_keys
+    Key(mc_crypto_keys::KeyError),
+
+    /// Invalid Argument: {0}
+    InvalidArgument(String),
+
+    /// Insufficient Tx Outs
+    InsufficientTxOuts,
+
+    /// No node responded to the last block info request
+    NoLastBlockInfo,
+
+    /// Inconsistent last block info
+    InconsistentLastBlockInfo,
+
+    /// Block version: {0}
+    BlockVersion(BlockVersionError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -63,6 +89,24 @@ impl From<WalletDbError> for LedgerServiceError {
     }
 }
 
+impl From<hex::FromHexError> for LedgerServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for LedgerServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
+impl From<BlockVersionError> for LedgerServiceError {
+    fn from(src: BlockVersionError) -> Self {
+        Self::BlockVersion(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
@@ -80,9 +124,32 @@ pub trait LedgerService {
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
-    fn get_network_fee(&self) -> u64;
+    fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
 
-    fn get_network_block_version(&self) -> BlockVersion;
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError>;
+
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError>;
+
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError>;
+
+    fn get_indices_from_txo_public_keys(
+        &self,
+        public_keys: &[CompressedRistrettoPublic],
+    ) -> Result<Vec<u64>, LedgerServiceError>;
+
+    fn sample_mixins(
+        &self,
+        num_mixins: usize,
+        excluded_indices: &[u64],
+    ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError>;
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -99,19 +166,15 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        let transaction = TransactionLog::get(transaction_id_hex, &conn)?;
-
-        if let Some(tx_bytes) = transaction.tx {
-            let tx: Tx = mc_util_serial::decode(&tx_bytes)?;
-            Ok(tx)
-        } else {
-            Err(LedgerServiceError::NoTxInTransaction)
-        }
+        let conn = self.get_conn()?;
+        let transaction_log =
+            TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
+        let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
+        Ok(tx)
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
 
         let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
@@ -131,44 +194,104 @@ where
         Ok(self.ledger_db.contains_key_image(key_image)?)
     }
 
-    fn get_network_fee(&self) -> u64 {
-        if self.peer_manager.is_empty() {
-            Mob::MINIMUM_FEE
-        } else {
-            // Iterate an owned list of connections in parallel, get the block info for
-            // each, and extract the fee. If no fees are returned, use the hard-coded
-            // minimum.
-            self.peer_manager
-                .conns()
-                .par_iter()
-                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-                .filter_map(|block_info| {
-                    // Cleanup the protobuf default fee
-                    if block_info.minimum_fees[&Mob::ID] == 0 {
-                        None
-                    } else {
-                        Some(block_info.minimum_fees[&Mob::ID])
-                    }
-                })
-                .max()
-                .unwrap_or(Mob::MINIMUM_FEE)
+    fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError> {
+        // Get the last block information from all nodes we are aware of, in parallel.
+        let last_block_infos = self
+            .peer_manager
+            .conns()
+            .par_iter()
+            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .collect::<Vec<_>>();
+
+        // Ensure that all nodes agree on the latest block version and network fees.
+        if last_block_infos.windows(2).any(|window| {
+            window[0].network_block_version != window[1].network_block_version
+                || window[0].minimum_fees != window[1].minimum_fees
+        }) {
+            return Err(LedgerServiceError::InconsistentLastBlockInfo);
         }
+
+        last_block_infos
+            .first()
+            .cloned()
+            .ok_or(LedgerServiceError::NoLastBlockInfo)
     }
 
-    fn get_network_block_version(&self) -> BlockVersion {
-        if self.peer_manager.is_empty() {
-            BlockVersion::MAX
-        } else {
-            let block_version = self
-                .peer_manager
-                .conns()
-                .par_iter()
-                .filter_map(|conn| conn.fetch_block_info(empty()).ok())
-                .map(|block_info| block_info.network_block_version)
-                .max()
-                .unwrap_or(*BlockVersion::MAX);
+    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError> {
+        Ok(self.get_latest_block_info()?.minimum_fees)
+    }
 
-            BlockVersion::try_from(block_version).unwrap_or(BlockVersion::MAX)
+    fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {
+        Ok(BlockVersion::try_from(
+            self.get_latest_block_info()?.network_block_version,
+        )?)
+    }
+
+    fn get_tx_out_proof_of_memberships(
+        &self,
+        indices: &[u64],
+    ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError> {
+        Ok(self.ledger_db.get_tx_out_proof_of_memberships(indices)?)
+    }
+
+    fn get_indices_from_txo_public_keys(
+        &self,
+        public_keys: &[CompressedRistrettoPublic],
+    ) -> Result<Vec<u64>, LedgerServiceError> {
+        let indices = public_keys
+            .iter()
+            .map(|public_key| self.ledger_db.get_tx_out_index_by_public_key(public_key))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(indices)
+    }
+
+    fn sample_mixins(
+        &self,
+        num_mixins: usize,
+        excluded_indices: &[u64],
+    ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError> {
+        let num_txos = self.ledger_db.num_txos()?;
+
+        // Check that the ledger contains enough tx outs.
+        if excluded_indices.len() as u64 > num_txos {
+            return Err(LedgerServiceError::InvalidArgument(
+                "excluded_tx_out_indices exceeds amount of tx outs in ledger".to_string(),
+            ));
         }
+
+        if num_mixins > (num_txos as usize - excluded_indices.len()) {
+            return Err(LedgerServiceError::InsufficientTxOuts);
+        }
+
+        let mut rng = rand::thread_rng();
+        let mut sampled_indices: HashSet<u64> = HashSet::default();
+        while sampled_indices.len() < num_mixins {
+            let index = rng.gen_range(0..num_txos);
+            if excluded_indices.contains(&index) {
+                continue;
+            }
+            sampled_indices.insert(index);
+        }
+        let sampled_indices_vec: Vec<u64> = sampled_indices.into_iter().collect();
+
+        // Get proofs for all of those indexes.
+        let proofs = self
+            .ledger_db
+            .get_tx_out_proof_of_memberships(&sampled_indices_vec)?;
+
+        let tx_outs = sampled_indices_vec
+            .iter()
+            .map(|index| self.ledger_db.get_tx_out_by_index(*index))
+            .collect::<Result<Vec<TxOut>, _>>()?;
+
+        Ok((tx_outs, proofs))
+    }
+
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError> {
+        let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
+        Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
 }

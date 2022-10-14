@@ -73,3 +73,9 @@ release/
 cli/build/**
 
 dbml-error.log
+
+*.profraw
+
+__pycache__
+
+/tools/*.bin

@@ -2,10 +2,10 @@
 
 //! Ledger syncing via the Validator Service.
 
+use mc_blockchain_types::BlockData;
 use mc_common::logger::{log, Logger};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::{NetworkState, PollingNetworkState};
-use mc_transaction_core::{Block, BlockContents};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
@@ -28,6 +28,7 @@ pub struct ValidatorLedgerSyncThread {
 impl ValidatorLedgerSyncThread {
     pub fn new(
         validator_uri: &ValidatorUri,
+        chain_id: String,
         poll_interval: Duration,
         ledger_db: LedgerDB,
         network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
@@ -35,7 +36,7 @@ impl ValidatorLedgerSyncThread {
     ) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
 
-        let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+        let validator_conn = ValidatorConnection::new(validator_uri, chain_id, logger.clone());
 
         let thread_stop_requested = stop_requested.clone();
         let join_handle = Some(
@@ -83,17 +84,15 @@ impl ValidatorLedgerSyncThread {
                 break;
             }
 
-            let blocks_and_contents =
+            let block_data =
                 Self::get_next_blocks(&ledger_db, &validator_conn, &mut network_state, &logger);
-            if !blocks_and_contents.is_empty() {
-                Self::append_safe_blocks(&mut ledger_db, &blocks_and_contents, &logger);
+            if !block_data.is_empty() {
+                Self::append_safe_blocks(&mut ledger_db, &block_data, &logger);
             }
 
             // If we got no blocks, or less than the amount we asked for, sleep for a bit.
             // Getting less the amount we asked for indicates we are fully synced.
-            if blocks_and_contents.is_empty()
-                || blocks_and_contents.len() < MAX_BLOCKS_PER_SYNC_ITERATION as usize
-            {
+            if block_data.is_empty() || block_data.len() < MAX_BLOCKS_PER_SYNC_ITERATION as usize {
                 thread::sleep(poll_interval);
             }
         }
@@ -104,7 +103,7 @@ impl ValidatorLedgerSyncThread {
         validator_conn: &ValidatorConnection,
         network_state: &mut Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: &Logger,
-    ) -> Vec<(Block, BlockContents)> {
+    ) -> Vec<BlockData> {
         let num_blocks = ledger_db
             .num_blocks()
             .expect("Failed getting the number of blocks in ledger");
@@ -145,33 +144,33 @@ impl ValidatorLedgerSyncThread {
                 }
             };
 
-        let blocks_and_contents: Vec<(Block, BlockContents)> = blocks_data
-            .into_iter()
-            .map(|block_data| (block_data.block().clone(), block_data.contents().clone()))
-            .collect();
-
-        mc_ledger_sync::identify_safe_blocks(ledger_db, &blocks_and_contents, logger)
+        mc_ledger_sync::identify_safe_blocks(ledger_db, &blocks_data, logger)
     }
 
-    fn append_safe_blocks(
-        ledger_db: &mut LedgerDB,
-        blocks_and_contents: &[(Block, BlockContents)],
-        logger: &Logger,
-    ) {
+    fn append_safe_blocks(ledger_db: &mut LedgerDB, block_data: &[BlockData], logger: &Logger) {
         log::info!(
             logger,
             "Appending {} blocks to ledger, which currently has {} blocks",
-            blocks_and_contents.len(),
+            block_data.len(),
             ledger_db
                 .num_blocks()
                 .expect("failed getting number of blocks"),
         );
 
-        for (block, contents) in blocks_and_contents {
+        for block_data in block_data {
             ledger_db
-                .append_block(block, contents, None)
+                .append_block(
+                    block_data.block(),
+                    block_data.contents(),
+                    None,
+                    block_data.metadata(),
+                )
                 .unwrap_or_else(|err| {
-                    panic!("Failed appending block #{} to ledger: {}", block.index, err)
+                    panic!(
+                        "Failed appending block #{} to ledger: {}",
+                        block_data.block().index,
+                        err
+                    )
                 });
         }
     }

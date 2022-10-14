@@ -1,0 +1,31 @@
+[package]
+name = "mc-transaction-signer"
+authors = ["MobileCoin"]
+version = "2.0.0"
+edition = "2021"
+
+[[bin]]
+name = "transaction-signer"
+path = "src/bin/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mc-account-keys = { path = "../mobilecoin/account-keys" }
+mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
+mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
+mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
+mc-transaction-core = { path = "../mobilecoin/transaction/core" }
+mc-transaction-std = { path = "../mobilecoin/transaction/std" }
+mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
+
+mc-full-service = { path = "../full-service" }
+
+base64 = "0.13.0"
+hex = {version = "0.4", default-features = false }
+rand = { version = "0.8", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+structopt = "0.3"
+tiny-bip39 = "1.0"

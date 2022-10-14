@@ -127,23 +127,24 @@ where
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<Confirmation>, ConfirmationServiceError> {
-        let (_transaction_log, associated_txos) = self.get_transaction_log(transaction_log_id)?;
+        let (_transaction_log, associated_txos, _value_map) =
+            self.get_transaction_log(transaction_log_id)?;
 
         let mut results = Vec::new();
-        for associated_txo in associated_txos.outputs {
-            let txo = self.get_txo(&TxoID(associated_txo.txo_id_hex.clone()))?;
-            if let Some(confirmation) = txo.confirmation {
+        for (associated_txo, _) in associated_txos.outputs {
+            let (txo, _) = self.get_txo(&TxoID(associated_txo.id.clone()))?;
+            if let Some(confirmation) = txo.shared_secret {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
                 let pubkey: CompressedRistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;
                 results.push(Confirmation {
-                    txo_id: TxoID(txo.txo_id_hex),
+                    txo_id: TxoID(txo.id),
                     txo_index,
                     confirmation,
                 });
             } else {
                 return Err(ConfirmationServiceError::MissingConfirmation(
-                    associated_txo.txo_id_hex,
+                    associated_txo.id,
                 ));
             }
         }
@@ -156,7 +157,7 @@ where
         txo_id: &TxoID,
         confirmation_hex: &str,
     ) -> Result<bool, ConfirmationServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
         Ok(Txo::validate_confirmation(
