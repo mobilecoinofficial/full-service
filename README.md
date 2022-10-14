@@ -41,7 +41,7 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 
 ### Build and Run
 
-Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 (the Xcode that ships with OSX Monterey). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012). Download Xcode 12, add it to your applications folder, then set your system to use it with:
+Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012). Download Xcode 12, add it to your applications folder, then set your system to use it with:
 ```sh
 sudo xcode-select -s /Applications/<name of xcode application>.app/Contents/Developer
 ```
