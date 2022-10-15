@@ -1,0 +1,65 @@
+// Copyright (c) 2018-2020 MobileCoin Inc.
+
+// Wallet service mirror data types and service descriptors.
+
+syntax = "proto3";
+
+package wallet_service_mirror_api;
+
+service WalletServiceMirror {
+    // The periodic poll method that queries for requests and returns replies.
+    // This is sent from the private host to the public host.
+    rpc Poll (PollRequest) returns (PollResponse) {}
+}
+
+// A single query request.
+// When adding request types, remember to add them in `src/private/request.rs` as well.
+message QueryRequest {
+    oneof request {
+        UnencryptedRequest unencrypted_request = 1;
+        EncryptedRequest encrypted_request = 2;
+    }
+}
+
+// A single query response.
+message QueryResponse {
+    oneof response {
+        string error = 1;
+        UnencryptedResponse unencrypted_response = 2;
+        EncryptedResponse encrypted_response = 3;
+    }
+}
+
+// A polling request (sent from the private side to the public side) includes responses to queries.
+message PollRequest {
+    // Map of query id -> response.
+    map<string, QueryResponse> query_responses = 1;
+}
+
+// A polling response (sent from the public side to the private side) includes queries the public side wants
+// the private side to execute.
+message PollResponse {
+    // Map of query id -> request.
+    map<string, QueryRequest> query_requests = 1;
+}
+
+// A plaintext request.
+message UnencryptedRequest {
+    string json_request = 1;
+}
+
+// A request thas has been encrypted by the client.
+message EncryptedRequest {
+    bytes payload = 1;
+}
+
+// A normal response.
+message UnencryptedResponse {
+    string json_response = 1;
+}
+
+// A response that has been encrypted, to be handed back to the client.
+message EncryptedResponse {
+    // The encrypted data holds a JSON object.
+    bytes payload = 1;
+}
