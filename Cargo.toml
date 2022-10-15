@@ -4,6 +4,7 @@ cargo-features = ["resolver"]
 resolver = "2"
 members = [
     "full-service",
+    "mirror",
     "transaction-signer",
     "validator/api",
     "validator/connection",
