@@ -305,13 +305,13 @@ fn process_encrypted_request(
     let res = client
         .post(wallet_service_uri)
         .header(reqwest::header::CONTENT_TYPE, "application/json")
-        .body(json_request.clone())
+        .body(json_request)
         .send()
         .map_err(|e| e.to_string())?;
     let json_response = res.text().map_err(|e| e.to_string())?;
 
     let encrypted_payload =
-        encrypt(mirror_key, &json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
+        encrypt(mirror_key, json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
 
     let mut encrypted_response = EncryptedResponse::new();
     encrypted_response.set_payload(encrypted_payload);

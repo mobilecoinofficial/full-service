@@ -1,6 +1,7 @@
 // Copyright (c) 2018-2022 MobileCoin Inc.
 
-//! Utility to generate a 4096-bit passphrase-less RSA keypair, meant to be used for private<->client end to end encryption.
+//! Utility to generate a 4096-bit passphrase-less RSA keypair, meant to be used
+//! for private<->client end to end encryption.
 
 use boring::rsa::Rsa;
 use std::{fs, path::Path};
