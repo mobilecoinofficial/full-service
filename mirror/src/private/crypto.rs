@@ -11,8 +11,8 @@ const PKCS1_PADDING_LEN: usize = 11;
 
 /// Encrypt a payload of arbitrary length using a private key.
 pub fn encrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
-    // Each encrypted chunk must be no longer than the length of the public modulus minus 11 (PKCS1 padding size).
-    // (Taken from `rsa::oaep::encrypt`).
+    // Each encrypted chunk must be no longer than the length of the public
+    // modulus minus 11 (PKCS1 padding size). (Taken from `rsa::oaep::encrypt`).
     let key_size = key.size() as usize;
     let max_chunk_size = key_size - PKCS1_PADDING_LEN;
 
@@ -21,7 +21,7 @@ pub fn encrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
         .map(|chunk| {
             let mut output = vec![0u8; key_size];
 
-            key.private_encrypt(&chunk[..], &mut output, Padding::PKCS1)
+            key.private_encrypt(chunk, &mut output, Padding::PKCS1)
                 .map_err(|e| format!("encrypt failed: {:?}", e))?;
 
             Ok(output)
@@ -43,7 +43,7 @@ pub fn decrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
         .map(|chunk| {
             let mut output = vec![0u8; key_size];
             let num_bytes = key
-                .private_decrypt(&chunk[..], &mut output, Padding::PKCS1)
+                .private_decrypt(chunk, &mut output, Padding::PKCS1)
                 .map_err(|e| format!("decrypt failed: {:?}", e))?;
             output.truncate(num_bytes as usize);
             Ok(output)
@@ -61,10 +61,8 @@ pub fn load_private_key(src: &str) -> Result<Rsa<Private>, String> {
     let key_str = std::fs::read_to_string(src)
         .map_err(|err| format!("failed reading key file {}: {:?}", src, err))?;
 
-    Ok(
-        Rsa::private_key_from_pem_passphrase(key_str.as_bytes(), &[])
-            .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))?,
-    )
+    Rsa::private_key_from_pem_passphrase(key_str.as_bytes(), &[])
+        .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))
 }
 
 #[cfg(test)]
@@ -76,8 +74,8 @@ mod tests {
 
     /// Encrypt a payload of arbitrary length using a public key.
     pub fn encrypt_public(key: &Rsa<Public>, payload: &[u8]) -> Result<Vec<u8>, String> {
-        // Each encrypted chunk must be no longer than the length of the public modulus minus 11 (PKCS1 padding size).
-        // (Taken from `rsa::oaep::encrypt`).
+        // Each encrypted chunk must be no longer than the length of the public
+        // modulus minus 11 (PKCS1 padding size). (Taken from `rsa::oaep::encrypt`).
         let key_size = key.size() as usize;
         let max_chunk_size = key_size - PKCS1_PADDING_LEN;
 
