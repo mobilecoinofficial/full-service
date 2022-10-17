@@ -415,13 +415,15 @@ To add or edit tables:
 
 1. `cd full-service`
 
+1. Create an empty version of the base db `diesel migration run --database-url $MIGRATION_TEST_DB`
+
 1. Create a migration with `diesel migration generate <migration_name>`
 
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
 
-1. Make a copy of db you want to run the migration against for back up (ie. ~/.mobilecoin/test/wallet-db/wallet.db)
+1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the 
+   inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
 
-1. Build and run Full Service against network of your choice!
 
 Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
