@@ -3,7 +3,7 @@
 * [Welcome!](README.md)
 
 ## API Endpoints
-* v2
+* [v2](v2/README.md)
   * Account
     * [Account](v2/accounts/account/README.md)
       * [Create Account](v2/api-endpoints/create_account.md)
@@ -60,7 +60,7 @@
     * [Get Wallet Status](v2/api-endpoints/get_wallet_status.md)
   * [Version](v2/other/version/README.md)
     * [Get Version](v2/api-endpoints/version.md)
-* v1 (deprecated)
+* [v1 (deprecated)](v1/README.md)
   * Account
     * [Account](v1/accounts//account/README.md)
       * [Create Account](v1/api-endpoints/create_account.md)
