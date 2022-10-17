@@ -424,6 +424,16 @@ To add or edit tables:
 1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the 
    inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
 
+Make sure that the following is still present in `schema.rs` before commiting changes.
+``` 
+table! {
+    __diesel_schema_migrations(version) {
+        version -> Text,
+        run_on -> Timestamp,
+    }
+}
+```
+
 
 Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
