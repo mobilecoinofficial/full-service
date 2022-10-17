@@ -134,5 +134,7 @@
 * [View Only Account](usage/view-only-account/README.md)
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
 * [No Wallet Mode](usage/no-wallet-db/no-wallet-db.md)
+* [Mirror Service](../mirror/README.md)
+  * [Example Usage](../mirror/EXAMPLE.md)
 
 ## Frequently Asked Questions
