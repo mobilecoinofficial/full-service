@@ -450,9 +450,9 @@ where
                 })
                 .collect::<Result<Vec<_>, JsonRPCError>>();
 
-            unverified_tx_results?;
+            let unverified_tx_results = unverified_tx_results?;
 
-            let unverified_txos_encoded : Vec<String>= unverified_tx_results.unwrap()
+            let unverified_txos_encoded : Vec<String>= unverified_tx_results
                 .iter()
                 .map(|txo_obj| hex::encode(&mc_util_serial::encode(txo_obj)))
                 .collect();
