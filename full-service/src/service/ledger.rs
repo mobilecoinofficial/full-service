@@ -176,8 +176,9 @@ where
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
         let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
-
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
+        let cristretto = txo_details.public_key()?;
+        let txo_i = self.ledger_db.get_tx_out_index_by_public_key(&cristretto)?;
+        let txo = self.ledger_db.get_tx_out_by_index(txo_i)?;
         Ok(txo)
     }
 
