@@ -29,7 +29,7 @@ use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider,
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -257,6 +257,14 @@ pub fn add_block_with_tx(
     append_test_block(ledger_db, block_contents, rng)
 }
 
+pub fn get_tx_out_by_public_key(
+    ledger_db: &LedgerDB,
+    public_key : &CompressedRistrettoPublic,
+
+) -> TxOut{
+    ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(public_key).unwrap()).unwrap()
+}
+
 pub fn add_block_from_transaction_log(
     ledger_db: &mut LedgerDB,
     conn: &PooledConnection<CM<SqliteConnection>>,
@@ -269,7 +277,9 @@ pub fn add_block_from_transaction_log(
     output_txos.append(&mut associated_txos.change.clone());
     let outputs: Vec<TxOut> = output_txos
         .iter()
-        .map(|(txo, _)| mc_util_serial::decode(&txo.txo).unwrap())
+        .map(|(txo, _)| {
+            get_tx_out_by_public_key(ledger_db, &txo.public_key().unwrap())
+        })
         .collect();
 
     let input_txos: Vec<Txo> = associated_txos.inputs.clone();
@@ -365,12 +375,9 @@ pub fn add_block_with_db_txos(
     let outputs: Vec<TxOut> = output_txo_ids
         .iter()
         .map(|txo_id_hex| {
-            mc_util_serial::decode(
-                &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                    .unwrap()
-                    .txo,
-            )
-            .unwrap()
+            let txo = &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
+                    .unwrap();
+            ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(&txo.public_key().unwrap()).unwrap()).unwrap()
         })
         .collect();
 

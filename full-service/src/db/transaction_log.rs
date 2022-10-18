@@ -589,7 +589,7 @@ mod tests {
         },
         test_utils::{
             add_block_from_transaction_log, add_block_with_tx_outs, builder_for_random_recipient,
-            get_resolver_factory, get_test_ledger, manually_sync_account,
+            get_resolver_factory, get_test_ledger, get_tx_out_by_public_key,manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
@@ -1123,14 +1123,15 @@ mod tests {
         assert_eq!(change_details.value as u64, 3 * MOB - Mob::MINIMUM_FEE);
         assert_eq!(change_details.subaddress_index, None);
 
+        let txos = [
+            get_tx_out_by_public_key(&ledger_db, &change_details.public_key().unwrap()),
+            get_tx_out_by_public_key(&ledger_db, &output_details.public_key().unwrap())
+        ];
         // Now - we will add the spent Txos, outputs, and change to the ledger, so we
         // can scan and verify
         add_block_with_tx_outs(
             &mut ledger_db,
-            &[
-                mc_util_serial::decode(&change_details.txo).unwrap(),
-                mc_util_serial::decode(&output_details.txo).unwrap(),
-            ],
+            &txos,
             &[
                 mc_util_serial::decode(&input_details0.key_image.unwrap()).unwrap(),
                 mc_util_serial::decode(&input_details1.key_image.unwrap()).unwrap(),

@@ -1507,7 +1507,6 @@ mod tests {
             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
             public_key: mc_util_serial::encode(&for_alice_txo.public_key),
             e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
-            txo: mc_util_serial::encode(&for_alice_txo),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
             received_block_index: Some(12),
