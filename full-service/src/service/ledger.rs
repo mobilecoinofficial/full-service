@@ -298,6 +298,8 @@ where
 pub fn get_tx_out_by_public_key(
     ledger_db: &LedgerDB,
     public_key : &CompressedRistrettoPublic,
-) -> TxOut{
-    ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(public_key).unwrap()).unwrap()
+) -> Result<TxOut, LedgerServiceError> {
+    let txo_index = ledger_db.get_tx_out_index_by_public_key(public_key)?;
+    let txo = ledger_db.get_tx_out_by_index(txo_index)?;
+    Ok(txo)
 }
