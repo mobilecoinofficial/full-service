@@ -1,2 +1,2 @@
 ALTER TABLE txos
-RENAME COLUMN confirmations TO shared_secret;
+RENAME COLUMN confirmation TO shared_secret;
