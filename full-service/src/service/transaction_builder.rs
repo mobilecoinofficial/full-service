@@ -18,6 +18,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::transaction::TransactionMemo,
+    service::ledger::get_tx_out_by_public_key,
 };
 use mc_account_keys::PublicAddress;
 use mc_common::HashSet;

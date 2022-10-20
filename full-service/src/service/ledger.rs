@@ -17,7 +17,7 @@ use mc_connection::{
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
@@ -293,4 +293,11 @@ where
         let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
         Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
+}
+
+pub fn get_tx_out_by_public_key(
+    ledger_db: &LedgerDB,
+    public_key : &CompressedRistrettoPublic,
+) -> TxOut{
+    ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(public_key).unwrap()).unwrap()
 }

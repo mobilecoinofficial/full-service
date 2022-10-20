@@ -12,6 +12,7 @@ use crate::{
     service::{
         sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
+        ledger::get_tx_out_by_public_key,
     },
     WalletService,
 };
@@ -255,14 +256,6 @@ pub fn add_block_with_tx(
         mint_txs: Vec::new(),
     };
     append_test_block(ledger_db, block_contents, rng)
-}
-
-pub fn get_tx_out_by_public_key(
-    ledger_db: &LedgerDB,
-    public_key : &CompressedRistrettoPublic,
-
-) -> TxOut{
-    ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(public_key).unwrap()).unwrap()
 }
 
 pub fn add_block_from_transaction_log(
