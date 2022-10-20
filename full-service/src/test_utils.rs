@@ -12,7 +12,6 @@ use crate::{
     service::{
         sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
-        ledger::get_tx_out_by_public_key,
     },
     WalletService,
 };
