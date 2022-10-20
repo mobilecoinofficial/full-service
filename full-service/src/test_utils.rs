@@ -258,40 +258,6 @@ pub fn add_block_with_tx(
     append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_from_transaction_log(
-    ledger_db: &mut LedgerDB,
-    conn: &PooledConnection<CM<SqliteConnection>>,
-    transaction_log: &TransactionLog,
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
-
-    let mut output_txos = associated_txos.outputs.clone();
-    output_txos.append(&mut associated_txos.change.clone());
-    let outputs: Vec<TxOut> = output_txos
-        .iter()
-        .map(|(txo, _)| {
-            get_tx_out_by_public_key(ledger_db, &txo.public_key().unwrap())
-        })
-        .collect();
-
-    let input_txos: Vec<Txo> = associated_txos.inputs.clone();
-    let key_images: Vec<KeyImage> = input_txos
-        .iter()
-        .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
-        .collect();
-
-    // Note: This block doesn't contain the fee output.
-    let block_contents = BlockContents {
-        key_images,
-        outputs,
-        validated_mint_config_txs: Vec::new(),
-        mint_txs: Vec::new(),
-    };
-
-    append_test_block(ledger_db, block_contents, rng)
-}
-
 pub fn add_block_with_tx_outs(
     ledger_db: &mut LedgerDB,
     outputs: &[TxOut],
