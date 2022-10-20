@@ -1123,15 +1123,14 @@ mod tests {
         assert_eq!(change_details.value as u64, 3 * MOB - Mob::MINIMUM_FEE);
         assert_eq!(change_details.subaddress_index, None);
 
-        let txos = [
-            get_tx_out_by_public_key(&ledger_db, &change_details.public_key().unwrap()),
-            get_tx_out_by_public_key(&ledger_db, &output_details.public_key().unwrap())
-        ];
         // Now - we will add the spent Txos, outputs, and change to the ledger, so we
         // can scan and verify
         add_block_with_tx_outs(
             &mut ledger_db,
-            &txos,
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[
                 mc_util_serial::decode(&input_details0.key_image.unwrap()).unwrap(),
                 mc_util_serial::decode(&input_details1.key_image.unwrap()).unwrap(),
