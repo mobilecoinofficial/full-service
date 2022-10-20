@@ -30,7 +30,7 @@ use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider,
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
