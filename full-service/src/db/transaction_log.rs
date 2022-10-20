@@ -588,7 +588,7 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_with_tx_outs, builder_for_random_recipient,
+            add_block_with_tx_outs, builder_for_random_recipient,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, WalletDbTestContext, MOB,
         },
@@ -719,11 +719,20 @@ mod tests {
         // The subaddress will also be set once received.
         assert_eq!(change_details.subaddress_index, None,);
 
-        add_block_from_transaction_log(
+        let key_images: Vec<KeyImage> = input_txos
+            .iter()
+            .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+            .collect();
+
+        // Note: This block doesn't contain the fee output.
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db.get_conn().unwrap(),
-            &tx_log,
-            &mut rng,
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
+            &key_images,
+            &mut rng
         );
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -750,7 +759,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            updated_change_details.status(&conn).unwrap(),
+            updated_change_details.status(&conn).unwrap()
             TxoStatus::Unspent
         );
         assert_eq!(
