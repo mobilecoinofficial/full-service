@@ -23,4 +23,10 @@ grcov . --binary-path ./target/debug/deps/ --source-dir . -t lcov --branch --ign
 -o ./target/coverage/tests.lcov
 genhtml ./target/coverage/tests.lcov --show-details --prefix "$PWD" --output-directory ./target/coverage/results
 
-open ./target/coverage/results/index.html
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  open ./target/coverage/results/index.html
+#elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  # ...
+else
+  echo "test output written to target/coverage/results/index.html"
+fi
