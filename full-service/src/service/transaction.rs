@@ -770,7 +770,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
+        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &alice.id,
                 &[(
@@ -794,7 +794,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction log");
             let conn = service.get_conn().unwrap();
-            let key_images: Vec<KeyImage> = input_txos
+            let key_images: Vec<KeyImage> = tx_proposal.input_txos
                 .iter()
                 .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
                 .collect();
@@ -867,7 +867,7 @@ mod tests {
         assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
+        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &bob.id,
                 &[(
@@ -891,7 +891,7 @@ mod tests {
         {
             log::info!(logger, "Adding block from transaction proposal");
             let conn = service.get_conn().unwrap();
-            let key_images: Vec<KeyImage> = input_txos
+            let key_images: Vec<KeyImage> = tx_proposal.input_txos
                 .iter()
                 .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
                 .collect();
