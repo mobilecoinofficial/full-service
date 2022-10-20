@@ -5,7 +5,7 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, Amount, TokenId};
+use mc_transaction_core::{tx::Tx, Amount, KeyImage, TokenId};
 use std::fmt;
 
 use crate::{
@@ -719,7 +719,7 @@ mod tests {
         // The subaddress will also be set once received.
         assert_eq!(change_details.subaddress_index, None,);
 
-        let key_images: Vec<KeyImage> = input_txos
+        let key_images: Vec<KeyImage> = tx_proposal.input_txos
             .iter()
             .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
             .collect();
@@ -759,7 +759,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            updated_change_details.status(&conn).unwrap()
+            updated_change_details.status(&conn).unwrap(),
             TxoStatus::Unspent
         );
         assert_eq!(

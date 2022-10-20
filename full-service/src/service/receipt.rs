@@ -291,7 +291,6 @@ mod tests {
             account::AccountService,
             address::AddressService,
             confirmation_number::ConfirmationService,
-            ledger::get_tx_out_by_public_key,
             transaction::{TransactionMemo, TransactionService},
             transaction_log::TransactionLogService,
             txo::TxoService,
