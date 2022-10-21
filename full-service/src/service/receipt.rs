@@ -294,6 +294,7 @@ mod tests {
             transaction::{TransactionMemo, TransactionService},
             transaction_log::TransactionLogService,
             txo::TxoService,
+            ledger::get_tx_out_by_public_key,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger,

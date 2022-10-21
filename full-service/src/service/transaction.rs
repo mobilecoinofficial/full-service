@@ -770,7 +770,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &alice.id,
                 &[(
@@ -796,7 +796,7 @@ mod tests {
             let conn = service.get_conn().unwrap();
             let key_images: Vec<KeyImage> = tx_proposal.input_txos
                 .iter()
-                .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+                .map(|txo| txo.key_image.clone())
                 .collect();
 
             // Note: This block doesn't contain the fee output.
@@ -867,7 +867,7 @@ mod tests {
         assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
+        let (_, _, _, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &bob.id,
                 &[(
@@ -893,7 +893,7 @@ mod tests {
             let conn = service.get_conn().unwrap();
             let key_images: Vec<KeyImage> = tx_proposal.input_txos
                 .iter()
-                .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+                .map(|txo| txo.key_image.clone())
                 .collect();
 
             // Note: This block doesn't contain the fee output.

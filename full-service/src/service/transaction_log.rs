@@ -235,7 +235,7 @@ mod tests {
                 let conn = service.get_conn().unwrap();
                 let key_images: Vec<KeyImage> = tx_proposal.input_txos
                     .iter()
-                    .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+                    .map(|txo| txo.key_image.clone())
                     .collect();
 
                 // Note: This block doesn't contain the fee output.

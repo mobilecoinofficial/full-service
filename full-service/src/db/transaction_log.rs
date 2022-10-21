@@ -5,7 +5,7 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, Amount, KeyImage, TokenId};
+use mc_transaction_core::{tx::Tx, Amount, TokenId};
 use std::fmt;
 
 use crate::{
@@ -578,7 +578,7 @@ mod tests {
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -721,7 +721,7 @@ mod tests {
 
         let key_images: Vec<KeyImage> = tx_proposal.input_txos
             .iter()
-            .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
+            .map(|txo| txo.key_image.clone())
             .collect();
 
         // Note: This block doesn't contain the fee output.
