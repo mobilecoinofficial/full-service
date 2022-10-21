@@ -232,7 +232,6 @@ mod tests {
                 .unwrap();
 
             {
-                let conn = service.get_conn().unwrap();
                 let key_images: Vec<KeyImage> = tx_proposal.input_txos
                     .iter()
                     .map(|txo| txo.key_image.clone())

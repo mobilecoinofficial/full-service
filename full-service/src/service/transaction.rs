@@ -793,7 +793,6 @@ mod tests {
         // workaround.
         {
             log::info!(logger, "Adding block from transaction log");
-            let conn = service.get_conn().unwrap();
             let key_images: Vec<KeyImage> = tx_proposal.input_txos
                 .iter()
                 .map(|txo| txo.key_image.clone())
