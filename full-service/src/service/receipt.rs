@@ -291,14 +291,14 @@ mod tests {
             account::AccountService,
             address::AddressService,
             confirmation_number::ConfirmationService,
+            ledger::get_tx_out_by_public_key,
             transaction::{TransactionMemo, TransactionService},
             transaction_log::TransactionLogService,
             txo::TxoService,
-            ledger::get_tx_out_by_public_key,
         },
         test_utils::{
-            add_block_to_ledger_db, add_block_with_tx, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -478,8 +478,12 @@ mod tests {
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
-        let public_key = txos_and_statuses[0].0.public_key().expect("Could not get CompressedRistrettoPublic from txo");
-        let txo: TxOut = get_tx_out_by_public_key(&ledger_db, &public_key).expect("Could not get the txo from the ledger.");
+        let public_key = txos_and_statuses[0]
+            .0
+            .public_key()
+            .expect("Could not get CompressedRistrettoPublic from txo");
+        let txo: TxOut = get_tx_out_by_public_key(&ledger_db, &public_key)
+            .expect("Could not get the txo from the ledger.");
         assert_eq!(&receipt.amount, txo.get_masked_amount().unwrap());
         assert_eq!(receipt.confirmation, confirmations[0].confirmation);
     }

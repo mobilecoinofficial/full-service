@@ -10,9 +10,8 @@ use crate::{
     },
     error::SyncError,
     service::{
-        sync::sync_account, transaction::TransactionMemo,
+        models::tx_proposal::TxProposal, sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
-        models::tx_proposal::TxProposal,
     },
     WalletService,
 };
@@ -334,9 +333,14 @@ pub fn add_block_with_db_txos(
     let outputs: Vec<TxOut> = output_txo_ids
         .iter()
         .map(|txo_id_hex| {
-            let txo = &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                    .unwrap();
-            ledger_db.get_tx_out_by_index(ledger_db.get_tx_out_index_by_public_key(&txo.public_key().unwrap()).unwrap()).unwrap()
+            let txo = &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap()).unwrap();
+            ledger_db
+                .get_tx_out_by_index(
+                    ledger_db
+                        .get_tx_out_index_by_public_key(&txo.public_key().unwrap())
+                        .unwrap(),
+                )
+                .unwrap()
         })
         .collect();
 
@@ -480,9 +484,9 @@ pub fn transaction_log_from_create_test_minted_and_change_txos(
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-) -> TransactionLog
-{
-    let (tl, _) = create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
+) -> TransactionLog {
+    let (tl, _) =
+        create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
     tl
 }
 
@@ -492,16 +496,22 @@ pub fn tx_proposal_from_create_test_minted_and_change_txos(
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-) -> TxProposal
-{
-    let (_, txp) = create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
+) -> TxProposal {
+    let (_, txp) =
+        create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
     txp
 }
 
 /// Creates a test minted and change txo.
 ///
 /// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
-pub fn create_test_minted_and_change_txos(src_account_key: AccountKey, recipient: PublicAddress, value: u64, wallet_db: WalletDb, ledger_db: LedgerDB) -> (TransactionLog, TxProposal) {
+pub fn create_test_minted_and_change_txos(
+    src_account_key: AccountKey,
+    recipient: PublicAddress,
+    value: u64,
+    wallet_db: WalletDb,
+    ledger_db: LedgerDB,
+) -> (TransactionLog, TxProposal) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -521,15 +531,17 @@ pub fn create_test_minted_and_change_txos(src_account_key: AccountKey, recipient
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    (TransactionLog::log_submitted(
-        &tx_proposal,
-        10,
-        "".to_string(),
-        &AccountID::from(&src_account_key).to_string(),
-        &conn,
-    )
+    (
+        TransactionLog::log_submitted(
+            &tx_proposal,
+            10,
+            "".to_string(),
+            &AccountID::from(&src_account_key).to_string(),
+            &conn,
+        )
         .unwrap(),
-        tx_proposal)
+        tx_proposal,
+    )
 }
 
 // Seed a local account with some Txos in the ledger

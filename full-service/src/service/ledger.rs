@@ -176,7 +176,10 @@ where
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
         let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
-        let txo = self.ledger_db.get_tx_out_by_index(self.ledger_db.get_tx_out_index_by_public_key(&txo_details.public_key()?)?)?;
+        let txo = self.ledger_db.get_tx_out_by_index(
+            self.ledger_db
+                .get_tx_out_index_by_public_key(&txo_details.public_key()?)?,
+        )?;
         Ok(txo)
     }
 
@@ -297,7 +300,7 @@ where
 
 pub fn get_tx_out_by_public_key(
     ledger_db: &LedgerDB,
-    public_key : &CompressedRistrettoPublic,
+    public_key: &CompressedRistrettoPublic,
 ) -> Result<TxOut, LedgerServiceError> {
     let txo_index = ledger_db.get_tx_out_index_by_public_key(public_key)?;
     let txo = ledger_db.get_tx_out_by_index(txo_index)?;

@@ -1430,9 +1430,9 @@ mod tests {
         test_utils::{
             add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
             create_test_minted_and_change_txos, create_test_received_txo,
-            transaction_log_from_create_test_minted_and_change_txos,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+            manually_sync_account, random_account_with_seed_values,
+            transaction_log_from_create_test_minted_and_change_txos, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1556,7 +1556,8 @@ mod tests {
 
         add_block_with_tx_outs(
             &mut ledger_db,
-            &[  tx_proposal.change_txos[0].tx_out.clone(),
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
             &[KeyImage::from(for_alice_key_image)],
@@ -1774,7 +1775,8 @@ mod tests {
         // Add the minted Txos to the ledger
         add_block_with_tx_outs(
             &mut ledger_db,
-            &[  tx_proposal.change_txos[0].tx_out.clone(),
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
             &[KeyImage::from(for_bob_key_image)],

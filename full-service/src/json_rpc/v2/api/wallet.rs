@@ -442,17 +442,19 @@ where
                 )
                 .map_err(format_error)?;
 
-
-            let unverified_tx_results : Result<Vec<mc_transaction_core::tx::TxOut>, JsonRPCError>= unverified_txos
-                .iter()
-                .map(|(txo, _)| -> Result<mc_transaction_core::tx::TxOut,JsonRPCError>{
-                    service.get_txo_object(&txo.id).map_err(format_error)
-                })
-                .collect::<Result<Vec<_>, JsonRPCError>>();
+            let unverified_tx_results: Result<Vec<mc_transaction_core::tx::TxOut>, JsonRPCError> =
+                unverified_txos
+                    .iter()
+                    .map(
+                        |(txo, _)| -> Result<mc_transaction_core::tx::TxOut, JsonRPCError> {
+                            service.get_txo_object(&txo.id).map_err(format_error)
+                        },
+                    )
+                    .collect::<Result<Vec<_>, JsonRPCError>>();
 
             let unverified_tx_results = unverified_tx_results?;
 
-            let unverified_txos_encoded : Vec<String>= unverified_tx_results
+            let unverified_txos_encoded: Vec<String> = unverified_tx_results
                 .iter()
                 .map(|txo_obj| hex::encode(&mc_util_serial::encode(txo_obj)))
                 .collect();

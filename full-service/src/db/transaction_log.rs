@@ -588,9 +588,9 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx_outs, builder_for_random_recipient,
-            get_resolver_factory, get_test_ledger, manually_sync_account,
-            random_account_with_seed_values, WalletDbTestContext, MOB,
+            add_block_with_tx_outs, builder_for_random_recipient, get_resolver_factory,
+            get_test_ledger, manually_sync_account, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -719,7 +719,8 @@ mod tests {
         // The subaddress will also be set once received.
         assert_eq!(change_details.subaddress_index, None,);
 
-        let key_images: Vec<KeyImage> = tx_proposal.input_txos
+        let key_images: Vec<KeyImage> = tx_proposal
+            .input_txos
             .iter()
             .map(|txo| txo.key_image.clone())
             .collect();
@@ -732,7 +733,7 @@ mod tests {
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
             &key_images,
-            &mut rng
+            &mut rng,
         );
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);

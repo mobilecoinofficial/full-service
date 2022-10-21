@@ -538,8 +538,8 @@ mod tests {
             transaction_log::TransactionLogService,
         },
         test_utils::{
-            add_block_with_tx_outs, add_block_to_ledger_db, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -793,7 +793,8 @@ mod tests {
         // workaround.
         {
             log::info!(logger, "Adding block from transaction log");
-            let key_images: Vec<KeyImage> = tx_proposal.input_txos
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
                 .iter()
                 .map(|txo| txo.key_image.clone())
                 .collect();
@@ -806,7 +807,7 @@ mod tests {
                     tx_proposal.payload_txos[0].tx_out.clone(),
                 ],
                 &key_images,
-                &mut rng
+                &mut rng,
             );
         }
 
@@ -889,7 +890,8 @@ mod tests {
 
         {
             log::info!(logger, "Adding block from transaction proposal");
-            let key_images: Vec<KeyImage> = tx_proposal.input_txos
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
                 .iter()
                 .map(|txo| txo.key_image.clone())
                 .collect();
@@ -902,9 +904,8 @@ mod tests {
                     tx_proposal.payload_txos[0].tx_out.clone(),
                 ],
                 &key_images,
-                &mut rng
+                &mut rng,
             );
-
         }
 
         manually_sync_account(
