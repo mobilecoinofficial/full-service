@@ -1428,10 +1428,9 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx, add_block_with_tx_outs,
-            create_test_minted_and_change_txos, create_test_received_txo,
-            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values,
+            add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
+            create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
+            get_test_ledger, manually_sync_account, random_account_with_seed_values,
             WalletDbTestContext, MOB,
         },
         WalletDb,
@@ -2095,8 +2094,13 @@ mod tests {
 
         assert_eq!(txos.len(), 12);
 
-        let (transaction_log, _) =
-        create_test_minted_and_change_txos(src_account.clone(), recipient, 1 * MOB, wallet_db.clone(), ledger_db);
+        let (transaction_log, _) = create_test_minted_and_change_txos(
+            src_account.clone(),
+            recipient,
+            1 * MOB,
+            wallet_db.clone(),
+            ledger_db,
+        );
 
         let associated_txos = transaction_log
             .get_associated_txos(&wallet_db.get_conn().unwrap())
