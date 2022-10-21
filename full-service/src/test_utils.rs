@@ -476,13 +476,14 @@ pub fn create_test_received_txo(
 /// Creates a test minted and change txo.
 ///
 /// Returns ((output_txo_id, value), (change_txo_id, value))
-pub fn create_test_minted_and_change_txos(
+pub fn transaction_log_from_create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-) -> TransactionLog {
+) -> TransactionLog
+{
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account

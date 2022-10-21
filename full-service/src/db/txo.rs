@@ -1429,7 +1429,7 @@ mod tests {
         },
         test_utils::{
             add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
-            create_test_minted_and_change_txos, create_test_received_txo,
+            transaction_log_from_create_test_minted_and_change_txos, create_test_received_txo,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
@@ -1535,7 +1535,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let transaction_log = create_test_minted_and_change_txos(
+        let transaction_log = transaction_log_from_create_test_minted_and_change_txos(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1751,7 +1751,7 @@ mod tests {
         )
         .unwrap();
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let transaction_log = transaction_log_from_create_test_minted_and_change_txos(
             alice_account_key.clone(),
             bob_account_key.subaddress(0),
             72 * MOB,
@@ -2090,7 +2090,7 @@ mod tests {
 
         assert_eq!(txos.len(), 12);
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let transaction_log = transaction_log_from_create_test_minted_and_change_txos(
             src_account.clone(),
             recipient,
             1 * MOB,
