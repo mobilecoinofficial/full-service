@@ -323,30 +323,6 @@ pub fn setup_peer_manager_and_network_state(
     (peer_manager, network_state)
 }
 
-pub fn add_block_with_db_txos(
-    ledger_db: &mut LedgerDB,
-    wallet_db: &WalletDb,
-    output_txo_ids: &[String],
-    key_images: &[KeyImage],
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let outputs: Vec<TxOut> = output_txo_ids
-        .iter()
-        .map(|txo_id_hex| {
-            let txo = &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap()).unwrap();
-            ledger_db
-                .get_tx_out_by_index(
-                    ledger_db
-                        .get_tx_out_index_by_public_key(&txo.public_key().unwrap())
-                        .unwrap(),
-                )
-                .unwrap()
-        })
-        .collect();
-
-    add_block_with_tx_outs(ledger_db, &outputs, key_images, rng)
-}
-
 // Sync account to most recent block
 pub fn manually_sync_account(
     ledger_db: &LedgerDB,
