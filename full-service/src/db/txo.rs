@@ -1429,7 +1429,8 @@ mod tests {
         },
         test_utils::{
             add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
-            transaction_log_from_create_test_minted_and_change_txos, create_test_received_txo,
+            create_test_minted_and_change_txos, create_test_received_txo,
+            transaction_log_from_create_test_minted_and_change_txos,
             create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
@@ -1535,7 +1536,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let transaction_log = transaction_log_from_create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1553,10 +1554,11 @@ mod tests {
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
 
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[  tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_alice_key_image)],
             &mut rng,
         );
@@ -1751,7 +1753,7 @@ mod tests {
         )
         .unwrap();
 
-        let transaction_log = transaction_log_from_create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             bob_account_key.subaddress(0),
             72 * MOB,
@@ -1770,10 +1772,11 @@ mod tests {
         assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
 
         // Add the minted Txos to the ledger
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[  tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_bob_key_image)],
             &mut rng,
         );
