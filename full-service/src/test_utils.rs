@@ -474,9 +474,6 @@ pub fn create_test_received_txo(
     (txo_id_hex, txo, key_image)
 }
 
-/// Creates a test minted and change txo.
-///
-/// Returns ((output_txo_id, value), (change_txo_id, value))
 pub fn transaction_log_from_create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
@@ -485,11 +482,26 @@ pub fn transaction_log_from_create_test_minted_and_change_txos(
     ledger_db: LedgerDB,
 ) -> TransactionLog
 {
-    (tl, txp) = create_test_minted_and_change_txos(&src_account_key, recipient, value, wallet_db, ledger_db);
+    let (tl, _) = create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
     tl
 }
 
-pub fn create_test_minted_and_change_txos(src_account_key: &AccountKey, recipient: PublicAddress, value: u64, wallet_db: WalletDb, ledger_db: LedgerDB) -> (TransactionLog, TxProposal) {
+pub fn tx_proposal_from_create_test_minted_and_change_txos(
+    src_account_key: AccountKey,
+    recipient: PublicAddress,
+    value: u64,
+    wallet_db: WalletDb,
+    ledger_db: LedgerDB,
+) -> TxProposal
+{
+    let (_, txp) = create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
+    txp
+}
+
+/// Creates a test minted and change txo.
+///
+/// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
+pub fn create_test_minted_and_change_txos(src_account_key: AccountKey, recipient: PublicAddress, value: u64, wallet_db: WalletDb, ledger_db: LedgerDB) -> (TransactionLog, TxProposal) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
