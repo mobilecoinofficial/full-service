@@ -12,6 +12,7 @@ use crate::{
     service::{
         sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
+        models::tx_proposal::TxProposal,
     },
     WalletService,
 };
@@ -484,6 +485,11 @@ pub fn transaction_log_from_create_test_minted_and_change_txos(
     ledger_db: LedgerDB,
 ) -> TransactionLog
 {
+    (tl, txp) = create_test_minted_and_change_txos(&src_account_key, recipient, value, wallet_db, ledger_db);
+    tl
+}
+
+pub fn create_test_minted_and_change_txos(src_account_key: &AccountKey, recipient: PublicAddress, value: u64, wallet_db: WalletDb, ledger_db: LedgerDB) -> (TransactionLog, TxProposal) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -503,14 +509,15 @@ pub fn transaction_log_from_create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    TransactionLog::log_submitted(
+    (TransactionLog::log_submitted(
         &tx_proposal,
         10,
         "".to_string(),
         &AccountID::from(&src_account_key).to_string(),
         &conn,
     )
-    .unwrap()
+        .unwrap(),
+        tx_proposal)
 }
 
 // Seed a local account with some Txos in the ledger
