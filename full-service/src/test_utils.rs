@@ -478,18 +478,6 @@ pub fn create_test_received_txo(
     (txo_id_hex, txo, key_image)
 }
 
-pub fn tx_proposal_from_create_test_minted_and_change_txos(
-    src_account_key: AccountKey,
-    recipient: PublicAddress,
-    value: u64,
-    wallet_db: WalletDb,
-    ledger_db: LedgerDB,
-) -> TxProposal {
-    let (_, txp) =
-        create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
-    txp
-}
-
 /// Creates a test minted and change txo.
 ///
 /// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
