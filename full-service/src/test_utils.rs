@@ -478,18 +478,6 @@ pub fn create_test_received_txo(
     (txo_id_hex, txo, key_image)
 }
 
-pub fn transaction_log_from_create_test_minted_and_change_txos(
-    src_account_key: AccountKey,
-    recipient: PublicAddress,
-    value: u64,
-    wallet_db: WalletDb,
-    ledger_db: LedgerDB,
-) -> TransactionLog {
-    let (tl, _) =
-        create_test_minted_and_change_txos(src_account_key, recipient, value, wallet_db, ledger_db);
-    tl
-}
-
 pub fn tx_proposal_from_create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
