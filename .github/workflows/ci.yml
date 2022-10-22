@@ -91,5 +91,17 @@ jobs:
           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
       - name: Cargo Test
-        run: |
-          cargo test
+        run: cargo test
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+        
+      - name: rust-grcov
+        uses: actions-rs/grcov@v0.1.5
+
+      - name: Codecov
+        uses: codecov/codecov-action@v3.1.0
+        with:
+          verbose: true
+          fail_ci_if_error: true
