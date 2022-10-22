@@ -100,7 +100,6 @@ jobs:
       - name: Run tests
         run: |
           CARGO_INCREMENTAL=0 RUSTFLAGS='-Cinstrument-coverage' LLVM_PROFILE_FILE="../target/profraw/json5format-%m.profraw" \
-          SGX_MODE=SW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
           cargo test
 
       - id: coverage
