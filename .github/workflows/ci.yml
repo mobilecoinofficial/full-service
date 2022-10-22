@@ -93,18 +93,22 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2022-07-22
+          toolchain: nightly-2022-04-29
           override: true
           components: llvm-tools-preview
 
-      - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Run tests
+        run: |
+          CARGO_INCREMENTAL=0 RUSTFLAGS='-Cinstrument-coverage' LLVM_PROFILE_FILE="../target/profraw/json5format-%m.profraw" \
+          SGX_MODE=SW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+          cargo test
 
-      - name: Run tests with coverage
-        run: cargo llvm-cov --features sim --ignore-filename-regex '\/sys/src/lib\.rs' --workspace --lcov --output-path lcov.info
+      - id: coverage
+        uses: actions-rs/grcov@v0.1
 
       - name: Codecov
         uses: codecov/codecov-action@v3.1.0
         with:
-          files: lcov.info
+          files: ${{ steps.coverage.outputs.report }}
           verbose: true
           fail_ci_if_error: true
