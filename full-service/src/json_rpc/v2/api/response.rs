@@ -116,6 +116,7 @@ pub enum JsonCommandResponse {
     get_block {
         block: Block,
         block_contents: BlockContents,
+        txo_pubkey: String,
     },
     get_confirmations {
         confirmations: Vec<Confirmation>,

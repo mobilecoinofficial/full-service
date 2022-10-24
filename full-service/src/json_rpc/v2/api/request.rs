@@ -149,6 +149,7 @@ pub enum JsonCommandRequest {
     },
     get_block {
         block_index: String,
+        txo_pubkey: Option<String>,
     },
     get_confirmations {
         transaction_log_id: String,
