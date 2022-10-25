@@ -36,8 +36,9 @@ mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
+mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
-mc-transaction-std = { path = "../mobilecoin/transaction/std" }
+mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
