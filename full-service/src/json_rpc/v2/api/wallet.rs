@@ -586,7 +586,7 @@ where
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
-                txo_pubkey: ReceiptService::get_txo_by_public_key(&block_contents),
+                txo_pubkey: LedgerService::get_txo_by_public_key(&public_key, &block_contents),
             }
         }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
