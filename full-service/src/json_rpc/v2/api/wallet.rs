@@ -2,7 +2,7 @@ use crate::{
     db::{
         account::AccountID,
         transaction_log::TransactionID,
-        txo::{TxoID, TxoStatus},
+        txo::{TxoID, TxoStatus}, schema::{transaction_logs::tx, txos::public_key},
     },
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
@@ -590,13 +590,15 @@ where
                 balance_per_token,
             }
         }
-        JsonCommandRequest::get_block { block_index } => {
-            let (block, block_contents) = service
+        JsonCommandRequest::get_block { block_index, txo_pubkey } => {
+            let (block, block_contents, txo_pubkey) = service
                 .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
                 .map_err(format_error)?;
+                ///.get_txo_by_public_key()?;
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
+                txo_pubkey: ReceiptService::get_txo_by_public_key(&block_contents),
             }
         }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
