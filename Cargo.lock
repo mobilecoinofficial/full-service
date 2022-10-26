@@ -1284,9 +1284,9 @@ dependencies = [
 
 [[package]]
 name = "fragile"
-version = "1.0.0"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69a039c3498dc930fe810151a34ba0c1c70b02b8625035592e74432f678591f2"
+checksum = "6c2141d6d6c8512188a7891b4b01590a45f6dac67afb4f255c4124dbb86d4eaa"
 
 [[package]]
 name = "fsevent"
@@ -1551,21 +1551,6 @@ name = "glob"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
-
-[[package]]
-name = "grpcio"
-version = "0.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9bcdd3694fa08158334501af37bdf5b4f00b1865b602d917e3cd74ecf80cd0a"
-dependencies = [
- "futures-executor",
- "futures-util",
- "grpcio-sys",
- "libc",
- "log 0.4.11",
- "parking_lot 0.11.2",
- "protobuf",
-]
 
 [[package]]
 name = "grpcio"
@@ -2321,7 +2306,7 @@ dependencies = [
  "cargo-emit",
  "digest",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-attest-ake",
  "mc-attest-enclave-api",
  "mc-crypto-keys",
@@ -2492,7 +2477,7 @@ dependencies = [
  "aes-gcm",
  "cookie 0.16.0",
  "displaydoc",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-attest-ake",
  "mc-attest-api",
  "mc-attest-core",
@@ -2531,7 +2516,7 @@ version = "2.1.0-pre0"
 dependencies = [
  "cargo-emit",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-api",
  "mc-attest-api",
  "mc-ledger-db",
@@ -2827,7 +2812,7 @@ version = "2.1.0-pre0"
 dependencies = [
  "cargo-emit",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-api",
  "mc-attest-api",
  "mc-consensus-api",
@@ -2842,7 +2827,7 @@ name = "mc-fog-report-connection"
 version = "2.1.0-pre0"
 dependencies = [
  "displaydoc",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-account-keys",
  "mc-attest-core",
  "mc-common",
@@ -2949,7 +2934,7 @@ dependencies = [
  "diesel_migrations",
  "displaydoc",
  "dotenv",
- "grpcio 0.10.3",
+ "grpcio",
  "hex",
  "mc-account-keys",
  "mc-account-keys-slip10",
@@ -3017,7 +3002,7 @@ dependencies = [
  "cargo-emit",
  "futures",
  "generic-array",
- "grpcio 0.10.3",
+ "grpcio",
  "hex",
  "mc-api",
  "mc-common",
@@ -3084,7 +3069,7 @@ version = "2.1.0-pre0"
 dependencies = [
  "crossbeam-channel",
  "displaydoc",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-account-keys",
  "mc-api",
  "mc-attest-verifier",
@@ -3117,7 +3102,7 @@ dependencies = [
  "clap 4.0.18",
  "crossbeam-channel",
  "displaydoc",
- "grpcio 0.11.0",
+ "grpcio",
  "hex_fmt",
  "libz-sys",
  "lmdb-rkv",
@@ -3175,7 +3160,7 @@ version = "2.1.0-pre0"
 dependencies = [
  "cargo-emit",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "mc-api",
  "mc-consensus-api",
  "mc-util-build-grpc",
@@ -3189,7 +3174,7 @@ name = "mc-mobilecoind-json"
 version = "2.1.0-pre0"
 dependencies = [
  "clap 4.0.18",
- "grpcio 0.11.0",
+ "grpcio",
  "hex",
  "mc-api",
  "mc-common",
@@ -3468,7 +3453,7 @@ dependencies = [
  "cookie 0.16.0",
  "displaydoc",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "hex",
  "hex_fmt",
  "hmac",
@@ -3518,7 +3503,7 @@ name = "mc-util-metrics"
 version = "2.1.0-pre0"
 dependencies = [
  "chrono",
- "grpcio 0.11.0",
+ "grpcio",
  "lazy_static",
  "mc-common",
  "prometheus",
@@ -3606,7 +3591,7 @@ version = "2.0.1"
 dependencies = [
  "cargo-emit",
  "futures",
- "grpcio 0.10.3",
+ "grpcio",
  "mc-api",
  "mc-consensus-api",
  "mc-fog-report-api",
@@ -3622,7 +3607,7 @@ version = "2.0.1"
 dependencies = [
  "displaydoc",
  "futures",
- "grpcio 0.10.3",
+ "grpcio",
  "mc-api",
  "mc-blockchain-types",
  "mc-common",
@@ -3639,7 +3624,7 @@ dependencies = [
 name = "mc-validator-service"
 version = "2.0.1"
 dependencies = [
- "grpcio 0.10.3",
+ "grpcio",
  "mc-attest-verifier",
  "mc-common",
  "mc-connection",
@@ -3664,7 +3649,7 @@ dependencies = [
  "clap 4.0.18",
  "displaydoc",
  "futures",
- "grpcio 0.11.0",
+ "grpcio",
  "hex",
  "lazy_static",
  "lmdb-rkv",
@@ -3838,9 +3823,9 @@ dependencies = [
 
 [[package]]
 name = "mockall"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2be9a9090bc1cac2930688fa9478092a64c6a92ddc6ae0692d46b37d9cab709"
+checksum = "50e4a1c770583dac7ab5e2f6c139153b783a53a1bbee9729613f193e59828326"
 dependencies = [
  "cfg-if 1.0.0",
  "downcast",
@@ -3853,9 +3838,9 @@ dependencies = [
 
 [[package]]
 name = "mockall_derive"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86d702a0530a0141cf4ed147cf5ec7be6f2c187d4e37fcbefc39cf34116bfe8f"
+checksum = "832663583d5fa284ca8810bf7015e46c9fff9622d3cf34bd1eea5003fec06dd0"
 dependencies = [
  "cfg-if 1.0.0",
  "proc-macro2 1.0.46",

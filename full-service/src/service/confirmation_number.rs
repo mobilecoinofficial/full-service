@@ -20,7 +20,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use mc_transaction_extra::TxOutConfirmationNumber;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]

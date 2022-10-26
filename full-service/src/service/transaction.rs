@@ -24,15 +24,15 @@ use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_transaction_builder::{
+    BurnRedemptionmemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
+};
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use mc_transaction_std::{
-    BurnRedemptionMemo, BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
-    SenderMemoCredential,
-};
+use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
 
 use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
@@ -109,7 +109,7 @@ pub enum TransactionServiceError {
     Decode(mc_util_serial::DecodeError),
 
     /// Tx Builder Error: {0}
-    TxBuilder(mc_transaction_std::TxBuilderError),
+    TxBuilder(mc_transaction_builder::TxBuilderError),
 
     /// Ledger service error: {0}
     LedgerService(LedgerServiceError),
@@ -184,8 +184,8 @@ impl From<mc_util_serial::DecodeError> for TransactionServiceError {
     }
 }
 
-impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
-    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+impl From<mc_transaction_builder::TxBuilderError> for TransactionServiceError {
+    fn from(src: mc_transaction_builder::TxBuilderError) -> Self {
         Self::TxBuilder(src)
     }
 }
