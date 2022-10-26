@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/github/mobilecoinofficial/full-service/branch/main/graph/badge.svg?token=KqBsyfOOHW)](https://codecov.io/github/mobilecoinofficial/full-service)
 # Full Service
 
 A MobileCoin service for wallet implementations.

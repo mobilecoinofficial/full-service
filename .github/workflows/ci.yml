@@ -107,8 +107,6 @@ jobs:
 
       - id: coverage
         uses: actions-rs/grcov@v0.1
-        with:
-          config: .github/actions-rs/grcov.yml
 
       - name: Codecov
         uses: codecov/codecov-action@v3.1.0
@@ -116,3 +114,5 @@ jobs:
           files: ${{ steps.coverage.outputs.report }}
           verbose: true
           fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: 5be757b6-e923-40f2-80ea-5deac1e02b1e
