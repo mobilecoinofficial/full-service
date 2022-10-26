@@ -298,6 +298,9 @@ where
     fn get_txo_by_public_key(
         &self,
         public_key: &CompressedRistrettoPublic,
-    ) -> Result<Option<(Txo, TxoStatus)>, ReceiptServiceError>;
-    
+    ) -> Result<Option<(Txo, TxoStatus)>, ReceiptServiceError> {
+        let txo = self.ledger_db.get_tx_out_index_by_public_key(tx_out_public_key)?;
+        Ok(self.ledger_db.get_tx_out_index_by_public_key(tx_out_index))
+    }
+
 }
