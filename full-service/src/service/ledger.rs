@@ -294,4 +294,10 @@ where
         let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
         Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
+
+    fn get_txo_by_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<Option<(Txo, TxoStatus)>, ReceiptServiceError>;
+    
 }
