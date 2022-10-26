@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/github/mobilecoinofficial/full-service/branch/main/graph/badge.svg?token=KqBsyfOOHW)](https://codecov.io/github/mobilecoinofficial/full-service)
 # Full Service
 
 A MobileCoin service for wallet implementations.
@@ -69,7 +70,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    On Ubuntu:
     ```sh
-    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev
+    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
     ```
 
    On MacOS:
@@ -95,6 +96,10 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
     ```
    
+   Finally for both:
+   ```sh
+   rustup component add llvm-tools-preview
+   ```
 
 4. Pull submodule.
 
@@ -449,6 +454,9 @@ Under the covers, this runs:
 SGX_MODE=HW \
 IAS_MODE=DEV \
 CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+CARGO_INCREMENTAL=0 \
+RUSTFLAGS='-Cinstrument-coverage' \
+LLVM_PROFILE_FILE="../target/profraw/json5format-%m.profraw" \
 cargo test
 ```
 
