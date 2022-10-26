@@ -1514,7 +1514,7 @@ mod tests {
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
             received_block_index: Some(12),
             spent_block_index: None,
-            confirmation_secret: None,
+            shared_secret: None,
             account_id: Some(alice_account_id.to_string()),
         };
 
