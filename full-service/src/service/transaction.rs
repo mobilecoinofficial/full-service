@@ -538,8 +538,8 @@ mod tests {
             transaction_log::TransactionLogService,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -770,7 +770,7 @@ mod tests {
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &alice.id,
                 &[(
@@ -793,8 +793,22 @@ mod tests {
         // workaround.
         {
             log::info!(logger, "Adding block from transaction log");
-            let conn = service.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
         }
 
         manually_sync_account(
@@ -853,7 +867,7 @@ mod tests {
         assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
+        let (_, _, _, tx_proposal) = service
             .build_sign_and_submit_transaction(
                 &bob.id,
                 &[(
@@ -875,9 +889,23 @@ mod tests {
         // workaround.
 
         {
-            log::info!(logger, "Adding block from transaction log");
-            let conn = service.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
+            log::info!(logger, "Adding block from transaction proposal");
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
         }
 
         manually_sync_account(

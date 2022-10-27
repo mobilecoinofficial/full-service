@@ -412,12 +412,33 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 To add or edit tables:
 
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
-   version: `cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="22a4a4b973db2b7aadaf088b3279dbbe52176896" diesel_cli --no-default-features --features sqlite`
+   version:  
+
+   ```
+   cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="026f6379715d27c8be48396e5ca9059f4a263198" diesel_cli --no-default-features --features sqlite
+   ```
+
 1. `cd full-service`
+
+1. Create an empty version of the base db `diesel migration run --database-url $MIGRATION_TEST_DB`
+
 1. Create a migration with `diesel migration generate <migration_name>`
+
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
-1. Run the migration with `diesel migration run --database-url /tmp/db.db`, and test delete
-   with `diesel migration redo --database-url /tmp/db.db`
+
+1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the 
+   inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
+
+Make sure that the following is still present in `schema.rs` before commiting changes.
+``` 
+table! {
+    __diesel_schema_migrations(version) {
+        version -> Text,
+        run_on -> Timestamp,
+    }
+}
+```
+
 
 Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
