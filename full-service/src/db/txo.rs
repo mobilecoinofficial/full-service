@@ -376,7 +376,7 @@ impl TxoModel for Txo {
                     key_image: key_image_bytes.as_deref(),
                     received_block_index: Some(received_block_index as i64),
                     spent_block_index: None,
-                    shared_secret: None,
+                    confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                 };
 
@@ -414,7 +414,7 @@ impl TxoModel for Txo {
             key_image: None,
             received_block_index: None,
             spent_block_index: None,
-            shared_secret: Some(&encoded_confirmation),
+            confirmation: Some(&encoded_confirmation),
         };
 
         diesel::insert_into(txos::table)
@@ -1511,7 +1511,7 @@ mod tests {
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
             received_block_index: Some(12),
             spent_block_index: None,
-            shared_secret: None,
+            confirmation: None,
             account_id: Some(alice_account_id.to_string()),
         };
 
@@ -2226,7 +2226,7 @@ mod tests {
         // Note: Because this txo is both received and sent, between two different
         // accounts, its confirmation number does get updated. Typically, received txos
         // have None for the confirmation number.
-        assert!(received_txo.shared_secret.is_some());
+        assert!(received_txo.confirmation.is_some());
 
         // Get the txo from the sent perspective
         log::info!(logger, "Listing all Txos for sender account");
@@ -2259,9 +2259,9 @@ mod tests {
         // what differentiates them.
         assert_eq!(sent_txo_details, received_txo);
 
-        assert!(sent_txo_details.shared_secret.is_some());
+        assert!(sent_txo_details.confirmation.is_some());
         let confirmation: TxOutConfirmationNumber =
-            mc_util_serial::decode(&sent_txo_details.shared_secret.unwrap()).unwrap();
+            mc_util_serial::decode(&sent_txo_details.confirmation.unwrap()).unwrap();
         log::info!(logger, "Validating the confirmation number");
         let verified = Txo::validate_confirmation(
             &AccountID::from(&recipient_account_key),
