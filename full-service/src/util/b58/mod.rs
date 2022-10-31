@@ -9,12 +9,14 @@ use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_api::printable::{PaymentRequest, PrintableWrapper, TransferPayload};
 use mc_crypto_keys::CompressedRistrettoPublic;
+use mc_transaction_core::Amount;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
 pub struct DecodedPaymentRequest {
     pub public_address: PublicAddress,
     pub value: u64,
+    pub token_id: u64,
     pub memo: String,
 }
 
@@ -67,12 +69,13 @@ pub fn b58_decode_public_address(public_address_b58_code: &str) -> Result<Public
 
 pub fn b58_encode_payment_request(
     public_address: &PublicAddress,
-    amount_pmob: u64,
+    amount: &Amount,
     memo: String,
 ) -> Result<String, B58Error> {
     let mut payment_request = PaymentRequest::new();
     payment_request.set_public_address(public_address.into());
-    payment_request.set_value(amount_pmob);
+    payment_request.set_value(amount.value);
+    payment_request.set_token_id(*amount.token_id);
     payment_request.set_memo(memo);
 
     let mut wrapper = PrintableWrapper::new();
@@ -92,12 +95,14 @@ pub fn b58_decode_payment_request(
     };
 
     let public_address = PublicAddress::try_from(payment_request_message.get_public_address())?;
-    let value = payment_request_message.get_value() as u64;
+    let value = payment_request_message.get_value();
+    let token_id = payment_request_message.get_token_id();
     let memo = payment_request_message.get_memo().to_string();
 
     Ok(DecodedPaymentRequest {
         public_address,
         value,
+        token_id,
         memo,
     })
 }

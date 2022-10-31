@@ -4,7 +4,6 @@
 
 use crate::{
     db::{
-        account::AccountID,
         models::TransactionLog,
         transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel, ValueMap},
         WalletDbError,
@@ -45,7 +44,7 @@ pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     fn list_transaction_logs(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
@@ -77,15 +76,15 @@ where
 {
     fn list_transaction_logs(
         &self,
-        account_id: &AccountID,
+        account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = &self.wallet_db.get_conn()?;
+        let conn = &self.get_conn()?;
         Ok(TransactionLog::list_all(
-            &account_id.to_string(),
+            account_id,
             offset,
             limit,
             min_block_index,
@@ -98,7 +97,7 @@ where
         &self,
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let transaction_log =
             TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let associated = transaction_log.get_associated_txos(&conn)?;
@@ -111,7 +110,7 @@ where
         &self,
         block_index: u64,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
         let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
@@ -127,7 +126,7 @@ where
     fn get_all_transaction_logs_ordered_by_block(
         &self,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
         let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
         for transaction_log in transaction_logs {
@@ -145,19 +144,22 @@ where
 mod tests {
     use crate::{
         db::account::AccountID,
+        json_rpc::v2::models::amount::Amount,
         service::{
-            account::AccountService, address::AddressService, transaction::TransactionService,
+            account::AccountService,
+            address::AddressService,
+            transaction::{TransactionMemo, TransactionService},
             transaction_log::TransactionLogService,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
@@ -181,10 +183,10 @@ mod tests {
 
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -200,56 +202,100 @@ mod tests {
             );
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         let address = service
             .assign_address_for_account(&alice_account_id, None)
             .unwrap();
 
         for _ in 0..5 {
-            let (transaction_log, _, _, _) = service
-                .build_and_submit(
+            let (_, _, _, tx_proposal) = service
+                .build_sign_and_submit_transaction(
                     &alice_account_id.to_string(),
                     &[(
-                        address.assigned_subaddress_b58.clone(),
-                        (50 * MOB).to_string(),
+                        address.public_address_b58.clone(),
+                        Amount::new(50 * MOB, Mob::ID),
                     )],
                     None,
                     None,
                     None,
                     None,
                     None,
+                    None,
+                    TransactionMemo::RTH,
                 )
                 .unwrap();
 
             {
-                let conn = service.wallet_db.get_conn().unwrap();
-                add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+                let key_images: Vec<KeyImage> = tx_proposal
+                    .input_txos
+                    .iter()
+                    .map(|txo| txo.key_image.clone())
+                    .collect();
+
+                // Note: This block doesn't contain the fee output.
+                add_block_with_tx_outs(
+                    &mut ledger_db,
+                    &[
+                        tx_proposal.change_txos[0].tx_out.clone(),
+                        tx_proposal.payload_txos[0].tx_out.clone(),
+                    ],
+                    &key_images,
+                    &mut rng,
+                );
             }
 
-            manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+            manually_sync_account(
+                &ledger_db,
+                &service.wallet_db.as_ref().unwrap(),
+                &alice_account_id,
+                &logger,
+            );
         }
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(5, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(20), None)
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                Some(20),
+                None,
+            )
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, Some(18))
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                None,
+                Some(18),
+            )
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, Some(18), Some(20))
+            .list_transaction_logs(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                Some(18),
+                Some(20),
+            )
             .unwrap();
 
         assert_eq!(3, tx_logs.len());

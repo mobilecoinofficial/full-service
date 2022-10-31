@@ -1,13 +1,9 @@
 table! {
     accounts (id) {
-        id -> Integer,
-        account_id_hex -> Text,
+        id -> Text,
         account_key -> Binary,
         entropy -> Nullable<Binary>,
         key_derivation_version -> Integer,
-        main_subaddress_index -> BigInt,
-        change_subaddress_index -> BigInt,
-        next_subaddress_index -> BigInt,
         first_block_index -> BigInt,
         next_block_index -> BigInt,
         import_block_index -> Nullable<BigInt>,
@@ -18,15 +14,12 @@ table! {
 }
 
 table! {
-    assigned_subaddresses (id) {
-        id -> Integer,
-        assigned_subaddress_b58 -> Text,
-        account_id_hex -> Text,
-        address_book_entry -> Nullable<BigInt>,
-        public_address -> Binary,
+    assigned_subaddresses (public_address_b58) {
+        public_address_b58 -> Text,
+        account_id -> Text,
         subaddress_index -> BigInt,
         comment -> Text,
-        subaddress_spend_key -> Binary,
+        spend_public_key -> Binary,
     }
 }
 
@@ -48,7 +41,7 @@ table! {
 table! {
     transaction_logs (id) {
         id -> Text,
-        account_id_hex -> Text,
+        account_id -> Text,
         fee_value -> BigInt,
         fee_token_id -> BigInt,
         submitted_block_index -> Nullable<BigInt>,
@@ -72,13 +65,12 @@ table! {
 table! {
     txos (id) {
         id -> Text,
-        account_id_hex -> Nullable<Text>,
+        account_id -> Nullable<Text>,
         value -> BigInt,
         token_id -> BigInt,
         target_key -> Binary,
         public_key -> Binary,
         e_fog_hint -> Binary,
-        txo -> Binary,
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_index -> Nullable<BigInt>,
@@ -87,10 +79,20 @@ table! {
     }
 }
 
+table! {
+    __diesel_schema_migrations(version) {
+        version -> Text,
+        run_on -> Timestamp,
+    }
+}
+
+joinable!(assigned_subaddresses -> accounts (account_id));
 joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
 joinable!(transaction_input_txos -> txos (txo_id));
+joinable!(transaction_logs -> accounts (account_id));
 joinable!(transaction_output_txos -> transaction_logs (transaction_log_id));
 joinable!(transaction_output_txos -> txos (txo_id));
+joinable!(txos -> accounts (account_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,

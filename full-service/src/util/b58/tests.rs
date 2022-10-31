@@ -45,7 +45,7 @@ mod tests {
         let public_address = get_public_address(&mut rng);
         let _encoded = b58_encode_payment_request(
             &public_address,
-            1_000_000_000_000,
+            &Amount::new(1_000_000_000_000, Mob::ID),
             "This is a memo".to_string(),
         )
         .unwrap();
@@ -90,7 +90,7 @@ mod tests {
         let public_address = get_public_address(&mut rng);
         let encoded = b58_encode_payment_request(
             &public_address,
-            1_000_000_000_000,
+            &Amount::new(1_000_000_000_000, Mob::ID),
             "This is a memo".to_string(),
         )
         .unwrap();
@@ -188,7 +188,7 @@ mod tests {
         let public_address = get_public_address(&mut rng);
         let encoded = b58_encode_payment_request(
             &public_address,
-            1_000_000_000_000,
+            &Amount::new(1_000_000_000_000, Mob::ID),
             "This is a memo".to_string(),
         )
         .unwrap();

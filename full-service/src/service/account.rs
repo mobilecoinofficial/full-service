@@ -11,7 +11,7 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    json_rpc::json_rpc_request::{JsonCommandRequest, JsonRPCRequest},
+    json_rpc::{json_rpc_request::JsonRPCRequest, v2::api::request::JsonCommandRequest},
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
@@ -69,6 +69,9 @@ pub enum AccountServiceError {
 
     /// Account is not a view only account and should be
     AccountIsNotViewOnly(AccountID),
+
+    /// JSON Rpc Request was formatted incorrectly
+    InvalidJsonRPCRequest,
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -174,10 +177,19 @@ pub trait AccountService {
     ) -> Result<JsonRPCRequest, AccountServiceError>;
 
     /// List accounts in the wallet.
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError>;
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError>;
 
     /// Get an account in the wallet.
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
+
+    fn get_next_subaddress_index_for_account(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<u64, AccountServiceError>;
 
     /// Update the name for an account.
     fn update_account_name(
@@ -234,7 +246,7 @@ where
         let first_block_index = network_block_height; // -1 +1
         let import_block_index = local_block_height; // -1 +1
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let (account_id, _public_address_b58) = Account::create_from_mnemonic(
                 &mnemonic,
@@ -290,7 +302,7 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import(
                 &mnemonic,
@@ -330,7 +342,7 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import_legacy(
                 &RootEntropy::from(&entropy_bytes),
@@ -368,7 +380,7 @@ where
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import_view_only(
                 &view_private_key,
@@ -386,7 +398,7 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<JsonRPCRequest, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
 
         if account.view_only {
@@ -400,14 +412,20 @@ where
         let json_command_request = JsonCommandRequest::import_view_only_account {
             view_private_key: ristretto_to_hex(view_private_key),
             spend_public_key: ristretto_public_to_hex(&spend_public_key),
-            name: Some(account.name),
+            name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index(&conn)?.to_string()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
-        let method = src_json.get("method").unwrap().as_str().unwrap();
-        let params = src_json.get("params").unwrap();
+        let method = src_json
+            .get("method")
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?
+            .as_str()
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?;
+        let params = src_json
+            .get("params")
+            .ok_or(AccountServiceError::InvalidJsonRPCRequest)?;
 
         Ok(JsonRPCRequest {
             method: method.to_string(),
@@ -417,14 +435,27 @@ where
         })
     }
 
-    fn list_accounts(&self) -> Result<Vec<Account>, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Account::list_all(&conn)?)
+    fn list_accounts(
+        &self,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, AccountServiceError> {
+        let conn = self.get_conn()?;
+        Ok(Account::list_all(&conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Ok(Account::get(account_id, &conn)?)
+    }
+
+    fn get_next_subaddress_index_for_account(
+        &self,
+        account_id: &AccountID,
+    ) -> Result<u64, AccountServiceError> {
+        let conn = self.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+        Ok(account.next_subaddress_index(&conn)?)
     }
 
     fn update_account_name(
@@ -432,7 +463,7 @@ where
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         Account::get(account_id, &conn)?.update_name(name, &conn)?;
         Ok(Account::get(account_id, &conn)?)
     }
@@ -443,7 +474,7 @@ where
         txo_ids_and_key_images: Vec<(String, String)>,
         next_subaddress_index: u64,
     ) -> Result<(), AccountServiceError> {
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
 
         if !account.view_only {
@@ -458,7 +489,7 @@ where
             Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
         }
 
-        for _ in account.next_subaddress_index..next_subaddress_index as i64 {
+        for _ in account.next_subaddress_index(&conn)?..next_subaddress_index {
             AssignedSubaddress::create_next_for_account(
                 &account_id.to_string(),
                 "Recovered In Account Sync",
@@ -472,7 +503,7 @@ where
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let account = Account::get(account_id, &conn)?;
             account.delete(&conn)?;
@@ -508,7 +539,7 @@ mod tests {
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Create an account.
         let account = service
@@ -533,7 +564,9 @@ mod tests {
         );
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
+            None,
+            None,
             None,
             None,
             None,
@@ -544,12 +577,14 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
-        let account_id = AccountID(account.account_id_hex.clone().to_string());
+        let account_id = AccountID(account.id.clone().to_string());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
         let txos = Txo::list_for_account(
-            &account.account_id_hex,
+            &account.id,
+            None,
+            None,
             None,
             None,
             None,
@@ -586,8 +621,13 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no new
         // blocks.
-        let account_id = AccountID(account.account_id_hex);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        let account_id = AccountID(account.id);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 12);
         assert_eq!(account.next_block_index, 12);
@@ -618,8 +658,13 @@ mod tests {
 
         // Syncing the account does nothing to the block indices since there are no
         // blocks in the ledger.
-        let account_id = AccountID(account.account_id_hex);
-        manually_sync_account(&ledger_db, &service.wallet_db, &account_id, &logger);
+        let account_id = AccountID(account.id);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, 0);
@@ -634,7 +679,8 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
+        let conn = wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -652,7 +698,7 @@ mod tests {
             )
             .unwrap();
 
-        let account_id = AccountID(view_only_account.account_id_hex.clone());
+        let account_id = AccountID(view_only_account.id.clone());
 
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -673,6 +719,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -686,6 +734,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -695,7 +745,7 @@ mod tests {
         assert_eq!(orphaned_txos[0].key_image, None);
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index, 2);
+        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 2);
 
         let key_image_1 = KeyImage::from(rng.next_u64());
         let key_image_2 = KeyImage::from(rng.next_u64());
@@ -718,10 +768,12 @@ mod tests {
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index, 3);
+        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 3);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             None,
@@ -737,6 +789,8 @@ mod tests {
             None,
             None,
             None,
+            None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -745,6 +799,8 @@ mod tests {
 
         let unspent_txos = Txo::list_unspent(
             Some(&account_id.to_string()),
+            None,
+            None,
             None,
             None,
             None,

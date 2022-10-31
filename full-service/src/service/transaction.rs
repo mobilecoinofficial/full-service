@@ -11,24 +11,36 @@ use crate::{
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
+    json_rpc::v2::models::amount::Amount as AmountJSON,
     service::{
-        ledger::LedgerService, transaction_builder::WalletTransactionBuilder, WalletService,
+        ledger::{LedgerService, LedgerServiceError},
+        models::tx_proposal::TxProposal,
+        transaction_builder::WalletTransactionBuilder,
+        WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
+use mc_account_keys::AccountKey;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
-use mc_transaction_core::constants::{MAX_INPUTS, MAX_OUTPUTS};
-
-use crate::{
-    fog_resolver::FullServiceFogResolver,
-    service::address::{AddressService, AddressServiceError},
-    unsigned_tx::UnsignedTx,
+use mc_transaction_core::{
+    constants::{MAX_INPUTS, MAX_OUTPUTS},
+    tokens::Mob,
+    Amount, Token, TokenId,
 };
+use mc_transaction_std::{
+    BurnRedemptionMemo, BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
+    SenderMemoCredential,
+};
+
+use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
 use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
+
+use super::models::tx_proposal::UnsignedTxProposal;
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
@@ -80,6 +92,30 @@ pub enum TransactionServiceError {
 
     /// Ledger DB Error: {0}
     LedgerDB(mc_ledger_db::Error),
+
+    /// Invalid Amount: {0}
+    InvalidAmount(String),
+
+    /// No default fee found for token id: {0}
+    DefaultFeeNotFoundForToken(TokenId),
+
+    /// Error decoding hex string
+    FromHex(hex::FromHexError),
+
+    /// Invalid burn redemption memo: {0}
+    InvalidBurnRedemptionMemo(String),
+
+    /// mc_util_serial decode error: {0}
+    Decode(mc_util_serial::DecodeError),
+
+    /// Tx Builder Error: {0}
+    TxBuilder(mc_transaction_std::TxBuilderError),
+
+    /// Ledger service error: {0}
+    LedgerService(LedgerServiceError),
+
+    /// Key Error: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -136,49 +172,124 @@ impl From<mc_ledger_db::Error> for TransactionServiceError {
     }
 }
 
+impl From<hex::FromHexError> for TransactionServiceError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for TransactionServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
+    }
+}
+
+impl From<mc_transaction_std::TxBuilderError> for TransactionServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for TransactionServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
+impl From<LedgerServiceError> for TransactionServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub enum TransactionMemo {
+    /// Empty Transaction Memo.
+    Empty,
+
+    /// Recoverable Transaction History memo.
+    RTH,
+
+    /// Burn Redemption memo, with an optional 64 byte redemption memo hex
+    /// string.
+    #[serde(with = "BigArray")]
+    BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
+}
+
+impl TransactionMemo {
+    pub fn memo_builder(
+        &self,
+        account_key: Option<AccountKey>,
+    ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
+        match self {
+            Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
+            Self::RTH => {
+                let mut memo_builder = RTHMemoBuilder::default();
+                memo_builder
+                    .set_sender_credential(SenderMemoCredential::from(&account_key.ok_or(
+                        WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts,
+                    )?));
+                memo_builder.enable_destination_memo();
+                Ok(Box::new(memo_builder))
+            }
+            Self::BurnRedemption(memo_data) => {
+                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
+                memo_builder.enable_destination_memo();
+                Ok(Box::new(memo_builder))
+            }
+        }
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
-    fn build_unsigned_transaction(
-        &self,
-        account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError>;
-
-    /// Builds a transaction from the given account to the specified recipients.
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        comment: Option<String>,
+        memo: TransactionMemo,
+    ) -> Result<UnsignedTxProposal, TransactionServiceError>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_and_sign_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
 
-    /// Convenience method that builds and submits in one go.
     #[allow(clippy::too_many_arguments)]
-    fn build_and_submit(
+    fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
@@ -187,86 +298,41 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn build_unsigned_transaction(
-        &self,
-        account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
-        fee: Option<String>,
-        tombstone_block: Option<String>,
-    ) -> Result<(UnsignedTx, FullServiceFogResolver), TransactionServiceError> {
-        validate_number_outputs(addresses_and_values.len() as u64)?;
-
-        let conn = self.wallet_db.get_conn()?;
-        transaction(&conn, || {
-            let mut builder = WalletTransactionBuilder::new(
-                account_id_hex.to_string(),
-                self.ledger_db.clone(),
-                self.fog_resolver_factory.clone(),
-                self.logger.clone(),
-            );
-
-            for (recipient_public_address, value) in addresses_and_values {
-                if !self.verify_address(recipient_public_address)? {
-                    return Err(TransactionServiceError::InvalidPublicAddress(
-                        recipient_public_address.to_string(),
-                    ));
-                };
-                let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
-            }
-
-            if let Some(tombstone) = tombstone_block {
-                builder.set_tombstone(tombstone.parse::<u64>()?)?;
-            } else {
-                builder.set_tombstone(0)?;
-            }
-
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fee(),
-            })?;
-
-            builder.set_block_version(self.get_network_block_version());
-
-            builder.select_txos(&conn, None)?;
-
-            let unsigned_tx = builder.build_unsigned()?;
-            let fog_resolver = builder.get_fs_fog_resolver(&conn)?;
-
-            Ok((unsigned_tx, fog_resolver))
-        })
-    }
-
     fn build_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
-        comment: Option<String>,
-    ) -> Result<TxProposal, TransactionServiceError> {
+        memo: TransactionMemo,
+    ) -> Result<UnsignedTxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
-        validate_number_outputs(addresses_and_values.len() as u64)?;
+        validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         transaction(&conn, || {
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
                 self.fog_resolver_factory.clone(),
-                self.logger.clone(),
             );
 
-            for (recipient_public_address, value) in addresses_and_values {
+            let mut default_fee_token_id = Mob::ID;
+
+            for (recipient_public_address, amount) in addresses_and_amounts {
                 if !self.verify_address(recipient_public_address)? {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
                 };
                 let recipient = b58_decode_public_address(recipient_public_address)?;
-                builder.add_recipient(recipient, value.parse::<u64>()?)?;
+                let amount =
+                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
+                builder.add_recipient(recipient, amount.value, amount.token_id)?;
+                default_fee_token_id = amount.token_id;
             }
 
             if let Some(tombstone) = tombstone_block {
@@ -275,12 +341,21 @@ where
                 builder.set_tombstone(0)?;
             }
 
-            builder.set_fee(match fee {
-                Some(f) => f.parse()?,
-                None => self.get_network_fee(),
-            })?;
+            let fee_token_id = match fee_token_id {
+                Some(t) => TokenId::from(t.parse::<u64>()?),
+                None => default_fee_token_id,
+            };
 
-            builder.set_block_version(self.get_network_block_version());
+            let fee_value = match fee_value {
+                Some(f) => f.parse::<u64>()?,
+                None => *self.get_network_fees()?.get(&fee_token_id).ok_or(
+                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
+                )?,
+            };
+
+            builder.set_fee(fee_value, fee_token_id)?;
+
+            builder.set_block_version(self.get_network_block_version()?);
 
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(&conn, inputs)?;
@@ -293,14 +368,40 @@ where
                 builder.select_txos(&conn, max_spendable)?;
             }
 
-            let tx_proposal = builder.build(&conn)?;
+            let unsigned_tx_proposal = builder.build(memo, &conn)?;
 
-            TransactionLog::log_built(
-                tx_proposal.clone(),
-                comment.unwrap_or_default(),
-                account_id_hex,
-                &conn,
-            )?;
+            Ok(unsigned_tx_proposal)
+        })
+    }
+
+    fn build_and_sign_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
+    ) -> Result<TxProposal, TransactionServiceError> {
+        let unsigned_tx_proposal = self.build_transaction(
+            account_id_hex,
+            addresses_and_amounts,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+            memo,
+        )?;
+        let conn = self.get_conn()?;
+        transaction(&conn, || {
+            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
+
+            TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)
         })
@@ -308,7 +409,7 @@ where
 
     fn submit_transaction(
         &self,
-        tx_proposal: TxProposal,
+        tx_proposal: &TxProposal,
         comment: Option<String>,
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
@@ -325,30 +426,22 @@ where
         let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
         let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        // FIXME: WS-34 - would prefer not to convert to proto as intermediary
-        let tx_proposal_proto = mc_mobilecoind_api::TxProposal::try_from(&tx_proposal)
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
-
-        // Try to submit.
-        let tx = mc_transaction_core::tx::Tx::try_from(tx_proposal_proto.get_tx())
-            .map_err(|_| TransactionServiceError::ProtoConversionInfallible)?;
-
         let block_index = self
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
+            .propose_tx(&tx_proposal.tx, empty())
             .map_err(TransactionServiceError::from)?;
 
         log::trace!(
             self.logger,
             "Tx {:?} submitted at block height {}",
-            tx,
+            tx_proposal.tx,
             block_index
         );
 
         if let Some(account_id_hex) = account_id_hex {
-            let conn = self.wallet_db.get_conn()?;
+            let conn = self.get_conn()?;
             let account_id = AccountID(account_id_hex.to_string());
 
             transaction(&conn, || {
@@ -376,31 +469,33 @@ where
         }
     }
 
-    fn build_and_submit(
+    fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
-        addresses_and_values: &[(String, String)],
+        addresses_and_amounts: &[(String, AmountJSON)],
         input_txo_ids: Option<&Vec<String>>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        memo: TransactionMemo,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        let tx_proposal = self.build_transaction(
+        let tx_proposal = self.build_and_sign_transaction(
             account_id_hex,
-            addresses_and_values,
+            addresses_and_amounts,
             input_txo_ids,
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             max_spendable_value,
-            comment.clone(),
+            memo,
         )?;
-        if let Some(transaction_log_and_associated_txos) = self.submit_transaction(
-            tx_proposal.clone(),
-            comment,
-            Some(account_id_hex.to_string()),
-        )? {
+
+        if let Some(transaction_log_and_associated_txos) =
+            self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
+        {
             Ok((
                 transaction_log_and_associated_txos.0,
                 transaction_log_and_associated_txos.1,
@@ -443,8 +538,8 @@ mod tests {
             transaction_log::TransactionLogService,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -476,10 +571,10 @@ mod tests {
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
@@ -492,19 +587,25 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(0, tx_logs.len());
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Add an account for Bob
         let bob = service
@@ -521,81 +622,84 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
+            .build_and_sign_transaction(
+                &alice.id,
                 &[(
-                    bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    bob_address_from_alice.public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
                 None,
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(1, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_2 = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
+            .build_and_sign_transaction(
+                &alice.id,
                 &[(
-                    bob_address_from_alice_2.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    bob_address_from_alice_2.public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
                 None,
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(2, tx_logs.len());
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
+            .build_and_sign_transaction(
+                &alice.id,
                 &[(
-                    bob_address_from_alice_3.clone().assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    bob_address_from_alice_3.clone().public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
                 None,
                 None,
                 None,
                 None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
         let tx_logs = service
-            .list_transaction_logs(&alice_account_id, None, None, None, None)
+            .list_transaction_logs(Some(alice_account_id.to_string()), None, None, None, None)
             .unwrap();
 
         assert_eq!(3, tx_logs.len());
@@ -624,7 +728,7 @@ mod tests {
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -633,13 +737,19 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Add an account for Bob
         let bob = service
@@ -656,22 +766,24 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice = service
-            .assign_address_for_account(&AccountID(bob.account_id_hex.clone()), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         // Send a transaction from Alice to Bob
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
-            .build_and_submit(
-                &alice.account_id_hex,
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &alice.id,
                 &[(
-                    bob_address_from_alice.assigned_subaddress_b58,
-                    (42 * MOB).to_string(),
+                    bob_address_from_alice.public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
                 None,
                 None,
                 None,
                 None,
+                None,
+                TransactionMemo::RTH,
             )
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
@@ -681,21 +793,45 @@ mod tests {
         // workaround.
         {
             log::info!(logger, "Adding block from transaction log");
-            let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
-            .get_associated_txos(&service.wallet_db.get_conn().unwrap())
+            .get_associated_txos(&service.get_conn().unwrap())
             .unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -703,7 +839,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -711,36 +847,40 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.wallet_db.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);
 
         // Verify balance for Alice = original balance - fee - txo_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
-        assert_eq!(balance.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
         let bob_balance = service
-            .get_balance_for_account(&AccountID(bob.account_id_hex.clone()))
+            .get_balance_for_account(&AccountID(bob.id.clone()))
             .unwrap();
-        assert_eq!(bob_balance.unspent, 42000000000000);
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 
         // Bob should now be able to send to Alice
-        let (transaction_log, _associated_txos, _value_map, _tx_proposal) = service
-            .build_and_submit(
-                &bob.account_id_hex,
+        let (_, _, _, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &bob.id,
                 &[(
                     b58_encode_public_address(&alice_public_address).unwrap(),
-                    (8 * MOB).to_string(),
+                    AmountJSON::new(8 * MOB, Mob::ID),
                 )],
                 None,
                 None,
                 None,
                 None,
                 None,
+                None,
+                TransactionMemo::RTH,
             )
             .unwrap();
 
@@ -749,24 +889,54 @@ mod tests {
         // workaround.
 
         {
-            log::info!(logger, "Adding block from transaction log");
-            let conn = service.wallet_db.get_conn().unwrap();
-            add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log);
+            log::info!(logger, "Adding block from transaction proposal");
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
         }
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
-        manually_sync_account(&ledger_db, &service.wallet_db, &bob_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
 
         let alice_balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
-        assert_eq!(alice_balance.unspent, (66 * MOB - Mob::MINIMUM_FEE) as u128);
+        let alice_balance_pmob = alice_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            alice_balance_pmob.unspent,
+            (66 * MOB - Mob::MINIMUM_FEE) as u128
+        );
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service
-            .get_balance_for_account(&AccountID(bob.account_id_hex))
-            .unwrap();
-        assert_eq!(bob_balance.unspent, (34 * MOB - Mob::MINIMUM_FEE) as u128);
+        let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            bob_balance_pmob.unspent,
+            (34 * MOB - Mob::MINIMUM_FEE) as u128
+        );
     }
 
     // Building a transaction for an invalid public address should fail.
@@ -792,7 +962,7 @@ mod tests {
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -801,16 +971,22 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
-        match service.build_transaction(
-            &alice.account_id_hex,
-            &vec![("NOTB58".to_string(), (42 * MOB).to_string())],
+        match service.build_and_sign_transaction(
+            &alice.id,
+            &vec![("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
             None,
             None,
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
@@ -842,7 +1018,7 @@ mod tests {
         // Add a block with a transaction for Alice
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -851,24 +1027,30 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // test ouputs
         let mut outputs = Vec::new();
         for _ in 0..17 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
+                AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_transaction(
-            &alice.account_id_hex,
+        match service.build_and_sign_transaction(
+            &alice.id,
             &outputs,
             None,
             None,
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
@@ -884,21 +1066,22 @@ mod tests {
         for _ in 0..2 {
             outputs.push((
                 b58_encode_public_address(&alice_public_address).unwrap(),
-                (42 * MOB).to_string(),
+                AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
         let mut inputs = Vec::new();
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_transaction(
-            &alice.account_id_hex,
+        match service.build_and_sign_transaction(
+            &alice.id,
             &outputs,
             Some(&inputs),
             None,
             None,
             None,
             None,
+            TransactionMemo::RTH,
         ) {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")

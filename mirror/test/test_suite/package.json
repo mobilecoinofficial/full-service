@@ -1,0 +1,14 @@
+{
+  "name": "test_suite",
+  "version": "1.0.0",
+  "description": "run tests for lvn",
+  "main": "test_script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "test_lib": "file:../test_lib"
+  }
+}

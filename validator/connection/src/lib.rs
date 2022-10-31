@@ -4,16 +4,16 @@
 
 mod error;
 
-use grpcio::{ChannelBuilder, EnvBuilder};
+use grpcio::{CallOption, ChannelBuilder, EnvBuilder, MetadataBuilder};
 use mc_blockchain_types::{Block, BlockData, BlockID, BlockIndex};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockInfo, BlockchainConnection, Connection, Error as ConnectionError,
     Result as ConnectionResult, UserTxConnection,
 };
-use mc_fog_report_validation::FogReportResponses;
+use mc_fog_report_types::FogReportResponses;
 use mc_transaction_core::tx::Tx;
-use mc_util_grpc::ConnectionUriGrpcioChannel;
+use mc_util_grpc::{ConnectionUriGrpcioChannel, CHAIN_ID_GRPC_HEADER};
 use mc_util_uri::{ConnectionUri, FogUri};
 use mc_validator_api::{
     blockchain::ArchiveBlock,
@@ -36,16 +36,33 @@ use std::{
 
 pub use error::Error;
 
+/// Helper which creates a grpcio CallOption with "common" headers attached
+/// TODO copied from `mobilecoin/util/grpc/src/lib.rs`, should be removed
+/// once upreved.
+pub fn common_headers_call_option(chain_id: &str) -> CallOption {
+    let mut metadata_builder = MetadataBuilder::new();
+
+    // Add the chain id header if we have a chain id specified
+    if !chain_id.is_empty() {
+        metadata_builder
+            .add_str(CHAIN_ID_GRPC_HEADER, chain_id)
+            .expect("Could not add chain-id header");
+    }
+
+    CallOption::default().headers(metadata_builder.build())
+}
+
 #[derive(Clone)]
 pub struct ValidatorConnection {
     uri: ValidatorUri,
     validator_api_client: ValidatorApiClient,
     blockchain_api_client: BlockchainApiClient,
+    chain_id: String,
     logger: Logger,
 }
 
 impl ValidatorConnection {
-    pub fn new(uri: &ValidatorUri, logger: Logger) -> Self {
+    pub fn new(uri: &ValidatorUri, chain_id: String, logger: Logger) -> Self {
         let env = Arc::new(EnvBuilder::new().name_prefix("ValidatorRPC").build());
         let ch = ChannelBuilder::new(env)
             .max_receive_message_len(std::i32::MAX)
@@ -59,6 +76,7 @@ impl ValidatorConnection {
             uri: uri.clone(),
             validator_api_client,
             blockchain_api_client,
+            chain_id,
             logger,
         }
     }
@@ -70,7 +88,7 @@ impl ValidatorConnection {
 
         let response = self
             .validator_api_client
-            .get_archive_blocks(&request)
+            .get_archive_blocks_opt(&request, common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -101,7 +119,7 @@ impl ValidatorConnection {
 
         let response = self
             .validator_api_client
-            .fetch_fog_report(&request)
+            .fetch_fog_report_opt(&request, common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -201,7 +219,7 @@ impl BlockchainConnection for ValidatorConnection {
     fn fetch_block_height(&mut self) -> ConnectionResult<BlockIndex> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info(&Empty::new())
+            .get_last_block_info_opt(&Empty::new(), common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -217,7 +235,7 @@ impl BlockchainConnection for ValidatorConnection {
     fn fetch_block_info(&mut self) -> ConnectionResult<BlockInfo> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info(&Empty::new())
+            .get_last_block_info_opt(&Empty::new(), common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -234,7 +252,7 @@ impl UserTxConnection for ValidatorConnection {
     fn propose_tx(&mut self, tx: &Tx) -> ConnectionResult<u64> {
         let response = self
             .validator_api_client
-            .propose_tx(&tx.into())
+            .propose_tx_opt(&tx.into(), common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(self.logger, "validator propose_tx RPC call failed: {}", err);
                 err
@@ -242,7 +260,10 @@ impl UserTxConnection for ValidatorConnection {
         if response.get_result() == ProposeTxResult::Ok {
             Ok(response.get_block_count())
         } else {
-            Err(response.get_result().into())
+            Err(ConnectionError::TransactionValidation(
+                response.get_result(),
+                response.get_err_msg().to_owned(),
+            ))
         }
     }
 }

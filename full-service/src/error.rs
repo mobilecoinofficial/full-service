@@ -301,11 +301,29 @@ pub enum WalletTransactionBuilderError {
     /// Error with the b58 util: {0}
     B58(B58Error),
 
-    /// Error passed up from AmountError
+    /// Error passed up from AmountError: {0}
     AmountError(mc_transaction_core::AmountError),
 
-    /// Error passed up from KeyError
+    /// Error passed up from KeyError: {0}
     KeyError(mc_crypto_keys::KeyError),
+
+    /// Transaction is missing inputs for outputs with token id {0}
+    MissingInputsForTokenId(String),
+
+    /// Error decoding the hex string: {0}
+    FromHexError(hex::FromHexError),
+
+    /// Burn Redemption Memo must be exactly 128 characters (64 bytes) long: {0}
+    InvalidBurnRedemptionMemo(String),
+
+    /// Error converting a TxOut: {0}
+    TxOutConversion(mc_transaction_core::TxOutConversionError),
+
+    /// RTH is currently unavailable for view only accounts.
+    RTHUnavailableForViewOnlyAccounts,
+
+    /// Cannot use orphaned txo as an input: {0}
+    CannotUseOrphanedTxoAsInput(String),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
@@ -359,5 +377,17 @@ impl From<mc_util_uri::UriParseError> for WalletTransactionBuilderError {
 impl From<B58Error> for WalletTransactionBuilderError {
     fn from(src: B58Error) -> Self {
         Self::B58(src)
+    }
+}
+
+impl From<hex::FromHexError> for WalletTransactionBuilderError {
+    fn from(src: hex::FromHexError) -> Self {
+        Self::FromHexError(src)
+    }
+}
+
+impl From<mc_transaction_core::TxOutConversionError> for WalletTransactionBuilderError {
+    fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
+        Self::TxOutConversion(src)
     }
 }

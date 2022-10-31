@@ -4,6 +4,8 @@ cargo-features = ["resolver"]
 resolver = "2"
 members = [
     "full-service",
+    "mirror",
+    "transaction-signer",
     "validator/api",
     "validator/connection",
     "validator/service",
@@ -39,9 +41,6 @@ ed25519-dalek = { git = "https://github.com/mobilecoinfoundation/ed25519-dalek.g
 mbedtls = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "49a293a5f4b1ef571c71174e3fa1f301925f3915" }
 mbedtls-sys-auto = { git = "https://github.com/mobilecoinofficial/rust-mbedtls.git", rev = "49a293a5f4b1ef571c71174e3fa1f301925f3915" }
 
-# packed_simd_2 has unreleased fixes for build issues we're experiencing
-packed_simd_2 = { git = "https://github.com/rust-lang/packed_simd.git", rev = "f60e900f4ceb71303baa37ff8b41ee7d490c01bf" }
-
 # Override lmdb-rkv for a necessary bugfix (see https://github.com/mozilla/lmdb-rs/pull/80)
 lmdb-rkv = { git = "https://github.com/mozilla/lmdb-rs", rev = "df1c2f5" }
 
@@ -58,4 +57,5 @@ x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git
 
 # Override diesel dependency with our fork, in order to use a version of libsqlite3-sys that has bundled-sqlcipher. This allows us to
 # statically link SQLite.
+# If updating here, also update in README
 diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "026f6379715d27c8be48396e5ca9059f4a263198" }
