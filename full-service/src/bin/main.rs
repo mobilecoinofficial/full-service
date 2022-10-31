@@ -9,7 +9,7 @@ use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
-use mc_fog_report_validation::FogResolver;
+use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
     config::APIConfig,
@@ -61,29 +61,28 @@ fn main() {
             .port(config.listen_port)
             .unwrap();
 
-    // Connect to the database and run the migrations
-    let conn =
-        SqliteConnection::establish(config.wallet_db.to_str().unwrap()).unwrap_or_else(|err| {
-            eprintln!("Cannot open database {:?}: {:?}", config.wallet_db, err);
-            exit(EXIT_NO_DATABASE_CONNECTION);
-        });
-    WalletDb::set_db_encryption_key_from_env(&conn);
-    WalletDb::try_change_db_encryption_key_from_env(&conn);
-    if !WalletDb::check_database_connectivity(&conn) {
-        eprintln!("Incorrect password for database {:?}.", config.wallet_db);
-        exit(EXIT_WRONG_PASSWORD);
-    };
-    WalletDb::run_migrations(&conn);
-    log::info!(logger, "Connected to database.");
+    let wallet_db = match config.wallet_db {
+        Some(ref wallet_db_path_buf) => {
+            let wallet_db_path = wallet_db_path_buf.to_str().unwrap();
+            // Connect to the database and run the migrations
+            let conn = SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
+                eprintln!("Cannot open database {:?}: {:?}", wallet_db_path, err);
+                exit(EXIT_NO_DATABASE_CONNECTION);
+            });
+            WalletDb::set_db_encryption_key_from_env(&conn);
+            WalletDb::try_change_db_encryption_key_from_env(&conn);
+            if !WalletDb::check_database_connectivity(&conn) {
+                eprintln!("Incorrect password for database {:?}.", wallet_db_path);
+                exit(EXIT_WRONG_PASSWORD);
+            };
+            WalletDb::run_migrations(&conn);
+            WalletDb::run_proto_conversions_if_necessary(&conn);
+            log::info!(logger, "Connected to database.");
 
-    let wallet_db = WalletDb::new_from_url(
-        config
-            .wallet_db
-            .to_str()
-            .expect("Could not get wallet_db path"),
-        10,
-    )
-    .expect("Could not access wallet db");
+            Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))
+        }
+        None => None,
+    };
 
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
@@ -95,14 +94,15 @@ fn main() {
 
 fn consensus_backed_full_service(
     config: &APIConfig,
-    wallet_db: WalletDb,
+    wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
 ) {
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
-    mr_signer_verifier.allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+    mr_signer_verifier
+        .allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
 
     let mut verifier = Verifier::default();
     verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);
@@ -173,11 +173,15 @@ fn consensus_backed_full_service(
 fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
-    wallet_db: WalletDb,
+    wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
 ) {
-    let validator_conn = ValidatorConnection::new(validator_uri, logger.clone());
+    let validator_conn = ValidatorConnection::new(
+        validator_uri,
+        config.peers_config.chain_id.clone(),
+        logger.clone(),
+    );
 
     // Create the ledger_db.
     let ledger_db = config.ledger_db_config.create_or_open_ledger_db(
@@ -211,6 +215,7 @@ fn validator_backed_full_service(
     // Create the ledger sync thread.
     let _ledger_sync_thread = ValidatorLedgerSyncThread::new(
         validator_uri,
+        config.peers_config.chain_id.clone(),
         config.poll_interval,
         ledger_db.clone(),
         network_state.clone(),

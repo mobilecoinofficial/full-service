@@ -4,19 +4,24 @@
 
 use crate::{
     db::{
-        account::AccountID,
+        account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{AssignedSubaddress, Txo},
-        txo::{TxoID, TxoModel},
+        models::{Account, AssignedSubaddress, Txo},
+        txo::{TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
-    service::transaction::{TransactionService, TransactionServiceError},
+    error::WalletTransactionBuilderError,
+    json_rpc::v2::models::amount::Amount,
+    service::{
+        models::tx_proposal::TxProposal,
+        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
+    },
     WalletService,
 };
 use displaydoc::Display;
+use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_mobilecoind::payments::TxProposal;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -42,6 +47,24 @@ pub enum TxoServiceError {
 
     /// Txo Not Spendable
     TxoNotSpendable(String),
+
+    /// Must query with either an account ID or a subaddress b58.
+    InvalidQuery(String),
+
+    /// Error decoding
+    Decode(mc_util_serial::DecodeError),
+
+    /// Wallet Transaction Builder Error: {0}
+    WalletTransactionBuilder(WalletTransactionBuilderError),
+
+    /// Key Error
+    Key(mc_crypto_keys::KeyError),
+
+    /// From String Error: {0}
+    From(String),
+
+    /// TxBuilderError: {0}
+    TxBuilder(mc_transaction_std::TxBuilderError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -68,27 +91,55 @@ impl From<TransactionServiceError> for TxoServiceError {
     }
 }
 
+impl From<mc_util_serial::DecodeError> for TxoServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
+    }
+}
+
+impl From<WalletTransactionBuilderError> for TxoServiceError {
+    fn from(src: WalletTransactionBuilderError) -> Self {
+        Self::WalletTransactionBuilder(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for TxoServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
+impl From<String> for TxoServiceError {
+    fn from(src: String) -> Self {
+        Self::From(src)
+    }
+}
+
+impl From<mc_transaction_std::TxBuilderError> for TxoServiceError {
+    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+        Self::TxBuilder(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// Txos.
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
+    #[allow(clippy::too_many_arguments)]
     fn list_txos(
         &self,
-        account_id: &AccountID,
-        status: Option<String>,
-        limit: Option<u64>,
+        account_id: Option<String>,
+        address: Option<String>,
+        status: Option<TxoStatus>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
-    ) -> Result<Vec<Txo>, TxoServiceError>;
-
-    /// List txos for a given account in the wallet that have a subaddress index
-    /// but not a key image, meaning we cannot verify their spendability.
-    fn list_unverified_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
-
-    /// list all spent txos
-    fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError>;
+        limit: Option<u64>,
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
-    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError>;
+    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError>;
 
     /// Split a Txo
     fn split_txo(
@@ -96,12 +147,10 @@ pub trait TxoService {
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError>;
-
-    /// List the Txos for a given address for an account in the wallet.
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError>;
 }
 
 impl<T, FPR> TxoService for WalletService<T, FPR>
@@ -111,42 +160,69 @@ where
 {
     fn list_txos(
         &self,
-        account_id: &AccountID,
-        status: Option<String>,
-        limit: Option<u64>,
+        account_id: Option<String>,
+        address: Option<String>,
+        status: Option<TxoStatus>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
         offset: Option<u64>,
-    ) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_for_account(
-            &account_id.to_string(),
-            status,
-            limit,
-            offset,
-            Some(0),
-            &conn,
-        )?)
+        limit: Option<u64>,
+    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
+        let conn = &self.get_conn()?;
+
+        let txos;
+
+        if let Some(address) = address {
+            txos = Txo::list_for_address(
+                &address,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        } else if let Some(account_id) = account_id {
+            txos = Txo::list_for_account(
+                &account_id,
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        } else {
+            txos = Txo::list(
+                status,
+                min_received_block_index,
+                max_received_block_index,
+                offset,
+                limit,
+                token_id,
+                conn,
+            )?;
+        }
+
+        let txos_and_statuses = txos
+            .into_iter()
+            .map(|txo| {
+                let status = txo.status(conn)?;
+                Ok((txo, status))
+            })
+            .collect::<Result<Vec<(Txo, TxoStatus)>, TxoServiceError>>()?;
+
+        Ok(txos_and_statuses)
     }
 
-    fn list_unverified_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_unverified(&account_id.to_string(), None, &conn)?)
-    }
-
-    fn list_spent_txos(&self, account_id: &AccountID) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_spent(
-            &account_id.to_string(),
-            None,
-            Some(0),
-            None,
-            None,
-            &conn,
-        )?)
-    }
-
-    fn get_txo(&self, txo_id: &TxoID) -> Result<Txo, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::get(&txo_id.to_string(), &conn)?)
+    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
+        let conn = self.get_conn()?;
+        let txo = Txo::get(&txo_id.to_string(), &conn)?;
+        let status = txo.status(&conn)?;
+        Ok((txo, status))
     }
 
     fn split_txo(
@@ -154,17 +230,18 @@ where
         txo_id: &TxoID,
         output_values: &[String],
         subaddress_index: Option<i64>,
-        fee: Option<String>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
         tombstone_block: Option<String>,
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = self.wallet_db.get_conn()?;
+        let conn = self.get_conn()?;
         let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
 
         let account_id_hex = txo_details
-            .received_account_id_hex
-            .ok_or(TxoNotSpendableByAnyAccount(txo_details.txo_id_hex))?;
+            .account_id
+            .ok_or(TxoNotSpendableByAnyAccount(txo_details.id))?;
 
         let address_to_split_into: AssignedSubaddress =
             AssignedSubaddress::get_for_account_by_index(
@@ -173,28 +250,31 @@ where
                 &conn,
             )?;
 
-        let mut addresses_and_values = Vec::new();
+        let mut addresses_and_amounts = Vec::new();
         for output_value in output_values.iter() {
-            addresses_and_values.push((
-                address_to_split_into.assigned_subaddress_b58.clone(),
-                output_value.to_string(),
+            addresses_and_amounts.push((
+                address_to_split_into.public_address_b58.clone(),
+                Amount {
+                    value: output_value.to_string(),
+                    token_id: txo_details.token_id.to_string(),
+                },
             ))
         }
 
-        Ok(self.build_transaction(
+        let unsigned_transaction = self.build_transaction(
             &account_id_hex,
-            &addresses_and_values,
+            &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
-            fee,
+            fee_value,
+            fee_token_id,
             tombstone_block,
             None,
-            None,
-        )?)
-    }
+            TransactionMemo::RTH,
+        )?;
 
-    fn get_all_txos_for_address(&self, address: &str) -> Result<Vec<Txo>, TxoServiceError> {
-        let conn = self.wallet_db.get_conn()?;
-        Ok(Txo::list_for_address(address, Some(0), &conn)?)
+        let account = Account::get(&AccountID(account_id_hex), &conn)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        Ok(unsigned_transaction.sign(&account_key)?)
     }
 }
 
@@ -202,6 +282,7 @@ where
 mod tests {
     use super::*;
     use crate::{
+        db::account::AccountID,
         service::{
             account::AccountService, balance::BalanceService, transaction::TransactionService,
         },
@@ -212,14 +293,10 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::{
-        logger::{test_with_logger, Logger},
-        HashSet,
-    };
+    use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
-    use std::iter::FromIterator;
 
     #[test_with_logger]
     fn test_txo_lifecycle(logger: Logger) {
@@ -242,7 +319,7 @@ mod tests {
         // Add a block with a txo for this address
         let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
         let alice_account_id = AccountID::from(&alice_account_key);
-        let alice_public_address = alice_account_key.subaddress(alice.main_subaddress_index as u64);
+        let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
@@ -251,16 +328,31 @@ mod tests {
             &mut rng,
         );
 
-        manually_sync_account(&ledger_db, &service.wallet_db, &alice_account_id, &logger);
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
 
         // Verify balance for Alice
         let balance = service.get_balance_for_account(&alice_account_id).unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
 
-        assert_eq!(balance.unspent, 100 * MOB as u128);
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
 
         // Verify that we have 1 txo
         let txos = service
-            .list_txos(&alice_account_id, None, None, None)
+            .list_txos(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(txos.len(), 1);
 
@@ -277,15 +369,29 @@ mod tests {
         // Construct a new transaction to Bob
         let bob_account_key: AccountKey = mc_util_serial::decode(&bob.account_key).unwrap();
         let tx_proposal = service
-            .build_transaction(
-                &alice.account_id_hex,
+            .build_and_sign_transaction(
+                &alice.id,
                 &vec![(
-                    b58_encode_public_address(
-                        &bob_account_key.subaddress(bob.main_subaddress_index as u64),
-                    )
-                    .unwrap(),
-                    "42000000000000".to_string(),
+                    b58_encode_public_address(&bob_account_key.default_subaddress()).unwrap(),
+                    Amount::new(42 * MOB, Mob::ID),
                 )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH,
+            )
+            .unwrap();
+        let _submitted = service
+            .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
+            .unwrap();
+
+        let pending: Vec<(Txo, TxoStatus)> = service
+            .list_txos(
+                Some(alice.id.clone()),
+                None,
+                Some(TxoStatus::Pending),
                 None,
                 None,
                 None,
@@ -293,54 +399,19 @@ mod tests {
                 None,
             )
             .unwrap();
-        let _submitted = service
-            .submit_transaction(tx_proposal, None, Some(alice.account_id_hex.clone()))
-            .unwrap();
-
-        // We should now have 3 txos - one pending, two minted (one of which will be
-        // change)
-        let txos = service
-            .list_txos(&AccountID(alice.account_id_hex.clone()), None, None, None)
-            .unwrap();
-        assert_eq!(txos.len(), 3);
-        assert_eq!(
-            txos[0].received_account_id_hex,
-            Some(alice.account_id_hex.clone())
-        );
-        assert_eq!(
-            txos[1].minted_account_id_hex,
-            Some(alice.account_id_hex.clone())
-        );
-        assert_eq!(
-            txos[2].minted_account_id_hex,
-            Some(alice.account_id_hex.clone())
-        );
-        let pending: Vec<Txo> = txos
-            .iter()
-            .cloned()
-            .filter(|txo| txo.received_account_id_hex == Some(alice.account_id_hex.clone()))
-            .collect();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].value, 100000000000000);
-
-        let minted: Vec<Txo> = txos
-            .iter()
-            .cloned()
-            .filter(|txo| txo.minted_account_id_hex.is_some())
-            .collect();
-        assert_eq!(minted.len(), 2);
-        let minted_value_set = HashSet::from_iter(minted.iter().map(|m| m.value as u64));
-        assert!(minted_value_set.contains(&(58 * MOB - Mob::MINIMUM_FEE)));
-        assert!(minted_value_set.contains(&(42 * MOB)));
+        assert_eq!(pending[0].0.value, 100000000000000);
 
         // Our balance should reflect the various statuses of our txos
         let balance = service
-            .get_balance_for_account(&AccountID(alice.account_id_hex))
+            .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
-        assert_eq!(balance.unspent, 0);
-        assert_eq!(balance.pending, 100 * MOB as u128);
-        assert_eq!(balance.spent, 0);
-        assert_eq!(balance.secreted, (100 * MOB - Mob::MINIMUM_FEE) as u128);
-        assert_eq!(balance.orphaned, 0);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+
+        assert_eq!(balance_pmob.unverified, 0);
+        assert_eq!(balance_pmob.unspent, 0);
+        assert_eq!(balance_pmob.pending, 100 * MOB as u128);
+        assert_eq!(balance_pmob.spent, 0);
+        assert_eq!(balance_pmob.orphaned, 0);
     }
 }

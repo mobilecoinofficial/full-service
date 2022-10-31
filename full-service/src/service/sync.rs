@@ -13,7 +13,6 @@ use crate::{
         Conn, WalletDb,
     },
     error::SyncError,
-    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
@@ -26,14 +25,13 @@ use mc_transaction_core::{
     get_tx_out_shared_secret,
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
-    tokens::Mob,
     tx::TxOut,
-    Amount, Token,
+    Amount,
 };
 use rayon::prelude::*;
 
 use std::{
-    convert::TryFrom,
+    convert::{TryFrom, TryInto},
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -118,7 +116,7 @@ pub fn sync_all_accounts(
         let conn = &wallet_db
             .get_conn()
             .expect("Could not get connection to DB");
-        Account::list_all(conn).expect("Failed getting accounts from database")
+        Account::list_all(conn, None, None).expect("Failed getting accounts from database")
     };
 
     for account in accounts {
@@ -126,7 +124,7 @@ pub fn sync_all_accounts(
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, wallet_db, &account.account_id_hex, logger)?;
+        sync_account(ledger_db, wallet_db, &account.id, logger)?;
     }
 
     Ok(())
@@ -167,9 +165,10 @@ fn sync_account_next_chunk(
 
         // Load subaddresses for this account into a hash map.
         let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> = AssignedSubaddress::list_all(account_id_hex, None, None, conn)?;
+        let subaddresses: Vec<_> =
+            AssignedSubaddress::list_all(Some(account_id_hex.to_string()), None, None, conn)?;
         for s in subaddresses {
-            let subaddress_key = mc_util_serial::decode(s.subaddress_spend_key.as_slice())?;
+            let subaddress_key: RistrettoPublic = s.spend_public_key.as_slice().try_into()?;
             subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
         }
 
@@ -234,7 +233,7 @@ fn sync_account_next_chunk(
 
             // Write received transactions to the database.
             for (block_index, tx_out, amount, subaddress_index) in received_txos {
-                let txo_id = Txo::create_received(
+                Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
                     None,
@@ -243,26 +242,6 @@ fn sync_account_next_chunk(
                     account_id_hex,
                     conn,
                 )?;
-
-                let assigned_subaddress_b58: Option<String> = match subaddress_index {
-                    None => None,
-                    Some(subaddress_index) => {
-                        let subaddress = view_account_key.subaddress(subaddress_index);
-                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-                        Some(subaddress_b58)
-                    }
-                };
-
-                if amount.token_id == Mob::ID {
-                    TransactionLog::log_received(
-                        account_id_hex,
-                        assigned_subaddress_b58.as_deref(),
-                        txo_id.as_str(),
-                        amount,
-                        block_index as u64,
-                        conn,
-                    )?;
-                }
             }
 
             // Match key images to mark existing unspent transactions as spent.
@@ -278,26 +257,15 @@ fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
-                TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
+                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
                     conn,
                 )?;
             }
 
-            let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
-                account_id_hex,
-                end_block_index + 1,
-                None,
-                conn,
-            )?;
-            TransactionLog::update_tx_logs_associated_with_txos_to_failed(
-                &txos_exceeding_pending_block_index,
-                conn,
-            )?;
-
-            Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index + 1,
                 conn,
             )?;
@@ -347,7 +315,7 @@ fn sync_account_next_chunk(
 
             // Write received transactions to the database.
             for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
-                let txo_id = Txo::create_received(
+                Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
                     key_image,
@@ -356,26 +324,6 @@ fn sync_account_next_chunk(
                     account_id_hex,
                     conn,
                 )?;
-
-                let assigned_subaddress_b58: Option<String> = match subaddress_index {
-                    None => None,
-                    Some(subaddress_index) => {
-                        let subaddress = account_key.subaddress(subaddress_index);
-                        let subaddress_b58 = b58_encode_public_address(&subaddress)?;
-                        Some(subaddress_b58)
-                    }
-                };
-
-                if amount.token_id == Mob::ID {
-                    TransactionLog::log_received(
-                        account_id_hex,
-                        assigned_subaddress_b58.as_deref(),
-                        txo_id.as_str(),
-                        amount,
-                        block_index as u64,
-                        conn,
-                    )?;
-                }
             }
 
             // Match key images to mark existing unspent transactions as spent.
@@ -391,26 +339,15 @@ fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_to_spent(txo_id_hex, *block_index as u64, conn)?;
-                TransactionLog::update_tx_logs_associated_with_txo_to_succeeded(
+                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
                     conn,
                 )?;
             }
 
-            let txos_exceeding_pending_block_index = Txo::list_pending_exceeding_block_index(
-                account_id_hex,
-                end_block_index + 1,
-                None,
-                conn,
-            )?;
-            TransactionLog::update_tx_logs_associated_with_txos_to_failed(
-                &txos_exceeding_pending_block_index,
-                conn,
-            )?;
-
-            Txo::update_txos_exceeding_pending_tombstone_block_index_to_unspent(
+            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index + 1,
                 conn,
             )?;
@@ -452,7 +389,7 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
         Ok(k) => k,
     };
     let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
-    match tx_out.masked_amount.get_value(&shared_secret) {
+    match tx_out.get_masked_amount().ok()?.get_value(&shared_secret) {
         Ok((a, _)) => Some(a),
         Err(_) => None,
     }
@@ -471,6 +408,7 @@ pub fn decode_subaddress_index(
         Ok(k) => k,
         Err(_) => return None,
     };
+
     let subaddress_spk: RistrettoPublic =
         recover_public_subaddress_spend_key(view_private_key, &tx_out_target_key, &tx_public_key);
     subaddress_keys.get(&subaddress_spk).copied()
@@ -519,6 +457,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_transaction_core::{tokens::Mob, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -560,7 +499,7 @@ mod tests {
         );
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
-        let wallet_db = &service.wallet_db;
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Import the account
         let _account = service
@@ -585,11 +524,20 @@ mod tests {
         // There should now be 16 txos. Let's get each one and verify the amount
         let expected_value = 15_625_000 * MOB;
 
-        let txos = service
-            .list_txos(&AccountID::from(&account_key), None, None, None)
+        let txos_and_statuses = service
+            .list_txos(
+                Some(AccountID::from(&account_key).to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .unwrap();
 
-        for txo in txos {
+        for (txo, _) in txos_and_statuses {
             assert_eq!(txo.value as u64, expected_value);
         }
 
@@ -597,7 +545,8 @@ mod tests {
         let balance = service
             .get_balance_for_account(&AccountID::from(&account_key))
             .expect("Could not get balance");
-        assert_eq!(balance.unspent, 250_000_000 * MOB as u128);
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 250_000_000 * MOB as u128);
     }
 
     // #[test_with_logger]
@@ -625,7 +574,8 @@ mod tests {
     //     );
 
     //     let service = setup_wallet_service(ledger_db.clone(),
-    // logger.clone());     let wallet_db = &service.wallet_db;
+    // logger.clone());     let wallet_db =
+    // &service.wallet_db.as_ref().unwrap();
 
     //     // create view only account
     //     let account = service

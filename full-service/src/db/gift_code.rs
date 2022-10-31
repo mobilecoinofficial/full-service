@@ -44,7 +44,11 @@ pub trait GiftCodeModel {
     fn get(gift_code_b58: &EncodedGiftCode, conn: &Conn) -> Result<GiftCode, WalletDbError>;
 
     /// Get all Gift Codes in this wallet.
-    fn list_all(conn: &Conn) -> Result<Vec<GiftCode>, WalletDbError>;
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<GiftCode>, WalletDbError>;
 
     /// Delete a gift code.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
@@ -87,12 +91,20 @@ impl GiftCodeModel for GiftCode {
         }
     }
 
-    fn list_all(conn: &Conn) -> Result<Vec<GiftCode>, WalletDbError> {
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<GiftCode>, WalletDbError> {
         use crate::db::schema::gift_codes;
 
-        Ok(gift_codes::table
-            .select(gift_codes::all_columns)
-            .load::<GiftCode>(conn)?)
+        let mut query = gift_codes::table.into_boxed();
+
+        if let (Some(offset), Some(limit)) = (offset, limit) {
+            query = query.offset(offset as i64).limit(limit as i64);
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
@@ -159,7 +171,8 @@ mod tests {
         };
         assert_eq!(gotten, expected_gift_code);
 
-        let all_gift_codes = GiftCode::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let all_gift_codes =
+            GiftCode::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(all_gift_codes.len(), 1);
         assert_eq!(all_gift_codes[0], expected_gift_code);
     }

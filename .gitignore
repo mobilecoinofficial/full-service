@@ -73,3 +73,9 @@ release/
 cli/build/**
 
 dbml-error.log
+
+*.profraw
+
+__pycache__
+
+*sgx_linux_x64_sdk_2.9.101.2.bin

@@ -25,6 +25,7 @@ use mc_account_keys::{
 use mc_account_keys_slip10::Slip10Key;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_transaction_core::TokenId;
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -48,6 +49,12 @@ impl From<&PublicAddress> for AccountID {
     fn from(src: &PublicAddress) -> Self {
         let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"account_data");
         Self(hex::encode(temp))
+    }
+}
+
+impl From<String> for AccountID {
+    fn from(src: String) -> Self {
+        Self(src)
     }
 }
 
@@ -152,7 +159,11 @@ pub trait AccountModel {
     ///
     /// Returns:
     /// * Vector of all Accounts in the DB
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Get a specific account.
     ///
@@ -183,6 +194,19 @@ pub trait AccountModel {
 
     /// Get main public address
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+
+    /// Get all of the token ids present for the account
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
+
+    /// Get the next sequentially unassigned subaddress index for the account
+    /// (reserved addresses are not included)
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -267,29 +291,21 @@ impl AccountModel for Account {
 
         let account_id = AccountID::from(account_key);
 
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
+
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
-        let change_subaddress_index = if fog_enabled {
-            DEFAULT_SUBADDRESS_INDEX as i64
-        } else {
-            CHANGE_SUBADDRESS_INDEX as i64
-        };
-
-        let next_subaddress_index = if fog_enabled {
-            1
-        } else {
-            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64
-        };
+        let next_subaddress_index =
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
 
         let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
+            id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key),
             entropy: Some(entropy),
             key_derivation_version: key_derivation_version as i32,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index,
-            next_subaddress_index,
             first_block_index: first_block_index as i64,
             next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
@@ -302,34 +318,21 @@ impl AccountModel for Account {
             .values(&new_account)
             .execute(conn)?;
 
-        let main_subaddress_b58 = AssignedSubaddress::create(
-            account_key,
-            None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                   * always for main? */
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            conn,
-        )?;
+        let main_subaddress_b58 =
+            AssignedSubaddress::create(account_key, DEFAULT_SUBADDRESS_INDEX, "Main", conn)?;
+
+        AssignedSubaddress::create(account_key, CHANGE_SUBADDRESS_INDEX, "Change", conn)?;
+
         if !fog_enabled {
             AssignedSubaddress::create(
                 account_key,
-                None,
                 LEGACY_CHANGE_SUBADDRESS_INDEX,
                 "Legacy Change",
                 conn,
             )?;
 
-            AssignedSubaddress::create(
-                account_key,
-                None, /* FIXME: WS-8 - Address Book Entry if details provided, or None
-                       * always for main? */
-                CHANGE_SUBADDRESS_INDEX,
-                "Change",
-                conn,
-            )?;
-
-            for subaddress_index in 2..next_subaddress_index {
-                AssignedSubaddress::create(account_key, None, subaddress_index as u64, "", conn)?;
+            for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
+                AssignedSubaddress::create(account_key, subaddress_index as u64, "", conn)?;
             }
         }
 
@@ -397,8 +400,12 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let view_account_key = ViewAccountKey::new(spend_public_key, view_private_key);
+        let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
         let account_id = AccountID::from(&view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
 
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
         let next_block_index = first_block_index;
@@ -407,13 +414,10 @@ impl AccountModel for Account {
             next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
 
         let new_account = NewAccount {
-            account_id_hex: &account_id.to_string(),
+            id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(&view_account_key),
             entropy: None,
             key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index,
             first_block_index,
             next_block_index,
             import_block_index: Some(import_block_index as i64),
@@ -428,7 +432,6 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
             conn,
@@ -436,7 +439,6 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             LEGACY_CHANGE_SUBADDRESS_INDEX,
             "Legacy Change",
             conn,
@@ -444,16 +446,14 @@ impl AccountModel for Account {
 
         AssignedSubaddress::create_for_view_only_account(
             &view_account_key,
-            None,
             CHANGE_SUBADDRESS_INDEX,
             "Change",
             conn,
         )?;
 
-        for subaddress_index in 2..next_subaddress_index {
+        for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
             AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
-                None,
                 subaddress_index as u64,
                 "",
                 conn,
@@ -463,19 +463,27 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
-    fn list_all(conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
+    fn list_all(
+        conn: &Conn,
+        offset: Option<u64>,
+        limit: Option<u64>,
+    ) -> Result<Vec<Account>, WalletDbError> {
         use crate::db::schema::accounts;
 
-        Ok(accounts::table
-            .select(accounts::all_columns)
-            .load::<Account>(conn)?)
+        let mut query = accounts::table.into_boxed();
+
+        if let (Some(offset), Some(limit)) = (offset, limit) {
+            query = query.limit(limit as i64).offset(offset as i64);
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex as dsl_account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        match accounts
-            .filter(dsl_account_id_hex.eq(account_id.to_string()))
+        match accounts::table
+            .filter(accounts::id.eq(account_id.to_string()))
             .get_result::<Account>(conn)
         {
             Ok(a) => Ok(a),
@@ -492,13 +500,8 @@ impl AccountModel for Account {
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
 
-        if let Some(received_account_id_hex) = txo.received_account_id_hex {
-            let account = Account::get(&AccountID(received_account_id_hex), conn)?;
-            accounts.push(account);
-        }
-
-        if let Some(minted_account_id_hex) = txo.minted_account_id_hex {
-            let account = Account::get(&AccountID(minted_account_id_hex), conn)?;
+        if let Some(account_id) = txo.account_id {
+            let account = Account::get(&AccountID(account_id), conn)?;
             accounts.push(account);
         }
 
@@ -506,10 +509,10 @@ impl AccountModel for Account {
     }
 
     fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::name.eq(new_name))
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::name.eq(new_name))
             .execute(conn)?;
         Ok(())
     }
@@ -519,26 +522,26 @@ impl AccountModel for Account {
         next_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
-        diesel::update(accounts.filter(account_id_hex.eq(&self.account_id_hex)))
-            .set(crate::db::schema::accounts::next_block_index.eq(next_block_index as i64))
+        use crate::db::schema::accounts;
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::next_block_index.eq(next_block_index as i64))
             .execute(conn)?;
         Ok(())
     }
 
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::accounts::dsl::{account_id_hex, accounts};
+        use crate::db::schema::accounts;
 
         // Delete transaction logs associated with this account
-        TransactionLog::delete_all_for_account(&self.account_id_hex, conn)?;
+        TransactionLog::delete_all_for_account(&self.id, conn)?;
 
         // Delete associated assigned subaddresses
-        AssignedSubaddress::delete_all(&self.account_id_hex, conn)?;
+        AssignedSubaddress::delete_all(&self.id, conn)?;
 
         // Delete references to the account in the Txos table.
-        Txo::scrub_account(&self.account_id_hex, conn)?;
+        Txo::scrub_account(&self.id, conn)?;
 
-        diesel::delete(accounts.filter(account_id_hex.eq(&self.account_id_hex))).execute(conn)?;
+        diesel::delete(accounts::table.filter(accounts::id.eq(&self.id))).execute(conn)?;
 
         // Delete Txos with no references.
         Txo::delete_unreferenced(conn)?;
@@ -547,19 +550,66 @@ impl AccountModel for Account {
     }
 
     fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
-        AssignedSubaddress::get_for_account_by_index(
-            &self.account_id_hex,
-            self.change_subaddress_index,
-            conn,
-        )
+        AssignedSubaddress::get_for_account_by_index(&self.id, CHANGE_SUBADDRESS_INDEX as i64, conn)
     }
 
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(
-            &self.account_id_hex,
-            self.main_subaddress_index,
+            &self.id,
+            DEFAULT_SUBADDRESS_INDEX as i64,
             conn,
         )
+    }
+
+    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let distinct_token_ids = txos::table
+            .filter(txos::account_id.eq(&self.id))
+            .select(txos::token_id)
+            .distinct()
+            .load::<i64>(conn)?
+            .into_iter()
+            .map(|i| TokenId::from(i as u64))
+            .collect();
+
+        Ok(distinct_token_ids)
+    }
+
+    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+
+        let highest_subaddress_index: i64 = assigned_subaddresses::table
+            .filter(assigned_subaddresses::account_id.eq(&self.id))
+            .order_by(assigned_subaddresses::subaddress_index.desc())
+            .select(diesel::dsl::max(assigned_subaddresses::subaddress_index))
+            .select(assigned_subaddresses::subaddress_index)
+            .first(conn)?;
+
+        Ok(highest_subaddress_index as u64 + 1)
+    }
+
+    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+        if self.view_only {
+            return Ok(None);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        Ok(Some(account_key))
+    }
+
+    fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
+        if self.view_only {
+            return Ok(mc_util_serial::decode(&self.account_key)?);
+        }
+
+        let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
+        let view_account_key = ViewAccountKey::from(&account_key);
+        Ok(view_account_key)
+    }
+
+    fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
+        Ok(*self.view_account_key()?.view_private_key())
     }
 }
 
@@ -601,20 +651,16 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
@@ -626,7 +672,7 @@ mod tests {
 
         // Verify that the subaddress table entries were updated for main and change
         let subaddresses = AssignedSubaddress::list_all(
-            &account_id_hex.to_string(),
+            Some(account_id_hex.to_string()),
             None,
             None,
             &wallet_db.get_conn().unwrap(),
@@ -667,20 +713,16 @@ mod tests {
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 2);
 
         let acc_secondary =
             Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
         let mut expected_account_secondary = Account {
-            id: 2,
-            account_id_hex: account_id_hex_secondary.to_string(),
+            id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
             entropy: Some(root_id_secondary.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 50,
             next_block_index: 50,
             import_block_index: Some(50),
@@ -707,7 +749,7 @@ mod tests {
             .delete(&wallet_db.get_conn().unwrap())
             .unwrap();
 
-        let res = Account::list_all(&wallet_db.get_conn().unwrap()).unwrap();
+        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
@@ -782,14 +824,13 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
         let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account_id_hex.to_string(),
+            id: account_id_hex.to_string(),
             account_key: [
                 10, 34, 10, 32, 129, 223, 141, 215, 200, 104, 120, 117, 123, 154, 151, 210, 253,
                 23, 148, 151, 2, 18, 182, 100, 83, 138, 144, 99, 225, 74, 214, 14, 175, 68, 167, 4,
@@ -802,9 +843,7 @@ mod tests {
             .to_vec(),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-            main_subaddress_index: 0,
-            change_subaddress_index: 0,
-            next_subaddress_index: 1,
+
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
@@ -842,13 +881,12 @@ mod tests {
 
         {
             let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn).unwrap();
+            let res = Account::list_all(&conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
         let expected_account = Account {
-            id: 1,
-            account_id_hex: account.account_id_hex.to_string(),
+            id: account.id.to_string(),
             account_key: [
                 10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
                 222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,
@@ -858,9 +896,6 @@ mod tests {
             .to_vec(),
             entropy: None,
             key_derivation_version: 2,
-            main_subaddress_index: DEFAULT_SUBADDRESS_INDEX as i64,
-            change_subaddress_index: CHANGE_SUBADDRESS_INDEX as i64,
-            next_subaddress_index: 2,
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: Some(12),

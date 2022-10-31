@@ -90,6 +90,29 @@ jobs:
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
-      - name: Cargo Test
-        run: |
-          cargo test
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-04-29
+          override: true
+          components: llvm-tools-preview
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+
+      - id: coverage
+        uses: actions-rs/grcov@v0.1
+
+      - name: Codecov
+        uses: codecov/codecov-action@v3.1.0
+        with:
+          files: ${{ steps.coverage.outputs.report }}
+          verbose: true
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: 5be757b6-e923-40f2-80ea-5deac1e02b1e

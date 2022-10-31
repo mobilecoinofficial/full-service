@@ -7,26 +7,35 @@ env:
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
-# only perform these build steps on pre-release
+# only perform these build steps on pre-release or forced dev build
 on:
   push:
     tags:
       - 'v*-pre.*'
-      - '*-force-build*'
+      - '*.dev-build.*'
 
 jobs:
-  macos-x64:
-    runs-on: [self-hosted, macOS, X64]
+  build-and-pre-release:
     permissions:
       contents: write
     strategy:
       matrix:
+        runner-tags: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo], [self-hosted, Linux, large]]
+        namespace: [test, prod]
         include:
+          - runner-tags: [self-hosted, macOS, X64, cargo]
+            container: null
+          - runner-tags: [self-hosted, macOS, ARM64, cargo]
+            container: null
+          - runner-tags: [self-hosted, Linux, large]
+            container: mobilecoin/rust-sgx-base:latest
           - namespace: test
             network: testnet
           - namespace: prod
             network: mainnet
-            
+    runs-on: ${{ matrix.runner-tags }}
+    container: ${{ matrix.container }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -34,243 +43,58 @@ jobs:
           submodules: recursive
 
       - name: Brew Bundle
+        if: runner.os == 'macOS'
         run: |
           brew bundle
-      
-      - name: Git Submodule
-        run: |
-          git submodule update --checkout --init --recursive
-
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-x86-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
 
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
       - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          export PATH="/usr/local/opt/openssl@3/bin:$PATH"
-          export LDFLAGS="-L/usr/local/opt/openssl@3/lib"
-          export CPPFLAGS="-I/usr/local/opt/openssl@3/include"
-          export PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
           cargo build --release
 
       - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -pv build_artifacts/${{ matrix.network }}/bin
+          mkdir -pv build_artifacts/${{ matrix.network }}/mirror
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
-          cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
-          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
+          cp target/release/full-service build_artifacts/${{ matrix.network }}
+          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}
+          cp target/release/validator-service build_artifacts/${{ matrix.network }}
+          cp target/release/wallet-service-mirror-private build_artifacts/${{ matrix.network }}/mirror
+          cp target/release/wallet-service-mirror-public build_artifacts/${{ matrix.network }}/mirror
+          cp target/release/generate-rsa-keypair build_artifacts/${{ matrix.network }}/mirror
+          cp mirror/EXAMPLE.md build_artifacts/${{ matrix.network }}/mirror
 
       - name: Create Artifact
         run: |
           mkdir -pv artifact
-          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: full-service_${{ runner.os }}_${{ matrix.network }}_x86
-          path: artifact/${{ github.sha }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
+          name: full-service_${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}
+          path: artifact/${{ github.sha }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz
 
-      - name: Create Release
+      - name: Create Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
+          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
 
-      - name: Upload Release
+      - name: Upload Prerelease
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           prerelease: true
           files: |
-            release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
-
-  macos-arm64:
-    runs-on: [self-hosted, macOS, ARM64]
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        include:
-          - namespace: test
-            network: testnet
-          - namespace: prod
-            network: mainnet
-            
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Brew Bundle
-        run: |
-          brew bundle
-      
-      - name: Git Submodule
-        run: |
-          git submodule update --checkout --init --recursive
-
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-arm64-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
-      - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
-
-      - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
-
-      - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"
-          export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-          export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-          export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
-          cargo build --release
-
-      - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -pv build_artifacts/${{ matrix.network }}/bin
-          cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
-          cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
-          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
-
-      - name: Create Artifact
-        run: |
-          mkdir -pv artifact
-          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: full-service_${{ runner.os }}_${{ matrix.network }}_arm64
-          path: artifact/${{ github.sha }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Upload Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          prerelease: true
-          files: |
-            release/${{ github.ref_name }}-${{ runner.os }}-arm64-${{ matrix.network }}.tar.gz
-
-  linux:
-    runs-on: [self-hosted, Linux, large]
-    permissions:
-      contents: write
-    container:
-      image: mobilecoin/rust-sgx-base:latest
-    strategy:
-      matrix:
-        include:
-          - namespace: test
-            network: testnet
-          - namespace: prod
-            network: mainnet
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      # CACHE_VERSION secret is 'date --iso-8601=minutes' and is used to invalidate cache if needed
-      - name: Cache Build Binaries
-        id: artifact_cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            build_artifacts
-          key: ${{ runner.os }}-${{ matrix.network }}-${{ secrets.CACHE_VERSION }}-build-cargo-artifacts-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml')}}
-
-      - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
-
-      - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
-
-      - name: Cargo Build
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          cargo build --release
-
-      - name: Copy binaries to cache folder
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -pv build_artifacts/${{ matrix.network }}/bin
-          cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
-          cp target/release/full-service build_artifacts/${{ matrix.network }}/bin/
-          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}/bin/
-
-      - name: Create Artifact
-        run: |
-          mkdir -pv artifact
-          cd artifact && tar -czvf ${{ github.sha }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: full-service_${{ runner.os }}_${{ matrix.network }}
-          path: artifact/${{ github.sha }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          mkdir -pv release
-          cd release && tar -czvf ${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz -C ../build_artifacts/${{ matrix.network }}/ .
-
-      - name: Upload Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
-        with:
-          draft: true
-          prerelease: true
-          files: |
-            release/${{ github.ref_name }}-${{ runner.os }}-${{ matrix.network }}.tar.gz
+            release/${{ github.ref_name }}-${{ runner.os }}-${{ runner.arch }}-${{ matrix.network }}.tar.gz
