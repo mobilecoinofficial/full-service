@@ -55,7 +55,7 @@ use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
-use mc_transaction_std::BurnRedemptionMemo;
+use mc_transaction_extra::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
 use std::{

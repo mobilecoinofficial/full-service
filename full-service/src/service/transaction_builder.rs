@@ -8,6 +8,7 @@
 //! This module, on the other hand, builds a transaction within the context of
 //! the wallet.
 
+use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -24,22 +25,18 @@ use mc_common::HashSet;
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_transaction_builder::{
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+};
 use mc_transaction_core::{
     constants::RING_SIZE,
     tokens::Mob,
     tx::{TxOut, TxOutMembershipProof},
     Amount, BlockVersion, Token, TokenId,
 };
-
-use mc_transaction_std::{
-    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
-};
 use mc_util_uri::FogUri;
-
 use rand::{rngs::ThreadRng, Rng};
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
-
-use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.

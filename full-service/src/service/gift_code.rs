@@ -39,6 +39,7 @@ use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
+use mc_transaction_builder::{InputCredentials, RTHMemoBuilder, TransactionBuilder};
 use mc_transaction_core::{
     constants::RING_SIZE,
     get_tx_out_shared_secret,
@@ -48,9 +49,7 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
     Amount, Token,
 };
-use mc_transaction_std::{
-    InputCredentials, RTHMemoBuilder, SenderMemoCredential, TransactionBuilder,
-};
+use mc_transaction_extra::SenderMemoCredential;
 use mc_util_uri::FogUri;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -137,7 +136,7 @@ pub enum GiftCodeServiceError {
     ProtoConversion(mc_api::ConversionError),
 
     /// Error with Transaction Builder
-    TxBuilder(mc_transaction_std::TxBuilderError),
+    TxBuilder(mc_transaction_builder::TxBuilderError),
 
     /// Error parsing URI: {0}
     UriParse(mc_util_uri::UriParseError),
@@ -165,6 +164,9 @@ pub enum GiftCodeServiceError {
 
     /// Ledger service error: {0}
     LedgerService(LedgerServiceError),
+
+    /// Retry Error
+    Retry(mc_connection::RetryError<mc_connection::Error>),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -227,8 +229,8 @@ impl From<mc_crypto_keys::KeyError> for GiftCodeServiceError {
     }
 }
 
-impl From<mc_transaction_std::TxBuilderError> for GiftCodeServiceError {
-    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+impl From<mc_transaction_builder::TxBuilderError> for GiftCodeServiceError {
+    fn from(src: mc_transaction_builder::TxBuilderError) -> Self {
         Self::TxBuilder(src)
     }
 }
@@ -278,6 +280,12 @@ impl From<mc_transaction_core::TxOutConversionError> for GiftCodeServiceError {
 impl From<LedgerServiceError> for GiftCodeServiceError {
     fn from(src: LedgerServiceError) -> Self {
         Self::LedgerService(src)
+    }
+}
+
+impl From<mc_connection::RetryError<mc_connection::Error>> for GiftCodeServiceError {
+    fn from(src: mc_connection::RetryError<mc_connection::Error>) -> Self {
+        Self::Retry(src)
     }
 }
 

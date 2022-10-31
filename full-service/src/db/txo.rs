@@ -14,9 +14,10 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
-    tx::{TxOut, TxOutConfirmationNumber, TxOutMembershipProof},
+    tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
+use mc_transaction_extra::TxOutConfirmationNumber;
 use std::{fmt, str::FromStr};
 
 use crate::{

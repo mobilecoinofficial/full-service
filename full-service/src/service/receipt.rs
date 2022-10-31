@@ -24,7 +24,8 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_core::{get_tx_out_shared_secret, tx::TxOutConfirmationNumber, MaskedAmount};
+use mc_transaction_core::{get_tx_out_shared_secret, MaskedAmount};
+use mc_transaction_extra::TxOutConfirmationNumber;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
