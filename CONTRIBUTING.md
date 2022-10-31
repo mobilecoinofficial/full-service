@@ -27,8 +27,8 @@ Coming soon: Code Style Guidelines
 ### Sign the Contributor License Agreement (CLA)
 
 You will need to sign [our CLA](./CLA.md) before your pull request can be merged. Please
-email [cla@mobilecoin.com](mailto://cla@mobilecoin.com) and we will send you a copy.
+email [cla@mobilecoin.com](mailto:cla@mobilecoin.com) and we will send you a copy.
 
 ## Get in Touch
 
-We're friendly. Feel free to [ping us](mailto://full-service@mobilecoin.com)!
+We're friendly. Feel free to [ping us](mailto:full-service@mobilecoin.com)!
