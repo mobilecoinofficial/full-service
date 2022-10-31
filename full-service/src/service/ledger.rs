@@ -154,14 +154,6 @@ pub trait LedgerService {
         public_key: &CompressedRistrettoPublic,
     ) -> Result<u64, LedgerServiceError>;
 
-    fn get_txo_by_public_key(
-        &self,
-        public_key: &CompressedRistrettoPublic,
-    ) -> Result<Option<(Txo, TxoStatus)>, ReceiptServiceError> {
-        let txo = self.ledger_db.get_tx_out_index_by_public_key(tx_out_public_key);
-        Ok(self.ledger_db.get_tx_out_index_by_public_key(tx_out_index))
-    }
-
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -310,8 +302,6 @@ where
     }
 
 
-<<<<<<< HEAD
-=======
 }
 
 pub fn get_tx_out_by_public_key(
@@ -321,5 +311,4 @@ pub fn get_tx_out_by_public_key(
     let txo_index = ledger_db.get_tx_out_index_by_public_key(public_key)?;
     let txo = ledger_db.get_tx_out_by_index(txo_index)?;
     Ok(txo)
->>>>>>> 88e563e9fd4e7f957218adef2c201725a0cc970f
 }
