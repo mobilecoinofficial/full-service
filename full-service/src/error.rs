@@ -257,7 +257,7 @@ pub enum WalletTransactionBuilderError {
     LedgerDB(mc_ledger_db::Error),
 
     /// Tx Builder Error: {0}
-    TxBuilder(mc_transaction_std::TxBuilderError),
+    TxBuilder(mc_transaction_builder::TxBuilderError),
 
     /// Invalid Argument: {0}
     InvalidArgument(String),
@@ -344,8 +344,8 @@ impl From<mc_ledger_db::Error> for WalletTransactionBuilderError {
     }
 }
 
-impl From<mc_transaction_std::TxBuilderError> for WalletTransactionBuilderError {
-    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+impl From<mc_transaction_builder::TxBuilderError> for WalletTransactionBuilderError {
+    fn from(src: mc_transaction_builder::TxBuilderError) -> Self {
         Self::TxBuilder(src)
     }
 }

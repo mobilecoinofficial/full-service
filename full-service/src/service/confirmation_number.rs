@@ -20,7 +20,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use mc_transaction_extra::TxOutConfirmationNumber;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -133,7 +133,7 @@ where
         let mut results = Vec::new();
         for (associated_txo, _) in associated_txos.outputs {
             let (txo, _) = self.get_txo(&TxoID(associated_txo.id.clone()))?;
-            if let Some(confirmation) = txo.shared_secret {
+            if let Some(confirmation) = txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
                 let pubkey: CompressedRistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;

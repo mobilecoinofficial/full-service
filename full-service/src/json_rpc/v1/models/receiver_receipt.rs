@@ -4,7 +4,7 @@
 
 use crate::{json_rpc::v1::models::amount::MaskedAmount, service};
 use mc_crypto_keys::CompressedRistrettoPublic;
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use mc_transaction_extra::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 

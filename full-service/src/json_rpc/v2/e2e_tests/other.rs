@@ -183,7 +183,7 @@ mod e2e_misc {
         let error = res.get("error").unwrap();
         assert_eq!(
             error.get("data").unwrap().get("server_error").unwrap(),
-            "LedgerDB(NotFound)"
+            "LedgerDB(Record not found)"
         );
     }
 

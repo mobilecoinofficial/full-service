@@ -64,7 +64,7 @@ pub enum TxoServiceError {
     From(String),
 
     /// TxBuilderError: {0}
-    TxBuilder(mc_transaction_std::TxBuilderError),
+    TxBuilder(mc_transaction_builder::TxBuilderError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -115,8 +115,8 @@ impl From<String> for TxoServiceError {
     }
 }
 
-impl From<mc_transaction_std::TxBuilderError> for TxoServiceError {
-    fn from(src: mc_transaction_std::TxBuilderError) -> Self {
+impl From<mc_transaction_builder::TxBuilderError> for TxoServiceError {
+    fn from(src: mc_transaction_builder::TxBuilderError) -> Self {
         Self::TxBuilder(src)
     }
 }

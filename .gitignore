@@ -78,4 +78,4 @@ dbml-error.log
 
 __pycache__
 
-/tools/*.bin
+*sgx_linux_x64_sdk_2.9.101.2.bin

@@ -166,36 +166,23 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
                 Ok(())
             }
 
-            Err(RetryError::Operation { error, .. }) => {
-                match error {
-                    ConnectionError::TransactionValidation(err, _) => {
-                        result.set_result(err);
-                        Ok(())
-                    }
-
-                    err @ ConnectionError::Cipher(_) => {
-                        Err(rpc_permissions_error("propose_tx", err, logger))
-                    }
-
-                    err @ ConnectionError::Attestation(_) => {
-                        Err(rpc_permissions_error("propose_tx", err, logger))
-                    }
-
-                    // TODO do we want to handle ConnectionError::Grpc here and echo back the
-                    // RpcStatus?
-                    err => Err(rpc_internal_error(
-                        "propose_tx",
-                        format!("{:?}", err),
-                        logger,
-                    )),
+            Err(RetryError { error, .. }) => match error {
+                err @ ConnectionError::Cipher(_) => {
+                    Err(rpc_permissions_error("propose_tx", err, logger))
                 }
-            }
-
-            Err(RetryError::Internal(err)) => Err(rpc_internal_error(
-                "propose_tx",
-                format!("retry internal error: {:?}", err),
-                logger,
-            )),
+                ConnectionError::Attestation(_) => {
+                    Err(rpc_permissions_error("propose_tx", error, logger))
+                }
+                ConnectionError::TransactionValidation(err, _) => {
+                    result.set_result(err);
+                    Ok(())
+                }
+                err => Err(rpc_internal_error(
+                    "propose_tx",
+                    format!("{:?}", err),
+                    logger,
+                )),
+            },
         }?;
 
         Ok(result)

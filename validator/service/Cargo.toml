@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-service"
-version = "2.0.0"
+version = "2.0.1"
 authors = ["MobileCoin"]
 edition = "2018"
 license = "GPL-3.0"
@@ -25,6 +25,6 @@ mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
 
-grpcio = "0.10.3"
+grpcio = "0.11.0"
 structopt = "0.3"
 rayon = "1.5"
