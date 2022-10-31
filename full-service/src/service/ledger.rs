@@ -31,8 +31,6 @@ use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
 use std::{collections::BTreeMap, convert::TryFrom};
 
-use crate::db::txo::TxoStatus;
-use crate::service::receipt::ReceiptServiceError;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
