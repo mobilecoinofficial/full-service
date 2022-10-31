@@ -15,10 +15,7 @@ use crate::{
     },
     WalletService,
 };
-use diesel::{
-    r2d2::{ConnectionManager as CM, PooledConnection},
-    Connection as DSLConnection, SqliteConnection,
-};
+use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_attest_verifier::Verifier;
