@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/github/mobilecoinofficial/full-service/branch/main/graph/badge.svg?token=KqBsyfOOHW)](https://codecov.io/github/mobilecoinofficial/full-service)
 # Full Service
 
 A MobileCoin service for wallet implementations.
@@ -69,7 +70,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    On Ubuntu:
     ```sh
-    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev
+    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
     ```
 
    On MacOS:
@@ -95,6 +96,10 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
     ```
    
+   Finally for both:
+   ```sh
+   rustup component add llvm-tools-preview
+   ```
 
 4. Pull submodule.
 
@@ -407,12 +412,33 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 To add or edit tables:
 
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
-   version: `cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="22a4a4b973db2b7aadaf088b3279dbbe52176896" diesel_cli --no-default-features --features sqlite`
+   version:  
+
+   ```
+   cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="026f6379715d27c8be48396e5ca9059f4a263198" diesel_cli --no-default-features --features sqlite
+   ```
+
 1. `cd full-service`
+
+1. Create an empty version of the base db `diesel migration run --database-url $MIGRATION_TEST_DB`
+
 1. Create a migration with `diesel migration generate <migration_name>`
+
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
-1. Run the migration with `diesel migration run --database-url /tmp/db.db`, and test delete
-   with `diesel migration redo --database-url /tmp/db.db`
+
+1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the 
+   inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
+
+Make sure that the following is still present in `schema.rs` before commiting changes.
+``` 
+table! {
+    __diesel_schema_migrations(version) {
+        version -> Text,
+        run_on -> Timestamp,
+    }
+}
+```
+
 
 Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
@@ -428,6 +454,9 @@ Under the covers, this runs:
 SGX_MODE=HW \
 IAS_MODE=DEV \
 CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+CARGO_INCREMENTAL=0 \
+RUSTFLAGS='-Cinstrument-coverage' \
+LLVM_PROFILE_FILE="../target/profraw/json5format-%m.profraw" \
 cargo test
 ```
 

@@ -1,8 +1,17 @@
-# Full Service Mirror, Full Service, & Ledger Validator Node (LVN)
+# Mirror Service, Full Service, & Ledger Validator Node (LVN)
 
 ## Requirements
 
 MobileCoin's full-service, full-service mirrors, and ledger-validator-node are developed using the environment specified in [this Dockerfile](https://github.com/mobilecoinfoundation/mobilecoin/blob/bdd5ded7aff9b8a86bd10c568a1f2bcf1ee20d27/docker/Dockerfile).
+
+## Example usage
+
+In the examples below we assume that full-service, and both the public and private sides are all running on the same machine. In a real-world scenario the public and private sides would run on separate machines. The following TCP ports are in play:
+   - 9090: The port full-service listens on for incoming connecitons.
+   - 9091: The default port `wallet-service-mirror-public` listens on for incoming HTTP client requests.
+   - 10080: The default port the mirror uses for GRPC connections.
+
+The first step in running the mirror is to have a full-service instance running, and accessible from where the private side of the mirror would be running.
 
 ## Ledger Validator Node & Full Service
 
@@ -21,7 +30,7 @@ but can connect to a host running the LVN.
 
     ```sh
     mkdir -p ./lvn-dbs
-    ./bin/mc-validator-service \
+    ./bin/validator-service \
        --ledger-db ./lvn-dbs/ledger-db/ \
        --peer mc://node1.prod.mobilecoinww.com/ \
        --peer mc://node2.prod.mobilecoinww.com/ \
@@ -83,7 +92,7 @@ but can connect to a host running the LVN.
 
     ```sh
     mkdir -p ./lvn-dbs
-    ./bin/mc-validator-service \
+    ./bin/validator-service \
        --ledger-db ./lvn-dbs/ledger-db/ \
        --peer mc://node1.prod.mobilecoinww.com/ \
        --peer mc://node2.prod.mobilecoinww.com/ \
@@ -108,7 +117,10 @@ but can connect to a host running the LVN.
 
     The `--validator` argument has changed to point at the certificate file, and also specify the Common Name that is in the certficiate. Note that if the CN matches the hostname (as in the above example) then this is redundant.## TLS between full-service and LVN
 
-## Full Service Mirror
+
+Once full-service is running and set up, start the Mirror Services
+
+## Mirror Service
 
 To use, you will need to start both sides of the mirror.
 
@@ -148,24 +160,38 @@ To run with encryption, use the following command
 If you would like to run this without end to end encryption use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet
+./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet/v2
 ```
 
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet --mirror-key mirror-private.pem
+./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet/v2 --mirror-key mirror-private.pem
 ```
 
 NOTE: Notice the --mirror-key flag with the mirror-private.pem file, generated with the generate-rsa-keypair binary.
+
+NOTE: Notice the --wallet-service-uri flag is targeting wallet/v2. If you would rather target v1 endpoints, remove /v2 from the end.
 
 Once launched, without end to end encryption, you can test it using curl:
 
 Get block information (for block 0):
 
+Query block details:
+
 ```
-curl -X POST -H 'Content-Type: application/json' -d '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}' http://localhost:9091/unencrypted-request
+curl -s localhost:9091/unencrypted-request \
+  -d '{
+        "method": "get_block",
+        "params": {
+          "block_index": "0"
+        },
+        "jsonrpc": "2.0",
+        "id": 1
+      }' \
+  -X POST -H 'Content-type: application/json' | jq
 ```
+
 Returns:
 ```
 {"method":"get_block","result":{"block":{"id":"dba9b5bb61dc3941c6730a4c5e9b81f30f9def32abd4251d0715100072a7425e","version":"0","parent_id":"0000000000000000000000000000000000000000000000000000000000000000","index":"0","cumulative_txo_count":"16","root_element":{"range":{"from":"0","to":"0"},"hash":"0000000000000000000000000000000000000000000000000000000000\
@@ -173,9 +199,11 @@ Returns:
 "50c5916be94c0dcba5054fe2852422ec7c5e208cb31355b8e74e8c4ed007a60b","e_fog_hint":"05e32fee11b4612c9fd54f97e9662c8e576ab91d062c62295974cdd940d0a257eb8ce687e9bbbf8e6dccb0ec16bf15ad6902f9c249d2fe1ed198918ec1c614a48b299c657aa32b9e5c3580f24c07e354b31e0100"},{"amou...
 ```
 
+For supported requests, the response types are identical to the ones used by `full-service`.
+
 For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-service-api/).
 
-To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service-mirror/blob/master/example-client.js).
+To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service/blob/main/mirror/test/example-client.js).
 
 ```
 node example-client.js 127.0.0.1 9091 mirror-client.pem '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'

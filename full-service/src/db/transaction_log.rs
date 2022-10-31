@@ -578,7 +578,7 @@ mod tests {
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -588,9 +588,9 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_with_tx_outs, builder_for_random_recipient,
-            get_resolver_factory, get_test_ledger, manually_sync_account,
-            random_account_with_seed_values, WalletDbTestContext, MOB,
+            add_block_with_tx_outs, builder_for_random_recipient, get_resolver_factory,
+            get_test_ledger, manually_sync_account, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -719,10 +719,20 @@ mod tests {
         // The subaddress will also be set once received.
         assert_eq!(change_details.subaddress_index, None,);
 
-        add_block_from_transaction_log(
+        let key_images: Vec<KeyImage> = tx_proposal
+            .input_txos
+            .iter()
+            .map(|txo| txo.key_image.clone())
+            .collect();
+
+        // Note: This block doesn't contain the fee output.
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db.get_conn().unwrap(),
-            &tx_log,
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
+            &key_images,
             &mut rng,
         );
 
@@ -1128,8 +1138,8 @@ mod tests {
         add_block_with_tx_outs(
             &mut ledger_db,
             &[
-                mc_util_serial::decode(&change_details.txo).unwrap(),
-                mc_util_serial::decode(&output_details.txo).unwrap(),
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
             ],
             &[
                 mc_util_serial::decode(&input_details0.key_image.unwrap()).unwrap(),

@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      default: false
+      full-service:
+        target: auto
+        paths: "full-service/"
+      mirror:
+        target: auto
+        paths: "mirror/"
+      validator:
+        target: auto
+        paths: "validator/"
