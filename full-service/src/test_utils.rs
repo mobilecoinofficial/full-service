@@ -10,7 +10,7 @@ use crate::{
     },
     error::SyncError,
     service::{
-        sync::sync_account, transaction::TransactionMemo,
+        models::tx_proposal::TxProposal, sync::sync_account, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
@@ -257,38 +257,6 @@ pub fn add_block_with_tx(
     append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_from_transaction_log(
-    ledger_db: &mut LedgerDB,
-    conn: &PooledConnection<CM<SqliteConnection>>,
-    transaction_log: &TransactionLog,
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
-
-    let mut output_txos = associated_txos.outputs.clone();
-    output_txos.append(&mut associated_txos.change.clone());
-    let outputs: Vec<TxOut> = output_txos
-        .iter()
-        .map(|(txo, _)| mc_util_serial::decode(&txo.txo).unwrap())
-        .collect();
-
-    let input_txos: Vec<Txo> = associated_txos.inputs.clone();
-    let key_images: Vec<KeyImage> = input_txos
-        .iter()
-        .map(|txo| mc_util_serial::decode(&txo.key_image.clone().unwrap()).unwrap())
-        .collect();
-
-    // Note: This block doesn't contain the fee output.
-    let block_contents = BlockContents {
-        key_images,
-        outputs,
-        validated_mint_config_txs: Vec::new(),
-        mint_txs: Vec::new(),
-    };
-
-    append_test_block(ledger_db, block_contents, rng)
-}
-
 pub fn add_block_with_tx_outs(
     ledger_db: &mut LedgerDB,
     outputs: &[TxOut],
@@ -353,28 +321,6 @@ pub fn setup_peer_manager_and_network_state(
     }
 
     (peer_manager, network_state)
-}
-
-pub fn add_block_with_db_txos(
-    ledger_db: &mut LedgerDB,
-    wallet_db: &WalletDb,
-    output_txo_ids: &[String],
-    key_images: &[KeyImage],
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
-    let outputs: Vec<TxOut> = output_txo_ids
-        .iter()
-        .map(|txo_id_hex| {
-            mc_util_serial::decode(
-                &Txo::get(&txo_id_hex.to_string(), &wallet_db.get_conn().unwrap())
-                    .unwrap()
-                    .txo,
-            )
-            .unwrap()
-        })
-        .collect();
-
-    add_block_with_tx_outs(ledger_db, &outputs, key_images, rng)
 }
 
 // Sync account to most recent block
@@ -510,14 +456,14 @@ pub fn create_test_received_txo(
 
 /// Creates a test minted and change txo.
 ///
-/// Returns ((output_txo_id, value), (change_txo_id, value))
+/// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
 pub fn create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
     value: u64,
     wallet_db: WalletDb,
     ledger_db: LedgerDB,
-) -> TransactionLog {
+) -> (TransactionLog, TxProposal) {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
@@ -537,14 +483,17 @@ pub fn create_test_minted_and_change_txos(
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
 
-    TransactionLog::log_submitted(
-        &tx_proposal,
-        10,
-        "".to_string(),
-        &AccountID::from(&src_account_key).to_string(),
-        &conn,
+    (
+        TransactionLog::log_submitted(
+            &tx_proposal,
+            10,
+            "".to_string(),
+            &AccountID::from(&src_account_key).to_string(),
+            &conn,
+        )
+        .unwrap(),
+        tx_proposal,
     )
-    .unwrap()
 }
 
 // Seed a local account with some Txos in the ledger

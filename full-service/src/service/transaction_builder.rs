@@ -274,7 +274,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .inputs
             .iter()
             .map(|utxo| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                let txo = self.ledger_db.get_tx_out_by_index(
+                    self.ledger_db
+                        .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+                )?;
                 self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
             })
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
@@ -290,7 +293,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
             .iter()
             .map(|(utxo, _membership_proof)| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                let txo = self.ledger_db.get_tx_out_by_index(
+                    self.ledger_db
+                        .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+                )?;
                 self.ledger_db
                     .get_tx_out_index_by_hash(&txo.hash())
                     .map_err(WalletTransactionBuilderError::LedgerDB)
@@ -318,8 +324,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let subaddress_index = utxo.subaddress_index.ok_or_else(|| {
                 WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone())
             })?;
-
-            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+            let db_tx_out = self.ledger_db.get_tx_out_by_index(
+                self.ledger_db
+                    .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+            )?;
 
             let (mut ring, mut membership_proofs) = rings_and_proofs
                 .pop()

@@ -373,7 +373,6 @@ impl TxoModel for Txo {
                     target_key: &mc_util_serial::encode(&txo.target_key),
                     public_key: &mc_util_serial::encode(&txo.public_key),
                     e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
-                    txo: &mc_util_serial::encode(&txo),
                     subaddress_index: subaddress_index.map(|i| i as i64),
                     key_image: key_image_bytes.as_deref(),
                     received_block_index: Some(received_block_index as i64),
@@ -412,7 +411,6 @@ impl TxoModel for Txo {
             target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
             public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
             e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
-            txo: &mc_util_serial::encode(&output_txo.tx_out),
             subaddress_index: None,
             key_image: None,
             received_block_index: None,
@@ -1431,10 +1429,10 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
-            create_test_minted_and_change_txos, create_test_received_txo,
-            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+            add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
+            create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
+            get_test_ledger, manually_sync_account, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1510,7 +1508,6 @@ mod tests {
             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
             public_key: mc_util_serial::encode(&for_alice_txo.public_key),
             e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
-            txo: mc_util_serial::encode(&for_alice_txo),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
             received_block_index: Some(12),
@@ -1539,7 +1536,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1557,10 +1554,12 @@ mod tests {
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
 
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_alice_key_image)],
             &mut rng,
         );
@@ -1755,7 +1754,7 @@ mod tests {
         )
         .unwrap();
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             bob_account_key.subaddress(0),
             72 * MOB,
@@ -1774,10 +1773,12 @@ mod tests {
         assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
 
         // Add the minted Txos to the ledger
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_bob_key_image)],
             &mut rng,
         );
@@ -2094,7 +2095,7 @@ mod tests {
 
         assert_eq!(txos.len(), 12);
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, _) = create_test_minted_and_change_txos(
             src_account.clone(),
             recipient,
             1 * MOB,

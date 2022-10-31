@@ -2,7 +2,7 @@
 
 This directory contains a shell script + associated files for testing a full service mirror release.
 
-This can be run with varying degress of automation. Either with docker, or by running run.sh with a binary you downloaded yourself
+This can be run with varying degrees of automation. Either with docker, or by running run.sh with a binary you downloaded yourself
 
 ## Test with Docker
 
