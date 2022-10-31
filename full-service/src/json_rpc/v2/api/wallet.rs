@@ -581,7 +581,7 @@ where
                     .map(|(a, b)| (a.to_string(), Balance::from(b)))
                     .collect(),
             );
-
+ 
             JsonCommandResponse::get_address_status {
                 address: Address::from(&subaddress),
                 account_block_height: account.next_block_index.to_string(),
@@ -591,14 +591,14 @@ where
             }
         }
         JsonCommandRequest::get_block { block_index, txo_pubkey } => {
-            let (block, block_contents, txo_pubkey) = service
-                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
+            let block_ind = block_index.unwrap(); 
+            let (block, block_contents) = service
+                .get_block_object(block_ind.parse::<u64>().map_err(format_error)?)
                 .map_err(format_error)?;
-                ///.get_txo_by_public_key()?;
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
-                txo_pubkey: LedgerService::get_txo_by_public_key(&public_key, &block_contents),
+                txo_pubkey: LedgerService::get_tx_out_by_public_key(&public_key),
             }
         }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
@@ -687,7 +687,7 @@ where
                 txo: Txo::new(&txo, &status),
             }
         }
-        JsonCommandRequest::get_txo_block_index { public_key } => {
+        JsonCommandRequest::get_txo_block_index { public_key: pubkey } => {
             let public_key_bytes = hex::decode(public_key).map_err(format_error)?;
             let public_key: CompressedRistrettoPublic = public_key_bytes
                 .as_slice()
