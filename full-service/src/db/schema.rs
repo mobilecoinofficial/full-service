@@ -75,7 +75,7 @@ table! {
         key_image -> Nullable<Binary>,
         received_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
-        shared_secret -> Nullable<Binary>,
+        confirmation -> Nullable<Binary>,
     }
 }
 

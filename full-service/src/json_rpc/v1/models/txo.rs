@@ -201,7 +201,7 @@ impl Txo {
             subaddress_index: txo.subaddress_index.map(|i| i.to_string()),
             assigned_address: None,
             key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
-            confirmation: txo.shared_secret.as_ref().map(hex::encode),
+            confirmation: txo.confirmation.as_ref().map(hex::encode),
         }
     }
 }
