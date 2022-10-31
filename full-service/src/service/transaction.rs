@@ -25,7 +25,7 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_builder::{
-    BurnRedemptionmemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
+    BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
@@ -116,6 +116,12 @@ pub enum TransactionServiceError {
 
     /// Key Error: {0}
     Key(mc_crypto_keys::KeyError),
+
+    /// RetryError
+    Retry(mc_connection::RetryError<mc_connection::Error>),
+
+    /// Ring CT Error: {0}
+    RingCT(mc_transaction_core::ring_ct::Error),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -199,6 +205,18 @@ impl From<mc_crypto_keys::KeyError> for TransactionServiceError {
 impl From<LedgerServiceError> for TransactionServiceError {
     fn from(src: LedgerServiceError) -> Self {
         Self::LedgerService(src)
+    }
+}
+
+impl From<mc_connection::RetryError<mc_connection::Error>> for TransactionServiceError {
+    fn from(src: mc_connection::RetryError<mc_connection::Error>) -> Self {
+        Self::Retry(src)
+    }
+}
+
+impl From<mc_transaction_core::ring_ct::Error> for TransactionServiceError {
+    fn from(src: mc_transaction_core::ring_ct::Error) -> Self {
+        Self::RingCT(src)
     }
 }
 

@@ -164,6 +164,9 @@ pub enum GiftCodeServiceError {
 
     /// Ledger service error: {0}
     LedgerService(LedgerServiceError),
+
+    /// Retry Error
+    Retry(mc_connection::RetryError<mc_connection::Error>),
 }
 
 impl From<WalletDbError> for GiftCodeServiceError {
@@ -277,6 +280,12 @@ impl From<mc_transaction_core::TxOutConversionError> for GiftCodeServiceError {
 impl From<LedgerServiceError> for GiftCodeServiceError {
     fn from(src: LedgerServiceError) -> Self {
         Self::LedgerService(src)
+    }
+}
+
+impl From<mc_connection::RetryError<mc_connection::Error>> for GiftCodeServiceError {
+    fn from(src: mc_connection::RetryError<mc_connection::Error>) -> Self {
+        Self::Retry(src)
     }
 }
 
