@@ -53,10 +53,10 @@ ARG RUSTFLAGS='-C target-cpu=penryn'
 
 # Build full-service
 RUN  --mount=type=cache,target=/root/.cargo/git \
-     --mount=type=cache,target=/root/.cargo/registry \
-     --mount=type=cache,target=/app/target \
-     cargo build --release -p mc-full-service ${BUILD_OPTS} \
-  && cp /app/target/release/mc-full-service /usr/local/bin/mc-full-service
+  --mount=type=cache,target=/root/.cargo/registry \
+  --mount=type=cache,target=/app/target \
+  cargo build --release -p mc-full-service ${BUILD_OPTS} \
+  && cp /app/target/release/full-service /usr/local/bin/full-service
 
 
 # This is the runtime container.
@@ -76,8 +76,8 @@ RUN  apt-get update \
   && mkdir -p /usr/share/grpc \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
-COPY --from=builder /usr/local/bin/mc-full-service /usr/local/bin/mc-full-service
-RUN ln -s /usr/local/bin/mc-full-service /usr/local/bin/full-service
+COPY --from=builder /usr/local/bin/full-service /usr/local/bin/full-service
+RUN ln -s /usr/local/bin/full-service /usr/local/bin/full-service
 COPY --from=builder /app/*.css /usr/local/bin/
 
 USER app
