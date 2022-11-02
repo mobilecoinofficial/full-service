@@ -54,7 +54,7 @@ jobs:
 
       - name: Build and Publish to DockerHub
         id: docker_publish_dockerhub
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v3
         with:
           build-args: |
             NAMESPACE=${{ matrix.namespace }}
