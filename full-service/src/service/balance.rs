@@ -18,11 +18,12 @@ use crate::{
     },
 };
 use displaydoc::Display;
+use mc_blockchain_types::BlockVersion;
 use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::TokenId;
+use mc_transaction_core::{tokens::Mob, Token, TokenId};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -165,12 +166,12 @@ where
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
 
-        let network_fees = self.get_network_fees()?;
+        let network_status = self.get_network_status()?;
 
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
                 let balance = Self::get_balance_inner(
                     Some(&account_id.to_string()),
                     None,
@@ -194,12 +195,12 @@ where
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
-        let network_fees = self.get_network_fees()?;
+        let network_status = self.get_network_status()?;
 
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
                 let balance = Self::get_balance_inner(
                     None,
                     Some(address),
@@ -215,17 +216,31 @@ where
     }
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
+        let (network_block_height, fees, block_version) = match self.offline {
+            true => {
+                let mut fees = BTreeMap::new();
+                fees.insert(Mob::ID, Mob::MINIMUM_FEE);
+                fees.insert(TokenId::from(1), 1024);
+                (0, fees, *BlockVersion::MAX)
+            }
+            false => (
+                self.get_network_block_height()?,
+                self.get_network_fees()?,
+                *self.get_network_block_version()?,
+            ),
+        };
+
         Ok(NetworkStatus {
-            network_block_height: self.get_network_block_height()?,
+            network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
-            fees: self.get_network_fees()?,
-            block_version: *self.get_network_block_version()?,
+            fees,
+            block_version,
         })
     }
 
     // Wallet Status is an overview of the wallet's status
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
-        let network_block_height = self.get_network_block_height()?;
+        let network_status = self.get_network_status()?;
 
         let conn = self.get_conn()?;
         let accounts = Account::list_all(&conn, None, None)?;
@@ -233,16 +248,15 @@ where
 
         let mut balance_per_token = BTreeMap::new();
 
-        let mut min_synced_block_index = network_block_height.saturating_sub(1);
+        let mut min_synced_block_index = network_status.network_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
-        let network_fees = self.get_network_fees()?;
 
         for account in accounts {
             let account_id = AccountID(account.id.clone());
             let token_ids = account.clone().get_token_ids(&conn)?;
 
             for token_id in token_ids {
-                let default_token_fee = network_fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
                 let balance = Self::get_balance_inner(
                     Some(&account_id.to_string()),
                     None,
@@ -265,7 +279,6 @@ where
 
             account_map.insert(account_id.clone(), account.clone());
 
-            // account.next_block_index is an index in range [0..ledger_db.num_blocks()]
             min_synced_block_index = std::cmp::min(
                 min_synced_block_index,
                 (account.next_block_index as u64).saturating_sub(1),
@@ -275,7 +288,7 @@ where
 
         Ok(WalletStatus {
             balance_per_token,
-            network_block_height,
+            network_block_height: network_status.network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
             min_synced_block_index,
             account_ids,
