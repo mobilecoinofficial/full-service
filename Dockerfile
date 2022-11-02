@@ -56,7 +56,7 @@ RUN  --mount=type=cache,target=/root/.cargo/git \
   --mount=type=cache,target=/root/.cargo/registry \
   --mount=type=cache,target=/app/target \
   cargo build --release -p mc-full-service ${BUILD_OPTS} \
-  && cp /app/target/release/mc-full-service /usr/local/bin/mc-full-service
+  && cp /app/target/release/full-service /usr/local/bin/full-service
 
 
 # This is the runtime container.
