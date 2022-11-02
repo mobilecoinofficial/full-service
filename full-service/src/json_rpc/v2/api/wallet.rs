@@ -63,6 +63,7 @@ use std::{
     convert::{TryFrom, TryInto},
     str::FromStr,
 };
+use crate::service::ledger::get_tx_out_by_public_key;
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
@@ -598,7 +599,7 @@ where
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
-                txo_pubkey: LedgerService::get_tx_out_by_public_key(&public_key),
+                txo_pubkey: get_tx_out_by_public_key(&public_key),
             }
         }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
