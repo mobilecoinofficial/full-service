@@ -34,7 +34,7 @@ else
     fi
 fi 
     
-WORK_DIR="$HOME/.mobilecoin/${NET}"
+WORK_DIR="$HOME/.mobilecoin/${NET}" 
 CONSENSUS_DOWNLOAD_LOCATION="$WORK_DIR/consensus-enclave.css"
 mkdir -p ${WORK_DIR}
 

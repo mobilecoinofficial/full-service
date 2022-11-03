@@ -228,6 +228,7 @@ mod tests {
                     None,
                     None,
                     TransactionMemo::RTH,
+                    None,
                 )
                 .unwrap();
 

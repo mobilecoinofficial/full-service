@@ -419,6 +419,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -549,6 +550,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -672,6 +674,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH,
+                None,
             )
             .expect("Could not build transaction");
 
@@ -812,6 +815,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH,
+                None,
             )
             .expect("Could not build transaction");
 

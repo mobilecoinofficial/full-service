@@ -49,6 +49,7 @@ use crate::{
     },
 };
 use mc_account_keys::burn_address;
+use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -141,6 +142,7 @@ where
             tombstone_block,
             max_spendable_value,
             comment,
+            block_version,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -148,6 +150,14 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
@@ -160,6 +170,7 @@ where
                     max_spendable_value,
                     comment,
                     TransactionMemo::RTH,
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -181,6 +192,7 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -193,6 +205,14 @@ where
 
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let tx_proposal = service
                 .build_and_sign_transaction(
@@ -207,6 +227,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -225,6 +246,7 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -232,6 +254,14 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let tx_proposal = service
                 .build_and_sign_transaction(
@@ -243,6 +273,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::RTH,
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -260,6 +291,7 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -272,6 +304,14 @@ where
 
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
@@ -286,6 +326,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
+                    block_version,
                 )
                 .map_err(format_error)?
                 .try_into()
@@ -306,11 +347,21 @@ where
             addresses_and_amounts,
             input_txo_ids,
             max_spendable_value,
+            block_version,
         } => {
             let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
+
             let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
                     &account_id,
@@ -321,6 +372,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::Empty,
+                    block_version,
                 )
                 .map_err(format_error)?
                 .try_into()
