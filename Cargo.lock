@@ -222,9 +222,9 @@ dependencies = [
 
 [[package]]
 name = "base64"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
+checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
 name = "binascii"
@@ -661,7 +661,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94d4706de1b0fa5b132270cddffa8585166037822e260a944fe161acd137ca05"
 dependencies = [
  "aes-gcm",
- "base64 0.13.0",
+ "base64 0.13.1",
  "hkdf",
  "hmac",
  "percent-encoding 2.2.0",
@@ -2320,7 +2320,7 @@ dependencies = [
 name = "mc-attest-core"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "bitflags",
  "cargo-emit",
  "chrono",
@@ -2387,7 +2387,7 @@ dependencies = [
 name = "mc-attest-verifier-types"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "hex_fmt",
@@ -2662,7 +2662,7 @@ dependencies = [
 name = "mc-crypto-keys"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "curve25519-dalek",
  "digest",
  "displaydoc",
@@ -2925,7 +2925,7 @@ name = "mc-full-service"
 version = "2.0.1"
 dependencies = [
  "anyhow",
- "base64 0.13.0",
+ "base64 0.13.1",
  "bs58",
  "chrono",
  "crossbeam-channel",
@@ -3343,7 +3343,7 @@ dependencies = [
 name = "mc-transaction-signer"
 version = "2.0.1"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "hex",
  "mc-account-keys",
  "mc-account-keys-slip10",
@@ -3430,7 +3430,7 @@ dependencies = [
 name = "mc-util-encodings"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "mc-util-repr-bytes",
@@ -3448,7 +3448,7 @@ dependencies = [
 name = "mc-util-grpc"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "clap 4.0.18",
  "cookie 0.16.0",
  "displaydoc",
@@ -3567,7 +3567,7 @@ dependencies = [
 name = "mc-util-uri"
 version = "2.1.0-pre0"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "mc-common",
@@ -4245,7 +4245,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03c64931a1a212348ec4f3b4362585eca7159d0d09cbdf4a7f74f02173596fd4"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
 ]
 
 [[package]]
@@ -4799,7 +4799,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "431949c384f4e2ae07605ccaa56d1d9d2ecdb5cadd4f9577ccfab29f2e5149fc"
 dependencies = [
  "async-compression",
- "base64 0.13.0",
+ "base64 0.13.1",
  "bytes 1.1.0",
  "encoding_rs",
  "futures-core",
@@ -4879,7 +4879,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83b9d9dc08c5dcc1d8126a9dd615545e6a358f8c13c883c8dfed8c0376fa355e"
 dependencies = [
  "atty",
- "base64 0.13.0",
+ "base64 0.13.1",
  "log 0.4.11",
  "memchr",
  "num_cpus",
@@ -5089,7 +5089,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0864aeff53f8c05aa08d86e5ef839d3dfcf07aeba2db32f12db0ef716e87bd55"
 dependencies = [
- "base64 0.13.0",
+ "base64 0.13.1",
 ]
 
 [[package]]
@@ -6334,9 +6334,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.1.2"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd6469f4314d5f1ffec476e05f17cc9a78bc7a27a6a857842170bdf8d6f98d2f"
+checksum = "feb41e78f93363bb2df8b0e86a2ca30eed7806ea16ea0c790d757cf93f79be83"
 dependencies = [
  "getrandom 0.2.3",
  "serde",

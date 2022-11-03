@@ -45,7 +45,7 @@ mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
-base64 = "0.13.0"
+base64 = "0.13.1"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 crossbeam-channel = "0.5"
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled", "chrono"] }
@@ -71,7 +71,7 @@ structopt = "0.3"
 strum = { version = "0.24.1", features = ["derive"] }
 strum_macros = "0.24.3"
 tiny-bip39 = "1.0"
-uuid = { version = "1.1.2", features = ["serde", "v4"] }
+uuid = { version = "1.2.1", features = ["serde", "v4"] }
 
 [dev-dependencies]
 mc-blockchain-test-utils = { path = "../mobilecoin/blockchain/test-utils" }
