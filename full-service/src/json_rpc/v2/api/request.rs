@@ -148,7 +148,7 @@ pub enum JsonCommandRequest {
         address: String,
     },
     get_block {
-        block_index: String,
+        block_index: Option<String>,
         txo_pubkey: Option<String>,
     },
     get_confirmations {
