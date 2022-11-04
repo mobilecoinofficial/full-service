@@ -220,7 +220,7 @@ where
             true => {
                 let mut fees = BTreeMap::new();
                 fees.insert(Mob::ID, Mob::MINIMUM_FEE);
-                fees.insert(TokenId::from(1), 1024);
+                fees.insert(TokenId::from(1), 2560);
                 (0, fees, *BlockVersion::MAX)
             }
             false => (
