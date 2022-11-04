@@ -184,7 +184,7 @@ def notarytool_credentials_profile() -> str:
     This profile is a constant.
     """
 
-    return "artichoke-apple-codesign-notarize"
+    return "some-apple-codesign-notary"
 
 
 def codesigning_identity() -> str:
@@ -192,7 +192,7 @@ def codesigning_identity() -> str:
     Codesigning identity and name of the Apple Developer ID Application.
     """
 
-    return "Developer ID Application: Ryan Lopopolo (VDKP67932G)"
+    return "Developer ID Application: $FirstName $LastName ($TEAMID)"
 
 
 def notarization_apple_id() -> str:
@@ -200,7 +200,7 @@ def notarization_apple_id() -> str:
     Apple ID belonging to the codesigning identity.
     """
 
-    return "apple-codesign@artichokeruby.org"
+    return "apple-codesign@mobilecoin.com"
 
 
 def notarization_app_specific_password() -> str:
@@ -219,7 +219,7 @@ def notarization_team_id() -> str:
     Team ID belonging to the codesigning identity.
     """
 
-    return "VDKP67932G"
+    return "$TEAMID"
 
 
 def disk_image_volume_name() -> str:
@@ -227,7 +227,7 @@ def disk_image_volume_name() -> str:
     Volume name for the newly created DMG disk image.
     """
 
-    return "Artichoke Ruby nightly"
+    return os.getenv("BUILDNAME")
 
 
 def disk_image_mount_path() -> Path:
@@ -833,7 +833,6 @@ def main() -> int:
         dmg_icon_url = args.dmg_icon_url[0]
 
     try:
-        raise NotImplementedError
         emit_metadata()
 
         keychain_password = secrets.token_urlsafe()
@@ -879,7 +878,9 @@ def main() -> int:
         return 1
     finally:
         # Purge keychain.
-        delete_keychain()
+        # TODO: Uncomment after everything's ready to run in GHA
+        # delete_keychain()
+        pass
 
 
 if __name__ == "__main__":
