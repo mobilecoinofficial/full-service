@@ -473,6 +473,7 @@ where
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             TransactionMemo::RTH,
+            None,
         )?;
 
         let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;

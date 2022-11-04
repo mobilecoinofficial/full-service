@@ -53,6 +53,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         comment: Option<String>,
+        block_version: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -63,6 +64,7 @@ pub enum JsonCommandRequest {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        block_version: Option<String>,
     },
     build_transaction {
         account_id: String,
@@ -74,6 +76,7 @@ pub enum JsonCommandRequest {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        block_version: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
@@ -84,6 +87,7 @@ pub enum JsonCommandRequest {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        block_version: Option<String>,
     },
     build_unsigned_transaction {
         account_id: String,
@@ -95,6 +99,7 @@ pub enum JsonCommandRequest {
         fee_token_id: Option<String>,
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
+        block_version: Option<String>,
     },
     check_b58_type {
         b58_code: String,
