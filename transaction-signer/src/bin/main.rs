@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
-use mc_account_keys_slip10::Slip10Key;
 use mc_common::HashMap;
+use mc_core::slip10::Slip10Key;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},

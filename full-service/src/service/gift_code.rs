@@ -32,9 +32,9 @@ use crate::{
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
-use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature_signer::NoKeysRingSigner;
 use mc_fog_report_validation::FogPubkeyResolver;
