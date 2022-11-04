@@ -5,18 +5,12 @@ NET="$1"
 
 if [ "$NET" == "main" ]; then
     NAMESPACE="prod"
-    PEER_DOMAIN="prod.mobilecoinww.com/"
-    TX_SOURCE_URL="https://ledger.mobilecoinww.com"
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
 elif [ "$NET" == "test" ]; then
     NAMESPACE=$NET
-    PEER_DOMAIN="test.mobilecoin.com/"
-    TX_SOURCE_URL="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
 elif [ "$NET" == "alpha" ]; then
     NAMESPACE=$NET
-    PEER_DOMAIN="alpha.development.mobilecoin.com/"
-    TX_SOURCE_URL="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
     INGEST_SIGSTRUCT_URI=""
 else
     # TODO: add support for local network
