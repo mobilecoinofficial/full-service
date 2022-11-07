@@ -14,7 +14,7 @@ mod e2e_account {
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_core::slip10::Slip10Key;
+    use mc_core::slip10::Slip10KeyGenerator;
     use mc_crypto_rand::rand_core::RngCore;
 
     use mc_transaction_core::ring_signature::KeyImage;
@@ -59,13 +59,8 @@ mod e2e_account {
 
         // Test that the mnemonic serializes correctly back to an AccountKey object
         let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
-        let account_key = Slip10Key::from(mnemonic.clone())
-            .try_into_account_key(
-                &"".to_string(),
-                &"".to_string(),
-                &hex::decode("".to_string()).expect("invalid spki"),
-            )
-            .unwrap();
+        let slip_10_key = mnemonic.derive_slip10_key(0);
+        let account_key: AccountKey = slip_10_key.into();
 
         assert_eq!(
             serde_json::json!(json_rpc::v1::models::account_key::AccountKey::try_from(
