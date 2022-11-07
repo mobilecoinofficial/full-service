@@ -270,6 +270,7 @@ where
             tombstone_block,
             None,
             TransactionMemo::RTH,
+            None,
         )?;
 
         let account = Account::get(&AccountID(account_id_hex), &conn)?;
@@ -381,6 +382,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH,
+                None,
             )
             .unwrap();
         let _submitted = service
