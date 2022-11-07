@@ -547,7 +547,6 @@ mod tests {
 
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
         let public_address = account_key.default_subaddress();
-        let b58_public_address = b58_encode_public_address(&public_address).unwrap();
         let account_id = AccountID::from(&account_key);
 
         add_block_to_ledger_db(
@@ -629,10 +628,10 @@ mod tests {
         let account_balance_pmob = account_balance.get(&Mob::ID).unwrap();
 
         let expected_balance = Balance {
-            unspent: 50 * MOB as u128,
-            max_spendable: 49999999500000000 as u128,
+            unspent: 49999600000000 as u128,
+            max_spendable: 49999200000000 as u128,
             pending: 0,
-            spent: 0,
+            spent: (50 * MOB) as u128,
             secreted: 0,
             orphaned: 0,
             unverified: 0,
@@ -645,15 +644,101 @@ mod tests {
     fn test_balance_sent_to_self(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        let entropy = RootEntropy::from_random(&mut rng);
-        let account_key = AccountKey::from(&RootIdentity::from(&entropy));
-
         // Step 1: Create a ledger with a single account and a single subaddress
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        let account = service
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
+        let public_address = account_key.default_subaddress();
+        let b58_public_address = b58_encode_public_address(&public_address).unwrap();
+        let account_id = AccountID::from(&account_key);
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
 
         // Step 2: Send MOB from that account to self
+
+        let (_, _, _, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &account_id.to_string(),
+                &[(b58_public_address, Amount::new(50 * MOB, Mob::ID))],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH,
+                None,
+            )
+            .unwrap();
+
+        {
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
+        }
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
 
         // Step 3: Check that the balance is correct, meaning that
         // the amount sent should not include the amount that was sent back as
         // change OR the amount sent to self, only the transaction fee.
+        let account_balance = service
+            .get_balance_for_account(&account_id)
+            .expect("Could not get balance for account");
+        let account_balance_pmob = account_balance.get(&Mob::ID).unwrap();
+
+        let expected_balance = Balance {
+            unspent: 99999600000000 as u128,
+            max_spendable: 99999200000000 as u128,
+            pending: 0,
+            spent: Mob::MINIMUM_FEE as u128,
+            secreted: 0,
+            orphaned: 0,
+            unverified: 0,
+        };
+
+        assert_eq!(account_balance_pmob, &expected_balance);
     }
 }
