@@ -35,7 +35,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_util_uri::FogUri;
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
@@ -451,8 +451,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             change_txos.push(change_txo);
         }
 
-        let unsigned_tx =
-            transaction_builder.build_unsigned::<ThreadRng, DefaultTxOutputsOrdering>()?;
+        let unsigned_tx = transaction_builder.build_unsigned::<DefaultTxOutputsOrdering>()?;
 
         Ok(UnsignedTxProposal {
             unsigned_tx,

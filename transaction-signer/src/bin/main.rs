@@ -1,7 +1,7 @@
 use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
 use mc_common::HashMap;
-use mc_core::slip10::Slip10Key;
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_full_service::{
     db::{account::AccountID, txo::TxoID},
@@ -101,16 +101,7 @@ fn create_account(name: &str, mnemonic: Option<&str>) {
         None => Mnemonic::new(MnemonicType::Words24, Language::English),
     };
 
-    let fog_report_url = "".to_string();
-    let fog_report_id = "".to_string();
-    let fog_authority_spki = "".to_string();
-    let account_key = Slip10Key::from(mnemonic.clone())
-        .try_into_account_key(
-            &fog_report_url,
-            &fog_report_id,
-            &base64::decode(fog_authority_spki).expect("Invalid Fog SPKI"),
-        )
-        .expect("could not generate account key");
+    let account_key = mnemonic.clone().derive_slip10_key(0).into();
     let account_id = AccountID::from(&account_key);
 
     let secrets = AccountSecrets {
@@ -304,9 +295,7 @@ fn get_key_images_for_txos(
 
 fn account_key_from_mnemonic_phrase(mnemonic_phrase: &str) -> AccountKey {
     let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
-    Slip10Key::from(mnemonic)
-        .try_into_account_key("", "", &base64::decode("").unwrap())
-        .unwrap()
+    mnemonic.derive_slip10_key(0).into()
 }
 
 fn get_key_image_for_tx_out(
