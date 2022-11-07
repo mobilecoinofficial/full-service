@@ -12,5 +12,5 @@ fi
 
 echo "Testing in $PWD"
 SGX_MODE=SW IAS_MODE=DEV CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
-cargo test
+cargo test test_balance_sent_to_other
 echo "Testing in $PWD complete."
