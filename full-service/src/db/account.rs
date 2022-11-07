@@ -15,14 +15,13 @@ use crate::{
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
-
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_account_keys_slip10::Slip10Key;
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::TokenId;
@@ -223,16 +222,18 @@ impl AccountModel for Account {
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
 
-        let account_key = Slip10Key::from(mnemonic.clone()).try_into_account_key(
+        let slip_10_key = mnemonic.clone().derive_slip10_key(0);
+        let account_key: AccountKey = slip_10_key.into();
+        let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
             &fog_report_id,
             &base64::decode(fog_authority_spki)?,
-        )?;
+        );
 
         Account::create(
             mnemonic.entropy(),
             MNEMONIC_KEY_DERIVATION_VERSION,
-            &account_key,
+            &account_key_with_fog,
             first_block_index,
             import_block_index,
             next_subaddress_index,

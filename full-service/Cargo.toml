@@ -14,7 +14,6 @@ mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }
 
 mc-account-keys = { path = "../mobilecoin/account-keys" }
-mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-api = { path = "../mobilecoin/api" }
 mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
 mc-blockchain-types = { path = "../mobilecoin/blockchain/types" }
@@ -22,6 +21,7 @@ mc-common = { path = "../mobilecoin/common", default-features = false, features 
 mc-connection = { path = "../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../mobilecoin/consensus/enclave/measurement" }
 mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
+mc-core = { path = "../mobilecoin/core" }
 mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
 mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }

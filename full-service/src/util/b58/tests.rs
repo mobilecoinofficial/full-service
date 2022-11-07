@@ -10,7 +10,7 @@ mod tests {
     };
     use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_account_keys_slip10::Slip10KeyGenerator;
+    use mc_core::slip10::Slip10KeyGenerator;
     use mc_transaction_core::{tokens::Mob, Amount, Token};
     use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
 
