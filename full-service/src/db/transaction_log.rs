@@ -329,15 +329,17 @@ impl TransactionLogModel for TransactionLog {
 
         if let Some(min_block_index) = min_block_index {
             query =
-                query.filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
+                query.filter(transaction_logs::submitted_block_index.ge(min_block_index as i64));
         }
 
         if let Some(max_block_index) = max_block_index {
             query =
-                query.filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+                query.filter(transaction_logs::submitted_block_index.le(max_block_index as i64));
         }
 
-        let transaction_logs: Vec<TransactionLog> = query.order(transaction_logs::id).load(conn)?;
+        let transaction_logs: Vec<TransactionLog> = query
+            .order(transaction_logs::submitted_block_index.desc())
+            .load(conn)?;
 
         let results = transaction_logs
             .into_iter()
