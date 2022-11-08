@@ -588,7 +588,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.load(conn)?)
+        Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
 
     fn list_for_account(
@@ -687,7 +687,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.load(conn)?)
+        Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
 
     fn list_for_address(
@@ -778,9 +778,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        let txos: Vec<Txo> = query.load(conn)?;
-
-        Ok(txos)
+        Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
 
     fn list_unspent(
@@ -854,7 +852,11 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.select(txos::all_columns).distinct().load(conn)?)
+        Ok(query
+            .select(txos::all_columns)
+            .distinct()
+            .order(txos::received_block_index.desc())
+            .load(conn)?)
     }
 
     fn list_unverified(
@@ -916,7 +918,10 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.distinct().load(conn)?)
+        Ok(query
+            .distinct()
+            .order(txos::received_block_index.desc())
+            .load(conn)?)
     }
 
     fn list_unspent_or_pending_key_images(
@@ -938,8 +943,10 @@ impl TxoModel for Txo {
             query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
-        let results: Vec<(Option<Vec<u8>>, String)> =
-            query.select((txos::key_image, txos::id)).load(conn)?;
+        let results: Vec<(Option<Vec<u8>>, String)> = query
+            .select((txos::key_image, txos::id))
+            .order(txos::received_block_index.desc())
+            .load(conn)?;
 
         Ok(results
             .into_iter()
@@ -994,7 +1001,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        Ok(query.load(conn)?)
+        Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
 
     fn list_orphaned(
@@ -1034,9 +1041,7 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        let txos: Vec<Txo> = query.load(conn)?;
-
-        Ok(txos)
+        Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
 
     fn list_pending(
@@ -1093,9 +1098,11 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        let txos: Vec<Txo> = query.select(txos::all_columns).distinct().load(conn)?;
-
-        Ok(txos)
+        Ok(query
+            .select(txos::all_columns)
+            .distinct()
+            .order(txos::received_block_index.desc())
+            .load(conn)?)
     }
 
     fn get(txo_id_hex: &str, conn: &Conn) -> Result<Txo, WalletDbError> {

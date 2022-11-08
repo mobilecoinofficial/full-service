@@ -517,24 +517,58 @@ where
                 .collect(),
         },
         JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
+            let block_index = block_index.parse::<u64>().map_err(format_error)?;
             let transaction_logs_and_txos = service
-                .get_all_transaction_logs_for_block(
-                    block_index.parse::<u64>().map_err(format_error)?,
+                .list_transaction_logs(None, None, None, Some(block_index), Some(block_index))
+                .map_err(format_error)?;
+
+            let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
+
+            let received_txos = service
+                .list_txos(
+                    None,
+                    None,
+                    None,
+                    Some(*Mob::ID),
+                    Some(block_index),
+                    Some(block_index),
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
-            let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, a, _v)| {
-                        (
-                            t.id.clone(),
-                            serde_json::json!(
-                                json_rpc::v1::models::transaction_log::TransactionLog::new(t, a)
-                            ),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
+
+            let received_tx_logs: Vec<TransactionLog> = received_txos
+                .iter()
+                .map(|(txo, _)| {
+                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                        (Some(subaddress_index), Some(account_id)) => service
+                            .get_address_for_account(
+                                &AccountID(account_id.clone()),
+                                subaddress_index,
+                            )
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok(),
+                        _ => None,
+                    };
+
+                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                })
+                .collect::<Result<Vec<TransactionLog>, _>>()
+                .map_err(format_error)?;
+
+            for received_tx_log in received_tx_logs.iter() {
+                let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
+                transaction_log_map.insert(received_tx_log.transaction_log_id.clone(), tx_log_json);
+            }
+
+            for (tx_log, associated_txos, _status) in &transaction_logs_and_txos {
+                let tx_log_json =
+                    serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
+                        tx_log,
+                        associated_txos
+                    ));
+                transaction_log_map.insert(tx_log.id.clone(), tx_log_json);
+            }
 
             JsonCommandResponse::get_all_transaction_logs_for_block {
                 transaction_log_ids: transaction_logs_and_txos
@@ -546,7 +580,7 @@ where
         }
         JsonCommandRequest::get_all_transaction_logs_ordered_by_block => {
             let transaction_logs_and_txos = service
-                .get_all_transaction_logs_ordered_by_block()
+                .list_transaction_logs(None, None, None, None, None)
                 .map_err(format_error)?;
 
             let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();

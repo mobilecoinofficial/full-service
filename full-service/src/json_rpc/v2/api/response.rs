@@ -17,9 +17,9 @@ use crate::{
             confirmation_number::Confirmation,
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
-            transaction_log::{TransactionLog, TransactionLogMap},
+            transaction_log::TransactionLog,
             tx_proposal::{TxProposal, UnsignedTxProposal},
-            txo::{Txo, TxoMap},
+            txo::Txo,
             wallet_status::WalletStatus,
         },
     },
@@ -28,6 +28,7 @@ use crate::{
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use serde::{Deserialize, Serialize};
+use serde_json::Map;
 use std::collections::HashMap;
 
 /// Responses from the Full Service Wallet.
@@ -134,7 +135,7 @@ pub enum JsonCommandResponse {
     },
     get_transaction_logs {
         transaction_log_ids: Vec<String>,
-        transaction_log_map: TransactionLogMap,
+        transaction_log_map: Map<String, serde_json::Value>,
     },
     get_txo {
         txo: Txo,
@@ -144,7 +145,7 @@ pub enum JsonCommandResponse {
     },
     get_txos {
         txo_ids: Vec<String>,
-        txo_map: TxoMap,
+        txo_map: Map<String, serde_json::Value>,
     },
     get_txo_membership_proofs {
         outputs: Vec<JsonTxOut>,
