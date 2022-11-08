@@ -517,13 +517,12 @@ where
                 .collect(),
         },
         JsonCommandRequest::get_all_transaction_logs_for_block { block_index } => {
-            let transaction_logs_and_txos = service
-                .get_all_transaction_logs_for_block(
-                    block_index.parse::<u64>().map_err(format_error)?,
-                )
+            let block_index = block_index.parse::<u64>().map_err(format_error)?;
+            let transaction_logs = service
+                .list_transaction_logs(None, None, None, Some(block_index), Some(block_index))
                 .map_err(format_error)?;
             let transaction_log_map: Map<String, serde_json::Value> = Map::from_iter(
-                transaction_logs_and_txos
+                transaction_logs
                     .iter()
                     .map(|(t, a, _v)| {
                         (
@@ -537,7 +536,7 @@ where
             );
 
             JsonCommandResponse::get_all_transaction_logs_for_block {
-                transaction_log_ids: transaction_logs_and_txos
+                transaction_log_ids: transaction_logs
                     .iter()
                     .map(|(t, _a, _v)| t.id.to_string())
                     .collect(),
@@ -546,7 +545,7 @@ where
         }
         JsonCommandRequest::get_all_transaction_logs_ordered_by_block => {
             let transaction_logs_and_txos = service
-                .get_all_transaction_logs_ordered_by_block()
+                .list_transaction_logs(None, None, None, None, None)
                 .map_err(format_error)?;
 
             let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();

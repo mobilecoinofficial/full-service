@@ -118,15 +118,6 @@ pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
     fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
 
-    /// Get all transaction logs for the given block index.
-    fn get_all_for_block_index(
-        block_index: u64,
-        conn: &Conn,
-    ) -> Result<Vec<TransactionLog>, WalletDbError>;
-
-    /// Get all transaction logs ordered by finalized_block_index.
-    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError>;
-
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
     ///
@@ -226,35 +217,6 @@ impl TransactionLogModel for TransactionLog {
             }
             Err(e) => Err(e.into()),
         }
-    }
-
-    fn get_all_for_block_index(
-        block_index: u64,
-        conn: &Conn,
-    ) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
-
-        let matches: Vec<TransactionLog> = transaction_logs
-            .select(all_columns)
-            .filter(finalized_block_index.eq(block_index as i64))
-            .load::<TransactionLog>(conn)?;
-
-        Ok(matches)
-    }
-
-    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
-
-        let matches = transaction_logs
-            .select(all_columns)
-            .order_by(finalized_block_index.asc())
-            .load(conn)?;
-
-        Ok(matches)
     }
 
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
