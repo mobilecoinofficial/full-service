@@ -2,8 +2,6 @@
 
 //! API definition for the TransactionLog object.
 
-use std::collections::BTreeMap;
-
 use mc_common::HashMap;
 use serde::{Deserialize, Serialize};
 
@@ -13,9 +11,6 @@ use crate::{
 };
 
 use super::amount::Amount;
-
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
-pub struct TransactionLogMap(pub BTreeMap<String, TransactionLog>);
 
 /// A log of a transaction that occurred on the MobileCoin network, constructed
 /// and/or submitted from an account in this wallet.
