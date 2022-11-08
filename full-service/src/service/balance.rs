@@ -334,7 +334,7 @@ where
             None,
             None,
             conn,
-        )?);
+        )?) - unspent;
 
         let pending = sum_query_result(Txo::list_pending(
             account_id_hex,
@@ -612,6 +612,25 @@ mod tests {
             );
         }
 
+        // Step 3: The account should have a pending balance of 100 Mob, since the
+        // entire balance was encapsulated in a single txo.
+        let account_balance = service
+            .get_balance_for_account(&account_id)
+            .expect("Could not get balance for account");
+        let account_balance_pmob = account_balance.get(&Mob::ID).unwrap();
+
+        let expected_balance = Balance {
+            unspent: 0,
+            max_spendable: 0,
+            pending: (100 * MOB) as u128,
+            spent: 0,
+            secreted: 0,
+            orphaned: 0,
+            unverified: 0,
+        };
+
+        assert_eq!(account_balance_pmob, &expected_balance);
+
         manually_sync_account(
             &ledger_db,
             &service.wallet_db.as_ref().unwrap(),
@@ -619,7 +638,7 @@ mod tests {
             &logger,
         );
 
-        // Step 3: Check that the balance is correct, meaning that
+        // Step 4: Check that the balance is correct, meaning that
         // the amount sent should not include the amount that was sent back as
         // change, only the amount sent to the other account.
         let account_balance = service
@@ -631,7 +650,7 @@ mod tests {
             unspent: 49999600000000 as u128,
             max_spendable: 49999200000000 as u128,
             pending: 0,
-            spent: (50 * MOB) as u128,
+            spent: (50 * MOB + Mob::MINIMUM_FEE) as u128,
             secreted: 0,
             orphaned: 0,
             unverified: 0,
@@ -714,6 +733,25 @@ mod tests {
             );
         }
 
+        // Step 3: The account should have a pending balance of 100 Mob, since the
+        // entire balance was encapsulated in a single txo.
+        let account_balance = service
+            .get_balance_for_account(&account_id)
+            .expect("Could not get balance for account");
+        let account_balance_pmob = account_balance.get(&Mob::ID).unwrap();
+
+        let expected_balance = Balance {
+            unspent: 0,
+            max_spendable: 0,
+            pending: (100 * MOB) as u128,
+            spent: 0,
+            secreted: 0,
+            orphaned: 0,
+            unverified: 0,
+        };
+
+        assert_eq!(account_balance_pmob, &expected_balance);
+
         manually_sync_account(
             &ledger_db,
             &service.wallet_db.as_ref().unwrap(),
@@ -721,7 +759,14 @@ mod tests {
             &logger,
         );
 
-        // Step 3: Check that the balance is correct, meaning that
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &account_id,
+            &logger,
+        );
+
+        // Step 4: Check that the balance is correct, meaning that
         // the amount sent should not include the amount that was sent back as
         // change OR the amount sent to self, only the transaction fee.
         let account_balance = service
