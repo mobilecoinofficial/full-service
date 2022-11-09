@@ -117,6 +117,7 @@ pub fn test_txos(
     // Check that a transaction log entry was created for each received TxOut (note:
     // we are not creating submit logs in this test)
     let transaction_logs =
-        TransactionLog::list_all(&account_id.to_string(), None, None, None, None, &conn).unwrap();
+        TransactionLog::list_all(&account_id.to_string(), None, None, None, None, None, &conn)
+            .unwrap();
     assert_eq!(transaction_logs.len(), 3);
 }

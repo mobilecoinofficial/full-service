@@ -425,7 +425,14 @@ mod tests {
         // Get the corresponding TransactionLog for Alice's Account - only the sender
         // has the confirmation number.
         let transaction_logs = service
-            .list_transaction_logs(&AccountID(alice.account_id_hex), None, None, None, None)
+            .list_transaction_logs(
+                &AccountID(alice.account_id_hex),
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("Could not get transaction logs");
         // Alice should have two received (initial and change), and one sent
         // TransactionLog.

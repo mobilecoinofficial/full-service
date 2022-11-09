@@ -1403,6 +1403,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
