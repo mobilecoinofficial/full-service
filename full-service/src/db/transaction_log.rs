@@ -172,6 +172,7 @@ impl TransactionLogModel for TransactionLog {
             .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .filter(transaction_logs::finalized_block_index.eq(block_index as i64))
             .select(transaction_logs::all_columns)
+            .distinct()
             .load::<TransactionLog>(conn)?;
 
         Ok(matches)
@@ -188,6 +189,7 @@ impl TransactionLogModel for TransactionLog {
             .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select(transaction_logs::all_columns)
             .order_by(transaction_logs::finalized_block_index.asc())
+            .distinct()
             .load(conn)?;
 
         Ok(matches)
@@ -203,6 +205,7 @@ impl TransactionLogModel for TransactionLog {
             .filter(transaction_txo_types::transaction_id_hex.eq(&self.transaction_id_hex))
             .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select((transaction_txo_types::all_columns, txos::all_columns))
+            .distinct()
             .load(conn)?;
 
         let mut inputs: Vec<Txo> = Vec::new();
@@ -240,6 +243,7 @@ impl TransactionLogModel for TransactionLog {
             .filter(transaction_txo_types::txo_id_hex.eq(txo_id_hex))
             .filter(txos::token_id.eq(MOB_TOKEN_ID))
             .select(transaction_logs::all_columns)
+            .distinct()
             .load(conn)?)
     }
 
@@ -271,6 +275,7 @@ impl TransactionLogModel for TransactionLog {
                 transaction_txo_types::all_columns,
                 txos::all_columns,
             ))
+            .distinct()
             .order(transaction_logs::id);
 
         if let (Some(o), Some(l)) = (offset, limit) {
