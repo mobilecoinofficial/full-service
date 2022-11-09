@@ -16,7 +16,7 @@ on:
 
 jobs:
   macos-x64:
-    runs-on: [self-hosted, macOS, X64]
+    runs-on: [self-hosted, macOS, X64, cargo]
     permissions:
       contents: write
     strategy:
@@ -94,7 +94,7 @@ jobs:
             release/${{ github.ref_name }}-${{ runner.os }}-x86-${{ matrix.network }}.tar.gz
 
   macos-arm64:
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: [self-hosted, macOS, ARM64, cargo]
     permissions:
       contents: write
     strategy:
