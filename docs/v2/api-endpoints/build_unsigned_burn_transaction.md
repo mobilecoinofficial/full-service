@@ -14,7 +14,7 @@ description: >-
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `amount` | The [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) to send in this transaction |  |
-| `redemption_memo_hex` |  |  |
+| `redemption_memo_hex` | An external protocol dependent value that allows the entity responsible for the burn to claim credit |  |
 | `input_txo_ids` | Specific TXOs to use as inputs to this transaction | TXO IDs \(obtain from `get_txos_for_account`\) |
 | `fee_value` | The fee value to submit with this transaction | If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
 | `fee_token_id` | The fee token_id to submit with this transaction | If not provided, uses token_id of first output, if available, or defaults to MOB |
