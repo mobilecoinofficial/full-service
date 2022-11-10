@@ -2186,7 +2186,7 @@ mod tests {
             .unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let proposal = unsigned_tx_proposal.sign(&sender_account_key).unwrap();
 
         // Sleep to make sure that the foreign keys exist

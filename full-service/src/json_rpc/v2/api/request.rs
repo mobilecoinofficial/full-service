@@ -54,6 +54,7 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
         block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -77,6 +78,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
