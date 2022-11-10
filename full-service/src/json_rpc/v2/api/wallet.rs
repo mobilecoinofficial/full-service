@@ -145,6 +145,7 @@ where
             max_spendable_value,
             comment,
             block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -161,6 +162,10 @@ where
                 None => None,
             };
 
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -171,7 +176,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
                 .map_err(format_error)?;
@@ -249,6 +254,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -265,6 +271,10 @@ where
                 None => None,
             };
 
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -274,7 +284,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
                 .map_err(format_error)?;

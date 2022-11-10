@@ -222,12 +222,21 @@ impl From<mc_transaction_core::ring_ct::Error> for TransactionServiceError {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+/// This represents the different types of Transaction Memos that can be used in
+/// a given transaction
+///
+/// * Empty
+///
+/// * RTH
+///
+/// * BurnRedemption
 pub enum TransactionMemo {
     /// Empty Transaction Memo.
     Empty,
 
-    /// Recoverable Transaction History memo.
-    RTH,
+    /// Recoverable Transaction History memo with an optional u64 specifying the
+    /// subaddress index to generate the sender memo credential from.
+    RTH(Option<u64>),
 
     /// Burn Redemption memo, with an optional 64 byte redemption memo hex
     /// string.
@@ -242,12 +251,20 @@ impl TransactionMemo {
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
             Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
-            Self::RTH => {
+            Self::RTH(subaddress_index) => {
                 let mut memo_builder = RTHMemoBuilder::default();
-                memo_builder
-                    .set_sender_credential(SenderMemoCredential::from(&account_key.ok_or(
-                        WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts,
-                    )?));
+                let account_key = account_key
+                    .ok_or(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts)?;
+                let sender_memo_credential = match subaddress_index {
+                    Some(subaddress_index) => {
+                        SenderMemoCredential::new_from_address_and_spend_private_key(
+                            &account_key.subaddress(*subaddress_index),
+                            account_key.subaddress_spend_private(*subaddress_index),
+                        )
+                    }
+                    None => SenderMemoCredential::from(&account_key),
+                };
+                memo_builder.set_sender_credential(sender_memo_credential);
                 memo_builder.enable_destination_memo();
                 Ok(Box::new(memo_builder))
             }
@@ -667,7 +684,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH,
+                TransactionMemo::RTH(None),
                 None,
             )
             .unwrap();
@@ -696,7 +713,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH,
+                TransactionMemo::RTH(None),
                 None,
             )
             .unwrap();
@@ -725,7 +742,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH,
+                TransactionMemo::RTH(None),
                 None,
             )
             .unwrap();
@@ -816,7 +833,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH,
+                TransactionMemo::RTH(None),
                 None,
             )
             .unwrap();
@@ -914,7 +931,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH,
+                TransactionMemo::RTH(None),
                 None,
             )
             .unwrap();
@@ -1021,7 +1038,7 @@ mod tests {
             None,
             None,
             None,
-            TransactionMemo::RTH,
+            TransactionMemo::RTH(None),
             None,
         ) {
             Ok(_) => {
@@ -1086,7 +1103,7 @@ mod tests {
             None,
             None,
             None,
-            TransactionMemo::RTH,
+            TransactionMemo::RTH(None),
             None,
         ) {
             Ok(_) => {
@@ -1118,7 +1135,7 @@ mod tests {
             None,
             None,
             None,
-            TransactionMemo::RTH,
+            TransactionMemo::RTH(None),
             None,
         ) {
             Ok(_) => {
