@@ -592,9 +592,14 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
     use mc_crypto_rand::rand_core::RngCore;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{
+        get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
+    };
+    use mc_transaction_extra::AuthenticatedSenderMemo;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_build_transaction_and_log(logger: Logger) {
@@ -1146,6 +1151,194 @@ mod tests {
             )) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
         };
+    }
+
+    // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
+    #[test_with_logger]
+    fn test_send_transaction_with_sender_memo_cred_subaddress_index(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.default_subaddress();
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+
+        // Verify balance for Alice
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.id.clone()))
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
+
+        // Add an account for Bob
+        let bob = service
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+        let bob_account_key: AccountKey =
+            mc_util_serial::decode(&bob.account_key).expect("Could not decode account key");
+        let bob_account_id = AccountID::from(&bob_account_key);
+
+        // Create an assigned subaddress for Bob to receive funds from Alice
+        let bob_address_from_alice = service
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
+            .unwrap();
+
+        // Create an assigned subaddress for Alice to receive from Bob, which will be
+        // used to authenticate the sender (Alice)
+        let alice_address_from_bob = service
+            .assign_address_for_account(&alice_account_id, Some("From Bob"))
+            .unwrap();
+
+        // Send a transaction from Alice to Bob
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &alice.id,
+                &[(
+                    bob_address_from_alice.public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(Some(alice_address_from_bob.subaddress_index as u64)),
+                None,
+            )
+            .unwrap();
+        log::info!(logger, "Built and submitted transaction from Alice");
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        {
+            log::info!(logger, "Adding block from transaction log");
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image.clone())
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
+        }
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &bob_account_id,
+            &logger,
+        );
+
+        // Get the Txos from the transaction log
+        let transaction_txos = transaction_log
+            .get_associated_txos(&service.get_conn().unwrap())
+            .unwrap();
+        let secreted = transaction_txos
+            .outputs
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(secreted.len(), 1);
+        assert_eq!(secreted[0].value as u64, 42 * MOB);
+
+        let change = transaction_txos
+            .change
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(change.len(), 1);
+        assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
+
+        let inputs = transaction_txos
+            .inputs
+            .iter()
+            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].value as u64, 100 * MOB);
+
+        // Verify balance for Alice = original balance - fee - txo_value
+        let balance = service
+            .get_balance_for_account(&AccountID(alice.id.clone()))
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
+
+        // Bob's balance should be = output_txo_value
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.id.clone()))
+            .unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(bob_balance_pmob.unspent, 42000000000000);
+
+        // Decrypt the memo from the transaction txo and verify.
+        let txo = &tx_proposal.payload_txos[0].tx_out;
+
+        let shared_secret = get_tx_out_shared_secret(
+            bob_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&txo.public_key).unwrap(),
+        );
+
+        let memo = txo.decrypt_memo(&shared_secret);
+        let authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
+        let validation = authenticated_sender_memo.validate(
+            &alice_account_key.subaddress(alice_address_from_bob.subaddress_index as u64),
+            &bob_account_key
+                .subaddress_view_private(bob_address_from_alice.subaddress_index as u64),
+            &txo.public_key,
+        );
+
+        assert!(bool::from(validation));
     }
 
     // FIXME: Test with 0 change transactions
