@@ -6,8 +6,8 @@ pub use self::errors::B58Error;
 
 use bip39::{Language, Mnemonic};
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
-use mc_account_keys_slip10::Slip10KeyGenerator;
 use mc_api::printable::{PaymentRequest, PrintableWrapper, TransferPayload};
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_transaction_core::Amount;
 use serde::{Deserialize, Serialize};

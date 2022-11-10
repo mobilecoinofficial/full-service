@@ -14,9 +14,10 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
-    tx::{TxOut, TxOutConfirmationNumber, TxOutMembershipProof},
+    tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
+use mc_transaction_extra::TxOutConfirmationNumber;
 use std::{fmt, str::FromStr};
 
 use crate::{
@@ -372,12 +373,11 @@ impl TxoModel for Txo {
                     target_key: &mc_util_serial::encode(&txo.target_key),
                     public_key: &mc_util_serial::encode(&txo.public_key),
                     e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
-                    txo: &mc_util_serial::encode(&txo),
                     subaddress_index: subaddress_index.map(|i| i as i64),
                     key_image: key_image_bytes.as_deref(),
                     received_block_index: Some(received_block_index as i64),
                     spent_block_index: None,
-                    shared_secret: None,
+                    confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                 };
 
@@ -411,12 +411,11 @@ impl TxoModel for Txo {
             target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
             public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
             e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
-            txo: &mc_util_serial::encode(&output_txo.tx_out),
             subaddress_index: None,
             key_image: None,
             received_block_index: None,
             spent_block_index: None,
-            shared_secret: Some(&encoded_confirmation),
+            confirmation: Some(&encoded_confirmation),
         };
 
         diesel::insert_into(txos::table)
@@ -1430,10 +1429,10 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_db_txos, add_block_with_tx, add_block_with_tx_outs,
-            create_test_minted_and_change_txos, create_test_received_txo,
-            create_test_txo_for_recipient, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+            add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
+            create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
+            get_test_ledger, manually_sync_account, random_account_with_seed_values,
+            WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1509,12 +1508,11 @@ mod tests {
             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
             public_key: mc_util_serial::encode(&for_alice_txo.public_key),
             e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
-            txo: mc_util_serial::encode(&for_alice_txo),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
             received_block_index: Some(12),
             spent_block_index: None,
-            shared_secret: None,
+            confirmation: None,
             account_id: Some(alice_account_id.to_string()),
         };
 
@@ -1538,7 +1536,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1556,10 +1554,12 @@ mod tests {
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
 
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_alice_key_image)],
             &mut rng,
         );
@@ -1754,7 +1754,7 @@ mod tests {
         )
         .unwrap();
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             alice_account_key.clone(),
             bob_account_key.subaddress(0),
             72 * MOB,
@@ -1773,10 +1773,12 @@ mod tests {
         assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
 
         // Add the minted Txos to the ledger
-        add_block_with_db_txos(
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &wallet_db,
-            &[minted_txo.id.clone(), change_txo.id.clone()],
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
             &[KeyImage::from(for_bob_key_image)],
             &mut rng,
         );
@@ -2093,7 +2095,7 @@ mod tests {
 
         assert_eq!(txos.len(), 12);
 
-        let transaction_log = create_test_minted_and_change_txos(
+        let (transaction_log, _) = create_test_minted_and_change_txos(
             src_account.clone(),
             recipient,
             1 * MOB,
@@ -2225,7 +2227,7 @@ mod tests {
         // Note: Because this txo is both received and sent, between two different
         // accounts, its confirmation number does get updated. Typically, received txos
         // have None for the confirmation number.
-        assert!(received_txo.shared_secret.is_some());
+        assert!(received_txo.confirmation.is_some());
 
         // Get the txo from the sent perspective
         log::info!(logger, "Listing all Txos for sender account");
@@ -2258,9 +2260,9 @@ mod tests {
         // what differentiates them.
         assert_eq!(sent_txo_details, received_txo);
 
-        assert!(sent_txo_details.shared_secret.is_some());
+        assert!(sent_txo_details.confirmation.is_some());
         let confirmation: TxOutConfirmationNumber =
-            mc_util_serial::decode(&sent_txo_details.shared_secret.unwrap()).unwrap();
+            mc_util_serial::decode(&sent_txo_details.confirmation.unwrap()).unwrap();
         log::info!(logger, "Validating the confirmation number");
         let verified = Txo::validate_confirmation(
             &AccountID::from(&recipient_account_key),

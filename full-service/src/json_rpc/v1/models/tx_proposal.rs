@@ -9,7 +9,7 @@ use crate::{
 use mc_common::HashMap;
 use mc_mobilecoind_json::data_types::{JsonOutlay, JsonTx, JsonUnspentTxOut};
 
-use mc_transaction_core::tx::TxOutConfirmationNumber;
+use mc_transaction_extra::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 

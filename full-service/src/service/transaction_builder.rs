@@ -8,6 +8,7 @@
 //! This module, on the other hand, builds a transaction within the context of
 //! the wallet.
 
+use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -24,22 +25,18 @@ use mc_common::HashSet;
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
+use mc_transaction_builder::{
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+};
 use mc_transaction_core::{
     constants::RING_SIZE,
     tokens::Mob,
     tx::{TxOut, TxOutMembershipProof},
     Amount, BlockVersion, Token, TokenId,
 };
-
-use mc_transaction_std::{
-    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
-};
 use mc_util_uri::FogUri;
-
-use rand::{rngs::ThreadRng, Rng};
+use rand::Rng;
 use std::{collections::BTreeMap, str::FromStr, sync::Arc};
-
-use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -277,7 +274,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .inputs
             .iter()
             .map(|utxo| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                let txo = self.ledger_db.get_tx_out_by_index(
+                    self.ledger_db
+                        .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+                )?;
                 self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
             })
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
@@ -293,7 +293,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
             .iter()
             .map(|(utxo, _membership_proof)| {
-                let txo: TxOut = mc_util_serial::decode(&utxo.txo)?;
+                let txo = self.ledger_db.get_tx_out_by_index(
+                    self.ledger_db
+                        .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+                )?;
                 self.ledger_db
                     .get_tx_out_index_by_hash(&txo.hash())
                     .map_err(WalletTransactionBuilderError::LedgerDB)
@@ -321,8 +324,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let subaddress_index = utxo.subaddress_index.ok_or_else(|| {
                 WalletTransactionBuilderError::CannotUseOrphanedTxoAsInput(utxo.id.clone())
             })?;
-
-            let db_tx_out: TxOut = mc_util_serial::decode(&utxo.txo)?;
+            let db_tx_out = self.ledger_db.get_tx_out_by_index(
+                self.ledger_db
+                    .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
+            )?;
 
             let (mut ring, mut membership_proofs) = rings_and_proofs
                 .pop()
@@ -446,8 +451,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             change_txos.push(change_txo);
         }
 
-        let unsigned_tx =
-            transaction_builder.build_unsigned::<ThreadRng, DefaultTxOutputsOrdering>()?;
+        let unsigned_tx = transaction_builder.build_unsigned::<DefaultTxOutputsOrdering>()?;
 
         Ok(UnsignedTxProposal {
             unsigned_tx,

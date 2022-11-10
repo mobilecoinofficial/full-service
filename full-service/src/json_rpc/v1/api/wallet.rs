@@ -169,6 +169,7 @@ where
                     max_spendable_value,
                     comment,
                     TransactionMemo::RTH,
+                    None,
                 )
                 .map_err(format_error)?;
 
@@ -279,6 +280,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::RTH,
+                    None,
                 )
                 .map_err(format_error)?;
 

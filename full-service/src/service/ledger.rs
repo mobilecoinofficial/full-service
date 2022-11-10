@@ -17,7 +17,7 @@ use mc_connection::{
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::Ledger;
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
@@ -176,8 +176,10 @@ where
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
         let conn = self.get_conn()?;
         let txo_details = Txo::get(txo_id_hex, &conn)?;
-
-        let txo: TxOut = mc_util_serial::decode(&txo_details.txo)?;
+        let txo = self.ledger_db.get_tx_out_by_index(
+            self.ledger_db
+                .get_tx_out_index_by_public_key(&txo_details.public_key()?)?,
+        )?;
         Ok(txo)
     }
 
@@ -294,4 +296,13 @@ where
         let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
         Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
+}
+
+pub fn get_tx_out_by_public_key(
+    ledger_db: &LedgerDB,
+    public_key: &CompressedRistrettoPublic,
+) -> Result<TxOut, LedgerServiceError> {
+    let txo_index = ledger_db.get_tx_out_index_by_public_key(public_key)?;
+    let txo = ledger_db.get_tx_out_by_index(txo_index)?;
+    Ok(txo)
 }
