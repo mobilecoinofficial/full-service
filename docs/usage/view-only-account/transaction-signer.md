@@ -8,10 +8,10 @@ The transaction signer is a secondary program built with full service that provi
 
 There are 5 things that the transaction signer can do
 
-1. Create an account
-2. Create a view only account import package
-3. Sync a view only account
-4. Generate new subaddresses
+1. Create a new account
+2. Import an existing account
+3. Create a view only account import package
+4. Sync a view only account
 5. Sign an unsigned transaction
 
 ## Creating an Account
@@ -21,6 +21,12 @@ The first thing you will most likely want to do is to create an account and stor
 To create an account run the transaction signer binary with the `create` command. This command takes in an optional name flag and generates 1 file as an output in the directory the binary lives in and is in the format of `mobilecoin_secret_mnemonic_{account_id[0..6]}_.json`
 
 This file contains your account mnemonic, which can be used to spend the funds on the account! Make sure to store this in a secure location and not lose it, as it is required to perform the other functions of this program.
+
+## Importing an Existing Account
+
+If you already have an account you would like to use, you can run the transaction signer binary with the `import` command. This command takes in an optional name parameter (String), and a mnemonic parameter (String) formatted as follows:
+
+`./transaction-signer import "ranch invest renew amount twin summer opinion earth lock broken shed ghost idea genuine now seminar draw sorry hold hunt eager inhale party enable" --name "account-name"`
 
 ## Create View Only Account Import Package
 
@@ -44,16 +50,6 @@ The result in the response from this call will need to be saved to a json file a
 From the offline machine, call the Sync function of the transaction signer, which takes in the secret mnemonic file, the sync request file, and optionally a number of subaddresses to generate and attempt to decode the txos with, defaulting to 1000 subaddresses.
 
 The result of this will be a file in the directory of the binary that contains the entire method to be called on Full Service. This will add any missing KeyImages for txos and Subaddresses required to decode them to the view only account.
-
-## Generating Subaddresses
-
-If you would like to use the subaddresses feature of MobileCoin accounts, then these subaddresses must be generated with the transaction signer.
-
-Start by calling the [create\_new\_subaddresses\_request](../../view-only-accounts/subaddress/create\_new\_subaddress\_request.md) from the view only account in Full Service. This will generate a result which will need to be saved to a json file and moved to the offline machine.
-
-From the offline machine, call the Subaddresses function of the transaction signer, which takes in the secret mnemonic file and the subaddresses request.
-
-The result of this will be a file in the directory of the binary that contains the entire method to be called with Full Service. This will add a set of new subaddresses to the view only account.
 
 ## Sign an Unsigned Transaction
 
