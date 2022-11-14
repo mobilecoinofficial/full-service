@@ -12,9 +12,30 @@ import os
 sys.path.append(os.path.abspath("../cli"))
 
 from fullservice import FullServiceAPIv2 as v2 
-import asyncio 
+import asyncio
+import json
+import subprocess
+
+with open('config') as json_file:
+    config = json.load(json_file)
+
+
+def get_account_setup(n = 2):
+    # copy over files from the running docker instance and import them
+    containerId = config["local_network_containerid"]
+    print(containerId)
+    return
+    for i in range(n):
+        filePath = f'/mc-network/sample_data/keys/account_keys_{i}.json'
+        containerId = "1234"
+        cmd = f"docker cp {containerId}:{filePath} ."
+        subprocess.Popen(cmd, shell=True)
+
+
 
 async def main():
+    get_account_setup()
+    return
     fs = v2()
 
     network_status = fs.get_network_status().result.network_status
