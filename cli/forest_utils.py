@@ -7,6 +7,10 @@ import logging
 import os
 from typing import Optional, cast, Dict
 
+if __name__ == '__main__':
+    module_root = os.getcwd()
+else:
+    module_root = os.path.dirname(__file__)
 
 def MuteAiohttp(record: logging.LogRecord) -> bool:
     str_msg = str(getattr(record, "msg", ""))
@@ -36,7 +40,7 @@ logging.getLogger("asyncio").setLevel("INFO")
 # edge cases:
 # accessing an unset secret loads other variables and potentially overwrites existing ones
 def parse_secrets(file: str) -> Dict[str, str]:
-    with open('file') as json_file:
+    with open(file) as json_file:
         config = json.load(json_file)
 
     return config
@@ -46,18 +50,18 @@ def parse_secrets(file: str) -> Dict[str, str]:
 env_cache = set()
 
 def load_secrets(env: Optional[str] = None, overwrite: bool = False) -> None:
-    if env in env_cache:
+    if str(env) in env_cache:
         return
-    env_cache.add(env)
+    env_cache.add(str(env))
     if not env:
         env = os.environ.get("ENV", "dev")
     try:
-        secrets = parse_secrets("config")
+        secrets = parse_secrets(f"{module_root}/config")
         if overwrite:
             new_env = secrets
         else:
             # mask loaded secrets with existing env
-            new_env = secrets | os.environ
+            new_env = {**secrets, **dict(os.environ)}
         os.environ.update(new_env)
     except FileNotFoundError:
         pass
