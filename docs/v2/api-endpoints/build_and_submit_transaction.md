@@ -24,6 +24,8 @@ description: >-
 | `fee_token_id` | string(u64) | The fee token to submit with this transaction. If not provided, uses token_id of first output, if available, or defaults to MOB |
 | `tombstone_block` | string(u64) | The block after which this transaction expires. If not provided, uses `cur_height` + 10 |
 | `max_spendable_value` | string(u64) | The maximum amount for an input TXO selected for this transaction |
+| `block_version` | string(u64) | The block version to build this transaction for. Defaults to the network block version |
+| `sender_memo_credential_subaddress_index` | string(u64) | The subaddress to generate the SenderMemoCredentials from. Defaults to the default subaddress for the account. |
 | `comment` | string | Comment to annotate this transaction in the transaction log |
 
 ##[Response](../../../full-service/src/json_rpc/v2/api/response.rs#L44-L47)
