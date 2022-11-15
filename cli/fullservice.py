@@ -29,7 +29,6 @@ class Request:
     def __init__(self, logLevel = logging.ERROR):
          logging.basicConfig( level=logLevel)
     url = utils.get_secret('URL')
-    logging.info("Woohoo error")
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
