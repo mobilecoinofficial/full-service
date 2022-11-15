@@ -1,1 +1,3 @@
-URL=http://localhost:9090/wallet/v2
+{
+    "URL" : "http://localhost:9090/wallet/v2"
+}

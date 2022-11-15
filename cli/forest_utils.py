@@ -1,11 +1,16 @@
 #!/usr/bin/python3.9
 # Copyright (c) 2021 MobileCoin Inc.
 # Copyright (c) 2021 The Forest Team
-import functools
+
+import json
 import logging
 import os
 from typing import Optional, cast, Dict
 
+if __name__ == '__main__':
+    module_root = os.getcwd()
+else:
+    module_root = os.path.dirname(__file__)
 
 def MuteAiohttp(record: logging.LogRecord) -> bool:
     str_msg = str(getattr(record, "msg", ""))
@@ -34,30 +39,29 @@ logging.getLogger("asyncio").setLevel("INFO")
 
 # edge cases:
 # accessing an unset secret loads other variables and potentially overwrites existing ones
-def parse_secrets(secrets: str) -> dict[str, str]:
-    pairs = [
-        line.strip().split("=", 1)
-        for line in secrets.split("\n")
-        if line and not line.startswith("#")
-    ]
-    can_be_a_dict = cast(list[tuple[str, str]], pairs)
-    return dict(can_be_a_dict)
+def parse_secrets(file: str) -> Dict[str, str]:
+    with open(file) as json_file:
+        config = json.load(json_file)
+
+    return config
 
 
 # to dump: "\n".join(f"{k}={v}" for k, v in secrets.items())
+env_cache = set()
 
-
-@functools.cache  # don't load the same env more than once
 def load_secrets(env: Optional[str] = None, overwrite: bool = False) -> None:
+    if str(env) in env_cache:
+        return
+    env_cache.add(str(env))
     if not env:
         env = os.environ.get("ENV", "dev")
     try:
-        secrets = parse_secrets(open(f"config").read())
+        secrets = parse_secrets(f"{module_root}/config")
         if overwrite:
             new_env = secrets
         else:
             # mask loaded secrets with existing env
-            new_env = secrets | os.environ
+            new_env = {**secrets, **dict(os.environ)}
         os.environ.update(new_env)
     except FileNotFoundError:
         pass
