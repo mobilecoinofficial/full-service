@@ -29,9 +29,12 @@ class Request:
     url = utils.get_secret('URL')
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
-        request_data["params"] = {
-            k: v for k, v in request_data["params"].items() if v
-        }  # handle optional params
+        if len(request_data["params"]) > 0:
+            request_data["params"] = {
+                k: v for k, v in request_data["params"].items() if v
+            }  # handle optional params
+        else:
+            del request_data["params"]
         response_data = await self.request(request_data)
         if "error" in str(response_data):
             logging.error(response_data)
