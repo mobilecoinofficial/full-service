@@ -788,6 +788,16 @@ where
                 None => None,
             };
 
+            let min_received_block_index = match min_received_block_index {
+                Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
+            let max_received_block_index = match max_received_block_index {
+                Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
             let txos_and_statuses = service
                 .list_txos(
                     account_id,
