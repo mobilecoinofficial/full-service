@@ -20,12 +20,10 @@ elif [ "$NET" == "alpha" ]; then
     INGEST_SIGSTRUCT_URI=""
 elif [ "$NET" == "local" ]; then
     NAMESPACE=$NET
-    TX_SOURCE_URL="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
     INGEST_SIGSTRUCT_URI=""
 else
-    # TODO: add support for local network
     echo "Unknown network"
-    echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
+    echo "Usage: run-fs.sh {main|test|alpha|local} [--no-build]"
     exit 1
 fi
 
