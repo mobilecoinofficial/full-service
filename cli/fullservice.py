@@ -517,8 +517,8 @@ class FullServiceAPIv2(Request):
 
     async def import_account(
         self,
-        mnemonic="",
-        key_derivation_version="",
+        mnemonic,
+        key_derivation_version,
         name="",
         first_block_index="",
         next_subaddress_index="",
