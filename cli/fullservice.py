@@ -26,7 +26,10 @@ else:
 
 
 class Request:
+    def __init__(self, logLevel = logging.ERROR):
+         logging.basicConfig( level=logLevel)
     url = utils.get_secret('URL')
+    logging.info("Woohoo error")
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
@@ -36,10 +39,10 @@ class Request:
         else:
             del request_data["params"]
         response_data = await self.request(request_data)
-        if "error" in str(response_data):
+        if "error" in str(response_data) or "InvalidRequest" in str(response_data):
             logging.error(response_data)
         else:
-            print(response_data)
+            logging.info(response_data)
         return response_data
 
     async def request(self, request_data: dict):
@@ -58,6 +61,9 @@ class Request:
 
 
 class FullServiceAPIv2(Request):
+    def __init__(self, logLevel=logging.ERROR):
+        logging.basicConfig( level=logLevel)
+
     async def assign_address_for_account(self, account_id, metadata=""):
         return await self.req(
             {
