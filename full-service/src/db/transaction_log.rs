@@ -118,15 +118,6 @@ pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
     fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
 
-    /// Get all transaction logs for the given block index.
-    fn get_all_for_block_index(
-        block_index: u64,
-        conn: &Conn,
-    ) -> Result<Vec<TransactionLog>, WalletDbError>;
-
-    /// Get all transaction logs ordered by finalized_block_index.
-    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError>;
-
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
     ///
@@ -228,35 +219,6 @@ impl TransactionLogModel for TransactionLog {
         }
     }
 
-    fn get_all_for_block_index(
-        block_index: u64,
-        conn: &Conn,
-    ) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
-
-        let matches: Vec<TransactionLog> = transaction_logs
-            .select(all_columns)
-            .filter(finalized_block_index.eq(block_index as i64))
-            .load::<TransactionLog>(conn)?;
-
-        Ok(matches)
-    }
-
-    fn get_all_ordered_by_block_index(conn: &Conn) -> Result<Vec<TransactionLog>, WalletDbError> {
-        use crate::db::schema::transaction_logs::{
-            all_columns, dsl::transaction_logs, finalized_block_index,
-        };
-
-        let matches = transaction_logs
-            .select(all_columns)
-            .order_by(finalized_block_index.asc())
-            .load(conn)?;
-
-        Ok(matches)
-    }
-
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
 
@@ -329,15 +291,17 @@ impl TransactionLogModel for TransactionLog {
 
         if let Some(min_block_index) = min_block_index {
             query =
-                query.filter(transaction_logs::finalized_block_index.ge(min_block_index as i64));
+                query.filter(transaction_logs::submitted_block_index.ge(min_block_index as i64));
         }
 
         if let Some(max_block_index) = max_block_index {
             query =
-                query.filter(transaction_logs::finalized_block_index.le(max_block_index as i64));
+                query.filter(transaction_logs::submitted_block_index.le(max_block_index as i64));
         }
 
-        let transaction_logs: Vec<TransactionLog> = query.order(transaction_logs::id).load(conn)?;
+        let transaction_logs: Vec<TransactionLog> = query
+            .order(transaction_logs::submitted_block_index.desc())
+            .load(conn)?;
 
         let results = transaction_logs
             .into_iter()
@@ -635,7 +599,7 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -805,7 +769,7 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
@@ -884,7 +848,7 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -982,7 +946,7 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         assert_eq!(
@@ -1049,7 +1013,7 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         // Log submitted transaction from tx_proposal

@@ -54,6 +54,7 @@ pub enum JsonCommandRequest {
         max_spendable_value: Option<String>,
         comment: Option<String>,
         block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -77,6 +78,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
@@ -137,20 +139,20 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
-    get_address {
-        public_address_b58: String,
-    },
     get_address_for_account {
         account_id: String,
         index: i64,
+    },
+    get_address_status {
+        address: String,
+    },
+    get_address {
+        public_address_b58: String,
     },
     get_addresses {
         account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
-    },
-    get_address_status {
-        address: String,
     },
     get_block {
         block_index: String,
@@ -175,11 +177,14 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
-    get_txo {
-        txo_id: String,
-    },
     get_txo_block_index {
         public_key: String,
+    },
+    get_txo_membership_proofs {
+        outputs: Vec<JsonTxOut>,
+    },
+    get_txo {
+        txo_id: String,
     },
     get_txos {
         account_id: Option<String>,
@@ -191,20 +196,17 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
-    get_txo_membership_proofs {
-        outputs: Vec<JsonTxOut>,
-    },
     get_wallet_status,
-    import_account {
-        mnemonic: String,
-        key_derivation_version: String,
+    import_account_from_legacy_root_entropy {
+        entropy: String,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
     },
-    import_account_from_legacy_root_entropy {
-        entropy: String,
+    import_account {
+        mnemonic: String,
+        key_derivation_version: String,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,

@@ -20,9 +20,9 @@ use crate::{
                 confirmation_number::Confirmation,
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
-                transaction_log::{TransactionLog, TransactionLogMap},
+                transaction_log::TransactionLog,
                 tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
-                txo::{Txo, TxoMap},
+                txo::Txo,
                 wallet_status::WalletStatus,
             },
         },
@@ -59,9 +59,11 @@ use mc_transaction_core::Amount;
 use mc_transaction_extra::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
+use serde_json::Map;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    iter::FromIterator,
     str::FromStr,
 };
 
@@ -143,6 +145,7 @@ where
             max_spendable_value,
             comment,
             block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -159,6 +162,10 @@ where
                 None => None,
             };
 
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -169,7 +176,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
                 .map_err(format_error)?;
@@ -247,6 +254,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -263,6 +271,10 @@ where
                 None => None,
             };
 
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -272,7 +284,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
                 .map_err(format_error)?;
@@ -716,11 +728,17 @@ where
                 .list_transaction_logs(account_id, offset, limit, min_block_index, max_block_index)
                 .map_err(format_error)?;
 
-            let transaction_log_map = TransactionLogMap(
+            let transaction_log_map = Map::from_iter(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a, v)| (t.id.clone(), TransactionLog::new(t, a, v)))
-                    .collect(),
+                    .map(|(t, a, v)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(TransactionLog::new(t, a, v))
+                                .expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_transaction_logs {
@@ -783,11 +801,16 @@ where
                 )
                 .map_err(format_error)?;
 
-            let txo_map = TxoMap(
+            let txo_map = Map::from_iter(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s)| (t.id.clone(), Txo::new(t, s)))
-                    .collect(),
+                    .map(|(t, s)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_txos {

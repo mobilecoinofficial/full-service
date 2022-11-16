@@ -56,17 +56,6 @@ pub trait TransactionLogService {
         &self,
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError>;
-
-    /// Get all transaction logs for a given block.
-    fn get_all_transaction_logs_for_block(
-        &self,
-        block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
-
-    /// Get all transaction logs ordered& by finalized_block_index.
-    fn get_all_transaction_logs_ordered_by_block(
-        &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 }
 
 impl<T, FPR> TransactionLogService for WalletService<T, FPR>
@@ -104,39 +93,6 @@ where
         let value_map = transaction_log.value_map(&conn)?;
 
         Ok((transaction_log, associated, value_map))
-    }
-
-    fn get_all_transaction_logs_for_block(
-        &self,
-        block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.get_conn()?;
-        let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
-        for transaction_log in transaction_logs {
-            res.push((
-                transaction_log.clone(),
-                transaction_log.get_associated_txos(&conn)?,
-                transaction_log.value_map(&conn)?,
-            ));
-        }
-        Ok(res)
-    }
-
-    fn get_all_transaction_logs_ordered_by_block(
-        &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.get_conn()?;
-        let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
-        for transaction_log in transaction_logs {
-            res.push((
-                transaction_log.clone(),
-                transaction_log.get_associated_txos(&conn)?,
-                transaction_log.value_map(&conn)?,
-            ));
-        }
-        Ok(res)
     }
 }
 
@@ -227,7 +183,7 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(None),
                     None,
                 )
                 .unwrap();
