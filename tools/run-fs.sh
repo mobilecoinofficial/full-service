@@ -18,10 +18,12 @@ elif [ "$NET" == "alpha" ]; then
     PEER_DOMAIN="alpha.development.mobilecoin.com/"
     TX_SOURCE_URL="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
     INGEST_SIGSTRUCT_URI=""
+elif [ "$NET" == "local" ]; then
+    NAMESPACE=$NET
+    INGEST_SIGSTRUCT_URI=""
 else
-    # TODO: add support for local network
     echo "Unknown network"
-    echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
+    echo "Usage: run-fs.sh {main|test|alpha|local} [--no-build]"
     exit 1
 fi
 
@@ -31,11 +33,12 @@ LEDGER_DB_DIR="${WORK_DIR}/ledger-db"
 INGEST_DOWNLOAD_LOCATION="$WORK_DIR/ingest-enclave.css"
 mkdir -p ${WORK_DIR}
 
-
+# If there is no file at the download location and we know where to download it from
 if ! test -f "$INGEST_DOWNLOAD_LOCATION" && [ "$INGEST_SIGSTRUCT_URI" != "" ]; then
     (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 fi
 
+# If the environment variable isn't set
 if [ -z "$INGEST_ENCLAVE_CSS" ]; then
     export INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
 fi
@@ -54,13 +57,26 @@ if [ "$2" != "--no-build" ]; then
     cp $SCRIPT_DIR/../target/release/full-service $WORK_DIR
 fi 
 
+
 mkdir -p ${WALLET_DB_DIR}
-$WORK_DIR/full-service \
-    --wallet-db ${WALLET_DB_DIR}/wallet.db \
-    --ledger-db ${LEDGER_DB_DIR} \
-    --peer mc://node1.${PEER_DOMAIN} \
-    --peer mc://node2.${PEER_DOMAIN} \
-    --tx-source-url ${TX_SOURCE_URL}/node1.${PEER_DOMAIN} \
-    --tx-source-url ${TX_SOURCE_URL}/node2.${PEER_DOMAIN}  \
-    --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
-    --chain-id $NET
+if [ "$NET" == "local" ]; then
+    $WORK_DIR/full-service \
+        --wallet-db ${WALLET_DB_DIR}/wallet.db \
+        --ledger-db ${LEDGER_DB_DIR} \
+        --peer insecure-mc://localhost:3200 \
+        --peer insecure-mc://localhost:3201 \
+        --tx-source-url http://localhost:4566/node-0-ledger \
+        --tx-source-url http://localhost:4566/node-1-ledger \
+        --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
+        --chain-id $NET
+else
+    $WORK_DIR/full-service \
+        --wallet-db ${WALLET_DB_DIR}/wallet.db \
+        --ledger-db ${LEDGER_DB_DIR} \
+        --peer mc://node1.${PEER_DOMAIN} \
+        --peer mc://node2.${PEER_DOMAIN} \
+        --tx-source-url ${TX_SOURCE_URL}/node1.${PEER_DOMAIN} \
+        --tx-source-url ${TX_SOURCE_URL}/node2.${PEER_DOMAIN}  \
+        --fog-ingest-enclave-css $INGEST_ENCLAVE_CSS \
+        --chain-id $NET
+fi
