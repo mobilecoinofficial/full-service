@@ -20,30 +20,35 @@ from fullservice import FullServiceAPIv2 as v2
 with open('config') as json_file:
     config = json.load(json_file)
 
+fs = v2()
+
+
 def get_mnemonics(n = 2):
     if n > len(config['Account Mnemonics']):
         raise ValueError("Not enough account available in config")
-
     return config['Account Mnemonics'][:n]
 
+async def get_account(i):
+    mnemonic = config['Account Mnemonics'][i]['mnemonic']
+    # try to import
+    account = await fs.import_account(mnemonic, "2")
+    if 'error' not in account.keys():
+        return account['result']['account']
+    else:
+        # use get account
+        pass
+
+
 async def main():
-    fs = v2()
     network_status = await fs.get_network_status()
 
-    m = get_mnemonics()
-    alice = await fs.import_account(m[0]['mnemonic'], "2")
-    assert('error' not in alice.keys())
-    alice = alice['result']['account']
+    alice = await get_account(0)
+    bob = await get_account(1)
 
+    alice = (await fs.get_account_status(alice['id']))['result']['account']
+    bob = (await fs.get_account_status(bob['id']),)['result']['account']
 
-    return    
-    alice = fs.import_account().result.account
-    alice = fs.get_account_status(alice.account_id).result
-    bob = fs.import_account().result.account
-    bob = fs.get_account_status(bob.account_id).result
-
-
-    first_transaction = fs.build_and_submit_transaction(
+    first_transaction = await fs.build_and_submit_transaction(
         alice.account.account_id,
         recipient_public_address = bob.account.main_address,
         amount = { "value" : str(1), "token_id": str(0)}
