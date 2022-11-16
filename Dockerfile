@@ -25,7 +25,7 @@
 # In order to create a consistent and verifiable the build environment, only add
 # or update in the mobilecoin/rust-sgx-base image and refer to the image by its hash.
 
-FROM mobilecoin/rust-sgx-base@sha256:b3714d9a81891c97abd56d8dd72da0ef2dae544a5692c8bf6ffe1ba360e900db as builder
+FROM mobilecoin/rust-sgx-base@sha256:3d8f8cbd33c08bc248108b0076674158c4ca8bd0f039bb38bc119cc25eb3165a as builder
 
 ARG NAMESPACE=test
 ARG SIGNED_ENCLAVE_BASE=enclave-distribution.${NAMESPACE}.mobilecoin.com
