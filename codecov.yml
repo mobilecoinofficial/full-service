@@ -1,13 +1,16 @@
 coverage:
   status:
     project:
-      default: false
+      #default: false
       full-service:
         target: auto
-        paths: "full-service/"
+        paths: 
+          - "full-service/"
       mirror:
         target: auto
-        paths: "mirror/"
+        paths: 
+          - "mirror/"
       validator:
         target: auto
-        paths: "validator/"
+        paths: 
+          - "validator/"
