@@ -4,9 +4,12 @@ import requests
 
 async def smoke_test():
     fs = v2()
+    #basic proof of concept, returns version
     data = await fs.version()
+    
     slack = '{"text": "%s"}' % data
-    requests.post(url='https://hooks.slack.com/services/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', headers={"Content-type": "application/json"}, data=slack)
+    #slack URL to post response to not parsed or made clean yet
+    requests.post(url='', headers={"Content-type": "application/json"}, data=slack)
     
 if __name__ == "__main__":
     asyncio.run(smoke_test())
