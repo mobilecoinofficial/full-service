@@ -178,6 +178,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
+                txo_public_key: txo_public_key.to_string(),
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
             }
         }

@@ -43,6 +43,7 @@ pub enum JsonCommandResponse {
     build_and_submit_transaction {
         transaction_log: TransactionLog,
         tx_proposal: TxProposal,
+        txo_public_key: String,
     },
     build_gift_code {
         tx_proposal: TxProposal,
