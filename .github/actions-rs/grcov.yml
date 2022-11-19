@@ -1,0 +1,12 @@
+binary-path: ./target/debug/deps/
+branch: true
+ignore:
+  - "../*"
+  - "/*"
+  - "mobilecoin/*"
+  - "target/*"
+  - "*/e2e_tests/*"
+ignore-not-existing: true
+output-type: lcov
+output-path: ./tests.lcov
+source-dir: .

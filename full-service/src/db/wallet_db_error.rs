@@ -130,7 +130,7 @@ pub enum WalletDbError {
     ProtoConversion(mc_api::ConversionError),
 
     /// Error while generating a Slip10Key: {0}
-    Slip10Key(mc_account_keys_slip10::Error),
+    Slip10Key(mc_account_keys::Error),
 
     /// Decode from Base64 error: {0}
     Base64Decode(base64::DecodeError),
@@ -202,8 +202,8 @@ impl From<mc_ledger_db::Error> for WalletDbError {
     }
 }
 
-impl From<mc_account_keys_slip10::Error> for WalletDbError {
-    fn from(src: mc_account_keys_slip10::Error) -> Self {
+impl From<mc_account_keys::Error> for WalletDbError {
+    fn from(src: mc_account_keys::Error) -> Self {
         Self::Slip10Key(src)
     }
 }

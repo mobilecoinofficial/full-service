@@ -74,8 +74,6 @@ pub struct Txo {
     pub public_key: Vec<u8>,
     /// The serialized e_fog_hint of the TxOut.
     pub e_fog_hint: Vec<u8>,
-    /// The serialized TxOut.
-    pub txo: Vec<u8>,
     /// The receiving subaddress, if known.
     pub subaddress_index: Option<i64>,
     /// Pre-computed key image for this Txo, or None if the Txo is orphaned.
@@ -83,7 +81,7 @@ pub struct Txo {
     /// Block index containing this Txo.
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub shared_secret: Option<Vec<u8>>,
+    pub confirmation: Option<Vec<u8>>,
 }
 
 impl Txo {
@@ -104,12 +102,11 @@ pub struct NewTxo<'a> {
     pub target_key: &'a [u8],
     pub public_key: &'a [u8],
     pub e_fog_hint: &'a [u8],
-    pub txo: &'a [u8],
     pub subaddress_index: Option<i64>,
     pub key_image: Option<&'a [u8]>,
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
-    pub shared_secret: Option<&'a [u8]>,
+    pub confirmation: Option<&'a [u8]>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking

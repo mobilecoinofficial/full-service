@@ -27,7 +27,6 @@ use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
-use mc_account_keys_slip10;
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
@@ -110,8 +109,8 @@ impl From<base64::DecodeError> for AccountServiceError {
     }
 }
 
-impl From<mc_account_keys_slip10::Error> for AccountServiceError {
-    fn from(src: mc_account_keys_slip10::Error) -> Self {
+impl From<mc_account_keys::Error> for AccountServiceError {
+    fn from(src: mc_account_keys::Error) -> Self {
         Self::Base64DecodeError(src.to_string())
     }
 }

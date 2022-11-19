@@ -71,12 +71,11 @@ table! {
         target_key -> Binary,
         public_key -> Binary,
         e_fog_hint -> Binary,
-        txo -> Binary,
         subaddress_index -> Nullable<BigInt>,
         key_image -> Nullable<Binary>,
         received_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
-        shared_secret -> Nullable<Binary>,
+        confirmation -> Nullable<Binary>,
     }
 }
 

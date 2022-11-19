@@ -9,7 +9,7 @@ on:
 
 jobs:
   release:
-    runs-on: [self-hosted, Linux, large]
+    runs-on: [self-hosted, Linux, X64]
     # Needs write permission for publishing release
     permissions:
       contents: write
@@ -30,41 +30,41 @@ jobs:
         with:
           tag: ${{ steps.current_release.outputs.tag_name }}
           files: |
-            ${{ steps.current_release.outputs.tag_name }}-Linux-testnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-Linux-mainnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-x86-testnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-x86-mainnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-arm64-testnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-arm64-mainnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-Linux-X64-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-Linux-X64-mainnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-X64-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-X64-mainnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-testnet.tar.gz
+            ${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-mainnet.tar.gz
           target: /var/tmp/
 
       - name: Extract Release
         run: |
           rm -rfv build_artifacts
-          mkdir -pv build_artifacts/Linux-testnet
-          mkdir -pv build_artifacts/Linux-mainnet
-          mkdir -pv build_artifacts/macOS-x86-testnet
-          mkdir -pv build_artifacts/macOS-x86-mainnet
-          mkdir -pv build_artifacts/macOS-arm64-testnet
-          mkdir -pv build_artifacts/macOS-arm64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-testnet.tar.gz -C build_artifacts/Linux-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-mainnet.tar.gz -C build_artifacts/Linux-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-x86-testnet.tar.gz -C build_artifacts/macOS-x86-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-x86-mainnet.tar.gz -C build_artifacts/macOS-x86-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-arm64-testnet.tar.gz -C build_artifacts/macOS-arm64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-arm64-mainnet.tar.gz -C build_artifacts/macOS-arm64-mainnet
+          mkdir -pv build_artifacts/Linux-X64-testnet
+          mkdir -pv build_artifacts/Linux-X64-mainnet
+          mkdir -pv build_artifacts/macOS-X64-testnet
+          mkdir -pv build_artifacts/macOS-X64-mainnet
+          mkdir -pv build_artifacts/macOS-ARM64-testnet
+          mkdir -pv build_artifacts/macOS-ARM64-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-testnet.tar.gz -C build_artifacts/Linux-X64-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-mainnet.tar.gz -C build_artifacts/Linux-X64-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-testnet.tar.gz -C build_artifacts/macOS-X64-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-mainnet.tar.gz -C build_artifacts/macOS-X64-mainnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-testnet.tar.gz -C build_artifacts/macOS-ARM64-testnet
+          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-mainnet.tar.gz -C build_artifacts/macOS-ARM64-mainnet
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release
-          tar -czvf ${{ github.ref_name }}-Linux-testnet.tar.gz -C ../build_artifacts/Linux-testnet/ .
-          tar -czvf ${{ github.ref_name }}-Linux-mainnet.tar.gz -C ../build_artifacts/Linux-mainnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-x86-testnet.tar.gz -C ../build_artifacts/macOS-x86-testnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-x86-mainnet.tar.gz -C ../build_artifacts/macOS-x86-mainnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-arm64-testnet.tar.gz -C ../build_artifacts/macOS-arm64-testnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-arm64-mainnet.tar.gz -C ../build_artifacts/macOS-arm64-mainnet/ .
+          tar -czvf ${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/Linux-X64-testnet/ .
+          tar -czvf ${{ github.ref_name }}-Linux-X64-mainnet.tar.gz -C ../build_artifacts/Linux-X64-mainnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-X64-testnet.tar.gz -C ../build_artifacts/macOS-X64-testnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-X64-mainnet.tar.gz -C ../build_artifacts/macOS-X64-mainnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-ARM64-testnet.tar.gz -C ../build_artifacts/macOS-ARM64-testnet/ .
+          tar -czvf ${{ github.ref_name }}-macOS-ARM64-mainnet.tar.gz -C ../build_artifacts/macOS-ARM64-mainnet/ .
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')

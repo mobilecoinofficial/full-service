@@ -56,17 +56,6 @@ pub trait TransactionLogService {
         &self,
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError>;
-
-    /// Get all transaction logs for a given block.
-    fn get_all_transaction_logs_for_block(
-        &self,
-        block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
-
-    /// Get all transaction logs ordered& by finalized_block_index.
-    fn get_all_transaction_logs_ordered_by_block(
-        &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 }
 
 impl<T, FPR> TransactionLogService for WalletService<T, FPR>
@@ -105,39 +94,6 @@ where
 
         Ok((transaction_log, associated, value_map))
     }
-
-    fn get_all_transaction_logs_for_block(
-        &self,
-        block_index: u64,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.get_conn()?;
-        let transaction_logs = TransactionLog::get_all_for_block_index(block_index, &conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
-        for transaction_log in transaction_logs {
-            res.push((
-                transaction_log.clone(),
-                transaction_log.get_associated_txos(&conn)?,
-                transaction_log.value_map(&conn)?,
-            ));
-        }
-        Ok(res)
-    }
-
-    fn get_all_transaction_logs_ordered_by_block(
-        &self,
-    ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = self.get_conn()?;
-        let transaction_logs = TransactionLog::get_all_ordered_by_block_index(&conn)?;
-        let mut res: Vec<(TransactionLog, AssociatedTxos, ValueMap)> = Vec::new();
-        for transaction_log in transaction_logs {
-            res.push((
-                transaction_log.clone(),
-                transaction_log.get_associated_txos(&conn)?,
-                transaction_log.value_map(&conn)?,
-            ));
-        }
-        Ok(res)
-    }
 }
 
 #[cfg(test)]
@@ -152,8 +108,8 @@ mod tests {
             transaction_log::TransactionLogService,
         },
         test_utils::{
-            add_block_from_transaction_log, add_block_to_ledger_db, get_test_ledger,
-            manually_sync_account, setup_wallet_service, MOB,
+            add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
+            setup_wallet_service, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -214,7 +170,7 @@ mod tests {
             .unwrap();
 
         for _ in 0..5 {
-            let (transaction_log, _, _, _) = service
+            let (_, _, _, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &alice_account_id.to_string(),
                     &[(
@@ -227,13 +183,28 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(None),
+                    None,
                 )
                 .unwrap();
 
             {
-                let conn = service.get_conn().unwrap();
-                add_block_from_transaction_log(&mut ledger_db, &conn, &transaction_log, &mut rng);
+                let key_images: Vec<KeyImage> = tx_proposal
+                    .input_txos
+                    .iter()
+                    .map(|txo| txo.key_image.clone())
+                    .collect();
+
+                // Note: This block doesn't contain the fee output.
+                add_block_with_tx_outs(
+                    &mut ledger_db,
+                    &[
+                        tx_proposal.change_txos[0].tx_out.clone(),
+                        tx_proposal.payload_txos[0].tx_out.clone(),
+                    ],
+                    &key_images,
+                    &mut rng,
+                );
             }
 
             manually_sync_account(

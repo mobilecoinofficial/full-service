@@ -3,7 +3,7 @@
 * [Welcome!](README.md)
 
 ## API Endpoints
-* v2
+* [v2](v2/README.md)
   * Account
     * [Account](v2/accounts/account/README.md)
       * [Create Account](v2/api-endpoints/create_account.md)
@@ -31,7 +31,9 @@
       * [Build Transaction](v2/api-endpoints/build_transaction.md)
       * [Submit Transaction](v2/api-endpoints/submit_transaction.md)
       * [Build And Submit Transaction](v2/api-endpoints/build_and_submit_transaction.md)
+      * [Build Burn Transaction](v2/api-endpoints/build_burn_transaction.md)
       * [Build Unsigned Transaction](v2/api-endpoints/build_unsigned_transaction.md)
+      * [Build Unsigned Burn Transaction](v2/api-endpoints/build_unsigned_burn_transaction.md)
     * [Transaction Output TXO](v2/transactions/txo/README.md)
       * [Get TXO](v2/api-endpoints/get_txo.md)
       * [Get TXOs](v2/api-endpoints/get_txos.md)
@@ -60,7 +62,7 @@
     * [Get Wallet Status](v2/api-endpoints/get_wallet_status.md)
   * [Version](v2/other/version/README.md)
     * [Get Version](v2/api-endpoints/version.md)
-* v1 (deprecated)
+* [v1 (deprecated)](v1/README.md)
   * Account
     * [Account](v1/accounts//account/README.md)
       * [Create Account](v1/api-endpoints/create_account.md)
@@ -134,5 +136,7 @@
 * [View Only Account](usage/view-only-account/README.md)
   * [Transaction Signer](usage/view-only-account/transaction-signer.md)
 * [No Wallet Mode](usage/no-wallet-db/no-wallet-db.md)
+* [Mirror Service](../mirror/README.md)
+  * [Example Usage](../mirror/EXAMPLE.md)
 
 ## Frequently Asked Questions

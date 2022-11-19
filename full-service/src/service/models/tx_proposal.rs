@@ -8,10 +8,10 @@ use mc_transaction_core::{
     onetime_keys::recover_onetime_private_key,
     ring_signature::KeyImage,
     tokens::Mob,
-    tx::{Tx, TxOut, TxOutConfirmationNumber},
+    tx::{Tx, TxOut},
     Amount, Token,
 };
-use mc_transaction_std::UnsignedTx;
+use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
 use protobuf::Message;
 
 use crate::{service::transaction::TransactionServiceError, util::b58::b58_decode_public_address};

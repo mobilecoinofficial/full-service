@@ -25,7 +25,7 @@
 # In order to create a consistent and verifiable the build environment, only add
 # or update in the mobilecoin/rust-sgx-base image and refer to the image by its hash.
 
-FROM mobilecoin/rust-sgx-base@sha256:a7fcad9b7172ea0f20b2a83a47fbc34f13363cfd95788cc32427a658790adef0 as builder
+FROM mobilecoin/rust-sgx-base@sha256:3d8f8cbd33c08bc248108b0076674158c4ca8bd0f039bb38bc119cc25eb3165a as builder
 
 ARG NAMESPACE=test
 ARG SIGNED_ENCLAVE_BASE=enclave-distribution.${NAMESPACE}.mobilecoin.com
@@ -53,9 +53,9 @@ ARG RUSTFLAGS='-C target-cpu=penryn'
 
 # Build full-service
 RUN  --mount=type=cache,target=/root/.cargo/git \
-     --mount=type=cache,target=/root/.cargo/registry \
-     --mount=type=cache,target=/app/target \
-     cargo build --release -p mc-full-service ${BUILD_OPTS} \
+  --mount=type=cache,target=/root/.cargo/registry \
+  --mount=type=cache,target=/app/target \
+  cargo build --release -p mc-full-service ${BUILD_OPTS} \
   && cp /app/target/release/mc-full-service /usr/local/bin/mc-full-service
 
 
@@ -76,8 +76,7 @@ RUN  apt-get update \
   && mkdir -p /usr/share/grpc \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
-COPY --from=builder /usr/local/bin/mc-full-service /usr/local/bin/mc-full-service
-RUN ln -s /usr/local/bin/mc-full-service /usr/local/bin/full-service
+COPY --from=builder /usr/local/bin/full-service /usr/local/bin/full-service
 COPY --from=builder /app/*.css /usr/local/bin/
 
 USER app

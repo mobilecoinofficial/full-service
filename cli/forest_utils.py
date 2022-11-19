@@ -1,13 +1,18 @@
 #!/usr/bin/python3.9
 # Copyright (c) 2021 MobileCoin Inc.
 # Copyright (c) 2021 The Forest Team
-import functools
+
+import json
 import logging
 import os
 from typing import Optional, cast, Dict
 
+if __name__ == '__main__':
+    module_root = os.getcwd()
+else:
+    module_root = os.path.dirname(__file__)
 
-def FuckAiohttp(record: logging.LogRecord) -> bool:
+def MuteAiohttp(record: logging.LogRecord) -> bool:
     str_msg = str(getattr(record, "msg", ""))
     if "was destroyed but it is pending" in str_msg:
         return False
@@ -26,7 +31,7 @@ console_handler.setLevel(
     ((os.getenv("LOGLEVEL") or os.getenv("LOG_LEVEL")) or "DEBUG").upper()
 )
 console_handler.setFormatter(fmt)
-console_handler.addFilter(FuckAiohttp)
+console_handler.addFilter(MuteAiohttp)
 logger.addHandler(console_handler)
 logging.getLogger("asyncio").setLevel("INFO")
 
@@ -34,31 +39,29 @@ logging.getLogger("asyncio").setLevel("INFO")
 
 # edge cases:
 # accessing an unset secret loads other variables and potentially overwrites existing ones
-def parse_secrets(secrets: str) -> dict[str, str]:
-    pairs = [
-        line.strip().split("=", 1)
-        for line in secrets.split("\n")
-        if line and not line.startswith("#")
-    ]
-    can_be_a_dict = cast(list[tuple[str, str]], pairs)
-    return dict(can_be_a_dict)
+def parse_secrets(file: str) -> Dict[str, str]:
+    with open(file) as json_file:
+        config = json.load(json_file)
+
+    return config
 
 
 # to dump: "\n".join(f"{k}={v}" for k, v in secrets.items())
+env_cache = set()
 
-
-@functools.cache  # don't load the same env more than once
 def load_secrets(env: Optional[str] = None, overwrite: bool = False) -> None:
+    if str(env) in env_cache:
+        return
+    env_cache.add(str(env))
     if not env:
         env = os.environ.get("ENV", "dev")
     try:
-        logging.info("loading secrets from %s_secrets", env)
-        secrets = parse_secrets(open(f"{env}_secrets").read())
+        secrets = parse_secrets(f"{module_root}/config")
         if overwrite:
             new_env = secrets
         else:
             # mask loaded secrets with existing env
-            new_env = secrets | os.environ
+            new_env = {**secrets, **dict(os.environ)}
         os.environ.update(new_env)
     except FileNotFoundError:
         pass
@@ -81,29 +84,7 @@ def get_secret(key: str, env: Optional[str] = None) -> str:
         return ""
     return secret
 
-
-## Parameters for easy access and ergonomic use
-
-BASE_CLIENT_PORT = 3200
-BASE_PEER_PORT = 3300
-BASE_ADMIN_PORT = 3400
-BASE_ADMIN_HTTP_GATEWAY_PORT = 3500
-
-# TODO make these command line arguments
-# this may not work entirely as expected
-IAS_API_KEY = get_secret('IAS_API_KEY')  # 32 bytes
-IAS_SPID = get_secret('IAS_SPID')  # 16 bytes
-MOBILECOIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..', 'mobilecoin'))
-FULLSERVICE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
-MOB_RELEASE = get_secret('MOB_RELEASE', '1')
-TARGET_DIR = 'target/release'
-KEY_DIR = os.path.join(MOBILECOIN_DIR, 'target/sample_data/keys')
-WORK_DIR = os.path.join(MOBILECOIN_DIR, TARGET_DIR, 'mc-local-network')
-LEDGER_BASE = os.path.join(MOBILECOIN_DIR, 'target', "sample_data", "ledger")
-MINTING_KEYS_DIR = os.path.join(WORK_DIR, 'minting-keys')
-CLI_PORT = 31337
-
-
+#URL = os.getenv('URL')
 
 #### Configure logging to file
 
@@ -111,5 +92,5 @@ if get_secret("LOGFILES"):
     handler = logging.FileHandler("debug.log")
     handler.setLevel("DEBUG")
     handler.setFormatter(fmt)
-    handler.addFilter(FuckAiohttp)
+    handler.addFilter(MuteAiohttp)
     logger.addHandler(handler)

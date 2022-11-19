@@ -1,0 +1,1 @@
+ALTER TABLE txos DROP COLUMN txo;

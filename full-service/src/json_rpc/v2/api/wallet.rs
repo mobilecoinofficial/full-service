@@ -20,9 +20,9 @@ use crate::{
                 confirmation_number::Confirmation,
                 network_status::NetworkStatus,
                 receiver_receipt::ReceiverReceipt,
-                transaction_log::{TransactionLog, TransactionLogMap},
+                transaction_log::TransactionLog,
                 tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
-                txo::{Txo, TxoMap},
+                txo::Txo,
                 wallet_status::WalletStatus,
             },
         },
@@ -49,18 +49,21 @@ use crate::{
     },
 };
 use mc_account_keys::burn_address;
+use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
-use mc_transaction_std::BurnRedemptionMemo;
+use mc_transaction_extra::BurnRedemptionMemo;
 use rocket::{self};
 use rocket_contrib::json::Json;
+use serde_json::Map;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    iter::FromIterator,
     str::FromStr,
 };
 
@@ -141,6 +144,8 @@ where
             tombstone_block,
             max_spendable_value,
             comment,
+            block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -148,6 +153,18 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
+
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
 
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
@@ -159,7 +176,8 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -181,6 +199,7 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -193,6 +212,14 @@ where
 
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let tx_proposal = service
                 .build_and_sign_transaction(
@@ -207,6 +234,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -225,6 +253,8 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
+            sender_memo_credential_subaddress_index,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -232,6 +262,18 @@ where
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
+
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
 
             let tx_proposal = service
                 .build_and_sign_transaction(
@@ -242,7 +284,8 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH,
+                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
+                    block_version,
                 )
                 .map_err(format_error)?;
 
@@ -260,6 +303,7 @@ where
             fee_token_id,
             tombstone_block,
             max_spendable_value,
+            block_version,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -272,6 +316,14 @@ where
 
                 hex::decode_to_slice(&redemption_memo_hex, &mut memo_data).map_err(format_error)?;
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
 
             let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
@@ -286,6 +338,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
+                    block_version,
                 )
                 .map_err(format_error)?
                 .try_into()
@@ -306,11 +359,21 @@ where
             addresses_and_amounts,
             input_txo_ids,
             max_spendable_value,
+            block_version,
         } => {
             let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
                 addresses_and_amounts.push((address, amount));
             }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
+
             let unsigned_tx_proposal: UnsignedTxProposal = service
                 .build_transaction(
                     &account_id,
@@ -321,6 +384,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::Empty,
+                    block_version,
                 )
                 .map_err(format_error)?
                 .try_into()
@@ -442,9 +506,21 @@ where
                 )
                 .map_err(format_error)?;
 
-            let unverified_txos_encoded: Vec<String> = unverified_txos
+            let unverified_tx_results: Result<Vec<mc_transaction_core::tx::TxOut>, JsonRPCError> =
+                unverified_txos
+                    .iter()
+                    .map(
+                        |(txo, _)| -> Result<mc_transaction_core::tx::TxOut, JsonRPCError> {
+                            service.get_txo_object(&txo.id).map_err(format_error)
+                        },
+                    )
+                    .collect::<Result<Vec<_>, JsonRPCError>>();
+
+            let unverified_tx_results = unverified_tx_results?;
+
+            let unverified_txos_encoded: Vec<String> = unverified_tx_results
                 .iter()
-                .map(|(txo, _)| hex::encode(&txo.txo))
+                .map(|txo_obj| hex::encode(&mc_util_serial::encode(txo_obj)))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
@@ -652,11 +728,17 @@ where
                 .list_transaction_logs(account_id, offset, limit, min_block_index, max_block_index)
                 .map_err(format_error)?;
 
-            let transaction_log_map = TransactionLogMap(
+            let transaction_log_map = Map::from_iter(
                 transaction_logs_and_txos
                     .iter()
-                    .map(|(t, a, v)| (t.id.clone(), TransactionLog::new(t, a, v)))
-                    .collect(),
+                    .map(|(t, a, v)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(TransactionLog::new(t, a, v))
+                                .expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_transaction_logs {
@@ -706,6 +788,16 @@ where
                 None => None,
             };
 
+            let min_received_block_index = match min_received_block_index {
+                Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
+            let max_received_block_index = match max_received_block_index {
+                Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
+                None => None,
+            };
+
             let txos_and_statuses = service
                 .list_txos(
                     account_id,
@@ -719,11 +811,16 @@ where
                 )
                 .map_err(format_error)?;
 
-            let txo_map = TxoMap(
+            let txo_map = Map::from_iter(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s)| (t.id.clone(), Txo::new(t, s)))
-                    .collect(),
+                    .map(|(t, s)| {
+                        (
+                            t.id.clone(),
+                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                        )
+                    })
+                    .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_txos {

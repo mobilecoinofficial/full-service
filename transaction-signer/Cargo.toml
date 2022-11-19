@@ -1,28 +1,29 @@
 [package]
 name = "mc-transaction-signer"
 authors = ["MobileCoin"]
-version = "2.0.0"
+version = "2.1.1"
 edition = "2021"
 
 [[bin]]
-name = "mc-transaction-signer"
+name = "transaction-signer"
 path = "src/bin/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 mc-account-keys = { path = "../mobilecoin/account-keys" }
-mc-account-keys-slip10 = { path = "../mobilecoin/account-keys/slip10" }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-core = { path = "../mobilecoin/core" }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
 mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
-mc-transaction-std = { path = "../mobilecoin/transaction/std" }
+mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
+mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
 mc-full-service = { path = "../full-service" }
 
-base64 = "0.13.0"
+base64 = "0.13.1"
 hex = {version = "0.4", default-features = false }
 rand = { version = "0.8", default-features = false }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
