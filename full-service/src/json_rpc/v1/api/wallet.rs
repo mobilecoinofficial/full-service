@@ -132,6 +132,8 @@ where
             addresses_and_values,
             recipient_public_address,
             value_pmob,
+            input_txo_ids,
+            fee,
             tombstone_block,
             max_spendable_value,
             comment,
@@ -176,6 +178,7 @@ where
                     &transaction_log,
                     &associated_txos,
                 ),
+                txo_public_key: txo_public_key.to_string(),
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
             }
         }
