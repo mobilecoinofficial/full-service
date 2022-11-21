@@ -18,6 +18,7 @@ use mc_util_parse::parse_duration_in_seconds;
 use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
+use clap::Parser;
 use std::{
     convert::TryFrom,
     fs,
@@ -25,45 +26,44 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use structopt::StructOpt;
 /// Command line config for the Wallet API
-#[derive(Clone, Debug, StructOpt)]
-#[structopt(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
+#[derive(Clone, Debug, Parser)]
+#[clap(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
 pub struct APIConfig {
     /// Host to listen on.
-    #[structopt(long, default_value = "127.0.0.1")]
+    #[clap(long, default_value = "127.0.0.1", env = "MC_LISTEN_HOST")]
     pub listen_host: String,
 
     /// Port to start webserver on.
-    #[structopt(long, default_value = "9090")]
+    #[clap(long, default_value = "9090", env = "MC_LISTEN_PORT")]
     pub listen_port: u16,
 
     /// Path to WalletDb.
-    #[structopt(long, parse(from_os_str))]
+    #[clap(long, value_parser, env = "MC_WALLET_DB")]
     pub wallet_db: Option<PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub ledger_db_config: LedgerDbConfig,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub peers_config: PeersConfig,
 
     /// How many seconds to wait between polling.
-    #[structopt(long, default_value = "5", parse(try_from_str=parse_duration_in_seconds))]
+    #[clap(long, default_value = "5", value_parser = parse_duration_in_seconds, env = "MC_POLL_INTERVAL")]
     pub poll_interval: Duration,
 
     /// Offline mode.
-    #[structopt(long)]
+    #[clap(long, env = "MC_OFFLINE")]
     pub offline: bool,
 
     /// Fog ingest enclave CSS file (needed in order to enable sending
     /// transactions to fog recipients).
-    #[structopt(long, parse(try_from_str=load_css_file))]
+    #[clap(long, value_parser = load_css_file, env = "MC_FOG_INGEST_ENCLAVE_CSS")]
     pub fog_ingest_enclave_css: Option<Signature>,
 
     /// Validator service to connect to, when not connecting to the consensus
     /// network directly.
-    #[structopt(long)]
+    #[clap(long, env = "MC_VALIDATOR")]
     pub validator: Option<ValidatorUri>,
 }
 
@@ -145,11 +145,10 @@ impl APIConfig {
     }
 }
 
-#[derive(Clone, Debug, StructOpt)]
-#[structopt()]
+#[derive(Clone, Debug, Parser)]
 pub struct PeersConfig {
     /// validator nodes to connect to.
-    #[structopt(long = "peer", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
+    #[clap(long = "peer", required_unless_present_any = &["offline", "validator"], conflicts_with_all = &["offline", "validator"], use_value_delimiter = true, env = "MC_PEER")]
     pub peers: Option<Vec<ConsensusClientUri>>,
 
     /// Quorum set for ledger syncing. By default, the quorum set would include
@@ -158,17 +157,17 @@ pub struct PeersConfig {
     /// The quorum set is represented in JSON. For example:
     /// {"threshold":1,"members":[{"type":"Node","args":"node2.test.mobilecoin.
     /// com:443"},{"type":"Node","args":"node3.test.mobilecoin.com:443"}]}
-    #[structopt(long, parse(try_from_str=parse_quorum_set_from_json), conflicts_with_all = &["offline", "validator"])]
+    #[clap(long, value_parser = parse_quorum_set_from_json, conflicts_with_all = &["offline", "validator"], env = "MC_QUORUM_SET")]
     quorum_set: Option<QuorumSet<ResponderId>>,
 
     /// URLs to use for transaction data.
     ///
     /// For example: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
-    #[structopt(long = "tx-source-url", required_unless_one = &["offline", "validator"], conflicts_with_all = &["offline", "validator"])]
+    #[clap(long = "tx-source-url", required_unless_present_any = &["offline", "validator"], conflicts_with_all = &["offline", "validator"], use_value_delimiter = true, env = "MC_TX_SOURCE_URL")]
     pub tx_source_urls: Option<Vec<String>>,
 
     /// Chain Id
-    #[structopt(default_value = "", long)]
+    #[clap(default_value = "", long, env = "MC_CHAIN_ID")]
     pub chain_id: String,
 }
 
@@ -247,16 +246,15 @@ impl PeersConfig {
     }
 }
 
-#[derive(Clone, Debug, StructOpt)]
-#[structopt()]
+#[derive(Clone, Debug, Parser)]
 pub struct LedgerDbConfig {
     /// Path to LedgerDB
-    #[structopt(long, parse(from_os_str))]
+    #[clap(long, value_parser, env = "MC_LEDGER_DB")]
     pub ledger_db: PathBuf,
 
     /// Path to existing ledger db that contains the origin block, used when
     /// initializing new ledger dbs.
-    #[structopt(long)]
+    #[clap(long, env = "MC_LEDGER_DB_BOOTSTRAP")]
     pub ledger_db_bootstrap: Option<String>,
 }
 
