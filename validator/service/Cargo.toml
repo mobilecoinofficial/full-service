@@ -12,6 +12,7 @@ path = "src/bin/main.rs"
 [dependencies]
 mc-full-service = { path = "../../full-service" }
 mc-validator-api = { path = "../api" }
+clap = { version = "4.0", features = ["derive", "env"] }
 
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
@@ -24,7 +25,6 @@ mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
-clap = { version = "4.0", features = ["derive", "env"] }
 
 grpcio = "0.11.0"
 rayon = "1.5"
