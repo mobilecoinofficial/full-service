@@ -16,11 +16,13 @@ import asyncio
 import json
 
 from fullservice import FullServiceAPIv2 as v2
+from dataobjects import Response, Account #TODO rename as FSDataObjects
 
 with open('config') as json_file:
     config = json.load(json_file)
 
 fs = v2()
+account_ids = []
 
 
 def get_mnemonics(n = 2):
@@ -29,14 +31,20 @@ def get_mnemonics(n = 2):
     return config['Account Mnemonics'][:n]
 
 async def get_account(i):
+    global account_ids
+
     mnemonic = config['Account Mnemonics'][i]['mnemonic']
-    # try to import
     account = await fs.import_account(mnemonic, "2")
+    
     if 'error' not in account.keys():
-        return account['result']['account']
+        return Account(account['result']['account'])
     else:
-        # use get account
-        pass
+        if len(account_ids) == 0 :
+            accounts_response = Response(await fs.get_accounts())
+            account_ids = accounts_response.account_ids
+            return accounts_response.accounts[account_ids[i]]
+        else:
+            return Response(await fs.get_account_status(account_ids[i])).account
 
 
 async def main():
@@ -44,16 +52,16 @@ async def main():
 
     alice = await get_account(0)
     bob = await get_account(1)
+    fs.get_wallet_status()
 
-    alice = (await fs.get_account_status(alice['id']))['result']['account']
-    bob = (await fs.get_account_status(bob['id']),)['result']['account']
+    pmob_to_send = 485
 
     first_transaction = await fs.build_and_submit_transaction(
-        alice.account.account_id,
-        recipient_public_address = bob.account.main_address,
-        amount = { "value" : str(1), "token_id": str(0)}
-    ).result
-
+        alice.id,
+        recipient_public_address = bob.main_address,
+        amount = { "value" : str(pmob_to_send), "token_id": str(0)}
+    )
+    return
 
     total_spent = first_transaction.transactionlog.fee_value + first_transaction.payload_txos[0].value
     alice2 = fs.get_account_status(alice.account.account_id).result
@@ -67,6 +75,7 @@ async def main():
 
     existing_accounts = await fs.get_accounts()
     print(existing_accounts)
+
 
 if __name__ == '__main__':
     asyncio.run(main())
