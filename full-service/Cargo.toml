@@ -47,6 +47,7 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 
 base64 = "0.13.1"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+clap = { version = "4.0", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled", "chrono"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
@@ -67,7 +68,6 @@ serde = { version = "1.0", default-features = false, features = ["alloc", "deriv
 serde-big-array = "0.4.1"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-structopt = "0.3"
 strum = { version = "0.24.1", features = ["derive"] }
 strum_macros = "0.24.3"
 tiny-bip39 = "1.0"

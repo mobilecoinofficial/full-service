@@ -3,6 +3,7 @@
 //! MobileCoin wallet service
 
 #![feature(proc_macro_hygiene, decl_macro)]
+use clap::Parser;
 use diesel::{prelude::*, SqliteConnection};
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
@@ -24,7 +25,6 @@ use std::{
     process::exit,
     sync::{Arc, RwLock},
 };
-use structopt::StructOpt;
 
 #[allow(unused_imports)] // Needed for embedded_migrations!
 #[macro_use]
@@ -41,7 +41,7 @@ fn main() {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 
-    let config = APIConfig::from_args();
+    let config = APIConfig::parse();
 
     // Exit if the user is not in an authorized country.
     if !cfg!(debug_assertions)
