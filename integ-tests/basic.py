@@ -39,7 +39,7 @@ async def get_account(i):
     if 'error' not in account.keys():
         return Account(account['result']['account'])
     else:
-        if len(account_ids) == 0 :
+        if len(account_ids) <= i:
             accounts_response = Response(await fs.get_accounts())
             account_ids = accounts_response.account_ids
             return accounts_response.accounts[account_ids[i]]
