@@ -12,7 +12,7 @@ import sys
 import asyncio
 import json
 
-sys.path.append(os.path.abspath("../cli"))
+sys.path.append(os.path.abspath("../cli")) # lets us import things from the CLI dir 
 
 from fullservice import FullServiceAPIv2 as v2
 from dataobjects import Response, Account as FSDataObjects
@@ -61,7 +61,7 @@ async def main():
         recipient_public_address=bob.main_address,
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
-    return
+    
 
     total_spent = (
         first_transaction.transactionlog.fee_value
