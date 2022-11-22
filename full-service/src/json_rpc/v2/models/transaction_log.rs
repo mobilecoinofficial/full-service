@@ -3,11 +3,12 @@
 //! API definition for the TransactionLog object.
 
 use mc_common::HashMap;
+use mc_crypto_keys::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     db,
-    db::transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
+    db::{transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap}, models::Txo},
 };
 
 use super::amount::Amount;
@@ -30,6 +31,10 @@ pub struct TransactionLog {
 
     /// A list of the Txos which were outputs from this transaction.
     pub output_txos: Vec<OutputTxo>,
+
+    // The public key associated with the TXO of this transaction.
+
+    pub txout_pubkey: Vec<PublicKey>,
 
     /// A list of the Txos which were change in this transaction.
     pub change_txos: Vec<OutputTxo>,
@@ -91,6 +96,11 @@ impl TransactionLog {
                 .outputs
                 .iter()
                 .map(|(txo, recipient)| OutputTxo::new(txo, recipient.to_string()))
+                .collect(),
+            txout_pubkey: associated_txos
+                .outputs
+                .iter()
+                .map(|(txo, _recipient)| txo.public_key.clone())
                 .collect(),
             change_txos: associated_txos
                 .change
