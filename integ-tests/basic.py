@@ -11,6 +11,9 @@ import os
 import sys
 import asyncio
 import json
+from decimal import Decimal
+import dataclasses
+
 
 sys.path.append(os.path.abspath("../cli")) 
 
@@ -22,6 +25,22 @@ with open("config") as json_file:
 
 fs = v2()
 account_ids = []
+
+PMOB = Decimal("1e12")
+
+
+def mob2pmob(x):
+    """Convert from MOB to picoMOB."""
+    return round(Decimal(x) * PMOB)
+
+
+def pmob2mob(x):
+    """Convert from picoMOB to MOB."""
+    result = int(x) / PMOB
+    if result == 0:
+        return Decimal("0")
+    else:
+        return result
 
 
 def get_mnemonics(n=2):
@@ -48,13 +67,18 @@ async def get_account(i):
 
 
 async def main():
+    print(await does_it_go())
+
+async def does_it_go(amount_pmob: int = 5) -> bool:
     network_status = await fs.get_network_status()
 
     alice = await get_account(0)
     bob = await get_account(1)
     await fs.get_wallet_status()
 
-    pmob_to_send = 485
+    pmob_to_send = amount_pmob  
+    bob_status_0 = (await fs.get_account_status(bob.id)).get("result").get("balance_per_token").get("0").get("unspent")
+    alice_status_0 = (await fs.get_account_status(alice.id)).get("result").get("balance_per_token").get("0").get("unspent")
 
     first_transaction = await fs.build_and_submit_transaction(
         alice.id,
@@ -62,24 +86,15 @@ async def main():
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
     
-    return 
-
-    total_spent = (
-        first_transaction.transactionlog.fee_value
-        + first_transaction.payload_txos[0].value
-    )
-    alice_status = fs.get_account_status(alice.account.account_id).result
-    assert (
-        alice_status.balance_per_token["0"].unspent
-        == alice.balance_per_token["0"].unspent - total_spent
-    )
-
-    log = fs.get_transaction_log(first_transaction.transaction_log.id).result
-    assert log.status == "tx_status_succeeded"
-
-    existing_accounts = await fs.get_accounts()
-    print(existing_accounts)
-
+    # TODO: replace this with a poll loop that waits a block or two
+    await asyncio.sleep(15)
+    alice_status_1 = (await fs.get_account_status(alice.id)).get("result").get("balance_per_token").get("0").get("unspent")
+    bob_status_1 = (await fs.get_account_status(bob.id)).get("result").get("balance_per_token").get("0").get("unspent")
+    # decreases by fee and amount_pmob
+    # print(int(alice_status_1)-int(alice_status_0))
+    bob_increase = (int(bob_status_1)-int(bob_status_0))
+    return bob_increase == pmob_to_send
+    
 
 if __name__ == "__main__":
     asyncio.run(main())
