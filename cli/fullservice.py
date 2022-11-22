@@ -64,9 +64,6 @@ class Request:
 
 
 class FullServiceAPIv2(Request):
-    def __init__(self, logLevel=logging.ERROR):
-        logging.basicConfig( level=logLevel)
-
     async def assign_address_for_account(self, account_id, metadata=""):
         return await self.req(
             {
