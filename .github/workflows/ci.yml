@@ -50,9 +50,18 @@ jobs:
           INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
           (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
 
+      - name: Cargo sort
+        run: |
+          cargo install cargo-sort --force
+          cargo sort --workspace --grouped --check 
+
+      - name: Cargo fmt
+        run: |
+          cargo fmt -- --unstable-features --check
+
       - name: Cargo Clippy
         run: |
-          cargo clippy
+          cargo clippy --all --all-features
 
   test:
     runs-on: [self-hosted, Linux, large]

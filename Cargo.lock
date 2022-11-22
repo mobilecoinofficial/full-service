@@ -583,9 +583,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.0.18"
+version = "4.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "335867764ed2de42325fafe6d18b8af74ba97ee0c590fa016f157535b42ab04b"
+checksum = "2148adefda54e14492fb9bddcc600b4344c5d1a3123bd666dcb939c6f0e0e57e"
 dependencies = [
  "atty",
  "bitflags",
@@ -598,9 +598,9 @@ dependencies = [
 
 [[package]]
 name = "clap_derive"
-version = "4.0.18"
+version = "4.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16a1b0f6422af32d5da0c58e2703320f379216ee70198241c84173a8c5ac28f3"
+checksum = "0177313f9f02afc995627906bbd8967e2be069f5261954222dac78290c2b9014"
 dependencies = [
  "heck 0.4.0",
  "proc-macro-error",
@@ -2941,6 +2941,7 @@ dependencies = [
  "base64 0.13.1",
  "bs58",
  "chrono",
+ "clap 4.0.26",
  "crossbeam-channel",
  "diesel",
  "diesel-derive-enum",
@@ -2998,7 +2999,6 @@ dependencies = [
  "serde-big-array",
  "serde_derive",
  "serde_json",
- "structopt",
  "strum",
  "strum_macros",
  "tempdir",
@@ -3067,7 +3067,7 @@ dependencies = [
 name = "mc-ledger-migration"
 version = "2.1.0-pre0"
 dependencies = [
- "clap 4.0.18",
+ "clap 4.0.26",
  "lmdb-rkv",
  "mc-common",
  "mc-ledger-db",
@@ -3112,7 +3112,7 @@ name = "mc-mobilecoind"
 version = "2.1.0-pre0"
 dependencies = [
  "aes-gcm",
- "clap 4.0.18",
+ "clap 4.0.26",
  "crossbeam-channel",
  "displaydoc",
  "grpcio",
@@ -3186,7 +3186,7 @@ dependencies = [
 name = "mc-mobilecoind-json"
 version = "2.1.0-pre0"
 dependencies = [
- "clap 4.0.18",
+ "clap 4.0.26",
  "grpcio",
  "hex",
  "mc-api",
@@ -3462,7 +3462,7 @@ name = "mc-util-grpc"
 version = "2.1.0-pre0"
 dependencies = [
  "base64 0.13.1",
- "clap 4.0.18",
+ "clap 4.0.26",
  "cookie 0.16.0",
  "displaydoc",
  "futures",
@@ -3569,7 +3569,7 @@ dependencies = [
 name = "mc-util-test-helper"
 version = "2.1.0-pre0"
 dependencies = [
- "clap 4.0.18",
+ "clap 4.0.26",
  "lazy_static",
  "mc-account-keys",
  "rand 0.8.5",
@@ -3637,6 +3637,7 @@ dependencies = [
 name = "mc-validator-service"
 version = "2.1.1"
 dependencies = [
+ "clap 4.0.26",
  "grpcio",
  "mc-attest-verifier",
  "mc-common",
@@ -3652,14 +3653,13 @@ dependencies = [
  "mc-util-uri",
  "mc-validator-api",
  "rayon",
- "structopt",
 ]
 
 [[package]]
 name = "mc-watcher"
 version = "2.1.0-pre0"
 dependencies = [
- "clap 4.0.18",
+ "clap 4.0.26",
  "displaydoc",
  "futures",
  "grpcio",
@@ -4807,9 +4807,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.12"
+version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "431949c384f4e2ae07605ccaa56d1d9d2ecdb5cadd4f9577ccfab29f2e5149fc"
+checksum = "68cc60575865c7831548863cc02356512e3f1dc2f3f82cb837d7fc4cc8f3c97c"
 dependencies = [
  "async-compression",
  "base64 0.13.1",
@@ -6347,9 +6347,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.2.1"
+version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "feb41e78f93363bb2df8b0e86a2ca30eed7806ea16ea0c790d757cf93f79be83"
+checksum = "422ee0de9031b5b948b97a8fc04e3aa35230001a722ddd27943e0be31564ce4c"
 dependencies = [
  "getrandom 0.2.3",
  "serde",
