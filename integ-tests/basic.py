@@ -12,7 +12,6 @@ import sys
 import asyncio
 import json
 from decimal import Decimal
-import dataclasses
 
 
 sys.path.append(os.path.abspath("../cli")) 
