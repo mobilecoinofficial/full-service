@@ -11,8 +11,6 @@ import os
 import sys
 import asyncio
 import json
-from decimal import Decimal
-
 
 sys.path.append(os.path.abspath("../cli")) 
 
@@ -24,23 +22,6 @@ with open("config") as json_file:
 
 fs = v2()
 account_ids = []
-
-PMOB = Decimal("1e12")
-
-
-def mob2pmob(x):
-    """Convert from MOB to picoMOB."""
-    return round(Decimal(x) * PMOB)
-
-
-def pmob2mob(x):
-    """Convert from picoMOB to MOB."""
-    result = int(x) / PMOB
-    if result == 0:
-        return Decimal("0")
-    else:
-        return result
-
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
