@@ -8,6 +8,8 @@ import base64
 from typing import Optional
 import ssl
 import forest_utils as utils
+from rich import print_json
+
 
 if not utils.get_secret("ROOTCRT"):
     ssl_context: Optional[ssl.SSLContext] = None
@@ -29,7 +31,7 @@ class Request:
     def __init__(self, logLevel = logging.ERROR):
          logging.basicConfig( level=logLevel)
     url = utils.get_secret('URL')
-    logging.info("Woohoo error")
+    
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
@@ -41,8 +43,8 @@ class Request:
         response_data = await self.request(request_data)
         if "error" in str(response_data) or "InvalidRequest" in str(response_data):
             logging.error(response_data)
-        else:
-            logging.info(response_data)
+        # else:
+        #     logging.info(response_data) # commented out so we can prettyprint on line 61. 
         return response_data
 
     async def request(self, request_data: dict):
@@ -56,7 +58,7 @@ class Request:
                     data=json.dumps(request_data),
                     headers={"Content-Type": "application/json"},
                 ) as resp:
-                    # print(resp.json)
+                    print_json(data=await resp.json(), indent=4)
                     return await resp.json()
 
 
