@@ -52,8 +52,8 @@ jobs:
 
       - name: Cargo sort
         run: |
-          cargo install cargo-sort
-          cargo sort --workspace --grouped --check
+          cargo install cargo-sort --force
+          cargo sort --workspace --grouped --check 
 
       - name: Cargo fmt
         run: |

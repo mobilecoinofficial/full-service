@@ -24,7 +24,7 @@ def MuteAiohttp(record: logging.LogRecord) -> bool:
 logger_class = logging.getLoggerClass()
 
 logger = logging.getLogger()
-logger.setLevel("DEBUG")
+logger.setLevel(((os.getenv("LOGLEVEL") or os.getenv("LOG_LEVEL")) or "DEBUG").upper())
 fmt = logging.Formatter("{levelname} {module}:{lineno}: {message}", style="{")
 console_handler = logging.StreamHandler()
 console_handler.setLevel(
