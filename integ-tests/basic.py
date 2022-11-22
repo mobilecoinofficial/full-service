@@ -16,7 +16,7 @@ import asyncio
 import json
 
 from fullservice import FullServiceAPIv2 as v2
-from dataobjects import Response, Account #TODO rename as FSDataObjects
+from dataobjects import Response, Account as FSDataObjects
 
 with open('config') as json_file:
     config = json.load(json_file)
