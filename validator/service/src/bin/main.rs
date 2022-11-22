@@ -2,6 +2,7 @@
 
 //! The entrypoint for the Ledger Validator Service.
 
+use clap::Parser;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::check_host;
@@ -11,7 +12,6 @@ use std::{
     process::exit,
     sync::{Arc, RwLock},
 };
-use structopt::StructOpt;
 
 // Exit codes.
 const EXIT_INVALID_HOST: i32 = 4;
@@ -22,7 +22,7 @@ fn main() {
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
 
-    let config = Config::from_args();
+    let config = Config::parse();
 
     // Exit if the user is not in an authorized country.
     if check_host::check_host_is_allowed_country_and_region().is_err() {
