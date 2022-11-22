@@ -29,7 +29,7 @@ else:
 
 class Request:
     def __init__(self, logLevel = logging.ERROR):
-         logging.basicConfig( level=logLevel)
+        self.logger = utils.logger
     url = utils.get_secret('URL')
     
     async def req(self, request_data: dict) -> dict:
@@ -42,14 +42,14 @@ class Request:
             del request_data["params"]
         response_data = await self.request(request_data)
         if "error" in str(response_data) or "InvalidRequest" in str(response_data):
-            logging.error(response_data)
-        # else:
-        #     logging.info(response_data) # commented out so we can prettyprint on line 61. 
+            self.logger.error(response_data)
+        else:
+            self.logger.info(response_data)
         return response_data
 
     async def request(self, request_data: dict):
         request_data = {"jsonrpc": "2.0", "id": "1", **request_data}
-        print(f"request data: {request_data}")
+        self.logger.debug(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
                 # this can hang (forever?) if there's no full-service at that url
@@ -58,7 +58,8 @@ class Request:
                     data=json.dumps(request_data),
                     headers={"Content-Type": "application/json"},
                 ) as resp:
-                    print_json(data=await resp.json(), indent=4)
+                    if logging.getLevelName(self.logger.getEffectiveLevel()) == "DEBUG":
+                        print_json(data=await resp.json(), indent=4)
                     return await resp.json()
 
 
