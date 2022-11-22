@@ -12,16 +12,17 @@ import sys
 import asyncio
 import json
 
-sys.path.append(os.path.abspath("../cli")) 
+sys.path.append(os.path.abspath("../cli"))
 
 from fullservice import FullServiceAPIv2 as v2
-from dataobjects import Response, Account #TODO rename as FSDataObjects
+from dataobjects import Response, Account  # TODO rename as FSDataObjects
 
 with open("config") as json_file:
     config = json.load(json_file)
 
 fs = v2()
 account_ids = []
+
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
@@ -33,7 +34,9 @@ async def get_account(i):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
-    account = await fs.import_account(mnemonic, "2") #this is importing the second mnemonic?
+    account = await fs.import_account(
+        mnemonic, "2"
+    )  # this is importing the second mnemonic?
 
     if "error" not in account.keys():
         return Account(account["result"]["account"])
@@ -49,6 +52,7 @@ async def get_account(i):
 async def main():
     print(await does_it_go())
 
+
 async def does_it_go(amount_pmob: int = 5) -> bool:
     network_status = await fs.get_network_status()
 
@@ -56,25 +60,49 @@ async def does_it_go(amount_pmob: int = 5) -> bool:
     bob = await get_account(1)
     await fs.get_wallet_status()
 
-    pmob_to_send = amount_pmob  
-    bob_status_0 = (await fs.get_account_status(bob.id)).get("result").get("balance_per_token").get("0").get("unspent")
-    alice_status_0 = (await fs.get_account_status(alice.id)).get("result").get("balance_per_token").get("0").get("unspent")
+    pmob_to_send = amount_pmob
+    bob_status_0 = (
+        (await fs.get_account_status(bob.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
+    alice_status_0 = (
+        (await fs.get_account_status(alice.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
 
     first_transaction = await fs.build_and_submit_transaction(
         alice.id,
         recipient_public_address=bob.main_address,
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
-    
+
     # TODO: replace this with a poll loop that waits a block or two
     await asyncio.sleep(15)
-    alice_status_1 = (await fs.get_account_status(alice.id)).get("result").get("balance_per_token").get("0").get("unspent")
-    bob_status_1 = (await fs.get_account_status(bob.id)).get("result").get("balance_per_token").get("0").get("unspent")
+    alice_status_1 = (
+        (await fs.get_account_status(alice.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
+    bob_status_1 = (
+        (await fs.get_account_status(bob.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
     # decreases by fee and amount_pmob
     # print(int(alice_status_1)-int(alice_status_0))
-    bob_increase = (int(bob_status_1)-int(bob_status_0))
+    bob_increase = int(bob_status_1) - int(bob_status_0)
     return bob_increase == pmob_to_send
-    
+
 
 if __name__ == "__main__":
     asyncio.run(main())
