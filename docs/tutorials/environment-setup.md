@@ -13,8 +13,8 @@ description: Set up your environment to run full service on Mac or Linux.
 
 ## Binaries
 
-1. Download [TestNet or MainNet binaries](https://github.com/mobilecoinofficial/full-service/releases). 
-2. In a terminal window, navigate to your downoads folder to run the Full Service binaries directory that you just downloaded.
+1. Download [TestNet or MainNet binaries](https://github.com/mobilecoinofficial/full-service/releases).
+2. In a terminal window, navigate to your downloads folder to run the Full Service binaries directory that you just downloaded.
 
    * If you downloaded TestNet, run:
 
@@ -49,6 +49,26 @@ description: Set up your environment to run full service on Mac or Linux.
 {% hint style="info" %}
 Replace our default peers or tx-source-urls if you would prefer to establish your own source of truth.
 {% endhint %}
+
+## Configuration with Environment Variables.
+
+All available parameters can be set as Environment Variables. Parameters names are converted to `SCREAMING_SNAKE_CASE` and are prefixed with `MC_`. See `full-service --help` for the full list. CLI arguments take precedence over Environment Variables.
+
+{% hint style="info" %}
+Any options that can be specified multiple times as a list (`--peer`, `--tx-source-url`) can be specified as comma delimited values.
+{% endhint %}
+
+
+**TestNet example**
+```
+MC_PEER="mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/" \
+MC_TX_SOURCE_URL="https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/" \
+MC_WALLET_DB="./testnet-dbs/wallet.db" \
+MC_LEDGER_DB="./testnet-dbs/ledger-db/" \
+MC_CHAIN_ID="test" \
+MC_FOG_INGEST_ENCLAVE_CSS="$(pwd)/ingest-enclave.css" \
+    ./full_service
+```
 
 ## **HTTP Request Service**
 
