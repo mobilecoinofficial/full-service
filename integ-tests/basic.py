@@ -68,9 +68,9 @@ async def main():
         first_transaction.transactionlog.fee_value
         + first_transaction.payload_txos[0].value
     )
-    alice2 = fs.get_account_status(alice.account.account_id).result
+    alice_status = fs.get_account_status(alice.account.account_id).result
     assert (
-        alice2.balance_per_token["0"].unspent
+        alice_status.balance_per_token["0"].unspent
         == alice.balance_per_token["0"].unspent - total_spent
     )
 
