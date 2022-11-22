@@ -62,7 +62,8 @@ async def main():
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
     
-
+    return 
+    
     total_spent = (
         first_transaction.transactionlog.fee_value
         + first_transaction.payload_txos[0].value
