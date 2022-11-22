@@ -12,7 +12,7 @@ import sys
 import asyncio
 import json
 
-sys.path.append(os.path.abspath("../cli")) # lets us import things from the CLI dir 
+sys.path.append(os.path.abspath("../cli")) 
 
 from fullservice import FullServiceAPIv2 as v2
 from dataobjects import Response, Account #TODO rename as FSDataObjects
@@ -34,7 +34,7 @@ async def get_account(i):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
-    account = await fs.import_account(mnemonic, "2")
+    account = await fs.import_account(mnemonic, "2") #this is importing the second mnemonic?
 
     if "error" not in account.keys():
         return Account(account["result"]["account"])
@@ -52,7 +52,7 @@ async def main():
 
     alice = await get_account(0)
     bob = await get_account(1)
-    fs.get_wallet_status()
+    await fs.get_wallet_status()
 
     pmob_to_send = 485
 
@@ -63,7 +63,7 @@ async def main():
     )
     
     return 
-    
+
     total_spent = (
         first_transaction.transactionlog.fee_value
         + first_transaction.payload_txos[0].value
