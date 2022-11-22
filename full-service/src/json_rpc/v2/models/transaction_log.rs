@@ -34,7 +34,7 @@ pub struct TransactionLog {
 
     // The public key associated with the TXO of this transaction.
 
-    pub txout_pubkey: Vec<PublicKey>,
+    pub txout_pubkey: Vec<OutputTxo>,
 
     /// A list of the Txos which were change in this transaction.
     pub change_txos: Vec<OutputTxo>,
