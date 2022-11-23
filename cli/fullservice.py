@@ -31,7 +31,7 @@ class Request:
     def __init__(self, logLevel = logging.ERROR):
         self.logger = utils.logger
     url = utils.get_secret('URL')
-    
+
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
@@ -518,8 +518,8 @@ class FullServiceAPIv2(Request):
 
     async def import_account(
         self,
-        mnemonic="",
-        key_derivation_version="",
+        mnemonic,
+        key_derivation_version,
         name="",
         first_block_index="",
         next_subaddress_index="",
