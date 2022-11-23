@@ -50,6 +50,8 @@ async def get_account(i):
 
 
 async def main():
+    while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
+        await asyncio.sleep(5)  
     print(await does_it_go())
 
 
