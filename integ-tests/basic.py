@@ -24,6 +24,7 @@ fs = v2()
 account_ids = []
 
 
+
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
         raise ValueError("Not enough account available in config")
@@ -50,6 +51,8 @@ async def get_account(i):
 
 
 async def main():
+    while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
+        await asyncio.sleep(5)  
     print(await does_it_go())
 
 
