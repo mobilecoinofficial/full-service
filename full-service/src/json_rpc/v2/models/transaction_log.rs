@@ -126,6 +126,8 @@ impl InputTxo {
 pub struct OutputTxo {
     pub txo_id_hex: String,
 
+    pub public_key: CompressedRistrettoPublic,
+
     pub amount: Amount,
 
     pub recipient_public_address_b58: String,
@@ -135,6 +137,7 @@ impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
             txo_id_hex: txo.id.clone(),
+            public_key: txo.public_key.clone(),
             amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }
