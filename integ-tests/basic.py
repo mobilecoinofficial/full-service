@@ -51,6 +51,8 @@ async def get_account(i):
 
 
 async def main():
+    while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
+        await asyncio.sleep(1)  
     print(await does_it_go())
 
 
@@ -102,7 +104,11 @@ async def does_it_go(amount_pmob: int = 5) -> bool:
     # decreases by fee and amount_pmob
     # print(int(alice_status_1)-int(alice_status_0))
     bob_increase = int(bob_status_1) - int(bob_status_0)
-    return bob_increase == pmob_to_send
+    # return bob_increase == pmob_to_send
+    if bob_increase == pmob_to_send:
+        exit()
+    else:
+        raise SystemExit('Transaction failed')
 
 
 if __name__ == "__main__":
