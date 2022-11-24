@@ -7,6 +7,7 @@
 #     get_wallet_status
 #     build, build_and_submit, build_split_txo .. etc
 
+import argparse
 import os
 import sys
 import asyncio
@@ -17,11 +18,11 @@ sys.path.append(os.path.abspath("../cli"))
 from fullservice import FullServiceAPIv2 as v2
 from dataobjects import Response, Account  # TODO rename as FSDataObjects
 
-with open("config") as json_file:
-    config = json.load(json_file)
+default_config_path = "./config"
+config = []
+account_ids = []
 
 fs = v2()
-account_ids = []
 
 
 def get_mnemonics(n=2):
@@ -50,8 +51,6 @@ async def get_account(i):
 
 
 async def main():
-    while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
-        await asyncio.sleep(5)  
     print(await does_it_go())
 
 
@@ -107,4 +106,12 @@ async def does_it_go(amount_pmob: int = 5) -> bool:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Basic test")
+    parser.add_argument("config_path", type=str, default=default_config_path)
+    args = parser.parse_args()
+
+    print(args.__dict__)
+    with open(args.config_path) as json_file:
+        config = json.load(json_file)
+
     asyncio.run(main())
