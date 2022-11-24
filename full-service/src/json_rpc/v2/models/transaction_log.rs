@@ -3,6 +3,7 @@
 //! API definition for the TransactionLog object.
 
 use mc_common::HashMap;
+use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::{Deserialize, Serialize};
 
 use crate::{
