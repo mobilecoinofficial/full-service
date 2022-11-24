@@ -3,7 +3,6 @@
 //! API definition for the TransactionLog object.
 
 use mc_common::HashMap;
-use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -127,7 +126,7 @@ impl InputTxo {
 pub struct OutputTxo {
     pub txo_id_hex: String,
 
-    pub public_key: CompressedRistrettoPublic,
+    pub public_key: String,
 
     pub amount: Amount,
 
@@ -138,7 +137,7 @@ impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
             txo_id_hex: txo.id.clone(),
-            public_key: txo.public_key.clone(),
+            public_key: hex::encode(&txo.public_key),
             amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }
