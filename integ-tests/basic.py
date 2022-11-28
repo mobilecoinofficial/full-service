@@ -113,7 +113,8 @@ async def does_it_go(amount_pmob: int = 5) -> bool:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
-    parser.add_argument("config_path", type=str, default=default_config_path)
+    parser.add_argument("config_path", type=str, default=default_config_path, 
+                        required=False)
     args = parser.parse_args()
 
     print(args.__dict__)
