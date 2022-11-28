@@ -228,9 +228,9 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
     ```sh
     mkdir -p /opt/full-service/data
-   
+
     chown 1000:1000 /opt/full-service/data
-   
+
     docker run -it -p 127.0.0.1:9090:9090 \
         -v /opt/full-service/data:data \
         --name full-service \
