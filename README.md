@@ -113,10 +113,10 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
     ```sh
     NAMESPACE=test
-   
+
     CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
-   
+
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
     ```
@@ -407,7 +407,7 @@ The recommended flow to get balance and submit transaction is the following:
     }
     }' \
     -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
-   
+
     cp /keyfs/tx_proposal.json /media/
     ```
 
