@@ -36,7 +36,7 @@ async def get_account(i, okay_if_already_imported=False):
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
     account = await fs.import_account(
-        mnemonic, "2"  # This parameter indicates what we are using the 2nd key derivations method (mnemonics)
+        mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
     )  
 
     if not okay_if_already_imported:
