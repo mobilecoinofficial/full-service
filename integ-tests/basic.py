@@ -73,6 +73,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
+    assert alice_status_0 >= pmob_to_send + fee
+
     bob_status_0 = (
         (await fs.get_account_status(bob.id))
         .get("result")
