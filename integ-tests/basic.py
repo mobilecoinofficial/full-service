@@ -31,13 +31,16 @@ def get_mnemonics(n=2):
     return config["Account Mnemonics"][:n]
 
 
-async def get_account(i):
+async def get_account(i, okay_if_already_imported=False):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
     account = await fs.import_account(
-        mnemonic, "2"
-    )  # this is importing the second mnemonic?
+        mnemonic, "2"  # This parameter indicates what we are using the 2nd key derivations method (mnemonics)
+    )  
+
+    if not okay_if_already_imported:
+        assert "error" not in account.keys(),  "Failed to import account"
 
     if "error" not in account.keys():
         return Account(account["result"]["account"])
