@@ -56,7 +56,7 @@ async def main():
     print(await does_it_go())
 
 
-async def does_it_go(amount_pmob: int = 5) -> bool:
+async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
     assert "error" not in network_status.keys()
 
