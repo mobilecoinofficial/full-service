@@ -8,7 +8,11 @@ mod e2e_transaction {
         db::account::AccountID,
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
-            models::{amount::Amount as AmountJSON, tx_proposal::TxProposal as TxProposalJSON},
+            models::{
+                amount::Amount as AmountJSON,
+                transaction_log::TransactionLog as TransactionLogJSON,
+                tx_proposal::TxProposal as TxProposalJSON,
+            },
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{
@@ -20,7 +24,7 @@ mod e2e_transaction {
 
     use mc_blockchain_types::BlockVersion;
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_keys::RistrettoPrivate;
+    use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate};
     use mc_crypto_rand::rand_core::RngCore;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{
@@ -29,7 +33,7 @@ mod e2e_transaction {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
-    use std::convert::TryFrom;
+    use std::convert::{TryFrom, TryInto};
 
     #[test_with_logger]
     fn test_build_and_submit_transaction(logger: Logger) {
@@ -127,6 +131,19 @@ mod e2e_transaction {
         let result = res.get("result").unwrap();
         let tx_proposal: TxProposalJSON =
             serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
+        let transaction_log: TransactionLogJSON =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+
+        let tx_log_payload_txo = transaction_log.output_txos[0].clone();
+        let tx_proposal_payload_txo = tx_proposal.payload_txos[0].clone();
+        let tx_out_proto_bytes = hex::decode(tx_proposal_payload_txo.tx_out_proto).unwrap();
+        let txo: TxOut = mc_util_serial::decode(&tx_out_proto_bytes).unwrap();
+
+        let txo_public_key_bytes = hex::decode(tx_log_payload_txo.public_key).unwrap();
+        let txo_public_key: CompressedRistrettoPublic =
+            txo_public_key_bytes.as_slice().try_into().unwrap();
+
+        assert_eq!(txo.public_key, txo_public_key);
 
         assert_eq!(
             tx_proposal.fee_amount,

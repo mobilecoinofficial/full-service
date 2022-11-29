@@ -16,7 +16,7 @@ pub struct UnsignedInputTxo {
     pub subaddress_index: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct InputTxo {
     pub tx_out_proto: String,
     pub amount: AmountJSON,
@@ -24,7 +24,7 @@ pub struct InputTxo {
     pub key_image: String,
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct OutputTxo {
     pub tx_out_proto: String,
     pub amount: AmountJSON,
@@ -103,7 +103,7 @@ impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for Unsign
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct TxProposal {
     pub input_txos: Vec<InputTxo>,
     pub payload_txos: Vec<OutputTxo>,
