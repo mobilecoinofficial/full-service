@@ -47,3 +47,26 @@ Remove the default directory project directory in the `pyproject.toml`, we're no
 {include = "fs_integration"}
 ```
 
+## VSCode hints.
+
+**Activate Poetry**
+
+See above to activate poetry before opening vscode.
+
+**Fix local package intellisense.**
+
+If VSCode can't find `fullservice` add the path with .env file and settings config.
+
+Add to `.vscode/settings.json`
+
+```json
+{
+    "python.envFile": "${workspaceFolder}/.vscode/vscode.env"
+}
+```
+
+Add a `.vscode/vscode.env` file with `PYTHONPATH` defined.
+
+```bash
+PYTHONPATH=${PYTHONPATH}:cli
+```
