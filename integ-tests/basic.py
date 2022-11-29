@@ -63,7 +63,6 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     alice = await get_account(0)
     bob = await get_account(1)
-    await fs.get_wallet_status()
 
     pmob_to_send = amount_pmob
     bob_status_0 = (
@@ -106,7 +105,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     assert alice_status_0 == alice_status_1 + fee + pmob_to_send
     assert bob_status_1 == bob_status_0 + pmob_to_send
-    
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", type=str, default=default_config_path, 
