@@ -59,13 +59,17 @@ async def main():
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
     assert "error" not in network_status.keys()
-    fee = network_status.get("result").get("network_status").get("fees").get("0") # zero is the fee key for mob
+    fee = int(network_status.get("result")
+                            .get("network_status")
+                            .get("fees")
+                            .get("0")  # zero is the fee key for mob
+    )
 
     alice = await get_account(0)
     bob = await get_account(1)
 
     pmob_to_send = amount_pmob
-    alice_status_0 = (
+    alice_status_0 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
         .get("balance_per_token")
@@ -75,7 +79,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     assert alice_status_0 >= pmob_to_send + fee
 
-    bob_status_0 = (
+    bob_status_0 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
