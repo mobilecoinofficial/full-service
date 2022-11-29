@@ -124,7 +124,7 @@ impl InputTxo {
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct OutputTxo {
-    pub txo_id_hex: String,
+    pub txo_id: String,
 
     pub public_key: String,
 
