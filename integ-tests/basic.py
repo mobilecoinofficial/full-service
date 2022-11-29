@@ -16,7 +16,7 @@ import json
 sys.path.append(os.path.abspath("../cli"))
 
 from fullservice import FullServiceAPIv2 as v2
-from dataobjects import Response, Account  # TODO rename as FSDataObjects
+from FSDataObjects import Response, Account 
 
 default_config_path = "./config"
 config = []
