@@ -137,7 +137,7 @@ impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
             txo_id: txo.id.clone(),
-            public_key: hex::encode(&txo.public_key),
+            public_key: hex::encode(txo.public_key().unwrap().as_bytes()),
             amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }
