@@ -24,6 +24,16 @@ account_ids = []
 
 fs = v2()
 
+@dataclass
+class Account:
+    account: dict
+
+@dataclass
+class Response:
+    method: str
+    result: dict
+    account_ids: list
+    accounts: dict
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
