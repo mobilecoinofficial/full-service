@@ -59,6 +59,7 @@ async def main():
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
     assert "error" not in network_status.keys()
+    fee = network_status.get("result").get("network_status").get("fees").get("0") # zero is the fee key for mob
 
     alice = await get_account(0)
     bob = await get_account(1)
@@ -102,16 +103,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("0")
         .get("unspent")
     )
-    # decreases by fee and amount_pmob
-    # print(int(alice_status_1)-int(alice_status_0))
-    bob_increase = int(bob_status_1) - int(bob_status_0)
-    # return bob_increase == pmob_to_send
-    if bob_increase == pmob_to_send:
-        exit()
-    else:
-        raise SystemExit('Transaction failed')
 
-
+    assert alice_status_0 == alice_status_1 + fee + pmob_to_send
+    assert bob_status_1 == bob_status_0 + pmob_to_send
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", type=str, default=default_config_path, 
