@@ -129,7 +129,6 @@ if __name__ == "__main__":
                         required=False)
     args = parser.parse_args()
 
-    print(args.__dict__)
     with open(args.config_path) as json_file:
         config = json.load(json_file)
 
