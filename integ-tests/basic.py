@@ -135,8 +135,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
-    parser.add_argument("config_path", type=str, default=default_config_path, 
-                        required=False)
+    parser.add_argument("config_path", nargs='?', type=str, default=default_config_path)
     args = parser.parse_args()
 
     with open(args.config_path) as json_file:
