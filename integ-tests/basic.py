@@ -58,6 +58,7 @@ async def main():
 
 async def does_it_go(amount_pmob: int = 5) -> bool:
     network_status = await fs.get_network_status()
+    assert "error" not in network_status.keys()
 
     alice = await get_account(0)
     bob = await get_account(1)
