@@ -58,7 +58,7 @@ async def main():
 
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
-    assert "error" not in network_status.keys()
+    assert "error" not in network_status.keys(),  "Failed to get network status"
     fee = int(network_status.get("result")
                             .get("network_status")
                             .get("fees")
@@ -79,7 +79,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    assert alice_status_0 >= pmob_to_send + fee
+    assert alice_status_0 >= pmob_to_send + fee, "Insufficient funds in first account."
 
     bob_status_0 = int(
         (await fs.get_account_status(bob.id))
@@ -116,8 +116,9 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    assert alice_status_0 == alice_status_1 + fee + pmob_to_send
-    assert bob_status_1 == bob_status_0 + pmob_to_send
+    # TODO check that the transaction actually went through/ wait long enough for it to go through
+    assert alice_status_0 == alice_status_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
+    assert bob_status_1 == bob_status_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
