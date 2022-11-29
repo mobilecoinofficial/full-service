@@ -101,14 +101,14 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     # TODO: replace this with a poll loop that waits a block or two
     await asyncio.sleep(15)
-    alice_status_1 = (
+    alice_status_1 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
         .get("balance_per_token")
         .get("0")
         .get("unspent")
     )
-    bob_status_1 = (
+    bob_status_1 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
