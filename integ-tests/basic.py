@@ -65,15 +65,16 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     bob = await get_account(1)
 
     pmob_to_send = amount_pmob
-    bob_status_0 = (
-        (await fs.get_account_status(bob.id))
+    alice_status_0 = (
+        (await fs.get_account_status(alice.id))
         .get("result")
         .get("balance_per_token")
         .get("0")
         .get("unspent")
     )
-    alice_status_0 = (
-        (await fs.get_account_status(alice.id))
+
+    bob_status_0 = (
+        (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
         .get("0")
