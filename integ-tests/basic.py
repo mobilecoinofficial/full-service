@@ -65,6 +65,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
                             .get("0")  # zero is the fee key for mob
     )
 
+    """Test Setup """
+
     alice = await get_account(0)
     bob = await get_account(1)
 
@@ -87,11 +89,15 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
+    """ Test action """
+
     first_transaction = await fs.build_and_submit_transaction(
         alice.id,
         recipient_public_address=bob.main_address,
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
+
+    """ Check Results """
 
     # TODO: replace this with a poll loop that waits a block or two
     await asyncio.sleep(15)
