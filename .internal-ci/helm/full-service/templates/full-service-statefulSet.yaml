@@ -1,0 +1,81 @@
+# Copyright (c) 2018-2022 The MobileCoin Foundation
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "fullService.fullname" . }}-full-service
+  labels:
+    {{- include "fullService.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.fullService.replicaCount }}
+  selector:
+    matchLabels:
+      app: full-service
+      {{- include "fullService.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "fullService.fullname" . }}-full-service
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.fullService.podAnnotations | nindent 8 }}
+      labels:
+        app: full-service
+        {{- include "fullService.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      shareProcessNamespace: true
+      {{- if .Values.backupsSidecar.enabled }}
+      initContainers:
+      {{- include "fullService.backupsSidecar" . | nindent 6 }}
+      {{- end }}
+      containers:
+      - name: full-service
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        image: {{ include "fullService.image" . }}
+        imagePullPolicy: Always
+        envFrom:
+        - configMapRef:
+            name: {{ include "fullService.configMap.name" . }}
+        args:
+        ports:
+        - name: full-service
+          containerPort: 9090
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.fullService.resources | nindent 12 }}
+      {{- if .Values.backupsSidecar.enabled }}
+      {{- include "fullService.backupsSidecarContainer" . | nindent 6 }}
+      {{- end }}
+      nodeSelector:
+        {{- toYaml .Values.fullService.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.fullService.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.fullService.tolerations | nindent 8 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      {{- if eq .Values.fullService.persistence.enabled false }}
+      - name: data
+        emptyDir: {}
+      {{- end }}
+  {{- if .Values.fullService.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      {{- toYaml .Values.fullService.persistence.spec | nindent 6 }}
+  {{- end }}
+

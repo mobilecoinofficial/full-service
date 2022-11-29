@@ -1,4 +1,1 @@
-[image]
-target = builder-install
-repository = gcr.io/mobilenode-211420/
-dockerfile = mobilecoin/docker/Dockerfile
+mobilecoin/.mobconf
