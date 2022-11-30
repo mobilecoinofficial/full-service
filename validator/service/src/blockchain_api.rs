@@ -4,7 +4,10 @@
 
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::Logger;
-use mc_connection::{BlockchainConnection, ConnectionManager, RetryableBlockchainConnection};
+use mc_connection::{
+    BlockchainConnection, ConnectionManager, RetryableBlockchainConnection,
+    _retry::delay::Fibonacci,
+};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{tokens::Mob, Token};
 use mc_util_grpc::{rpc_database_err, rpc_logger, rpc_precondition_error, send_result};
@@ -64,7 +67,10 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
             .conn_manager
             .conns()
             .par_iter()
-            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .filter_map(|conn| {
+                conn.fetch_block_info(Fibonacci::from_millis(10).take(5))
+                    .ok()
+            })
             .collect::<Vec<_>>();
 
         // Must have at least one node to get the last block info from.
