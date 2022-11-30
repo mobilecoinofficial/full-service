@@ -173,8 +173,6 @@ jobs:
         rancher_url: ${{ secrets.DEV_RANCHER_URL }}
         rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
-  # TODO: Add integration tests.
-
   # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
   test:
     runs-on: [self-hosted, Linux, small]
