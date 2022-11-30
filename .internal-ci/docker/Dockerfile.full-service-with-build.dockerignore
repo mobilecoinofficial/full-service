@@ -1,0 +1,11 @@
+consensus-enclave.css
+**/target/
+.vscode/
+.gitbook/
+.github/
+.tmp/
+.mob/
+.internal-ci/helm
+.internal-ci/docker/Dockerfile*
+hooks/
+.git/

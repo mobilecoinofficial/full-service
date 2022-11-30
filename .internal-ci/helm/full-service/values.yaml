@@ -1,0 +1,59 @@
+# Copyright (c) 2018-2022 The MobileCoin Foundation
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets:
+- name: docker-credentials
+
+image:
+  org: mobilecoin
+
+fullService:
+  replicaCount: 1
+  image:
+    org: ''
+    name: full-service
+    tag: ''
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+        - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 128Gi
+  configMap:
+    # set to true to provide your own config map outside this chart
+    external: false
+    name: full-service
+    data: {}
+    ## Example args for testnet - note the .test chart and container image include these values.
+    #   MC_CHAIN_ID: test
+    #   MC_PEER: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+    #   MC_TX_SOURCE_URL: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+    ## Example args for mainnet - note the .main chart and container image includes these values. (prod is correct for the urls)
+    #   MC_CHAIN_ID: main
+    #   MC_PEER: mc://node1.prod.mobilecoin.com/,mc://node2.prod.mobilecoin.com/
+    #   MC_TX_SOURCE_URL: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.prod.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.prod.mobilecoin.com/
+
+backupsSidecar:
+  enabled: false
+  image:
+    org: ''
+    name: infra-replication-sidecar
+    tag: v0.0.1
+  # Create backups-sidecar secret or set external 'false'
+  secret:
+    external: true
+    name: backups-sidecar
+    data:
+      ENCRYPT_KEY: <file encryption passphrase>
+      AZURE_STORAGE_ACCOUNT: <azure storage account name>
+      AZURE_STORAGE_KEY: <azure storage account access key>

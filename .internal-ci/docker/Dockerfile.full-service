@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1.2
+# Copyright (c) 2018-2022 The MobileCoin Foundation
+#
+# full-service application docker container.
+#
+# assume we have pre-built binary
+
+FROM ubuntu:focal-20221019
+
+RUN  addgroup --system --gid 1000 app \
+  && adduser --system --ingroup app --uid 1000 app \
+  && mkdir -p /data/ledger \
+  && mkdir -p /data/wallet \
+  && chown -R app:app /data
+
+RUN  apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y ca-certificates \
+  && apt-get clean \
+  && rm -r /var/lib/apt/lists \
+  && mkdir -p /usr/share/grpc \
+  && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
+
+ARG RUST_BIN_PATH=target/release
+COPY ${RUST_BIN_PATH}/full-service /usr/local/bin/full-service
+COPY ${RUST_BIN_PATH}/*.css /usr/local/bin/
+COPY .internal-ci/docker/entrypoints/full-service.sh /usr/local/bin/entrypoint.sh
+
+USER app
+VOLUME /data
+EXPOSE 9090
+
+ENV RUST_LOG=info,rustls=warn,hyper=warn,tokio_reactor=warn,mio=warn,want=warn,rusoto_core=error,h2=error,reqwest=error,rocket=error,<unknown>=error
+ENV MC_LEDGER_DB=/data/ledger
+ENV MC_WALLET_DB=/data/wallet/wallet.db
+ENV MC_FOG_INGEST_ENCLAVE_CSS=/usr/local/bin/ingest-enclave.css
+ENV MC_LISTEN_HOST=0.0.0.0
+ENV MC_LISTEN_PORT=9090
+
+# Since we have to compile with specific block chain, lets make this batteries included.
+# You can override these options at runtime.
+ARG MC_CHAIN_ID
+ARG MC_PEER
+ARG MC_TX_SOURCE_URL
+ENV MC_CHAIN_ID=${MC_CHAIN_ID}
+ENV MC_PEER=${MC_PEER}
+ENV MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+CMD [ "/usr/local/bin/full-service" ]
