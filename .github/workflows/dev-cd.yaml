@@ -1,0 +1,235 @@
+# Copyright (c) 2018-2022 The MobileCoin Foundation
+#
+# MobileCoin full-service: Deploy and run integration tests.
+
+name: Development CD
+
+env:
+  CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
+  DOCKER_ORG: mobilecoin
+  MOBILECOIN_ENCLAVE_VERSION: v3.0.0
+  MOBILECOIN_NETWORK: test
+
+on:
+  pull_request:
+    branches:
+    - develop
+  push:
+    branches:
+    - feature/*
+    paths-ignore:
+    - '**.md'
+    - '.gitbook/**'
+    - 'docs/**'
+
+concurrency:
+  group: full-service-dev-cd-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    runs-on: [self-hosted, Linux, small]
+    outputs:
+      namespace: ${{ steps.meta.outputs.namespace }}
+      tag: ${{ steps.meta.outputs.tag }}
+      docker_tag: ${{ steps.meta.outputs.docker_tag }}
+      docker_org: ${{ env.DOCKER_ORG }}
+      chart_repo: ${{ env.CHART_REPO }}
+    steps:
+    - name: Generate version metadata
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      id: meta
+      with:
+        action: generate-metadata
+        prefix: fs
+
+  build:
+    runs-on: [self-hosted, Linux, large-cd]
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.20
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+          submodules: recursive
+
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: ./.github/actions/mobilecoin-cache-rust-binaries
+      with:
+        cache_buster: ${{ secrets.CACHE_BUSTER }}
+
+    # Skip the following steps if we already have binaries.
+    - name: Cache cargo packages
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      uses: ./.github/actions/mobilecoin-cache-cargo-package
+      with:
+        cache_buster: ${{ secrets.CACHE_BUSTER }}
+
+    - name: Build all binaries
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      env:
+        BUILD_OPTIONS: '--locked'
+        CSS_JSON_FILE: production-${{ env.MOBILECOIN_ENCLAVE_VERSION }}.json
+        WORK_DIR: ${{ github.workspace }}/target/release
+      run: |
+        tools/build-fs.sh test
+
+    - name: Copy artifacts to cache
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      run: |
+        mkdir -p rust_build_artifacts
+        find target/release -maxdepth 1 -executable -type f -exec cp "{}" rust_build_artifacts/ \;
+        find target/release -maxdepth 1 -name "*.css" -exec cp "{}" rust_build_artifacts/ \;
+
+  publish:
+    runs-on: [self-hosted, Linux, small]
+    needs:
+    - metadata
+    - build
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+          submodules: recursive
+
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: ./.github/actions/mobilecoin-cache-rust-binaries
+      with:
+        cache_buster: ${{ secrets.CACHE_BUSTER }}
+
+    - name: Generate Docker Tags
+      id: docker_meta
+      uses: docker/metadata-action@v4
+      with:
+        flavor: |
+            latest=false
+            suffix=.test
+        images: ${{ env.DOCKER_ORG }}/full-service
+        tags: ${{ needs.metadata.outputs.docker_tag }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Publish to DockerHub
+      uses: docker/build-push-action@v3
+      with:
+        build-args: |
+          RUST_BIN_PATH=rust_build_artifacts
+          MC_CHAIN_ID=test
+          MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+          MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        context: .
+        file: .internal-ci/docker/Dockerfile.full-service
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        push: true
+        tags: ${{ steps.docker_meta.outputs.tags }}
+
+    - name: Package and publish chart
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-publish
+        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_app_version: ${{ needs.metadata.outputs.tag }}.test
+        chart_version: ${{ needs.metadata.outputs.tag }}.test
+        chart_path: .internal-ci/helm/full-service
+
+  deploy:
+    runs-on: [self-hosted, Linux, small]
+    needs:
+    - metadata
+    - publish
+    steps:
+    - name: Create namespace
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: namespace-create
+        namespace: ${{ needs.metadata.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
+    - name: Deploy "simple" full-service
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-deploy
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_name: full-service
+        chart_version: ${{ needs.metadata.outputs.tag }}.test
+        chart_set: |
+          --set=persistence.enabled=false
+        release_name: full-service
+        namespace: ${{ needs.metadata.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
+  # TODO: Add integration tests.
+
+  # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
+  test:
+    runs-on: [self-hosted, Linux, small]
+    needs:
+    - metadata
+    - deploy
+    container:
+      image: mobilecoin/builder-install:v0.0.20
+    env:
+      POETRY_HOME: /opt/poetry
+      URL: http://full-service.${{ needs.metadata.outputs.namespace }}:9090/wallet/v2
+      CONFIG_JSON: ${{ github.workspace }}/.tmp/config.json
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install Python Poetry env/package manager
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+
+    # CBB: because this secret has formatted json, we get some weird filtering on
+    #      log output.  I think we should switch this to just variables with the mnemonics.
+    - name: Setup wallet config - TestNet
+      run: |
+        mkdir -p "$(dirname "${CONFIG_JSON}")"
+        echo '${{ secrets.TEST_ACCOUNT_MNEMONICS_JSON }}' > "${CONFIG_JSON}"
+
+    - name: Test full-service - TestNet
+      shell: bash
+      run: |
+        # Set git permissions
+        git config --global --add safe.directory '*'
+
+        # Switch to testing directory and install dependencies.
+        pushd .internal-ci/test/fs-integration || exit 1
+        "${POETRY_HOME}/bin/poetry" install --without=dev
+
+        # Run test
+        "${POETRY_HOME}/bin/poetry" run python3 ./basic.py
+        popd || exit 0
+
+  # remove the testing environment after all tests are run successfully when this
+  #  is triggered from a PR.  For a feature branch, see dev-delete-cd.yaml
+  cleanup-after-run:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, Linux, small]
+    needs:
+    - metadata
+    - test
+    steps:
+    - name: Delete namespace
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: namespace-delete
+        namespace: ${{ needs.metadata.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
