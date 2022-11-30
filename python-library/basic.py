@@ -25,26 +25,7 @@ config = []
 account_ids = []
 
 fs = v2()
-@dataclass_json
-@dataclass
-class Account(object):
-    def __init__(self, d):
-        self.__dict__ = d
 
-@dataclass_json
-@dataclass
-class AccountStatus:
-    result: str
-    balance_per_token: str
-    unspent: str
-
-@dataclass_json
-@dataclass
-class Response:
-    method: str
-    result: dict
-    account_ids: list
-    accounts: dict
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
