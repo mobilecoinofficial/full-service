@@ -47,6 +47,12 @@ Remove the default directory project directory in the `pyproject.toml`, we're no
 {include = "fs_integration"}
 ```
 
+## Use existing poetry configuration
+To read and install dependencies from current project's `pyproject.toml`: 
+```
+poetry install
+```
+
 ## VSCode hints.
 
 **Activate Poetry**
