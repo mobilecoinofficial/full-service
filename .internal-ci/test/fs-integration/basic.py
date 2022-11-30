@@ -8,10 +8,10 @@
 #     build, build_and_submit, build_split_txo .. etc
 
 import argparse
-import os
-import sys
 import asyncio
 import json
+import subprocess
+import sys
 
 repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
 sys.path.append("{}/python-library".format(repo_root_dir))
