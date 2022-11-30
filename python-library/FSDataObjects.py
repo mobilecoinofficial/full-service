@@ -3,12 +3,6 @@ from dataclasses_json import dataclass_json
 
 @dataclass_json
 @dataclass
-class Account(object):
-    def __init__(self, d):
-        self.__dict__ = d
-
-@dataclass_json
-@dataclass
 class AccountStatus:
     result: str
     balance_per_token: str

@@ -16,8 +16,7 @@ import json
 sys.path.append(os.path.abspath("../cli"))
 
 from fullservice import FullServiceAPIv2 as v2
-from dataclasses import dataclass  
-from dataclasses_json import dataclass_json
+from FSDataObjects import Account, AccountStatus, Response
 
 
 default_config_path = "./config"
