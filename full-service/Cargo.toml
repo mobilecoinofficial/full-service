@@ -86,4 +86,4 @@ tempdir = "0.3"
 anyhow = "1.0"
 # clippy fails to run without this.
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
-vergen = "7.4.2"
+vergen = "7.4.3"
