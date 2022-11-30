@@ -68,5 +68,5 @@ Add to `.vscode/settings.json`
 Add a `.vscode/vscode.env` file with `PYTHONPATH` defined.
 
 ```bash
-PYTHONPATH=${PYTHONPATH}:cli
+PYTHONPATH=${PYTHONPATH}:python-library
 ```
