@@ -211,7 +211,7 @@ jobs:
         "${POETRY_HOME}/bin/poetry" install --without=dev
 
         # Run test
-        "${POETRY_HOME}/bin/poetry" run python3 ./basic.py
+        "${POETRY_HOME}/bin/poetry" run python3 ./basic.py "${CONFIG_JSON}"
         popd || exit 0
 
   # remove the testing environment after all tests are run successfully when this
