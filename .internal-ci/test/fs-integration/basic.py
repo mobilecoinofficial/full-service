@@ -13,7 +13,8 @@ import sys
 import asyncio
 import json
 
-sys.path.append(os.path.abspath("../../../python-library"))
+repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
+sys.path.append("{}/python-library".format(repo_root_dir))
 
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
