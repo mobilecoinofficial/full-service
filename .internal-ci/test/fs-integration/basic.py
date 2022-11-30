@@ -13,7 +13,7 @@ import sys
 import asyncio
 import json
 
-sys.path.append(os.path.abspath("../../cli"))
+sys.path.append(os.path.abspath("../../python-library"))
 
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
