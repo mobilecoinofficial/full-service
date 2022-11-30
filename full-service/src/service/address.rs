@@ -123,10 +123,10 @@ where
         )?)
     }
 
-    fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
+    fn verify_address(&self, public_address: &str) -> Result<String, AddressServiceError> {
         match b58_decode_public_address(public_address) {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
+            Ok(_) => Ok(true).to_string(),
+            Err(_) => Ok(false).to_string(),
         }
     }
 }

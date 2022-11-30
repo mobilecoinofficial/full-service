@@ -182,6 +182,7 @@ pub enum JsonCommandResponse {
     },
     verify_address {
         verified: bool,
+        details: String,
     },
     version {
         string: String,
