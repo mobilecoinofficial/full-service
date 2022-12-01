@@ -85,8 +85,8 @@ case ${net} in
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
-        CONSENSUS_ENCLAVE_CSS=""
-        INGEST_ENCLAVE_CSS=""
+        CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
+        INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
