@@ -51,16 +51,18 @@ def get_mnemonics(n=2):
 
 
 async def get_account(i, already_imported=False):
-    global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
-    account_resp = Response(await fs.import_account(
+    import_resp = Response(await fs.import_account(
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
     )   )
 
+    accounts_response = Response(await fs.get_accounts())
+    account_ids = accounts_response.result.get("account_ids")
+
     if not already_imported:
-        assert not account_resp.error,  "Failed to import account"
-        return account_resp.result.get("account")
+        assert not import_resp.error,  "Failed to import account"
+        return import_resp.result.get("account")
 
     if len(account_ids) <= i:
         accounts_response = Response(await fs.get_accounts())
