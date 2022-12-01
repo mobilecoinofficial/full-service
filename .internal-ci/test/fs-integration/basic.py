@@ -12,6 +12,7 @@ import asyncio
 import json
 import subprocess
 import sys
+from typing import Optional
 from fullservice import FullServiceAPIv2 as v2
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
@@ -38,7 +39,7 @@ class Response:
     result: dict
     jsonrpc: str
     id: int
-    error: dict = {}
+    error: Optional[dict] = None
 
 #fix me later
 async def test_cleanup():
