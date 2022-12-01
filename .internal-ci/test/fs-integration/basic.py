@@ -10,6 +10,7 @@ sys.path.append("{}/python-library".format(repo_root_dir))
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
+sleepy_time = 5
 default_config_path = "./test_config.json"
 config = []
 account_ids = []
@@ -21,7 +22,7 @@ async def wait_for_account_to_sync(id):
     account_status = await fs.get_account_status(id)
     while (account_status.get("result").get("account").get("next_block_index")
            != account_status.get("result").get("local_block_height")):
-        await asyncio.sleep(1)
+        await asyncio.sleep(sleepy_time)
         account_status = await fs.get_account_status(id)
 
 
@@ -82,7 +83,7 @@ async def get_account(i, name="", okay_if_already_imported=False):
 
 async def main():
     while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
-        await asyncio.sleep(1)  
+        await asyncio.sleep(sleepy_time)  
     await does_it_go()
 
 
@@ -135,7 +136,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     """ Check Results """
 
     # TODO: replace this with a poll loop that waits a block or two
-    await asyncio.sleep(5)
+    await asyncio.sleep(sleepy_time)
     alice_balance_1 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
