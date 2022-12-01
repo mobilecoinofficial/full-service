@@ -86,7 +86,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
                             .get("network_status")
                             .get("fees")
                             .get("0")  # zero is the fee key for mob
-    )
+    ) # this get chain is fine for now and shouldn't break
 
     """Test Setup """
 
