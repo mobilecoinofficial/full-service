@@ -38,6 +38,7 @@ class Response:
     result: dict
     jsonrpc: str
     id: int
+    error: dict = {}
 
 async def test_cleanup():
     for id in account_ids:
@@ -53,22 +54,20 @@ async def get_account(i, already_imported=False):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
-    account = await fs.import_account(
+    account_resp = Response(await fs.import_account(
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
-    )   
+    )   )
 
     if not already_imported:
-        assert "error" not in account.keys(),  "Failed to import account"
+        assert not account_resp.error,  "Failed to import account"
+        return account_resp.result.get("account")
 
-    if "error" not in account.keys():
-        return Account(account["result"]["account"])
+    if len(account_ids) <= i:
+        accounts_response = Response(await fs.get_accounts())
+        account_ids = accounts_response.result.get("account_ids")
+        return accounts_response.accounts[account_ids[i]]
     else:
-        if len(account_ids) <= i:
-            accounts_response = Response(await fs.get_accounts())
-            account_ids = accounts_response.account_ids
-            return accounts_response.accounts[account_ids[i]]
-        else:
-            return Response(await fs.get_account_status(account_ids[i])).account
+        return Response(await fs.get_account_status(account_ids[i])).account
 
 
 async def main():
