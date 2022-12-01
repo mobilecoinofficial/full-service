@@ -230,7 +230,7 @@ mod tests {
         let public_address_b58 =
             b58_encode_public_address(&public_address).expect("Could not encode public address");
 
-        assert!(service.verify_address(&public_address_b58).is_err());
+        assert!(service.verify_address(&public_address_b58).is_ok());
     }
 
     // An improperly encoded address should fail.

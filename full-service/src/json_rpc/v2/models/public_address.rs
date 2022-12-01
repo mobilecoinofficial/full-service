@@ -5,7 +5,7 @@
 use serde_derive::{Deserialize, Serialize};
 
 /// A public mobilecoin address
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Deserialize, PartialEq, Eq, Serialize, Default, Debug, Clone)]
 pub struct PublicAddress {
     /// The view public key for this address.
     pub view_public_key: String,

@@ -6,7 +6,10 @@
 mod e2e_account {
     use crate::{
         db::{account::AccountID, txo::TxoStatus},
-        json_rpc::v2::api::test_utils::{dispatch, setup},
+        json_rpc::v2::{
+            api::test_utils::{dispatch, setup},
+            models::public_address::PublicAddress,
+        },
         test_utils::{add_block_to_ledger_db, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
@@ -485,8 +488,9 @@ mod e2e_account {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let result = res["result"]["verified"].as_bool().unwrap();
-        assert!(!result);
+        let error = res.get("error").unwrap();
+        let data = error.get("data").unwrap();
+        assert_eq!("B58(PrintableWrapper(B58(\"provided string contained invalid character 'O' at byte 1\")))", data.get("server_error").unwrap().as_str().unwrap());
 
         // Add an account
         let body = json!({
@@ -499,6 +503,8 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+        let public_address_json = PublicAddress::from(&public_address);
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -509,7 +515,11 @@ mod e2e_account {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let result = res["result"]["verified"].as_bool().unwrap();
-        assert!(result);
+        let result = res.get("result").unwrap();
+        let details = result.get("details").unwrap();
+        let public_address_details: PublicAddress =
+            serde_json::from_value(details.clone()).unwrap();
+
+        assert_eq!(public_address_details, public_address_json);
     }
 }
