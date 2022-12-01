@@ -21,7 +21,6 @@ from FSDataObjects import Response, Account
 
 default_config_path = "./test_config.json"
 
-
 fs = v2()
 
 async def test_cleanup():
@@ -34,7 +33,7 @@ def get_mnemonics(n=2):
     return config["Account Mnemonics"][:n]
 
 
-async def get_account(i, okay_if_already_imported=False):
+async def get_account(i, already_imported=False):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
@@ -42,7 +41,7 @@ async def get_account(i, okay_if_already_imported=False):
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
     )   
 
-    if not okay_if_already_imported:
+    if not already_imported:
         assert "error" not in account.keys(),  "Failed to import account"
 
     if "error" not in account.keys():
