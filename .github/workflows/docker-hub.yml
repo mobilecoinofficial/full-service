@@ -7,7 +7,6 @@ on:
   push:
     tags:
       - 'v*'
-      - '!v*-pre.*'
 
 jobs:
   build-and-publish:
