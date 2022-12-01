@@ -35,10 +35,14 @@ async def wait_for_account_to_sync(id):
 
 
 async def test_cleanup():
+    global account_ids
     for id in account_ids:
+        await wait_for_account_to_sync(id)
         await fs.remove_account(id)
     accounts = await fs.get_accounts()
-    assert len(accounts.get('result').get('account_ids')) == 0, "Failed to clear out accounts"
+    for id in account_ids:
+        assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
+    account_ids = []
 
 
 # If this test fails before reaching the last cleanup step, we have leftover
@@ -46,10 +50,10 @@ async def test_cleanup():
 # Note: Using a testing framework like pytest would allow us to bundle this in
 # a test fixture
 async def preclean_this_test():
-    alice = await get_account(0, "alice", True)
-    bob = await get_account(1, "bob", True)
-
+    await get_account(0, "alice", True)
+    await get_account(1, "bob", True)
     await test_cleanup()
+
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
@@ -71,20 +75,24 @@ async def get_account(i, name="", okay_if_already_imported=False):
         assert "error" not in account.keys(),  "Failed to import account"
 
     if "error" not in account.keys():
-        return Account(account["result"]["account"])
+        result = Account(account["result"]["account"])
+        account_ids.append(result.id)
+        return result
     else:
         if len(account_ids) <= i:
             accounts_response = Response(await fs.get_accounts())
             account_ids = accounts_response.account_ids
             return accounts_response.accounts[account_ids[i]]
         else:
-            return Response(await fs.get_account_status(account_ids[i])).account
+            result = Response(await fs.get_account_status(account_ids[i])).account
+            account_ids.append(result.id)
+            return result
 
 
 async def main():
     while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
         await asyncio.sleep(1)  
-    print(await does_it_go())
+    await does_it_go()
 
 
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
@@ -156,7 +164,6 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
-    # TODO: stick this in a finally block
     await test_cleanup()
 
 if __name__ == "__main__":
