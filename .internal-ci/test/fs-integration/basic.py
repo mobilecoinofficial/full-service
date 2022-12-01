@@ -12,16 +12,32 @@ import asyncio
 import json
 import subprocess
 import sys
+from fullservice import FullServiceAPIv2 as v2
+from FSDataObjects import Response, Account 
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json
 
 repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
 sys.path.append("{}/python-library".format(repo_root_dir))
 
-from fullservice import FullServiceAPIv2 as v2
-from FSDataObjects import Response, Account 
-
 default_config_path = "./test_config.json"
 
 fs = v2()
+
+@dataclass_json
+@dataclass
+class AccountStatus:
+    result: str
+    balance_per_token: str
+    unspent: str
+
+@dataclass_json
+@dataclass
+class Response:
+    method: str
+    result: dict
+    jsonrpc: str
+    id: int
 
 async def test_cleanup():
     for id in account_ids:
