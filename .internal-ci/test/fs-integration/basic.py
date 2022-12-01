@@ -25,9 +25,20 @@ account_ids = []
 
 fs = v2()
 
+
+async def wait_for_account_to_sync(id):
+    account_status = await fs.get_account_status(id)
+    while (account_status.get("result").get("account").get("next_block_index")
+           != account_status.get("result").get("local_block_height")):
+        await asyncio.sleep(1)
+        account_status = await fs.get_account_status(id)
+
+
 async def test_cleanup():
     for id in account_ids:
         await fs.remove_account(id)
+    accounts = await fs.get_accounts()
+    assert len(accounts.get('result').get('account_ids')) == 0,  "Failed to clear out accounts"
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
@@ -75,15 +86,18 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     """Test Setup """
+    pmob_to_send = amount_pmob
 
     alice = await get_account(0, "alice", True)
     bob = await get_account(1, "bob", True)
+
     await test_cleanup()
 
     alice = await get_account(0, "alice")
     bob = await get_account(1, "bob")
 
-    pmob_to_send = amount_pmob
+    await wait_for_account_to_sync(alice.id)
+    
     alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
