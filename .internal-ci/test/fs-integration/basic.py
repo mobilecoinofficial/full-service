@@ -38,7 +38,18 @@ async def test_cleanup():
     for id in account_ids:
         await fs.remove_account(id)
     accounts = await fs.get_accounts()
-    assert len(accounts.get('result').get('account_ids')) == 0,  "Failed to clear out accounts"
+    assert len(accounts.get('result').get('account_ids')) == 0, "Failed to clear out accounts"
+
+
+# If this test fails before reaching the last cleanup step, we have leftover
+# artifacts in the FS instance. We clean up those residual artifacts here.
+# Note: Using a testing framework like pytest would allow us to bundle this in
+# a test fixture
+async def preclean_this_test():
+    alice = await get_account(0, "alice", True)
+    bob = await get_account(1, "bob", True)
+
+    await test_cleanup()
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
@@ -88,10 +99,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     """Test Setup """
     pmob_to_send = amount_pmob
 
-    alice = await get_account(0, "alice", True)
-    bob = await get_account(1, "bob", True)
-
-    await test_cleanup()
+    await preclean_this_test()
 
     alice = await get_account(0, "alice")
     bob = await get_account(1, "bob")
