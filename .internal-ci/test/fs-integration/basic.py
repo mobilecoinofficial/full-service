@@ -28,6 +28,7 @@ async def wait_for_account_to_sync(id):
 
 async def test_cleanup():
     global account_ids
+    print(account_ids)
     for id in account_ids:
         await wait_for_account_to_sync(id)
         await fs.remove_account(id)
