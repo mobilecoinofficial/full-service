@@ -20,8 +20,7 @@ from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
 default_config_path = "./test_config.json"
-config = []
-account_ids = []
+
 
 fs = v2()
 
@@ -41,7 +40,7 @@ async def get_account(i, okay_if_already_imported=False):
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
     account = await fs.import_account(
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
-    )  
+    )   
 
     if not okay_if_already_imported:
         assert "error" not in account.keys(),  "Failed to import account"
@@ -83,7 +82,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("result")
         .get("balance_per_token")
         .get("0")
-        .get("unspent")
+        .get("unspent") 
     )
 
     assert alice_balance_0 >= pmob_to_send + fee, "Insufficient funds in first account."
@@ -122,7 +121,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("result")
         .get("balance_per_token")
         .get("0")
-        .get("unspent")
+        .get("unspent") 
     )
 
     # TODO check that the transaction actually went through/ wait long enough for it to go through
