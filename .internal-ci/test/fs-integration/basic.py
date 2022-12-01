@@ -25,6 +25,9 @@ account_ids = []
 
 fs = v2()
 
+async def test_cleanup():
+    for id in account_ids:
+        await fs.remove_account(id)
 
 def get_mnemonics(n=2):
     if n > len(config["Account Mnemonics"]):
@@ -75,7 +78,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     bob = await get_account(1)
 
     pmob_to_send = amount_pmob
-    alice_status_0 = int(
+    alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
         .get("balance_per_token")
@@ -83,9 +86,9 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    assert alice_status_0 >= pmob_to_send + fee, "Insufficient funds in first account."
+    assert alice_balance_0 >= pmob_to_send + fee, "Insufficient funds in first account."
 
-    bob_status_0 = int(
+    bob_balance_0 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -101,18 +104,20 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
 
+
     """ Check Results """
 
     # TODO: replace this with a poll loop that waits a block or two
-    await asyncio.sleep(15)
-    alice_status_1 = int(
+    await asyncio.sleep(5)
+    alice_balance_1 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
         .get("balance_per_token")
         .get("0")
         .get("unspent")
     )
-    bob_status_1 = int(
+
+    bob_balance_1 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -121,8 +126,11 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     # TODO check that the transaction actually went through/ wait long enough for it to go through
-    assert alice_status_0 == alice_status_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
-    assert bob_status_1 == bob_status_0 + pmob_to_send, "Bob doesn't end with the expected amount"
+    assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
+    assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
+
+    # TODO: stick this in a finally block
+    await test_cleanup()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
