@@ -13,7 +13,6 @@ import json
 import subprocess
 import sys
 from fullservice import FullServiceAPIv2 as v2
-from FSDataObjects import Response, Account 
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 
@@ -51,7 +50,7 @@ def get_mnemonics(n=2):
         raise ValueError("Not enough account available in config")
     return config["Account Mnemonics"][:n]
 
-
+#to be moved to a standard test library. this doesn't belong in the entrypoint script that gets ran by the CI IMO
 async def get_account(index, already_imported=False):
     mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     import_resp = Response(await fs.import_account(
@@ -76,7 +75,7 @@ async def get_account(index, already_imported=False):
 async def main():
     while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
         await asyncio.sleep(1)  
-    print(await does_it_go())
+    #print(await does_it_go()) #commented for testing
 
 
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
