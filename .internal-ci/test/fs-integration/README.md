@@ -20,8 +20,6 @@ poetry install
 poetry run python3 basic.py
 ```
 
-
-
 ## Install Dependencies
 
 ## Activate environment and run
