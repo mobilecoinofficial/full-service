@@ -80,6 +80,8 @@ __pycache__
 
 *sgx_linux_x64_sdk_2.9.101.2.bin
 
+.internal-ci/test/fs-integration/test_config.json
+
 # mob prompt and build tmp
 .mob/
 .tmp/
