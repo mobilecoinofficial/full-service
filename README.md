@@ -89,6 +89,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    MacOS:
     ```sh
+   echo 'ulimit -n 4096' >> ~/.bash_profile
    echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
    export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
