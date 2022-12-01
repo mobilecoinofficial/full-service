@@ -19,6 +19,7 @@ use crate::{
                 block::{Block, BlockContents},
                 confirmation_number::Confirmation,
                 network_status::NetworkStatus,
+                public_address::PublicAddress,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::TransactionLog,
                 tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
@@ -1080,9 +1081,13 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).map_err(format_error)?,
-        },
+        JsonCommandRequest::verify_address { address } => {
+            let address = service.verify_address(&address).map_err(format_error)?;
+
+            JsonCommandResponse::verify_address {
+                details: PublicAddress::from(&address),
+            }
+        }
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (
