@@ -1,12 +1,3 @@
-# verify that the transaction went through
-#   the mob went through
-#   the transaction log updatedx
-# Ideally all of the endpoints (v2) that actually hit the mobilecoin network
-#
-#     get_network_status
-#     get_wallet_status
-#     build, build_and_submit, build_split_txo .. etc
-
 import argparse
 import asyncio
 import json
