@@ -19,7 +19,7 @@ sys.path.append("{}/python-library".format(repo_root_dir))
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
-default_config_path = "./config"
+default_config_path = "./test_config.json"
 config = []
 account_ids = []
 
