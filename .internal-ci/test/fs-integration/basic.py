@@ -50,9 +50,9 @@ def get_mnemonics(n=2):
     return config["Account Mnemonics"][:n]
 
 
-async def get_account(i, already_imported=False):
+async def get_account(index, already_imported=False):
 
-    mnemonic = config["Account Mnemonics"][i]["mnemonic"]
+    mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     import_resp = Response(await fs.import_account(
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
     )   )
@@ -67,9 +67,9 @@ async def get_account(i, already_imported=False):
     if len(account_ids) <= i:
         accounts_response = Response(await fs.get_accounts())
         account_ids = accounts_response.result.get("account_ids")
-        return accounts_response.accounts[account_ids[i]]
+        return accounts_response.accounts[account_ids[index]]
     else:
-        return Response(await fs.get_account_status(account_ids[i])).account
+        return Response(await fs.get_account_status(account_ids[index])).account
 
 
 async def main():
