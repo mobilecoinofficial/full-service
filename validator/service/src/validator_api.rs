@@ -6,7 +6,7 @@ use grpcio::{EnvBuilder, RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     ConnectionManager, Error as ConnectionError, RetryError, RetryableUserTxConnection,
-    UserTxConnection,
+    UserTxConnection, _retry::delay::Fibonacci,
 };
 use mc_fog_report_connection::{Error as FogConnectionError, GrpcFogReportConnection};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -155,7 +155,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             .conn_manager
             .conn(responder_id)
             .ok_or_else(|| rpc_internal_error("propose_tx", "conn not found", logger))?
-            .propose_tx(&tx, std::iter::empty());
+            .propose_tx(&tx, Fibonacci::from_millis(10).take(5));
 
         // Convert to GRPC response.
         let mut result = ProposeTxResponse::new();
