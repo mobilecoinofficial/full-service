@@ -74,6 +74,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     """Test Setup """
 
+    alice = await get_account(0, True)
+    bob = await get_account(1, True)
+    await test_cleanup()
+
     alice = await get_account(0)
     bob = await get_account(1)
 
@@ -125,7 +129,6 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    # TODO check that the transaction actually went through/ wait long enough for it to go through
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
