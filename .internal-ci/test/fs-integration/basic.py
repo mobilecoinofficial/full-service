@@ -64,7 +64,7 @@ async def get_account(index, already_imported=False):
         assert not import_resp.error,  "Failed to import account"
         return import_resp.result.get("account")
 
-    if len(account_ids) <= i:
+    if len(account_ids) <= index:
         accounts_response = Response(await fs.get_accounts())
         account_ids = accounts_response.result.get("account_ids")
         return accounts_response.accounts[account_ids[index]]
