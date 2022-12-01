@@ -35,12 +35,14 @@ def get_mnemonics(n=2):
     return config["Account Mnemonics"][:n]
 
 
-async def get_account(i, okay_if_already_imported=False):
+async def get_account(i, name="", okay_if_already_imported=False):
     global account_ids
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
     account = await fs.import_account(
-        mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
+        mnemonic,
+        "2",  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
+        name=name
     )  
 
     if not okay_if_already_imported:
@@ -74,12 +76,12 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     """Test Setup """
 
-    alice = await get_account(0, True)
-    bob = await get_account(1, True)
+    alice = await get_account(0, "alice", True)
+    bob = await get_account(1, "bob", True)
     await test_cleanup()
 
-    alice = await get_account(0)
-    bob = await get_account(1)
+    alice = await get_account(0, "alice")
+    bob = await get_account(1, "bob")
 
     pmob_to_send = amount_pmob
     alice_balance_0 = int(
