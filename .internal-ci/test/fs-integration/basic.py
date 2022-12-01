@@ -1,12 +1,3 @@
-# verify that the transaction went through
-#   the mob went through
-#   the transaction log updatedx
-# Ideally all of the endpoints (v2) that actually hit the mobilecoin network
-#
-#     get_network_status
-#     get_wallet_status
-#     build, build_and_submit, build_split_txo .. etc
-
 import argparse
 import asyncio
 import json
@@ -24,7 +15,7 @@ default_config_path = "./test_config.json"
 
 fs = v2()
 
-# TODO: These dataclasses should be upstreamed to the FS library itself.. it should always returns a Response object  
+# TODO: These dataclasses should be upstreamed to the FS library itself.. it should always return a Response object  
 @dataclass_json
 @dataclass
 class AccountStatus:
@@ -40,6 +31,9 @@ class Response:
     jsonrpc: str
     id: int
     error: Optional[dict] = None
+
+class Utils():
+    pass
 
 #fix me later
 async def test_cleanup():
@@ -98,13 +92,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     bob = await get_account(1)
 
     pmob_to_send = amount_pmob
-    alice_balance_0 = int(
-        (await fs.get_account_status(alice.id))
-        .get("result")
-        .get("balance_per_token")
-        .get("0")
-        .get("unspent") 
-    )
+    # for now expressions like this need to be 2 lines :/ 
+    alice_bal_resp = Response(await fs.get_account_status(alice))
+    alice_balance_0 = alice_bal_resp.result.get("balance_per_token").get("0")
+    print("Alice Bal", alice_balance_0) # checking to see if the new data structure works. 
 
     assert alice_balance_0 >= pmob_to_send + fee, "Insufficient funds in first account."
 
@@ -118,38 +109,38 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     """ Test action """
 
-    first_transaction = await fs.build_and_submit_transaction(
-        alice.id,
-        recipient_public_address=bob.main_address,
-        amount={"value": str(pmob_to_send), "token_id": str(0)},
-    )
+    # first_transaction = await fs.build_and_submit_transaction(
+    #     alice.id,
+    #     recipient_public_address=bob.main_address,
+    #     amount={"value": str(pmob_to_send), "token_id": str(0)},
+    # )
 
 
-    """ Check Results """
+    # """ Check Results """
 
-    # TODO: replace this with a poll loop that waits a block or two
-    await asyncio.sleep(5)
-    alice_balance_1 = int(
-        (await fs.get_account_status(alice.id))
-        .get("result")
-        .get("balance_per_token")
-        .get("0")
-        .get("unspent")
-    )
+    # # TODO: replace this with a poll loop that waits a block or two
+    # await asyncio.sleep(5)
+    # alice_balance_1 = int(
+    #     (await fs.get_account_status(alice.id))
+    #     .get("result")
+    #     .get("balance_per_token")
+    #     .get("0")
+    #     .get("unspent")
+    # )
 
-    bob_balance_1 = int(
-        (await fs.get_account_status(bob.id))
-        .get("result")
-        .get("balance_per_token")
-        .get("0")
-        .get("unspent") 
-    )
+    # bob_balance_1 = int(
+    #     (await fs.get_account_status(bob.id))
+    #     .get("result")
+    #     .get("balance_per_token")
+    #     .get("0")
+    #     .get("unspent") 
+    # )
 
-    assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
-    assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
+    # assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
+    # assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
-    # TODO: stick this in a finally block
-    await test_cleanup()
+    # # TODO: stick this in a finally block
+    # await test_cleanup()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
