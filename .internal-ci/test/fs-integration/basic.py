@@ -28,12 +28,11 @@ async def wait_for_account_to_sync(id):
 
 async def test_cleanup():
     global account_ids
-    print(account_ids)
     for id in account_ids:
         await wait_for_account_to_sync(id)
         await fs.remove_account(id)
     accounts = await fs.get_accounts()
-    for id in account_ids:
+    for id in accofunt_ids:
         assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
     account_ids = []
 
@@ -106,6 +105,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     bob = await get_account(1, "bob")
 
     await wait_for_account_to_sync(alice.id)
+    await wait_for_account_to_sync(bob.id)
     
     alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
@@ -137,7 +137,9 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     """ Check Results """
 
     # TODO: replace this with a poll loop that waits a block or two
-    await asyncio.sleep(sleepy_time)
+    await wait_for_account_to_sync(alice.id)
+    await wait_for_account_to_sync(bob.id)
+    
     alice_balance_1 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
