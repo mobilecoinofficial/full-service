@@ -24,6 +24,7 @@ default_config_path = "./test_config.json"
 
 fs = v2()
 
+# TODO: These dataclasses should be upstreamed to the FS library itself.. it should always returns a Response object  
 @dataclass_json
 @dataclass
 class AccountStatus:
@@ -51,7 +52,6 @@ def get_mnemonics(n=2):
 
 
 async def get_account(index, already_imported=False):
-
     mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     import_resp = Response(await fs.import_account(
         mnemonic, "2"  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
