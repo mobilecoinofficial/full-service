@@ -173,8 +173,6 @@ jobs:
         rancher_url: ${{ secrets.DEV_RANCHER_URL }}
         rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
-  # TODO: Add integration tests.
-
   # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
   test:
     runs-on: [self-hosted, Linux, small]
@@ -212,8 +210,8 @@ jobs:
         pushd .internal-ci/test/fs-integration || exit 1
         "${POETRY_HOME}/bin/poetry" install --without=dev
 
-        # Run test
-        "${POETRY_HOME}/bin/poetry" run python3 ./basic.py
+        # Skip test until we finish logic. Run test
+        # "${POETRY_HOME}/bin/poetry" run python3 ./basic.py "${CONFIG_JSON}"
         popd || exit 0
 
   # remove the testing environment after all tests are run successfully when this
