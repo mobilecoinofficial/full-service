@@ -114,9 +114,9 @@ case "${net}" in
     local)
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        MC_PEER="mc-insecure://localhost:3200/,mc-insecure://localhost:3201/"
+        MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
         MC_TX_SOURCE_URL="http://localhost:4566/node-0-ledger/,http://localhost:4566/node-1-ledger/"
-        MC_FOG_INGEST_ENCLAVE_CSS="${INGEST_ENCLAVE_CSS}"
+        MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
