@@ -66,19 +66,18 @@ async def get_account(i, name="", okay_if_already_imported=False):
     if not okay_if_already_imported:
         assert "error" not in account.keys(),  "Failed to import account"
 
+    # Newly imported
     if "error" not in account.keys():
         result = Account(account["result"]["account"])
         account_ids.append(result.id)
-        return result
+    # Previously imported
     else:
-        if len(account_ids) <= i:
-            accounts_response = Response(await fs.get_accounts())
-            account_ids = accounts_response.account_ids
-            return accounts_response.accounts[account_ids[i]]
-        else:
-            result = Response(await fs.get_account_status(account_ids[i])).account
-            account_ids.append(result.id)
-            return result
+        error_msg = account.get("error").get("data").get("details")
+        assert error_msg.startswith("Error interacting& with the database: Account already exists:"), "Unknown import failure"
+        id = error_msg.split()[-1]
+        result = Response(await fs.get_account_status(id)).account
+        account_ids.append(result.id)
+    return result
 
 
 async def main():
@@ -126,6 +125,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     """ Test action """
+    print("base value:", pmob_to_send)
+    print("network feed: ", fee)
+    print("total: ", pmob_to_send+fee)
+    exit(0)
 
     first_transaction = await fs.build_and_submit_transaction(
         alice.id,
@@ -156,6 +159,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
+    print(f"Alice's starting balance: {alice_balance_0}")
+    print(f"Alice's ending balance {alice_balance_1}")
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
