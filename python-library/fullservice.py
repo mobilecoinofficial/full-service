@@ -32,7 +32,7 @@ class Request:
         self.logger = utils.logger
     url = utils.get_secret('URL')
 
-    async def req(self, request_data: dict) -> dict:
+    async def req(self, request_data: dict, ) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
             request_data["params"] = {
@@ -49,7 +49,8 @@ class Request:
 
     async def request(self, request_data: dict):
         request_data = {"jsonrpc": "2.0", "id": "1", **request_data}
-        self.logger.debug(f"request data: {request_data}")
+        # TODO: come back and sanitize
+        # self.logger.debug(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
                 # this can hang (forever?) if there's no full-service at that url
