@@ -17,7 +17,7 @@ mkdir -p "$(dirname "${MC_WALLET_DB}")"
 # If so execute with full-service for compatibility with the previous container/cli arg only configuration.
 if [[ "${1}" =~ ^--.* ]]
 then
-    exec "/usr/local/bin/full-service $*"
+    exec "/usr/local/bin/full-service" "$@"
 else
     exec "$@"
 fi
