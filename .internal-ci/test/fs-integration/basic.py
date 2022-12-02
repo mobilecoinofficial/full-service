@@ -17,11 +17,11 @@ account_ids = []
 
 fs = v2()
 
-
+# TODO: this is very uggly and needs to be refactored
 async def wait_for_account_to_sync(id):
     account_status = await fs.get_account_status(id)
-    while (account_status.get("result").get("account").get("next_block_index")
-           != account_status.get("result").get("local_block_height")):
+    while ((account_status.get("result").get("account").get("next_block_index")
+           != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
         await asyncio.sleep(sleepy_time)
         account_status = await fs.get_account_status(id)
 
@@ -32,7 +32,7 @@ async def test_cleanup():
         await wait_for_account_to_sync(id)
         await fs.remove_account(id)
     accounts = await fs.get_accounts()
-    for id in accofunt_ids:
+    for id in account_ids:
         assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
     account_ids = []
 
@@ -80,6 +80,14 @@ async def get_account(i, name="", okay_if_already_imported=False):
     return result
 
 
+async def wait_for_network_sync():
+    network_status = await fs.get_network_status()
+    while network_status.get('result').get('network_block_height') != network_status.get('result').get('local_block_height'):
+        print("Sleep")
+        await asyncio.sleep(sleepy_time)
+        network_status = await fs.get_network_status()
+
+
 async def main():
     while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
         await asyncio.sleep(sleepy_time)  
@@ -124,25 +132,18 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    """ Test action """
-    print("base value:", pmob_to_send)
-    print("network feed: ", fee)
-    print("total: ", pmob_to_send+fee)
-    exit(0)
-
     first_transaction = await fs.build_and_submit_transaction(
         alice.id,
         recipient_public_address=bob.main_address,
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
-
-
-    """ Check Results """
-
+    
     # TODO: replace this with a poll loop that waits a block or two
+    await wait_for_network_sync()
     await wait_for_account_to_sync(alice.id)
     await wait_for_account_to_sync(bob.id)
-    
+
+    """ Check Results """
     alice_balance_1 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
@@ -159,8 +160,6 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    print(f"Alice's starting balance: {alice_balance_0}")
-    print(f"Alice's ending balance {alice_balance_1}")
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
