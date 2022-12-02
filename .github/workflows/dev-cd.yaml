@@ -37,7 +37,7 @@ jobs:
       chart_repo: ${{ env.CHART_REPO }}
     steps:
     - name: Generate version metadata
-      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      uses: mobilecoinofficial/gha-k8s-toolbox@9a6c59da816d64351c6b775994b74d1d1150e6a6
       id: meta
       with:
         action: generate-metadata
