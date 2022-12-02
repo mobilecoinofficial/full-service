@@ -10,7 +10,7 @@ sys.path.append("{}/python-library".format(repo_root_dir))
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
-sleepy_time = 5
+sleepy_time = 15
 default_config_path = "./test_config.json"
 config = []
 account_ids = []
@@ -106,10 +106,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     """Test Setup """
     pmob_to_send = amount_pmob
 
-    await preclean_this_test()
+    # await preclean_this_test()
 
-    alice = await get_account(0, "alice")
-    bob = await get_account(1, "bob")
+    alice = await get_account(0, "alice", True)
+    bob = await get_account(1, "bob", True)
 
     await wait_for_account_to_sync(alice.id)
     await wait_for_account_to_sync(bob.id)
@@ -163,7 +163,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
-    await test_cleanup()
+    # await test_cleanup()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
