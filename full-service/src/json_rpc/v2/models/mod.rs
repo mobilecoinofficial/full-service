@@ -8,6 +8,7 @@ pub mod block;
 pub mod confirmation_number;
 pub mod masked_amount;
 pub mod network_status;
+pub mod public_address;
 pub mod receiver_receipt;
 pub mod transaction_log;
 pub mod tx_proposal;
