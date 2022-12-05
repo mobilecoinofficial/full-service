@@ -4,8 +4,10 @@ import json
 import subprocess
 import sys
 import os
-#repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
-repo_root_dir = os.environ.get("PWD")
+repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
+
+# uncomment to happily run locally
+#repo_root_dir = os.environ.get("PWD")
 sys.path.append("{}/python-library".format(repo_root_dir))
 
 from fullservice import FullServiceAPIv2 as v2
@@ -25,6 +27,7 @@ async def wait_for_account_to_sync(id):
            != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
         await asyncio.sleep(sleepy_time)
         account_status = await fs.get_account_status(id)
+    await asyncio.sleep(sleepy_time)
 
 
 async def test_cleanup():
@@ -165,13 +168,13 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("0")
         .get("unspent")
     )
-
+    
     assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
     assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
 
     # await test_cleanup()
 
-def not_main():
+def run_test():
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", nargs='?', type=str, default=default_config_path)
     args = parser.parse_args()
@@ -182,4 +185,4 @@ def not_main():
     asyncio.run(main())
 
 if __name__ == "__main__":
-   not_main()
+   run_test()
