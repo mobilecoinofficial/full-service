@@ -5,7 +5,7 @@ A MobileCoin service for wallet implementations.
 
 The Full-Service Node provides ledger syncing and validation, account management, and funds transfer and receiving. It uses a JSONRPC API, so you can connect to it from command line tools or build services around its functionality. It serves the use cases of single user (and is the backing to the MobileCoin Desktop Wallet), while also serving high performance, multi-account, multi-subaddress needs (such as backing merchant services platforms).
 
-Please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
+### For installation and usage instructions, get started with Full Service [here](https://mobilecoin.gitbook.io/full-service-api/usage/environment-setup)!
 
 
 * You must read and accept the [Terms of Use for MobileCoins and MobileCoin Wallets](./TERMS-OF-USE.md) to use
@@ -35,8 +35,7 @@ information.
 
 ### Usage and Documentation
 
-For documentation, usage, and API specification, see our gitbook
-page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
+For documentation, usage, and API specification, please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
 
 For database encryption features, see [DATABASE.md](DATABASE.md).
 
@@ -95,7 +94,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
     ```
-   
+
    Finally for both:
    ```sh
    rustup component add llvm-tools-preview
@@ -114,10 +113,10 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
     ```sh
     NAMESPACE=test
-   
+
     CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
-   
+
     INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
     curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
     ```
@@ -229,9 +228,9 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
     ```sh
     mkdir -p /opt/full-service/data
-   
+
     chown 1000:1000 /opt/full-service/data
-   
+
     docker run -it -p 127.0.0.1:9090:9090 \
         -v /opt/full-service/data:data \
         --name full-service \
@@ -285,6 +284,23 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
+
+### Parameters as Environment Variables
+All available parameters can be set as Environment Variables. Parameters names are converted to `SCREAMING_SNAKE_CASE` and are prefixed with `MC_`. See `full-service --help` for the full list. CLI arguments take precedence over Environment Variables.
+
+Any options that can be specified multiple times as a list (`--peer`, `--tx-source-url`) can be specified as comma delimited values.
+
+**TestNet example**
+```
+MC_PEER="mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/" \
+MC_TX_SOURCE_URL="https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/" \
+MC_WALLET_DB="./testnet-dbs/wallet.db" \
+MC_LEDGER_DB="./testnet-dbs/ledger-db/" \
+MC_CHAIN_ID="test" \
+MC_FOG_INGEST_ENCLAVE_CSS="$(pwd)/ingest-enclave.css" \
+    ./full_service
+```
+
 
 ## API Key
 
@@ -391,7 +407,7 @@ The recommended flow to get balance and submit transaction is the following:
     }
     }' \
     -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
-   
+
     cp /keyfs/tx_proposal.json /media/
     ```
 
@@ -412,7 +428,7 @@ See [CONTRIBUTING](./CONTRIBUTING.md).
 To add or edit tables:
 
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
-   version:  
+   version:
 
    ```
    cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="026f6379715d27c8be48396e5ca9059f4a263198" diesel_cli --no-default-features --features sqlite
@@ -426,11 +442,11 @@ To add or edit tables:
 
 1. Edit the migrations/<migration_name>/up.sql and down.sql.
 
-1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the 
+1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the
    inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
 
 Make sure that the following is still present in `schema.rs` before commiting changes.
-``` 
+```
 table! {
     __diesel_schema_migrations(version) {
         version -> Text,

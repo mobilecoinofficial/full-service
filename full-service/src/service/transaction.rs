@@ -23,7 +23,9 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_connection::{
+    BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
+};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
@@ -39,7 +41,7 @@ use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
+use std::{convert::TryFrom, sync::atomic::Ordering};
 
 use super::models::tx_proposal::UnsignedTxProposal;
 
@@ -475,7 +477,7 @@ where
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx_proposal.tx, empty())
+            .propose_tx(&tx_proposal.tx, Fibonacci::from_millis(10).take(5))
             .map_err(TransactionServiceError::from)?;
 
         log::trace!(

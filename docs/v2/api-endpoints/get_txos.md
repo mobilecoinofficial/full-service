@@ -11,6 +11,8 @@ description: Get TXOs for a given account with offset and limit parameters
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 | `address` | The address b58 on which to perform this action. | Address must exist in the wallet. |
 | `status` | Txo status filer. Available status': "unverified", "unspent", "spent", "orphaned", "pending", "secreted", | |
+| `min_received_block_index` | The minimum block index to query for received txos, inclusive | |
+| `max_received_block_index` | The maximum block index to query for received txos, inclusive | |
 | `offset` | The pagination offset. Results start at the offset index. | |
 | `limit` | Limit for the number of results.| |
 
@@ -25,6 +27,8 @@ description: Get TXOs for a given account with offset and limit parameters
   "method": "get_txos",
   "params": {
     "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "min_received_block_index": "128567",
+    "max_received_block_index": "128567",
     "offset": 2,
     "limit": 8
   },
@@ -88,7 +92,7 @@ description: Get TXOs for a given account with offset and limit parameters
         "confirmation": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
         "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
         "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
-        "received_block_index": null,
+        "received_block_index": 128567,
         "spent_block_index": null,
         "subaddress_index": null,
         "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
@@ -111,7 +115,7 @@ description: Get TXOs for a given account with offset and limit parameters
         "confirmation": null,
         "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
         "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_index": "79",
+        "received_block_index": "128567",
         "spent_block_index": null,
         "subaddress_index": "0",
         "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",

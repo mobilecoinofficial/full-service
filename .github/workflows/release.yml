@@ -71,6 +71,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          prerelease: ${{ steps.prerelease.outputs.value }}
+          prerelease: false
           files: |
             release/*

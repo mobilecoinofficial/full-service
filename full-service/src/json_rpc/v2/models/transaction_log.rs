@@ -124,7 +124,9 @@ impl InputTxo {
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct OutputTxo {
-    pub txo_id_hex: String,
+    pub txo_id: String,
+
+    pub public_key: String,
 
     pub amount: Amount,
 
@@ -134,7 +136,8 @@ pub struct OutputTxo {
 impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
         Self {
-            txo_id_hex: txo.id.clone(),
+            txo_id: txo.id.clone(),
+            public_key: hex::encode(txo.public_key().unwrap().as_bytes()),
             amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }

@@ -8,6 +8,8 @@ import base64
 from typing import Optional
 import ssl
 import forest_utils as utils
+from rich import print_json
+
 
 if not utils.get_secret("ROOTCRT"):
     ssl_context: Optional[ssl.SSLContext] = None
@@ -26,22 +28,28 @@ else:
 
 
 class Request:
+    def __init__(self, logLevel = logging.ERROR):
+        self.logger = utils.logger
     url = utils.get_secret('URL')
+
     async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
-        request_data["params"] = {
-            k: v for k, v in request_data["params"].items() if v
-        }  # handle optional params
-        response_data = await self.request(request_data)
-        if "error" in str(response_data):
-            logging.error(response_data)
+        if len(request_data["params"]) > 0:
+            request_data["params"] = {
+                k: v for k, v in request_data["params"].items() if v
+            }  # handle optional params
         else:
-            print(response_data)
+            del request_data["params"]
+        response_data = await self.request(request_data)
+        if "error" in str(response_data) or "InvalidRequest" in str(response_data):
+            self.logger.error(response_data)
+        else:
+            self.logger.info(response_data)
         return response_data
 
     async def request(self, request_data: dict):
         request_data = {"jsonrpc": "2.0", "id": "1", **request_data}
-        print(f"request data: {request_data}")
+        self.logger.debug(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
                 # this can hang (forever?) if there's no full-service at that url
@@ -50,7 +58,8 @@ class Request:
                     data=json.dumps(request_data),
                     headers={"Content-Type": "application/json"},
                 ) as resp:
-                    # print(resp.json)
+                    if logging.getLevelName(self.logger.getEffectiveLevel()) == "DEBUG":
+                        print_json(data=await resp.json(), indent=4)
                     return await resp.json()
 
 
@@ -509,8 +518,8 @@ class FullServiceAPIv2(Request):
 
     async def import_account(
         self,
-        mnemonic="",
-        key_derivation_version="",
+        mnemonic,
+        key_derivation_version,
         name="",
         first_block_index="",
         next_subaddress_index="",

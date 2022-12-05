@@ -24,9 +24,9 @@ jobs:
         namespace: [test, prod]
         include:
           - runner-tags: [self-hosted, macOS, X64, cargo]
-            container: null
+            container: ""
           - runner-tags: [self-hosted, macOS, ARM64, cargo]
-            container: null
+            container: ""
           - runner-tags: [self-hosted, Linux, large]
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test

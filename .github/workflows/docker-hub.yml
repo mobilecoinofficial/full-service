@@ -7,7 +7,6 @@ on:
   push:
     tags:
       - 'v*'
-      - '!v*-pre.*'
 
 jobs:
   build-and-publish:
@@ -59,6 +58,7 @@ jobs:
           build-args: |
             NAMESPACE=${{ matrix.namespace }}
           context: .
+          file: .internal-ci/docker/Dockerfile.full-service-with-build
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

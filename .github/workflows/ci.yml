@@ -6,53 +6,60 @@ env:
   RUST_BACKTRACE: full
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+  CSS_BASE_URL: https://enclave-distribution.test.mobilecoin.com
 
 on:
   pull_request:
     branches:
       - develop
       - main
+  push:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: full-service-ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
     runs-on: [self-hosted, Linux, large]
     container:
-      image: mobilecoin/rust-sgx-base:latest
-
+      image: mobilecoin/rust-sgx-base:v0.0.20
     steps:
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
+      - name: Cache cargo packages
+        uses: ./.github/actions/mobilecoin-cache-cargo-package
         with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cache_buster: ${{ secrets.CACHE_BUSTER }}
 
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .consensus.sigstruct)
+          curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
+          curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
+
+      - name: Cargo sort
+        run: |
+          cargo install cargo-sort --force
+          cargo sort --workspace --grouped --check 
+
+      - name: Cargo fmt
+        run: |
+          cargo fmt -- --unstable-features --check
 
       - name: Cargo Clippy
         run: |
-          cargo clippy
+          cargo clippy --all --all-features
 
   test:
     runs-on: [self-hosted, Linux, large]
@@ -65,30 +72,20 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Cache Cargo
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
-        id: cargo_cache
-        uses: actions/cache@v3
+      - name: Cache cargo packages
+        uses: ./.github/actions/mobilecoin-cache-cargo-package
         with:
-          path: |
-            /opt/cargo/bin/
-            /opt/cargo/registry/index/
-            /opt/cargo/registry/cache/
-            /opt/cargo/git/db/
-            target/
-          key: ${{ runner.os }}-${{ secrets.CACHE_VERSION }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          cache_buster: ${{ secrets.CACHE_BUSTER }}
 
       - name: Consensus SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI})
+          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .consensus.sigstruct)
+          curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Ingest SigStruct
-        if: steps.artifact_cache.outputs.cache-hit != 'true'
         run: |
-          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-          (cd /var/tmp && curl -O https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
+          curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
       - uses: actions-rs/toolchain@v1
         with:
