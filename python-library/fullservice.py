@@ -146,26 +146,7 @@ class FullServiceAPIv2(Request):
         fee_token_id: str = "",
         tombstone_block: str = "",
         max_spendable_value: str = "",
-    ) -> Dict[
-        str,
-        Union[
-            str,
-            Dict[
-                str,
-                Union[
-                    Dict[
-                        str,
-                        Union[
-                            List[Dict[str, Union[str, Dict[str, str]]]],
-                            Dict[str, str],
-                            str,
-                        ],
-                    ],
-                    str,
-                ],
-            ],
-        ],
-    ]:
+    ) -> Dict[str, Any]:
         return await self.req(
             {
                 "method": "build_transaction",
