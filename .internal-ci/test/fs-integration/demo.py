@@ -69,3 +69,9 @@ demo("Sending request to import Chadicus's account ...")
 response = await fs.import_account(mnemonics[1], "2", "Chadicus")
 chad_id = response.get('result').get('account').get('account_id')
 demo("Alice is done importing accounts.")
+
+demo("Let's check out the wallet.")
+demo("Sending request to get_wallet_status...")
+response = await fs.get_wallet_status()
+demo("Looking at the wallet status, we see the wallet now have 3 accounts. We can also see their balances").
+
