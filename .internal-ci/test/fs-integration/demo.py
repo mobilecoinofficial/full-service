@@ -33,5 +33,17 @@ demo("Alice is already using the Moby app. As the most tech savvy person in her 
 demo("Earlier today, Alice followed the installation instructions to setup and run full-serivce")
 demo("She already has a wallet with some funds, and will use her mnemonic to setup the wallet on full-service too")
 
-
+demo("Before she imports her account, Alice wants to make sure her full-service wallet is synced with the network")
+demo("She uses her rest client to call the get_wallet_status API")
+while True:
+    demo(f"Sending request to get_wallet_status ...")
+    response = await fs.get_wallet_status()
+    synced = response['result']['wallet_status']['is_synced_all']
+    demo(f"get_wallet_status tells us the network is{' not' if not synced else ''} synced")
+    if (synced):
+        break
+    else:
+        demo(f"We'll wait {sleepy_time} seconds and try again")
+        await asyncio.sleep(sleepy_time)
+    
 
