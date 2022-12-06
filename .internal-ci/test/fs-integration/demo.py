@@ -46,4 +46,13 @@ while True:
         demo(f"We'll wait {sleepy_time} seconds and try again")
         await asyncio.sleep(sleepy_time)
     
+demo("Awesome! Now that the wallet is synced, Alice wants to import some accounts.")
+
+demo("Alice starts by importing her own account by passing in her mnemonic to the import_account API")
+demo("Sending request to import_account ...")
+response = await fs.import_account(mnemonics[0], "2")
+alice_id = response['result']['account']['account_id']
+alice_addr = response['result']['account']['main_address']
+demo("Let's look at the request output: ")
+demo(response)
 
