@@ -110,3 +110,13 @@ response = await fs.get_account_status(bob_id)
 demo(f"{response['result']['balance']['0']}")
 
 
+demo("Alice's home bakery business accepts mob for payment. She uses the subaddress feature to keep track of which payments are associated with which order")
+demo("Alice creates a new subaddress and associates it with Order #600")
+demo("Sending request to assign_address_for_account...")
+response = await fs.assign_address_for_account(alice_id, "Order #600: Birthday Cake")
+alice_subaddr = response['result']['address']['public_address']
+demo(f"Alice's main address is {alice_addr}, but she shares this subaddress with her client: \n{alice_subaddr}")
+demo(f"She can use the verify_address API to double check the subaddr she saved is associated with an account on her full-service instance")
+demo(f"Sending request to verify_address...")
+response = await fs.verify_address(alice_subaddr)
+
