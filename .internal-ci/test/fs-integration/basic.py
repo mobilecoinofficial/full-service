@@ -24,6 +24,7 @@ async def wait_for_account_to_sync(id):
            != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
         await asyncio.sleep(sleepy_time)
         account_status = await fs.get_account_status(id)
+    await asyncio.sleep(sleepy_time)
 
 
 async def test_cleanup():
