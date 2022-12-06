@@ -8,10 +8,6 @@ async def main():
     count = accounts_before["result"]["account_ids"]
     await fs.create_account()
     accounts_after = await fs.get_accounts()
-    if len(accounts_after["result"]["account_ids"]) == len(count) + 1:
-        print("Account created successfully!")
-    else:
-        print("Account creation failed")
-
+    assert len(accounts_after["result"]["account_ids"]) == len(count) + 1, "Account not created"
 
 asyncio.run(main())
