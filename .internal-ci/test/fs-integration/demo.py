@@ -75,3 +75,16 @@ demo("Sending request to get_wallet_status...")
 response = await fs.get_wallet_status()
 demo("Looking at the wallet status, we see the wallet now have 3 accounts. We can also see their balances").
 
+demo("Alice and her partner, Chadicus, have decided to part ways. Alice will no longer manage their wallet as part of her family Full-Service instance.")
+demo("Alice will export the account secrets to hand off to Chadicus so he can manage his own wallet.")
+demo("Sending request to export_account_secrets ...")
+response = await fs.export_account_secrets(chad_id)
+demo(f"Shh ... here are Chadicus's secrets \n{response}")
+demo("It's time to say final good byes to Chadicus's account. Alice removes it from full-service")
+demo("Sending request to remove_account...")
+response = await fs.remove_account(chad_id)
+demo(f"Looking at the accounts API, we see Full-Service now has 2 accounts: Alice's and Mom's \n{response}").
+demo("Sending request to get_accounts ...")
+response = await fs.get_accounts()
+demo(f"{response}")
+
