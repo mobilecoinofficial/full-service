@@ -96,3 +96,17 @@ response = await fs.create_account("Bro Bob")
 bob_id = response['result']['account']['account_id']
 bob_addr = response['result']['account']['main_address']
 demo(f"Here's the response: \n{response}")
+
+demo("Now that Bob has an account, Alice can send him some mob")
+response = await fs.build_and_submit_transaction(alice_id,
+                                                recipient_public_address=bob_addr,
+                                                amount = {"value": str(10 * PICO_MOB),
+                                                          "token_id":str(0)
+                                                          }
+                                                )
+demo("If we check Bob's account status, we see that he now has 10 mob")
+demo("Sending request to get_account_status...")
+response = await fs.get_account_status(bob_id)
+demo(f"{response['result']['balance']['0']}")
+
+
