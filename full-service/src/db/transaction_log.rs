@@ -5,7 +5,11 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{tx::Tx, Amount, TokenId};
+use mc_transaction_core::{
+    tx::{Tx, TxPrefix},
+    Amount, TokenId,
+};
+use mc_transaction_extra::UnsignedTx;
 use std::fmt;
 
 use crate::{
@@ -18,33 +22,50 @@ use crate::{
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
-    service::models::tx_proposal::TxProposal,
+    service::models::tx_proposal::{TxProposal, UnsignedTxProposal},
 };
 
 #[derive(Debug)]
-pub struct TransactionID(pub String);
+pub struct TransactionId(pub String);
 
-impl From<&TransactionLog> for TransactionID {
+impl From<&TransactionLog> for TransactionId {
     fn from(tx_log: &TransactionLog) -> Self {
         Self(tx_log.id.clone())
     }
 }
 
-impl From<&TxProposal> for TransactionID {
+impl From<&TxProposal> for TransactionId {
     fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(&_tx_proposal.tx)
+        Self::from(&_tx_proposal.tx.prefix)
     }
 }
 
-// TransactionID is formed from the contents of the transaction when sent
-impl From<&Tx> for TransactionID {
-    fn from(src: &Tx) -> TransactionID {
+impl From<&UnsignedTxProposal> for TransactionId {
+    fn from(_tx_proposal: &UnsignedTxProposal) -> Self {
+        Self::from(&_tx_proposal.unsigned_tx.tx_prefix)
+    }
+}
+
+impl From<&Tx> for TransactionId {
+    fn from(src: &Tx) -> TransactionId {
+        Self::from(&src.prefix)
+    }
+}
+
+impl From<&UnsignedTx> for TransactionId {
+    fn from(src: &UnsignedTx) -> TransactionId {
+        Self::from(&src.tx_prefix)
+    }
+}
+
+impl From<&TxPrefix> for TransactionId {
+    fn from(src: &TxPrefix) -> TransactionId {
         let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"transaction_data");
         Self(hex::encode(temp))
     }
 }
 
-impl fmt::Display for TransactionID {
+impl fmt::Display for TransactionId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -116,7 +137,7 @@ impl TransactionLog {
 
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
-    fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
+    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
 
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
@@ -144,7 +165,7 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
-    fn log_built(
+    fn log_signed(
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
@@ -203,7 +224,7 @@ impl TransactionLogModel for TransactionLog {
         }
     }
 
-    fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
+    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{id as dsl_id, transaction_logs};
 
         match transaction_logs
@@ -315,7 +336,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(results)
     }
 
-    fn log_built(
+    fn log_signed(
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
@@ -324,7 +345,7 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionID::from(&tx_proposal);
+        let transaction_log_id = TransactionId::from(&tx_proposal);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         let new_transaction_log = NewTransactionLog {
@@ -378,7 +399,7 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionID::from(&tx_proposal.tx);
+        let transaction_log_id = TransactionId::from(&tx_proposal.tx);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
@@ -546,7 +567,7 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        db::{account::AccountID, transaction_log::TransactionID, txo::TxoStatus},
+        db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
         service::{
             sync::SyncThread, transaction::TransactionMemo,
             transaction_builder::WalletTransactionBuilder,
@@ -709,7 +730,7 @@ mod tests {
         );
 
         let updated_tx_log = TransactionLog::get(
-            &TransactionID::from(&tx_log),
+            &TransactionId::from(&tx_log),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();

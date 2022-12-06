@@ -5,7 +5,7 @@
 use crate::{
     db::{
         models::{TransactionLog, Txo},
-        transaction_log::{TransactionID, TransactionLogModel},
+        transaction_log::{TransactionId, TransactionLogModel},
         txo::TxoModel,
     },
     WalletService,
@@ -169,7 +169,7 @@ where
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
         let conn = self.get_conn()?;
         let transaction_log =
-            TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
         Ok(tx)
     }

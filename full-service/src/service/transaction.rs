@@ -448,7 +448,7 @@ where
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
 
-            TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
+            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)
         })
