@@ -88,3 +88,11 @@ demo("Sending request to get_accounts ...")
 response = await fs.get_accounts()
 demo(f"{response}")
 
+demo(f"Alice wants to gift her brother, Bob, some mob for his 16th birthday. 
+He's never used mob before, so he doesn't have a wallet for her to send funds to.
+Alice can use full service to make him an account and send him mob")
+demo("Sending request to create_account...")
+response = await fs.create_account("Bro Bob")
+bob_id = response['result']['account']['account_id']
+bob_addr = response['result']['account']['main_address']
+demo(f"Here's the response: \n{response}")
