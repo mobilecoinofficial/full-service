@@ -27,7 +27,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     Utils.get_mnemonics()
     alice = await itf.init_test_accounts(0, "alice", True)
     bob = await itf.init_test_accounts(1, "bob", True)
-    burn_tx = await fs.build_and_submit_transaction(
+    burn_tx = await fs.build_burn_transaction(
         alice.id,
         recipient_public_address=bob.main_address,
         amount={"value": str(amount_pmob), "token_id": str(0)},
