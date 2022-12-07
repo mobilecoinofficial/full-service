@@ -27,7 +27,7 @@ class TestUtils():
             network_status = await fs.get_network_status()
 
     # TODO: this is very uggly and needs to be refactored
-    async def wait_for_account_to_sync(id):
+    async def wait_two_blocks(id):
         account_status = await fs.get_account_status(id)
         while (account_status.get("result").get("account").get("next_block_index")
                 != account_status.get("result").get("local_block_height")):
@@ -56,8 +56,8 @@ class TestUtils():
     # Note: Using a testing framework like pytest would allow us to bundle this in
     # a test fixture
     async def preclean_this_test():
-        await get_account(0, "alice", True)
-        await get_account(1, "bob", True)
+        await init_test_accounts(0, "alice", True)
+        await init_test_accounts(1, "bob", True)
 
     def get_mnemonics(n=2):
         if n > len(config["Account Mnemonics"]):
@@ -65,8 +65,9 @@ class TestUtils():
         return config["Account Mnemonics"][:n]
 
 
-async def get_account(i, name="", okay_if_already_imported=False):
-    global account_ids
+async def init_test_accounts(i, name="", okay_if_already_imported=False):
+    
+
 
     mnemonic = config["Account Mnemonics"][i]["mnemonic"]
     account = await fs.import_account(
@@ -118,8 +119,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     alice = await get_account(0, "alice", True)
     bob = await get_account(1, "bob", True)
 
-    await wait_for_account_to_sync(alice.id)
-    await wait_for_account_to_sync(bob.id)
+    await TestUtils.wait_for_account_to_sync(alice.id)
+    await TestUtils.wait_for_account_to_sync(bob.id)
     
     alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
@@ -146,9 +147,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
     
     # TODO: replace this with a poll loop that waits a block or two
-    await wait_for_network_sync()
-    await wait_for_account_to_sync(alice.id)
-    await wait_for_account_to_sync(bob.id)
+    await TestUtils.wait_two_blocks()
+
 
     """ Check Results """
     alice_balance_1 = int(
