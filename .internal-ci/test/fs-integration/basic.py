@@ -65,18 +65,18 @@ class TestUtils():
         return config["Account Mnemonics"][:n]
 
 
-async def init_test_accounts(i, name="", okay_if_already_imported=False):
+async def init_test_accounts(index, name="", already_imported=False):
     
 
 
-    mnemonic = config["Account Mnemonics"][i]["mnemonic"]
+    mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     account = await fs.import_account(
         mnemonic,
         "2",  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
         name=name
     )  
 
-    if not okay_if_already_imported:
+    if not already_imported:
         assert "error" not in account.keys(),  "Failed to import account"
 
     # Newly imported
