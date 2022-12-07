@@ -4,11 +4,15 @@ import json
 import subprocess
 import sys
 
-repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
+repo_root_dir = (
+    subprocess.check_output("git rev-parse --show-toplevel", shell=True)
+    .decode("utf8")
+    .strip()
+)
 sys.path.append("{}/python-library".format(repo_root_dir))
 
 from fullservice import FullServiceAPIv2 as v2
-from FSDataObjects import Response, Account 
+from FSDataObjects import Response, Account
 
 
 sleepy_time = 15
@@ -18,10 +22,13 @@ account_ids = []
 
 fs = v2()
 
-class TestUtils():
+
+class TestUtils:
     async def wait_for_network_sync():
         network_status = await fs.get_network_status()
-        while network_status.get('result').get('network_block_height') != network_status.get('result').get('local_block_height'):
+        while network_status.get("result").get(
+            "network_block_height"
+        ) != network_status.get("result").get("local_block_height"):
             print("Sleep")
             await asyncio.sleep(sleepy_time)
             network_status = await fs.get_network_status()
@@ -29,8 +36,9 @@ class TestUtils():
     # TODO: this is very uggly and needs to be refactored
     async def wait_two_blocks(id):
         account_status = await fs.get_account_status(id)
-        while (account_status.get("result").get("account").get("next_block_index")
-                != account_status.get("result").get("local_block_height")):
+        while account_status.get("result").get("account").get(
+            "next_block_index"
+        ) != account_status.get("result").get("local_block_height"):
             await asyncio.sleep(sleepy_time)
             account_status = await fs.get_account_status(id)
         # while ((account_status.get("result").get("account").get("next_block_index")
@@ -39,7 +47,6 @@ class TestUtils():
         #     account_status = await fs.get_account_status(id)
         await asyncio.sleep(sleepy_time)
 
-
     async def test_cleanup():
         global account_ids
         for id in account_ids:
@@ -47,9 +54,10 @@ class TestUtils():
             await fs.remove_account(id)
         accounts = await fs.get_accounts()
         for id in account_ids:
-            assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
+            assert id not in accounts.get("result").get(
+                "account_ids"
+            ), "Failed to clear out accounts"
         account_ids = []
-
 
     # If this test fails before reaching the last cleanup step, we have leftover
     # artifacts in the FS instance. We clean up those residual artifacts here.
@@ -66,18 +74,16 @@ class TestUtils():
 
 
 async def init_test_accounts(index, name="", already_imported=False):
-    
-
 
     mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     account = await fs.import_account(
         mnemonic,
         "2",  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
-        name=name
-    )  
+        name=name,
+    )
 
     if not already_imported:
-        assert "error" not in account.keys(),  "Failed to import account"
+        assert "error" not in account.keys(), "Failed to import account"
 
     # Newly imported
     if "error" not in account.keys():
@@ -86,29 +92,31 @@ async def init_test_accounts(index, name="", already_imported=False):
     # Previously imported
     else:
         error_msg = account.get("error").get("data").get("details")
-        assert error_msg.startswith("Error interacting& with the database: Account already exists:"), "Unknown import failure"
+        assert error_msg.startswith(
+            "Error interacting& with the database: Account already exists:"
+        ), "Unknown import failure"
         id = error_msg.split()[-1]
         result = Response(await fs.get_account_status(id)).account
         account_ids.append(result.id)
     return result
 
 
-
-
-
 async def main():
-    while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
-        await asyncio.sleep(sleepy_time)  
+    while (await fs.get_wallet_status())["result"]["wallet_status"][
+        "is_synced_all"
+    ] != True:
+        await asyncio.sleep(sleepy_time)
     await does_it_go()
 
 
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
-    assert "error" not in network_status.keys(),  "Failed to get network status"
-    fee = int(network_status.get("result")
-                            .get("network_status")
-                            .get("fees")
-                            .get("0")  # zero is the fee key for mob
+    assert "error" not in network_status.keys(), "Failed to get network status"
+    fee = int(
+        network_status.get("result")
+        .get("network_status")
+        .get("fees")
+        .get("0")  # zero is the fee key for mob
     )
 
     """Test Setup """
@@ -121,7 +129,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     await TestUtils.wait_for_account_to_sync(alice.id)
     await TestUtils.wait_for_account_to_sync(bob.id)
-    
+
     alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
         .get("result")
@@ -145,10 +153,9 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         recipient_public_address=bob.main_address,
         amount={"value": str(pmob_to_send), "token_id": str(0)},
     )
-    
+
     # TODO: replace this with a poll loop that waits a block or two
     await TestUtils.wait_two_blocks()
-
 
     """ Check Results """
     alice_balance_1 = int(
@@ -167,14 +174,19 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    assert alice_balance_0 == alice_balance_1 + fee + pmob_to_send, "Alice doesn't end with the expected amount"
-    assert bob_balance_1 == bob_balance_0 + pmob_to_send, "Bob doesn't end with the expected amount"
+    assert (
+        alice_balance_0 == alice_balance_1 + fee + pmob_to_send
+    ), "Alice doesn't end with the expected amount"
+    assert (
+        bob_balance_1 == bob_balance_0 + pmob_to_send
+    ), "Bob doesn't end with the expected amount"
 
     # await test_cleanup()
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
-    parser.add_argument("config_path", nargs='?', type=str, default=default_config_path)
+    parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
     args = parser.parse_args()
     asyncio.run(main())
 
