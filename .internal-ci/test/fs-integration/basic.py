@@ -25,6 +25,7 @@ fs = v2()
 
 class TestUtils:
     async def wait_for_network_sync():
+        print("Waiting for network sync")
         network_status = await fs.get_network_status()
         while network_status.get("result").get(
             "network_block_height"
@@ -32,20 +33,14 @@ class TestUtils:
             print("Sleep")
             await asyncio.sleep(sleepy_time)
             network_status = await fs.get_network_status()
+            return network_status
 
-    # TODO: this is very uggly and needs to be refactored
-    async def wait_two_blocks(id):
-        account_status = await fs.get_account_status(id)
-        while account_status.get("result").get("account").get(
-            "next_block_index"
-        ) != account_status.get("result").get("local_block_height"):
-            await asyncio.sleep(sleepy_time)
-            account_status = await fs.get_account_status(id)
-        # while ((account_status.get("result").get("account").get("next_block_index")
-        #        != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
-        #     await asyncio.sleep(sleepy_time)
-        #     account_status = await fs.get_account_status(id)
-        await asyncio.sleep(sleepy_time)
+    async def wait_next_block():
+        print("Waiting for next block")
+        network_status = await fs.get_network_status()
+        local_block_height = network_status.get("result").get("local_block_height")
+        type(local_block_height)
+
 
     async def test_cleanup():
         global account_ids
@@ -185,11 +180,11 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Basic test")
-    parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
-    args = parser.parse_args()
-    asyncio.run(main())
-
+    # parser = argparse.ArgumentParser(description="Basic test")
+    # parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
+    # args = parser.parse_args()
+    # asyncio.run(main())
+    asyncio.run(TestUtils.wait_next_block())
 if __name__ not in ["__main__", "__builtin__"]:
     with open(default_config_path) as json_file:
         config = json.load(json_file)
