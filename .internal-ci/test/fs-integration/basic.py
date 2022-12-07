@@ -72,7 +72,7 @@ class TestUtils:
             raise ValueError("Not enough account available in config")
         return config["Account Mnemonics"][:n]
 
-
+# test functions should be named differently from FS endpoint functions 
 async def init_test_accounts(index, name="", already_imported=False):
 
     mnemonic = config["Account Mnemonics"][index]["mnemonic"]
@@ -124,8 +124,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     # await preclean_this_test()
 
-    alice = await get_account(0, "alice", True)
-    bob = await get_account(1, "bob", True)
+    alice = await init_test_accounts(0, "alice", True)
+    bob = await init_test_accounts(1, "bob", True)
 
     await TestUtils.wait_for_account_to_sync(alice.id)
     await TestUtils.wait_for_account_to_sync(bob.id)
