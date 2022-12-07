@@ -18,45 +18,51 @@ account_ids = []
 
 fs = v2()
 
-# TODO: this is very uggly and needs to be refactored
-async def wait_for_account_to_sync(id):
-    account_status = await fs.get_account_status(id)
-    while (account_status.get("result").get("account").get("next_block_index")
-              != account_status.get("result").get("local_block_height")):
-          await asyncio.sleep(sleepy_time)
-          account_status = await fs.get_account_status(id)
-    # while ((account_status.get("result").get("account").get("next_block_index")
-    #        != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
-    #     await asyncio.sleep(sleepy_time)
-    #     account_status = await fs.get_account_status(id)
-    await asyncio.sleep(sleepy_time)
+class TestUtils():
+    async def wait_for_network_sync():
+        network_status = await fs.get_network_status()
+        while network_status.get('result').get('network_block_height') != network_status.get('result').get('local_block_height'):
+            print("Sleep")
+            await asyncio.sleep(sleepy_time)
+            network_status = await fs.get_network_status()
+
+    # TODO: this is very uggly and needs to be refactored
+    async def wait_for_account_to_sync(id):
+        account_status = await fs.get_account_status(id)
+        while (account_status.get("result").get("account").get("next_block_index")
+                != account_status.get("result").get("local_block_height")):
+            await asyncio.sleep(sleepy_time)
+            account_status = await fs.get_account_status(id)
+        # while ((account_status.get("result").get("account").get("next_block_index")
+        #        != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
+        #     await asyncio.sleep(sleepy_time)
+        #     account_status = await fs.get_account_status(id)
+        await asyncio.sleep(sleepy_time)
 
 
-async def test_cleanup():
-    global account_ids
-    for id in account_ids:
-        await wait_for_account_to_sync(id)
-        await fs.remove_account(id)
-    accounts = await fs.get_accounts()
-    for id in account_ids:
-        assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
-    account_ids = []
+    async def test_cleanup():
+        global account_ids
+        for id in account_ids:
+            await TestUtils.wait_for_account_to_sync(id)
+            await fs.remove_account(id)
+        accounts = await fs.get_accounts()
+        for id in account_ids:
+            assert id not in accounts.get('result').get('account_ids'),"Failed to clear out accounts"
+        account_ids = []
 
 
-# If this test fails before reaching the last cleanup step, we have leftover
-# artifacts in the FS instance. We clean up those residual artifacts here.
-# Note: Using a testing framework like pytest would allow us to bundle this in
-# a test fixture
-async def preclean_this_test():
-    await get_account(0, "alice", True)
-    await get_account(1, "bob", True)
-    await test_cleanup()
+    # If this test fails before reaching the last cleanup step, we have leftover
+    # artifacts in the FS instance. We clean up those residual artifacts here.
+    # Note: Using a testing framework like pytest would allow us to bundle this in
+    # a test fixture
+    async def preclean_this_test():
+        await get_account(0, "alice", True)
+        await get_account(1, "bob", True)
 
-
-def get_mnemonics(n=2):
-    if n > len(config["Account Mnemonics"]):
-        raise ValueError("Not enough account available in config")
-    return config["Account Mnemonics"][:n]
+    def get_mnemonics(n=2):
+        if n > len(config["Account Mnemonics"]):
+            raise ValueError("Not enough account available in config")
+        return config["Account Mnemonics"][:n]
 
 
 async def get_account(i, name="", okay_if_already_imported=False):
@@ -86,12 +92,7 @@ async def get_account(i, name="", okay_if_already_imported=False):
     return result
 
 
-async def wait_for_network_sync():
-    network_status = await fs.get_network_status()
-    while network_status.get('result').get('network_block_height') != network_status.get('result').get('local_block_height'):
-        print("Sleep")
-        await asyncio.sleep(sleepy_time)
-        network_status = await fs.get_network_status()
+
 
 
 async def main():
