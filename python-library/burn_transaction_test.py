@@ -23,17 +23,17 @@ fs = v2()
 
 
 async def test_burn_transaction(amount_pmob: int = 600000000):
+    await Utils.wait_for_network_sync()
     # await account_tools.clean()
     Utils.get_mnemonics()
     alice = await itf.init_test_accounts(0, "alice", True)
     bob = await itf.init_test_accounts(1, "bob", True)
     burn_tx = await fs.build_burn_transaction(
         alice.id,
-        recipient_public_address=bob.main_address,
         amount={"value": str(amount_pmob), "token_id": str(0)},
     )
 
-    await Utils.wait_for_network_sync()
+    
 
 
 asyncio.run(test_burn_transaction())
