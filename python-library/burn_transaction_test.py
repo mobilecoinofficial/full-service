@@ -10,13 +10,13 @@ repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=T
 sys.path.append("{}/.internal-ci/test/fs-integration".format(repo_root_dir))
 
 import basic as itf # import basic as the integration test framework. this should live in a different file.
-
+from basic import TestUtils
 
 fs = v2()
 
 async def import_accounts():
-    itf.get_mnemonics()
-    await itf.get_account()
+    TestUtils.get_mnemonics()
+    await itf.init_test_accounts()
 
 async def test_burn_transaction():
     await import_accounts()
