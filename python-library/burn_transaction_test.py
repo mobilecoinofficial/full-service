@@ -11,19 +11,18 @@ sys.path.append("{}/.internal-ci/test/fs-integration".format(repo_root_dir))
 
 import basic as itf # import basic as the integration test framework. this should live in a different file.
 from basic import TestUtils as Utils
-import export_check_all as account_tools
+import export_check_all as account_tools # this will be folded into the integration test framework
 
 fs = v2()
 
-async def import_accounts():
+async def test_burn_transaction():
+    # await account_tools.clean()
     Utils.get_mnemonics()
     alice = await itf.init_test_accounts(0, "alice", True)
-    bob = await itf.init_test_account(1, "bob", True)
+    bob = await itf.init_test_accounts(1, "bob", True)
     burn_tx = await fs.build_burn_transaction(alice.id, "400")
-
-async def test_burn_transaction():
-    await import_accounts()
-   
+    await Utils.wait_for_network_sync()
+    
 
 
 asyncio.run(test_burn_transaction())
