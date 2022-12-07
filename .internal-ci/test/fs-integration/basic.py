@@ -10,9 +10,10 @@ sys.path.append("{}/python-library".format(repo_root_dir))
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
+
 sleepy_time = 15
 default_config_path = "./test_config.json"
-config = []
+
 account_ids = []
 
 fs = v2()
@@ -20,10 +21,14 @@ fs = v2()
 # TODO: this is very uggly and needs to be refactored
 async def wait_for_account_to_sync(id):
     account_status = await fs.get_account_status(id)
-    while ((account_status.get("result").get("account").get("next_block_index")
-           != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
-        await asyncio.sleep(sleepy_time)
-        account_status = await fs.get_account_status(id)
+    while (account_status.get("result").get("account").get("next_block_index")
+              != account_status.get("result").get("local_block_height")):
+          await asyncio.sleep(sleepy_time)
+          account_status = await fs.get_account_status(id)
+    # while ((account_status.get("result").get("account").get("next_block_index")
+    #        != account_status.get("result").get("local_block_height")) or (account_status.get("result").get("balance_per_token").get("0").get("pending") != "0")):
+    #     await asyncio.sleep(sleepy_time)
+    #     account_status = await fs.get_account_status(id)
     await asyncio.sleep(sleepy_time)
 
 
@@ -170,8 +175,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", nargs='?', type=str, default=default_config_path)
     args = parser.parse_args()
-
-    with open(args.config_path) as json_file:
-        config = json.load(json_file)
-
     asyncio.run(main())
+
+if __name__ not in ["__main__", "__builtin__"]:
+    with open(default_config_path) as json_file:
+        config = json.load(json_file)
