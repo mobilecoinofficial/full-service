@@ -365,7 +365,7 @@ where
             let mut default_fee_token_id = Mob::ID;
 
             for (recipient_public_address, amount) in addresses_and_amounts {
-                if !self.verify_address(recipient_public_address).is_ok() {
+                if self.verify_address(recipient_public_address).is_err() {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
@@ -448,7 +448,7 @@ where
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
 
-            TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
+            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)
         })
