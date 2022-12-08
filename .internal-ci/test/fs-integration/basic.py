@@ -209,11 +209,11 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description="Basic test")
-    # parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
-    # args = parser.parse_args()
-    # asyncio.run(main())
-    asyncio.run(TestUtils.wait_for_account_sync())
+    parser = argparse.ArgumentParser(description="Basic test")
+    parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
+    args = parser.parse_args()
+    asyncio.run(main())
+
 if __name__ not in ["__main__", "__builtin__"]:
     with open(default_config_path) as json_file:
         config = json.load(json_file)
