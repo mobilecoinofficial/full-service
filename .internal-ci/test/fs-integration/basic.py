@@ -24,8 +24,9 @@ fs = v2()
 
 
 class TestUtils:
+    # may be scuffed 
     async def wait_for_account_sync():
-        print("Checking if accounts are synced...")
+        print("Checking if all accounts are synced...")
         initial_response = str(
             (await fs.get_wallet_status())
             .get("result")
@@ -49,7 +50,7 @@ class TestUtils:
                         break
                 
 
-    async def wait_next_block():
+    async def wait_two_blocks():
         print("Waiting for next block")
         # network_status = await fs.get_network_status()
         starting_block_height = int(
@@ -64,9 +65,9 @@ class TestUtils:
                 .get("result")
                 .get("network_status")
                 .get("local_block_height")
-            ) <= starting_block_height:
-            print("\nBlock height has increased")
-            await asyncio.sleep(1)
+            ) <= starting_block_height + 1:
+            await asyncio.sleep(5)
+            print("Waiting for next block...")
             
             
 

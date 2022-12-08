@@ -23,14 +23,11 @@ import export_check_all as account_tools  # this will be folded into the integra
 fs = v2()
 
 async def test_burn_transaction(amount_pmob: int = 600000000):
-    await account_tools.clean() 
-    await Utils.wait_for_network_sync()
+    #await account_tools.clean() 
+    #await Utils.wait_for_account_sync()
     Utils.get_mnemonics()
     alice = await itf.init_test_accounts(0, "alice", True)
-    burn_tx = await fs.build_burn_transaction(
-        alice.id,
-        amount={"value": str(amount_pmob), "token_id": str(0)},
-    )
+
     balance_before = int(
         (await fs.get_account_status(alice.id))
         .get("result")
@@ -39,10 +36,15 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .get("unspent")
     )
 
-    #await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
-    
-    await Utils.wait_next_block(alice.id)
+    burn_tx = await fs.build_burn_transaction(
+        alice.id,
+        amount={"value": str(amount_pmob), "token_id": str(0)},
+    )
 
+    print(type(burn_tx.get("result").get("tx_proposal")))
+    
+    await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
+    await Utils.wait_two_blocks()
     balance_after = int(
         (await fs.get_account_status(alice.id))
         .get("result")
