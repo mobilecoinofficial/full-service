@@ -1,7 +1,7 @@
 use crate::{
     db::{
         account::AccountID,
-        transaction_log::TransactionID,
+        transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
     json_rpc::{
@@ -242,7 +242,7 @@ where
 
             JsonCommandResponse::build_burn_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -293,7 +293,7 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_unsigned_burn_transaction {
