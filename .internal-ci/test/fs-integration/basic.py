@@ -38,30 +38,21 @@ class TestUtils:
     async def wait_next_block():
         print("Waiting for next block")
         # network_status = await fs.get_network_status()
-        local_block_height = int(
+        starting_block_height = int(
             (await fs.get_network_status())
             .get("result")
             .get("network_status")
             .get("local_block_height")
         )
-        print(local_block_height)
-        while local_block_height == int(
-            (await fs.get_network_status())
-            .get("result")
-            .get("network_status")
-            .get("local_block_height")
-        ):
-            print("Sleep")
-            await asyncio.sleep(sleepy_time)
-            local_block_height = int(
+        print("starting Height:", starting_block_height)
+        while int(
                 (await fs.get_network_status())
                 .get("result")
                 .get("network_status")
                 .get("local_block_height")
-            )
-            print(local_block_height)
-            return local_block_height
-        
+            ) <= starting_block_height:
+            print("\nBlock height has increased")
+            await asyncio.sleep(1)
             
             
 
