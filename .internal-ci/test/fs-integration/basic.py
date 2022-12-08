@@ -85,41 +85,41 @@ class TestUtils:
     # Note: Using a testing framework like pytest would allow us to bundle this in
     # a test fixture
     async def preclean_this_test():
-        await init_test_accounts(0, "alice", True)
-        await init_test_accounts(1, "bob", True)
+        await TestUtils.init_test_accounts(0, "alice", True)
+        await TestUtils.init_test_accounts(1, "bob", True)
 
     def get_mnemonics(n=2):
         if n > len(config["Account Mnemonics"]):
             raise ValueError("Not enough account available in config")
         return config["Account Mnemonics"][:n]
 
-# test functions should be named differently from FS endpoint functions 
-async def init_test_accounts(index, name="", already_imported=False):
-    print(index)
-    mnemonic = config["Account Mnemonics"][index]["mnemonic"]
-    account = await fs.import_account(
-        mnemonic,
-        "2",  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
-        name=name,
-    )
+    # test functions should be named differently from FS endpoint functions 
+    async def init_test_accounts(index, name="", already_imported=False):
+        print(index)
+        mnemonic = config["Account Mnemonics"][index]["mnemonic"]
+        account = await fs.import_account(
+            mnemonic,
+            "2",  # This parameter indicates that we are using the 2nd key derivations method (mnemonics)
+            name=name,
+        )
 
-    if not already_imported:
-        assert "error" not in account.keys(), "Failed to import account"
+        if not already_imported:
+            assert "error" not in account.keys(), "Failed to import account"
 
-    # Newly imported
-    if "error" not in account.keys():
-        result = Account(account["result"]["account"])
-        account_ids.append(result.id)
-    # Previously imported
-    else:
-        error_msg = account.get("error").get("data").get("details")
-        assert error_msg.startswith(
-            "Error interacting& with the database: Account already exists:"
-        ), "Unknown import failure"
-        id = error_msg.split()[-1]
-        result = Response(await fs.get_account_status(id)).account
-        account_ids.append(result.id)
-    return result
+        # Newly imported
+        if "error" not in account.keys():
+            result = Account(account["result"]["account"])
+            account_ids.append(result.id)
+        # Previously imported
+        else:
+            error_msg = account.get("error").get("data").get("details")
+            assert error_msg.startswith(
+                "Error interacting& with the database: Account already exists:"
+            ), "Unknown import failure"
+            id = error_msg.split()[-1]
+            result = Response(await fs.get_account_status(id)).account
+            account_ids.append(result.id)
+        return result
 
 
 async def main():
@@ -145,8 +145,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     # await preclean_this_test()
 
-    alice = await init_test_accounts(0, "alice", True)
-    bob = await init_test_accounts(1, "bob", True)
+    alice = await TestUtils.init_test_accounts(0, "alice", True)
+    bob = await TestUtils.init_test_accounts(1, "bob", True)
 
     await TestUtils.wait_for_account_sync()
     
