@@ -19,6 +19,7 @@ sleepy_time = 15
 default_config_path = "./test_config.json"
 
 account_ids = []
+config = []
 
 fs = v2()
 
@@ -99,7 +100,7 @@ class TestUtils:
 
 # test functions should be named differently from FS endpoint functions 
 async def init_test_accounts(index, name="", already_imported=False):
-
+    print(index)
     mnemonic = config["Account Mnemonics"][index]["mnemonic"]
     account = await fs.import_account(
         mnemonic,
@@ -213,6 +214,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
     args = parser.parse_args()
+    with open(default_config_path) as json_file:
+        config = json.load(json_file)
     asyncio.run(main())
 
 if __name__ not in ["__main__", "__builtin__"]:
