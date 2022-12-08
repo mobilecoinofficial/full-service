@@ -110,15 +110,15 @@ class FullServiceAPIv2(Request):
 
     async def build_burn_transaction(
         self,
-        account_id,
-        amount={"value": "", "token_id": ""},
-        redemption_memo_hex="",
-        input_txo_ids="",
-        fee_value="",
-        fee_token_id="",
-        tombstone_block="",
-        max_spendable_value="",
-    ):
+        account_id: str,
+        amount: Dict[str, str]={"value": "", "token_id": ""},
+        redemption_memo_hex: str="",
+        input_txo_ids: str="",
+        fee_value: str="",
+        fee_token_id: str="",
+        tombstone_block: str="",
+        max_spendable_value: str="",
+    ) -> Dict[str, Union[str, Dict[str, Union[Dict[str, Union[List[Dict[str, Union[str, Dict[str, str]]]], Dict[str, str], str]], str]]]]:
         return await self.req(
             {
                 "method": "build_burn_transaction",
@@ -267,8 +267,8 @@ class FullServiceAPIv2(Request):
 
     async def export_account_secrets(
         self,
-        account_id,
-    ):
+        account_id: str,
+    ) -> Dict[str, Union[str, Dict[str, Dict[str, Union[str, Dict[str, str]]]]]]:
         return await self.req(
             {
                 "method": "export_account_secrets",
@@ -471,7 +471,7 @@ class FullServiceAPIv2(Request):
             }
         )
 
-    async def get_accounts(self, offset="", limit=""):
+    async def get_accounts(self, offset: str="", limit: str="") -> Dict[str, Union[str, Dict[str, Union[List[str], Dict[str, Dict[str, Union[str, bool]]]]]]]:
         return await self.req(
             {"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
         )
