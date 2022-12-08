@@ -24,16 +24,30 @@ fs = v2()
 
 
 class TestUtils:
-    async def wait_for_network_sync():
-        print("Waiting for network sync")
-        network_status = await fs.get_network_status()
-        while network_status.get("result").get(
-            "network_block_height"
-        ) != network_status.get("result").get("local_block_height"):
-            print("Sleep")
-            await asyncio.sleep(sleepy_time)
-            network_status = await fs.get_network_status()
-            return network_status
+    async def wait_for_account_sync():
+        print("Checking if accounts are synced...")
+        initial_response = str(
+            (await fs.get_wallet_status())
+            .get("result")
+            .get("wallet_status")
+            .get("is_synced_all")
+        )
+        if initial_response == "True":
+            print("Accounts are synced!")
+            return
+        else:
+            while str(initial_response) != "True":
+                await asyncio.sleep(15)
+                print("Waiting for accounts to sync...")
+                if str(
+                        (await fs.get_wallet_status())
+                        .get("result")
+                        .get("wallet_status")
+                        .get("is_synced_all")
+                    ) == "True":
+                        print("Accounts are synced!")
+                        break
+                
 
     async def wait_next_block():
         print("Waiting for next block")
@@ -199,7 +213,7 @@ if __name__ == "__main__":
     # parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
     # args = parser.parse_args()
     # asyncio.run(main())
-    asyncio.run(TestUtils.wait_next_block())
+    asyncio.run(TestUtils.wait_for_account_sync())
 if __name__ not in ["__main__", "__builtin__"]:
     with open(default_config_path) as json_file:
         config = json.load(json_file)
