@@ -153,8 +153,8 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     alice = await init_test_accounts(0, "alice", True)
     bob = await init_test_accounts(1, "bob", True)
 
-    await TestUtils.wait_for_account_to_sync(alice.id)
-    await TestUtils.wait_for_account_to_sync(bob.id)
+    await TestUtils.wait_for_account_sync(alice.id)
+    await TestUtils.wait_for_account_sync(bob.id)
 
     alice_balance_0 = int(
         (await fs.get_account_status(alice.id))
