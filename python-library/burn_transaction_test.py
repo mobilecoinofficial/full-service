@@ -12,7 +12,6 @@ sys.path.append(
     "{}/.internal-ci/test/fs-integration".format(repo_root_dir)
 )  # we're importing the basic.py file as the integration test framework
 
-import basic as itf
 from basic import TestUtils as Utils
 
 fs = v2()
