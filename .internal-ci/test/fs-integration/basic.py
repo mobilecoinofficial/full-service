@@ -75,7 +75,7 @@ class TestUtils:
     async def test_cleanup():
         global account_ids
         for id in account_ids:
-            await TestUtils.wait_for_account_to_sync(id)
+            await TestUtils.wait_for_account_sync(id)
             await fs.remove_account(id)
         accounts = await fs.get_accounts()
         for id in account_ids:
