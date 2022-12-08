@@ -27,8 +27,6 @@ def demo(*args):
 async def run_demo():
     global demo_time
     demo_time = False
-    await fs.remove_account("75e2ba666c4f49ec368c7e2727807441e51895a2f01ebc0e19036575c703d860")
-    await fs.remove_account("8daa38330897d201cc5d086f2b52769184db1a4a8638c1e67dfaf9de32dc067c")
 
     demo("Welcome to Alice's journey with full-service \n--------------------------------------------")
     demo("Alice is already using the Moby app. As the most tech savvy person in her family, she's decided to use \nfull-service to help manage her loved ones' wallets.")
@@ -54,6 +52,7 @@ async def run_demo():
     demo("Alice starts by importing her own account by passing in her mnemonic to the import_account API.")
     demo("Sending request to import_account ...")
     response = await fs.import_account(mnemonics[0], "2")
+    await asyncio.sleep(sleepy_time)
     alice_id = response['result']['account']['id']
     alice_addr = response['result']['account']['main_address']
     demo("Let's look at the request output: ")
@@ -70,8 +69,10 @@ async def run_demo():
 
     demo("Sending request to import Mom's account ...")
     response = await fs.import_account(mnemonics[1], "2", "Mom")
+    await asyncio.sleep(sleepy_time)
     demo("Sending request to import Chadicus's account ...")
     response = await fs.import_account(mnemonics[2], "2", "Chadicus")
+    await asyncio.sleep(sleepy_time)
     chad_id = response['result']['account']['id']
     demo("Alice is done importing accounts.")
 
@@ -106,33 +107,51 @@ async def run_demo():
 
     demo("Now that Bob has an account, Alice can send him some mob")
     response = await fs.get_account_status(alice_id)
-    print(response)
     response = await fs.get_account_status(bob_id)
-    print(response)
-    exit(0)
     response = await fs.build_and_submit_transaction(alice_id,
                                                     recipient_public_address=bob_addr,
                                                     amount = {"value": str(10 * PICO_MOB),
                                                             "token_id":str(0)
                                                             }
                                                     )
+    await asyncio.sleep(sleepy_time*3)
     demo("If we check Bob's account status, we see that he now has 10 mob.")
     demo("Sending request to get_account_status...")
     response = await fs.get_account_status(bob_id)
+    demo(json.dumps(f"{response['result']['balance_per_token']['0']}", indent=4))
+
     demo_time = True
-    print(response)
-    demo(f"{response['result']['balance']['0']}")
-
-
     demo("Alice's home bakery business accepts mob for payment. She uses the subaddress feature to keep track of \nwhich payments are associated with which order")
     demo("Alice creates a new subaddress and associates it with Order #600")
     demo("Sending request to assign_address_for_account...")
     response = await fs.assign_address_for_account(alice_id, "Order #600: Birthday Cake")
-    alice_subaddr = response['result']['address']['public_address']
+    print(response)
+    alice_subaddr = response['result']['address']['public_address_b58']
     demo(f"Alice's main address is {alice_addr}, but she shares this subaddress with her client: \n{alice_subaddr}")
     demo(f"She can use the verify_address API to double check the subaddr she saved is associated with an account on \nher full-service instance")
     demo(f"Sending request to verify_address...")
     response = await fs.verify_address(alice_subaddr)
+    demo(json.dumps(response, indent=4))
+    demo(f"Just to check, let's make sure no funds were received at this subbaddress yet")
+    demo(f"Sending request to get_address_status...")
+    response = await fs.get_address_status(alice_subaddr)
+    demo(json.dumps(response, indent=4))
+    demo(f"As we can see, the subbaddress hasn't received any funds yet:")
+
+
+    # have bob send her money to the subaddress
+    response = await fs.build_and_submit_transaction(bob_id,
+                                                recipient_public_address=alice_subaddr,
+                                                amount = {"value": str(5 * PICO_MOB),
+                                                        "token_id":str(0)
+                                                        }
+                                                )
+    await asyncio.sleep(3*sleepy_time)
+    demo("Alice's client claims they sent over the funds ... Let's check that.")
+    demo("Sending request to get_address_status...")
+    response = await fs.get_address_status(alice_subaddr)
+    demo(json.dumps(response, indent=4))
+
 
 if __name__ == "__main__":
     with open(config_path) as json_file:
