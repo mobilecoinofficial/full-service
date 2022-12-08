@@ -22,9 +22,10 @@ import export_check_all as account_tools  # this will be folded into the integra
 
 fs = v2()
 
+
 async def test_burn_transaction(amount_pmob: int = 600000000):
-    #await account_tools.clean() 
-    #await Utils.wait_for_account_sync()
+    # await account_tools.clean()
+    # await Utils.wait_for_account_sync()
     Utils.get_mnemonics()
     alice = await itf.init_test_accounts(0, "alice", True)
 
@@ -42,7 +43,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     )
 
     print(type(burn_tx.get("result").get("tx_proposal")))
-    
+
     await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
     await Utils.wait_two_blocks()
     balance_after = int(
@@ -54,10 +55,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     )
     print(balance_before, balance_after)
     assert balance_before > balance_after, "Burn transaction failed"
-    exit 
-    
-
-
+    exit
 
 
 asyncio.run(test_burn_transaction())
