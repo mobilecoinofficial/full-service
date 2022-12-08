@@ -15,14 +15,7 @@ async def get():
             res_secrets.get("result").get("account_secrets").get("mnemonic"), "\nID:", account_id,
             res_status.get("result").get("balance_per_token"),
         )
-        
-async def clean():
-    print("Cleaning up accounts")
-    accounts = await fs.get_accounts()
-    result = accounts.get("result").get("account_ids")
-    for account_id in result:
-        await fs.remove_account(account_id)
-        return print("Done cleaning up accounts")
+
 
 if "__main__" == __name__:
     asyncio.run(get())

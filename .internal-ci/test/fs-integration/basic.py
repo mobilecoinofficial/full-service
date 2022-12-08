@@ -70,20 +70,15 @@ class TestUtils:
             await asyncio.sleep(5)
             print("Waiting for next block...")
             
-            
 
-
-    async def test_cleanup():
-        global account_ids
-        for id in account_ids:
-            await TestUtils.wait_for_account_sync(id)
-            await fs.remove_account(id)
+    async def clean():
+        """This function will remove all of your accounts!! Be careful!"""
+        print("Cleaning up accounts")
         accounts = await fs.get_accounts()
-        for id in account_ids:
-            assert id not in accounts.get("result").get(
-                "account_ids"
-            ), "Failed to clear out accounts"
-        account_ids = []
+        result = accounts.get("result").get("account_ids")
+        for account_id in result:
+            await fs.remove_account(account_id)
+            return print("Done cleaning up accounts")
 
     # If this test fails before reaching the last cleanup step, we have leftover
     # artifacts in the FS instance. We clean up those residual artifacts here.
