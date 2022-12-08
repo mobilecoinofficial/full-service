@@ -206,7 +206,9 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     assert (
         bob_balance_1 == bob_balance_0 + pmob_to_send
     ), "Bob doesn't end with the expected amount"
-
+    
+    print("Test passed")
+    
     # await test_cleanup()
 
 
