@@ -11,7 +11,7 @@ from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
 demo_time = True
-sleepy_time = 3
+sleepy_time = 10
 config_path = "./test_config.json"
 mnemonics=[]
 account_ids = []
@@ -25,8 +25,6 @@ def demo(*args):
 
 
 async def run_demo():
-    global demo_time
-    demo_time = False
 
     demo("Welcome to Alice's journey with full-service \n--------------------------------------------")
     demo("Alice is already using the Moby app. As the most tech savvy person in her family, she's decided to use \nfull-service to help manage her loved ones' wallets.")
@@ -114,18 +112,16 @@ async def run_demo():
                                                             "token_id":str(0)
                                                             }
                                                     )
-    await asyncio.sleep(sleepy_time*3)
+    await asyncio.sleep(sleepy_time)
     demo("If we check Bob's account status, we see that he now has 10 mob.")
     demo("Sending request to get_account_status...")
     response = await fs.get_account_status(bob_id)
     demo(json.dumps(f"{response['result']['balance_per_token']['0']}", indent=4))
 
-    demo_time = True
     demo("Alice's home bakery business accepts mob for payment. She uses the subaddress feature to keep track of \nwhich payments are associated with which order")
     demo("Alice creates a new subaddress and associates it with Order #600")
     demo("Sending request to assign_address_for_account...")
     response = await fs.assign_address_for_account(alice_id, "Order #600: Birthday Cake")
-    print(response)
     alice_subaddr = response['result']['address']['public_address_b58']
     demo(f"Alice's main address is {alice_addr}, but she shares this subaddress with her client: \n{alice_subaddr}")
     demo(f"She can use the verify_address API to double check the subaddr she saved is associated with an account on \nher full-service instance")
@@ -146,7 +142,7 @@ async def run_demo():
                                                         "token_id":str(0)
                                                         }
                                                 )
-    await asyncio.sleep(3*sleepy_time)
+    await asyncio.sleep(sleepy_time)
     demo("Alice's client claims they sent over the funds ... Let's check that.")
     demo("Sending request to get_address_status...")
     response = await fs.get_address_status(alice_subaddr)
