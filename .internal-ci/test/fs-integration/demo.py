@@ -4,119 +4,140 @@ import json
 import subprocess
 import sys
 
-demo = True
-
 repo_root_dir = subprocess.check_output("git rev-parse --show-toplevel", shell=True).decode("utf8").strip()
 sys.path.append("{}/python-library".format(repo_root_dir))
 
 from fullservice import FullServiceAPIv2 as v2
 from FSDataObjects import Response, Account 
 
+demo_time = True
 sleepy_time = 3
-default_config_path = "./test_config.json"
-config = []
+config_path = "./test_config.json"
 mnemonics=[]
 account_ids = []
 
 fs = v2()
 
-PICO_MOB= 1 000 000 000 000
-
-def demo(*args)
-    if demo:
-        input(print(args))
-
+PICO_MOB= 1000000000000
+def demo(*args):
+    if demo_time:
+        input(*args)
 
 
-demo("Welcome to Alice's journey with full-service \n --------------------------------------------")
-demo("Alice is already using the Moby app. As the most tech savvy person in her family, she's decided to use full-service to help manage her loved ones' wallets")
-demo("Earlier today, Alice followed the installation instructions to setup and run full-serivce")
-demo("She already has a wallet with some funds, and will use her mnemonic to setup the wallet on full-service too")
+async def run_demo():
+    global demo_time
+    demo_time = False
+    await fs.remove_account("75e2ba666c4f49ec368c7e2727807441e51895a2f01ebc0e19036575c703d860")
+    await fs.remove_account("8daa38330897d201cc5d086f2b52769184db1a4a8638c1e67dfaf9de32dc067c")
 
-demo("Before she imports her account, Alice wants to make sure her full-service wallet is synced with the network")
-demo("She uses her rest client to call the get_wallet_status API")
-while True:
-    demo(f"Sending request to get_wallet_status ...")
-    response = await fs.get_wallet_status()
-    synced = response['result']['wallet_status']['is_synced_all']
-    demo(f"get_wallet_status tells us the network is{' not' if not synced else ''} synced")
-    if (synced):
-        break
-    else:
-        demo(f"We'll wait {sleepy_time} seconds and try again")
-        await asyncio.sleep(sleepy_time)
+    demo("Welcome to Alice's journey with full-service \n--------------------------------------------")
+    demo("Alice is already using the Moby app. As the most tech savvy person in her family, she's decided to use \nfull-service to help manage her loved ones' wallets.")
+    demo("Earlier today, Alice followed the installation instructions to setup and run full-serivce.")
+    demo("She already has a wallet with some funds, and will use her mnemonic to setup the wallet on full-service too.")
+
+    demo("Before she imports her account, Alice wants to make sure her full-service wallet is synced with the network.")
+    demo("She uses her rest client to call the get_wallet_status API.")
     
-demo("Awesome! Now that the wallet is synced, Alice wants to import some accounts.")
+    while True:
+        demo(f"Sending request to get_wallet_status ...")
+        response = await fs.get_wallet_status()
+        synced = response['result']['wallet_status']['is_synced_all']
+        demo(f"get_wallet_status tells us the network is{' not' if not synced else ''} synced")
+        if (synced):
+            break
+        else:
+            demo(f"We'll wait {sleepy_time} seconds and try again")
+            await asyncio.sleep(sleepy_time)
+        
+    demo("Awesome! Now that the wallet is synced, Alice wants to import some accounts.")
 
-demo("Alice starts by importing her own account by passing in her mnemonic to the import_account API")
-demo("Sending request to import_account ...")
-response = await fs.import_account(mnemonics[0], "2")
-alice_id = response['result']['account']['account_id']
-alice_addr = response['result']['account']['main_address']
-demo("Let's look at the request output: ")
-demo(response)
+    demo("Alice starts by importing her own account by passing in her mnemonic to the import_account API.")
+    demo("Sending request to import_account ...")
+    response = await fs.import_account(mnemonics[0], "2")
+    alice_id = response['result']['account']['id']
+    alice_addr = response['result']['account']['main_address']
+    demo("Let's look at the request output: ")
+    demo(json.dumps(response, indent=4))
 
-demo("Oh no, Alice forgot to specify the name field. Since there will be several individuals with accounts on this wallet, Alice wants to make sure its easy to tell whose account is whose")
-demo("Luckily, she can update the account name with another API. She does this now.")
-demo("Sending request to update_account_name ...")
-response = await fs.update_account_name(account_id=alice_id, name="Alice")
-demo("Can we see her name on the account object now?")
-demo(response)
-demo("Great, looks like it's there. Now Alice will import wallets for other loved ones")
-demo("Sending request to import Mom's account ...")
-response = await fs.import_account(mnemonics[2], "2", "Mom")
-demo("Sending request to import Chadicus's account ...")
-response = await fs.import_account(mnemonics[1], "2", "Chadicus")
-chad_id = response.get('result').get('account').get('account_id')
-demo("Alice is done importing accounts.")
-
-demo("Let's check out the wallet.")
-demo("Sending request to get_wallet_status...")
-response = await fs.get_wallet_status()
-demo("Looking at the wallet status, we see the wallet now have 3 accounts. We can also see their balances").
-
-demo("Alice and her partner, Chadicus, have decided to part ways. Alice will no longer manage their wallet as part of her family Full-Service instance.")
-demo("Alice will export the account secrets to hand off to Chadicus so he can manage his own wallet.")
-demo("Sending request to export_account_secrets ...")
-response = await fs.export_account_secrets(chad_id)
-demo(f"Shh ... here are Chadicus's secrets \n{response}")
-demo("It's time to say final good byes to Chadicus's account. Alice removes it from full-service")
-demo("Sending request to remove_account...")
-response = await fs.remove_account(chad_id)
-demo(f"Looking at the accounts API, we see Full-Service now has 2 accounts: Alice's and Mom's \n{response}").
-demo("Sending request to get_accounts ...")
-response = await fs.get_accounts()
-demo(f"{response}")
-
-demo(f"Alice wants to gift her brother, Bob, some mob for his 16th birthday. 
-He's never used mob before, so he doesn't have a wallet for her to send funds to.
-Alice can use full service to make him an account and send him mob")
-demo("Sending request to create_account...")
-response = await fs.create_account("Bro Bob")
-bob_id = response['result']['account']['account_id']
-bob_addr = response['result']['account']['main_address']
-demo(f"Here's the response: \n{response}")
-
-demo("Now that Bob has an account, Alice can send him some mob")
-response = await fs.build_and_submit_transaction(alice_id,
-                                                recipient_public_address=bob_addr,
-                                                amount = {"value": str(10 * PICO_MOB),
-                                                          "token_id":str(0)
-                                                          }
-                                                )
-demo("If we check Bob's account status, we see that he now has 10 mob")
-demo("Sending request to get_account_status...")
-response = await fs.get_account_status(bob_id)
-demo(f"{response['result']['balance']['0']}")
+    demo("Oh no, Alice forgot to specify the name field. Since there will be several individuals with accounts on \nthis wallet, Alice wants to make sure its easy to tell whose account is whose")
+    demo("Luckily, she can update the account name with another API. She does this now.")
+    demo("Sending request to update_account_name ...")
+    response = await fs.update_account_name(account_id=alice_id, name="Alice")
+    demo("Can we see her name on the account object now?")
+    demo(json.dumps(response, indent=4))
+    demo("Great, looks like it's there. Now Alice will import wallets for other loved ones.")
 
 
-demo("Alice's home bakery business accepts mob for payment. She uses the subaddress feature to keep track of which payments are associated with which order")
-demo("Alice creates a new subaddress and associates it with Order #600")
-demo("Sending request to assign_address_for_account...")
-response = await fs.assign_address_for_account(alice_id, "Order #600: Birthday Cake")
-alice_subaddr = response['result']['address']['public_address']
-demo(f"Alice's main address is {alice_addr}, but she shares this subaddress with her client: \n{alice_subaddr}")
-demo(f"She can use the verify_address API to double check the subaddr she saved is associated with an account on her full-service instance")
-demo(f"Sending request to verify_address...")
-response = await fs.verify_address(alice_subaddr)
+    demo("Sending request to import Mom's account ...")
+    response = await fs.import_account(mnemonics[1], "2", "Mom")
+    demo("Sending request to import Chadicus's account ...")
+    response = await fs.import_account(mnemonics[2], "2", "Chadicus")
+    chad_id = response['result']['account']['id']
+    demo("Alice is done importing accounts.")
 
+    demo("Sending request to get_accounts...")
+    response = await fs.get_accounts()
+    demo("Looking at the get_accounts_API, we see the wallet now have 3 accounts.")
+    demo(json.dumps(response, indent=4))
+
+    demo("Alice and her partner, Chadicus, have decided to part ways. Alice will no longer manage their wallet as \npart of her family Full-Service instance.")
+    demo("Alice will export the account secrets to hand off to Chadicus so he can manage his own wallet.")
+    demo("Sending request to export_account_secrets ...")
+    response = await fs.export_account_secrets(chad_id)
+    demo("Shh ... here are Chadicus's secrets:")
+    demo(json.dumps(response, indent=4))
+    demo("It's time to say final good byes to Chadicus's account. Alice removes it from full-service")
+    demo("Sending request to remove_account...")
+    response = await fs.remove_account(chad_id)
+    demo(f"Looking at the accounts API, we see Full-Service now has 2 accounts: Alice's and Mom's \n{response}")
+    demo("Sending request to get_accounts ...")
+    response = await fs.get_accounts()
+    demo(json.dumps(response, indent=4))
+
+    demo("".join(["Alice wants to gift her brother, Bob, some mob for his 16th birthday.", 
+        "\nHe's never used mob before, so he doesn't have a wallet for her to send funds to.", 
+        "\nAlice can use full service to make him an account and send him mob"]))
+    demo("Sending request to create_account...")
+    response = await fs.create_account("Bro Bob")
+    bob_id = response['result']['account']['id']
+    bob_addr = response['result']['account']['main_address']
+    demo("Here's the response:")
+    demo(json.dumps(response, indent=4))
+
+    demo("Now that Bob has an account, Alice can send him some mob")
+    response = await fs.get_account_status(alice_id)
+    print(response)
+    response = await fs.get_account_status(bob_id)
+    print(response)
+    exit(0)
+    response = await fs.build_and_submit_transaction(alice_id,
+                                                    recipient_public_address=bob_addr,
+                                                    amount = {"value": str(10 * PICO_MOB),
+                                                            "token_id":str(0)
+                                                            }
+                                                    )
+    demo("If we check Bob's account status, we see that he now has 10 mob.")
+    demo("Sending request to get_account_status...")
+    response = await fs.get_account_status(bob_id)
+    demo_time = True
+    print(response)
+    demo(f"{response['result']['balance']['0']}")
+
+
+    demo("Alice's home bakery business accepts mob for payment. She uses the subaddress feature to keep track of \nwhich payments are associated with which order")
+    demo("Alice creates a new subaddress and associates it with Order #600")
+    demo("Sending request to assign_address_for_account...")
+    response = await fs.assign_address_for_account(alice_id, "Order #600: Birthday Cake")
+    alice_subaddr = response['result']['address']['public_address']
+    demo(f"Alice's main address is {alice_addr}, but she shares this subaddress with her client: \n{alice_subaddr}")
+    demo(f"She can use the verify_address API to double check the subaddr she saved is associated with an account on \nher full-service instance")
+    demo(f"Sending request to verify_address...")
+    response = await fs.verify_address(alice_subaddr)
+
+if __name__ == "__main__":
+    with open(config_path) as json_file:
+        mnemonics = json.load(json_file)
+        mnemonics = [x["mnemonic"] for x in mnemonics["Account Mnemonics"]]
+        
+
+    asyncio.run(run_demo())
