@@ -24,10 +24,10 @@ fs = v2()
 
 
 async def test_burn_transaction(amount_pmob: int = 600000000):
-    # await account_tools.clean()
+    # await Utils.clean()
     # await Utils.wait_for_account_sync()
     Utils.get_mnemonics()
-    alice = await itf.init_test_accounts(0, "alice", True)
+    alice = await Utils.init_test_accounts(0, "alice", True)
 
     balance_before = int(
         (await fs.get_account_status(alice.id))
