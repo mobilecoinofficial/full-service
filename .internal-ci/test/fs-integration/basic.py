@@ -3,7 +3,7 @@ import asyncio
 import json
 import subprocess
 import sys
-
+import pytest 
 repo_root_dir = (
     subprocess.check_output("git rev-parse --show-toplevel", shell=True)
     .decode("utf8")
@@ -121,7 +121,7 @@ class TestUtils:
             account_ids.append(result.id)
         return result
 
-
+@pytest.mark.asyncio
 async def test_main():
     while (await fs.get_wallet_status())["result"]["wallet_status"][
         "is_synced_all"
@@ -129,7 +129,7 @@ async def test_main():
         await asyncio.sleep(sleepy_time)
     await does_it_go()
 
-
+@pytest.mark.asyncio
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
     network_status = await fs.get_network_status()
     assert "error" not in network_status.keys(), "Failed to get network status"
@@ -205,11 +205,6 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     print("Test passed")
     
     # await test_cleanup()
-
-def test_answer():
-    assert (
-    bob_balance_1 == bob_balance_0 + pmob_to_send
-), "Bob doesn't end with the expected amount"
 
 # fix this 
 if __name__ == "__main__":
