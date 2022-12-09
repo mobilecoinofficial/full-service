@@ -122,7 +122,7 @@ class TestUtils:
         return result
 
 
-async def main():
+async def test_main():
     while (await fs.get_wallet_status())["result"]["wallet_status"][
         "is_synced_all"
     ] != True:
@@ -141,7 +141,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     """Test Setup """
-    pmob_to_send = amount_pmob
+    global pmob_to_send = amount_pmob
 
     # await preclean_this_test()
 
@@ -161,7 +161,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     assert alice_balance_0 >= pmob_to_send + fee, "Insufficient funds in first account."
 
-    bob_balance_0 = int(
+    global bob_balance_0 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -187,7 +187,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    bob_balance_1 = int(
+    global bob_balance_1 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -205,6 +205,11 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     print("Test passed")
     
     # await test_cleanup()
+
+def test_answer():
+    assert (
+    bob_balance_1 == bob_balance_0 + pmob_to_send
+), "Bob doesn't end with the expected amount"
 
 
 if __name__ == "__main__":
