@@ -141,7 +141,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     """Test Setup """
-    global pmob_to_send = amount_pmob
+    pmob_to_send = amount_pmob
 
     # await preclean_this_test()
 
@@ -161,7 +161,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     assert alice_balance_0 >= pmob_to_send + fee, "Insufficient funds in first account."
 
-    global bob_balance_0 = int(
+    bob_balance_0 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -187,7 +187,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
         .get("unspent")
     )
 
-    global bob_balance_1 = int(
+    bob_balance_1 = int(
         (await fs.get_account_status(bob.id))
         .get("result")
         .get("balance_per_token")
@@ -211,14 +211,14 @@ def test_answer():
     bob_balance_1 == bob_balance_0 + pmob_to_send
 ), "Bob doesn't end with the expected amount"
 
-
+# fix this 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Basic test")
     parser.add_argument("config_path", nargs="?", type=str, default=default_config_path)
     args = parser.parse_args()
     with open(default_config_path) as json_file:
         config = json.load(json_file)
-    asyncio.run(main())
+    asyncio.run(test_main())
 
 if __name__ not in ["__main__", "__builtin__"]:
     with open(default_config_path) as json_file:
