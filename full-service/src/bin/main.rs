@@ -20,6 +20,7 @@ use mc_full_service::{
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
+use rocket::{Build, Rocket};
 use std::{
     env,
     process::exit,
@@ -35,7 +36,8 @@ const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
 const EXIT_WRONG_PASSWORD: i32 = 3;
 const EXIT_INVALID_HOST: i32 = 4;
 
-fn main() {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     dotenv().ok();
 
     mc_common::setup_panic_handler();
@@ -54,12 +56,6 @@ fn main() {
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
-
-    let rocket_config: rocket::Config =
-        rocket::Config::build(rocket::config::Environment::Development)
-            .address(&config.listen_host)
-            .port(config.listen_port)
-            .unwrap();
 
     let wallet_db = match config.wallet_db {
         Some(ref wallet_db_path_buf) => {
@@ -84,12 +80,22 @@ fn main() {
         None => None,
     };
 
+    let rocket_config = rocket::Config::figment()
+        .merge(("port", config.listen_port))
+        .merge(("address", config.listen_host.to_string()))
+        .extract()
+        .unwrap();
+
     // Start WalletService based on our configuration
-    if let Some(validator_uri) = config.validator.as_ref() {
+    let rocket = if let Some(validator_uri) = config.validator.as_ref() {
         validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
     } else {
         consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
     };
+
+    let _rocket = rocket.launch().await?;
+
+    Ok(())
 }
 
 fn consensus_backed_full_service(
@@ -97,7 +103,7 @@ fn consensus_backed_full_service(
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) {
+) -> Rocket<Build> {
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
@@ -167,7 +173,7 @@ fn consensus_backed_full_service(
 
     let rocket = consensus_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key)).launch();
+    rocket.manage(APIKeyState(api_key))
 }
 
 fn validator_backed_full_service(
@@ -176,7 +182,7 @@ fn validator_backed_full_service(
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) {
+) -> Rocket<Build> {
     let validator_conn = ValidatorConnection::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
@@ -259,5 +265,5 @@ fn validator_backed_full_service(
 
     let rocket = validator_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key)).launch();
+    rocket.manage(APIKeyState(api_key))
 }

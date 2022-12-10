@@ -56,14 +56,13 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
 use mc_transaction_core::{tokens::Mob, Amount as CoreAmount, Token};
-use rocket::{self};
-use rocket_contrib::json::Json;
+use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
-    state: rocket::State<WalletState<T, FPR>>,
+    state: &rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String>
 where

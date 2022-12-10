@@ -4,6 +4,7 @@
 //!
 //! API v2
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use strum::Display;
 
 pub trait JsonCommandResponse {}
