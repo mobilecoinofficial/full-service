@@ -4,7 +4,7 @@
 
 use crate::db;
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{json, Map};
 use std::{convert::TryFrom, fmt, str::FromStr};
 
 pub enum TxoStatus {

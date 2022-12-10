@@ -3002,8 +3002,8 @@ dependencies = [
  "rayon",
  "reqwest",
  "retry 1.3.0",
- "rocket 0.4.11",
- "rocket_contrib",
+ "rocket 0.5.0-rc.2",
+ "rocket_sync_db_pools",
  "serde",
  "serde-big-array",
  "serde_derive",
@@ -4577,12 +4577,12 @@ dependencies = [
 
 [[package]]
 name = "r2d2"
-version = "0.8.9"
+version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "545c5bc2b880973c9c10e4067418407a0ccaa3091781d1671d46eb35107cb26f"
+checksum = "51de85fb3fb6524929c8a2eb85e6b6d363de4e8c48f9e2c2eac4944abc181c93"
 dependencies = [
  "log 0.4.11",
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
  "scheduled-thread-pool",
 ]
 
@@ -4989,26 +4989,11 @@ version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e20efbc6a211cb3df5375accf532d4186f224b623f39eca650b19b96240c596b"
 dependencies = [
- "diesel",
  "log 0.4.11",
  "notify",
- "r2d2",
  "rocket 0.4.11",
- "rocket_contrib_codegen",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "rocket_contrib_codegen"
-version = "0.4.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7b7eaf469d5d7b86e05b0f4ab71f98f094ef1a5a188cbe716ce31eabc2816ae"
-dependencies = [
- "devise 0.2.1",
- "quote 0.6.13",
- "version_check 0.9.3",
- "yansi",
 ]
 
 [[package]]
@@ -5053,6 +5038,30 @@ dependencies = [
  "time 0.3.14",
  "tokio",
  "uncased",
+]
+
+[[package]]
+name = "rocket_sync_db_pools"
+version = "0.1.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fa48b6ab25013e9812f1b0c592741900b3a2a83c0936292e0565c0ac842f558"
+dependencies = [
+ "diesel",
+ "r2d2",
+ "rocket 0.5.0-rc.2",
+ "rocket_sync_db_pools_codegen",
+ "serde",
+ "tokio",
+]
+
+[[package]]
+name = "rocket_sync_db_pools_codegen"
+version = "0.1.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "280ef2d232923e69cb93da156972eb5476a7cce5ba44843f6608f46a4abf7aab"
+dependencies = [
+ "devise 0.3.1",
+ "quote 1.0.21",
 ]
 
 [[package]]
@@ -5151,11 +5160,11 @@ dependencies = [
 
 [[package]]
 name = "scheduled-thread-pool"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc6f74fd1204073fa02d5d5d68bec8021be4c38690b61264b2fdb48083d0e7d7"
+checksum = "977a7519bff143a44f842fd07e80ad1329295bd71686457f18e496736f4bf9bf"
 dependencies = [
- "parking_lot 0.11.2",
+ "parking_lot 0.12.1",
 ]
 
 [[package]]

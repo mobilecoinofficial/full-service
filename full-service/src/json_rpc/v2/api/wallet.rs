@@ -59,8 +59,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
 use mc_transaction_extra::BurnRedemptionMemo;
-use rocket::{self};
-use rocket_contrib::json::Json;
+use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{
     collections::HashMap,
@@ -71,7 +70,7 @@ use std::{
 
 pub fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
-    state: rocket::State<WalletState<T, FPR>>,
+    state: &rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String>
 where
