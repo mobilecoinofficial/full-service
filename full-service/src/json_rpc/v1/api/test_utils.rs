@@ -15,19 +15,24 @@ use crate::{
     },
     wallet::{APIKeyState, ApiKeyGuard},
 };
+
 use mc_account_keys::PublicAddress;
 use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
+
 use rand::rngs::StdRng;
 use rocket::{
     http::{ContentType, Header, Status},
-    local::Client,
+    local::blocking::Client,
     post, routes,
+    serde::json::{Json, Value as JsonValue},
+    Build,
 };
-use rocket_contrib::json::{Json, JsonValue};
+use serde_json::json;
+
 use std::{
     convert::TryFrom,
     sync::{
@@ -51,7 +56,7 @@ pub struct TestWalletState {
 #[post("/wallet", format = "json", data = "<command>")]
 fn test_wallet_api(
     _guard: ApiKeyGuard,
-    state: rocket::State<TestWalletState>,
+    state: &rocket::State<TestWalletState>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String> {
     let req: JsonRPCRequest = command.0.clone();
@@ -65,7 +70,7 @@ fn test_wallet_api(
     };
 
     match wallet_api_inner(
-        &state.service,
+        state.service,
         JsonCommandRequest::try_from(&req).map_err(|e| e)?,
     ) {
         Ok(command_response) => {
@@ -79,7 +84,7 @@ fn test_wallet_api(
     Ok(Json(response))
 }
 
-pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket {
+pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket<Build> {
     rocket::custom(rocket_config)
         .mount("/", routes![test_wallet_api])
         .manage(state)
@@ -91,7 +96,7 @@ pub fn create_test_setup(
     mut rng: &mut StdRng,
     logger: Logger,
 ) -> (
-    rocket::Rocket,
+    rocket::Rocket<Build>,
     LedgerDB,
     WalletDbTestContext,
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,

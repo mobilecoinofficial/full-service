@@ -9,6 +9,7 @@ mod e2e_account {
     use mc_common::logger::{test_with_logger, Logger};
 
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {

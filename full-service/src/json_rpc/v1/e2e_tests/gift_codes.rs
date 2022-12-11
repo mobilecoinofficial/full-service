@@ -17,6 +17,7 @@ mod e2e_transaction {
 
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     use std::convert::TryFrom;
 

@@ -30,7 +30,9 @@ mod e2e_transaction {
         ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token, TokenId,
     };
     use mc_util_from_random::FromRandom;
+
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     use std::convert::TryFrom;
 

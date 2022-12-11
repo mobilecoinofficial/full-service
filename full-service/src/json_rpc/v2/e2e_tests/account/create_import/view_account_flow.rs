@@ -13,9 +13,10 @@ mod e2e_account {
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::rand_core::RngCore;
-
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     #[test_with_logger]
     fn test_e2e_view_only_account_flow(logger: Logger) {

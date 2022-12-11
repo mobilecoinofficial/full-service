@@ -109,6 +109,7 @@ impl TryFrom<&ViewAccountKey> for mc_account_keys::ViewAccountKey {
 mod account_key_tests {
     use super::*;
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     #[test]
     fn test_round_trip() {
