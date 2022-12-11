@@ -13,6 +13,7 @@ mod e2e_misc {
 
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
+    use serde_json::json;
 
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {

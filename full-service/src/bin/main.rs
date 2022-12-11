@@ -20,7 +20,6 @@ use mc_full_service::{
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
-use rocket::{Build, Rocket};
 use std::{
     env,
     process::exit,
@@ -87,23 +86,20 @@ async fn main() -> Result<(), rocket::Error> {
         .unwrap();
 
     // Start WalletService based on our configuration
-    let rocket = if let Some(validator_uri) = config.validator.as_ref() {
+    if let Some(validator_uri) = config.validator.as_ref() {
         validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
+            .await
     } else {
-        consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
-    };
-
-    let _rocket = rocket.launch().await?;
-
-    Ok(())
+        consensus_backed_full_service(&config, wallet_db, rocket_config, logger).await
+    }
 }
 
-fn consensus_backed_full_service(
+async fn consensus_backed_full_service(
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) -> Rocket<Build> {
+) -> Result<(), rocket::Error> {
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
@@ -173,16 +169,18 @@ fn consensus_backed_full_service(
 
     let rocket = consensus_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key))
+    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
+
+    Ok(())
 }
 
-fn validator_backed_full_service(
+async fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) -> Rocket<Build> {
+) -> Result<(), rocket::Error> {
     let validator_conn = ValidatorConnection::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
@@ -265,5 +263,7 @@ fn validator_backed_full_service(
 
     let rocket = validator_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key))
+    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
+
+    Ok(())
 }
