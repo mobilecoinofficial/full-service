@@ -22,7 +22,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    fn test_gift_codes(logger: Logger) {
+    async fn test_gift_codes(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -35,7 +35,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -68,7 +68,7 @@ mod e2e_transaction {
                 "memo": "Happy Birthday!",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res["result"].clone();
         let gift_code_b58 = result["gift_code_b58"].as_str().unwrap();
         let tx_proposal = result["tx_proposal"].clone();
@@ -82,7 +82,7 @@ mod e2e_transaction {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let status = res["result"]["gift_code_status"].as_str().unwrap();
         assert_eq!(status, "GiftCodeSubmittedPending");
         let memo = res["result"]["gift_code_memo"].as_str().unwrap();
@@ -99,7 +99,7 @@ mod e2e_transaction {
                 "tx_proposal": tx_proposal,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         // Add the TxProposal for the gift code
         let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
@@ -126,7 +126,7 @@ mod e2e_transaction {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let status = res["result"]["gift_code_status"].as_str().unwrap();
         assert_eq!(status, "GiftCodeAvailable");
         let memo = res["result"]["gift_code_memo"].as_str().unwrap();
@@ -141,7 +141,7 @@ mod e2e_transaction {
                 "name": "Bob Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
         let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -159,7 +159,7 @@ mod e2e_transaction {
             "id": 1,
             "method": "get_all_gift_codes",
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res["result"]["gift_codes"].as_array().unwrap();
         assert_eq!(result.len(), 1);
 
@@ -172,7 +172,7 @@ mod e2e_transaction {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         // Claim the gift code for bob
         let body = json!({
@@ -184,7 +184,7 @@ mod e2e_transaction {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let txo_id_hex = res["result"]["txo_id"].as_str().unwrap();
         assert_eq!(txo_id_hex.len(), 64);
 
@@ -197,7 +197,7 @@ mod e2e_transaction {
                 "gift_code_b58": gift_code_b58,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res["result"]["removed"].as_bool().unwrap();
         assert!(result);
 
@@ -207,7 +207,7 @@ mod e2e_transaction {
             "id": 1,
             "method": "get_all_gift_codes",
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res["result"]["gift_codes"].as_array().unwrap();
         assert_eq!(result.len(), 0);
     }

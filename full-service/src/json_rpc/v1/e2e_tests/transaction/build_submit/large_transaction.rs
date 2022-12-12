@@ -22,7 +22,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    fn test_large_transaction(logger: Logger) {
+    async fn test_large_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -35,7 +35,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -70,7 +70,7 @@ mod e2e_transaction {
                 "value_pmob": "10000000000000000000", // Ten million MOB, which is larger than i64::MAX picomob.
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -145,7 +145,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status

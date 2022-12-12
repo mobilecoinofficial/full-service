@@ -25,7 +25,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    fn test_send_txo_received_from_removed_account(logger: Logger) {
+    async fn test_send_txo_received_from_removed_account(logger: Logger) {
         use crate::db::schema::txos;
         use diesel::{dsl::count, prelude::*};
 
@@ -43,7 +43,7 @@ mod e2e_transaction {
                 "name": "account 1",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id_1 = account_obj.get("id").unwrap().as_str().unwrap();
@@ -58,7 +58,7 @@ mod e2e_transaction {
                 "name": "account 2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id_2 = account_obj.get("id").unwrap().as_str().unwrap();
@@ -72,7 +72,7 @@ mod e2e_transaction {
                 "name": "account 3",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id_3 = account_obj.get("id").unwrap().as_str().unwrap();
@@ -119,7 +119,7 @@ mod e2e_transaction {
                 "amount": {"value": "84000000000000", "token_id": "0"}, // 84.0 MOB
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -132,7 +132,7 @@ mod e2e_transaction {
                 "account_id": account_id_1,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result");
         assert!(result.is_some());
 
@@ -164,7 +164,7 @@ mod e2e_transaction {
                 "account_id": account_id_1,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
         assert_eq!(
@@ -186,7 +186,7 @@ mod e2e_transaction {
                 "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -199,7 +199,7 @@ mod e2e_transaction {
                 "account_id": account_id_2,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result");
         assert!(result.is_some());
 
@@ -231,7 +231,7 @@ mod e2e_transaction {
                 "account_id": account_id_3,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -243,7 +243,7 @@ mod e2e_transaction {
     /// that it correctly generates and checks the key image against the ledger
     /// db to see if the previously orphaned txo has been spent or not
     #[test_with_logger]
-    fn test_mark_orphaned_txo_as_spent(logger: Logger) {
+    async fn test_mark_orphaned_txo_as_spent(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -258,7 +258,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -273,7 +273,7 @@ mod e2e_transaction {
                 "metadata": "subaddress_index_2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let b58_public_address = address.get("public_address_b58").unwrap().as_str().unwrap();
@@ -312,7 +312,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
@@ -327,7 +327,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -347,7 +347,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -365,7 +365,7 @@ mod e2e_transaction {
                 "metadata": "subaddress_index_2",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -375,7 +375,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -392,7 +392,7 @@ mod e2e_transaction {
                 "name": "account 2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id_2 = account_obj.get("id").unwrap().as_str().unwrap();
@@ -407,7 +407,7 @@ mod e2e_transaction {
                 "account_id": *account_id_2,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
@@ -422,7 +422,7 @@ mod e2e_transaction {
                 "amount": { "value": "50000000000000", "token_id": "0"}, // 50.0 MOB
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -434,7 +434,7 @@ mod e2e_transaction {
                 "tx_proposal": tx_proposal
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result");
         assert!(result.is_some());
 
@@ -459,7 +459,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -476,7 +476,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
@@ -490,7 +490,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -512,7 +512,7 @@ mod e2e_transaction {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -522,7 +522,7 @@ mod e2e_transaction {
     }
 
     #[test_with_logger]
-    fn test_get_txos(logger: Logger) {
+    async fn test_get_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -535,7 +535,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -566,7 +566,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
@@ -586,7 +586,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();

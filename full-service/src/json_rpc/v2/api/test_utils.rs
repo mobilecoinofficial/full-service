@@ -28,11 +28,9 @@ use rocket::{
     http::{ContentType, Header, Status},
     local::blocking::Client,
     post, routes,
-    serde::json::{Json, Value as JsonValue},
+    serde::json::{json, Json, Value as JsonValue},
     Build,
 };
-
-use serde_json::json;
 
 use std::{
     convert::TryFrom,
@@ -55,7 +53,7 @@ pub struct TestWalletState {
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the
 // TestWalletState, which handles Mock objects.
 #[post("/wallet/v2", format = "json", data = "<command>")]
-fn test_wallet_api(
+async fn test_wallet_api(
     _guard: ApiKeyGuard,
     state: &rocket::State<TestWalletState>,
     command: Json<JsonRPCRequest>,
@@ -71,9 +69,11 @@ fn test_wallet_api(
     };
 
     match wallet_api_inner(
-        state.service,
+        &state.service,
         JsonCommandRequest::try_from(&req).map_err(|e| e)?,
-    ) {
+    )
+    .await
+    {
         Ok(command_response) => {
             response.result = Some(command_response);
         }
@@ -123,10 +123,10 @@ pub fn create_test_setup(
         logger,
     );
 
-    let rocket_config: rocket::Config =
-        rocket::Config::build(rocket::config::Environment::Development)
-            .port(get_free_port())
-            .unwrap();
+    let rocket_config = rocket::Config::figment()
+        .merge(("port", get_free_port()))
+        .extract()
+        .unwrap();
 
     let rocket_instance = test_rocket(rocket_config, TestWalletState { service });
 
@@ -147,7 +147,7 @@ pub fn setup(
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
-        Client::new(rocket).expect("valid rocket instance"),
+        Client::untracked(rocket).expect("valid rocket instance"),
         ledger_db,
         db_test_context,
         network_state,
@@ -168,7 +168,7 @@ pub fn setup_no_wallet_db(
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
-        Client::new(rocket).expect("valid rocket instance"),
+        Client::untracked(rocket).expect("valid rocket instance"),
         ledger_db,
         db_test_context,
         network_state,
@@ -191,32 +191,32 @@ pub fn setup_with_api_key(
     let rocket = rocket_instance.manage(APIKeyState(api_key));
 
     (
-        Client::new(rocket).expect("valid rocket instance"),
+        Client::untracked(rocket).expect("valid rocket instance"),
         ledger_db,
         db_test_context,
         network_state,
     )
 }
 
-pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
+pub async fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
     log::info!(logger, "Attempting dispatch of\n{:?}\n", request_body,);
     let request_body = request_body.to_string();
 
-    let mut res = client
+    let res = client
         .post("/wallet/v2")
         .header(ContentType::JSON)
         .body(request_body)
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
 
-    let response_body = res.body().unwrap().into_string().unwrap();
+    let response_body = res.body().to_string().await.unwrap();
     log::info!(logger, "Got response\n{}\n", response_body);
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
     res
 }
 
-pub fn dispatch_with_header(
+pub async fn dispatch_with_header(
     client: &Client,
     request_body: JsonValue,
     header: Header<'static>,
@@ -226,7 +226,7 @@ pub fn dispatch_with_header(
     let request_body = request_body.to_string();
     log::info!(logger, "Attempting dispatch of\n{}\n", request_body,);
 
-    let mut res = client
+    let res = client
         .post("/wallet/v2")
         .header(ContentType::JSON)
         .header(header)
@@ -234,7 +234,7 @@ pub fn dispatch_with_header(
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
 
-    let response_body = res.body().unwrap().into_string().unwrap();
+    let response_body = res.body().to_string().await.unwrap();
     log::info!(logger, "Got response\n{}\n", response_body);
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
@@ -257,7 +257,7 @@ pub fn dispatch_with_header_expect_error(
     assert_eq!(res.status(), expected_err);
 }
 
-pub fn dispatch_expect_error(
+pub async fn dispatch_expect_error(
     client: &Client,
     request_body: JsonValue,
     logger: &Logger,
@@ -269,7 +269,10 @@ pub fn dispatch_expect_error(
         .body(request_body.to_string())
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
-    let response_body = res.body().unwrap().into_string().unwrap();
+    let response_body = res.body().to_string().await.unwrap();
+    // let mut response_body = res.body();
+    // let response_body = response_body.to_string().await.unwrap();
+    // let response_body = res.body().to_string().await.unwrap();
     log::info!(
         logger,
         "Attempted dispatch of {:?} got response {:?}",
@@ -281,7 +284,7 @@ pub fn dispatch_expect_error(
     assert_eq!(response_json, expected_json);
 }
 
-pub fn wait_for_sync(
+pub async fn wait_for_sync(
     client: &Client,
     ledger_db: &LedgerDB,
     network_state: &Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
@@ -298,7 +301,7 @@ pub fn wait_for_sync(
             "method": "get_wallet_status",
             "id": 1,
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let status = res["result"]["wallet_status"].clone();
 
         let is_synced_all = status["is_synced_all"].as_bool().unwrap();

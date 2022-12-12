@@ -19,7 +19,7 @@ mod e2e_account {
     use serde_json::json;
 
     #[test_with_logger]
-    fn test_e2e_import_account(logger: Logger) {
+    async fn test_e2e_import_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -34,7 +34,7 @@ mod e2e_account {
                 "first_block_index": "200",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -54,7 +54,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_account_unknown_version(logger: Logger) {
+    async fn test_e2e_import_account_unknown_version(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -90,7 +90,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_account_legacy(logger: Logger) {
+    async fn test_e2e_import_account_legacy(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -104,7 +104,7 @@ mod e2e_account {
                 "first_block_index": "200",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -125,7 +125,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_account_fog(logger: Logger) {
+    async fn test_e2e_import_account_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -141,10 +141,10 @@ mod e2e_account {
                 "first_block_index": "200",
                 "fog_report_url": "fog://fog-report.example.com",
                 "fog_report_id": "",
-                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Iasync fnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -160,7 +160,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_account_legacy_fog(logger: Logger) {
+    async fn test_e2e_import_account_legacy_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -174,10 +174,10 @@ mod e2e_account {
                 "first_block_index": "200",
                 "fog_report_url": "fog://fog-report.example.com",
                 "fog_report_id": "",
-                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+                "fog_authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Iasync fnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -194,7 +194,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_e2e_import_delete_import(logger: Logger) {
+    async fn test_e2e_import_delete_import(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -208,7 +208,7 @@ mod e2e_account {
                 "first_block_index": "200",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -230,7 +230,7 @@ mod e2e_account {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true);
 
@@ -245,7 +245,7 @@ mod e2e_account {
                 "first_block_index": "200",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
@@ -253,7 +253,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_import_account_with_next_subaddress_index(logger: Logger) {
+    async fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -267,7 +267,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -282,7 +282,7 @@ mod e2e_account {
                 "metadata": "subaddress_index_2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let b58_public_address = address.get("public_address").unwrap().as_str().unwrap();
@@ -313,7 +313,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
@@ -328,7 +328,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -339,7 +339,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         manually_sync_account(
             &ledger_db,
@@ -355,7 +355,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
@@ -376,7 +376,7 @@ mod e2e_account {
                 "metadata": "subaddress_index_2",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -386,7 +386,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
@@ -403,7 +403,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -415,7 +415,7 @@ mod e2e_account {
                 "next_subaddress_index": "3",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         manually_sync_account(
             &ledger_db,
@@ -432,7 +432,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance = result.get("balance").unwrap();
         let unspent_pmob = balance.get("unspent_pmob").unwrap().as_str().unwrap();
