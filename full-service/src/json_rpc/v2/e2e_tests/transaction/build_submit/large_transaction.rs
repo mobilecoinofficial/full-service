@@ -29,7 +29,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    async fn test_large_transaction(logger: Logger) {
+    fn test_large_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -42,7 +42,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -77,7 +77,7 @@ mod e2e_transaction {
                 "amount": { "value": "10000000000000000000", "token_id": "0"}, // Ten million MOB, which is larger than i64::MAX picomob.
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -124,7 +124,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();

@@ -19,7 +19,7 @@ mod e2e_account {
     use serde_json::json;
 
     #[test_with_logger]
-    async fn test_e2e_get_balance(logger: Logger) {
+    fn test_e2e_get_balance(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -32,7 +32,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -63,7 +63,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -74,7 +74,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    async fn test_balance_for_address(logger: Logger) {
+    fn test_balance_for_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -88,7 +88,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let account_id = res["result"]["account"]["id"].as_str().unwrap();
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
 
@@ -118,7 +118,7 @@ mod e2e_account {
                 "address": b58_public_address,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -144,7 +144,7 @@ mod e2e_account {
                 "comment": "For Bob",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let from_bob_b58_public_address = result
             .get("address")
@@ -181,7 +181,7 @@ mod e2e_account {
                 "address": from_bob_b58_public_address,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();

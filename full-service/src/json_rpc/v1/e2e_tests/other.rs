@@ -16,7 +16,7 @@ mod e2e_misc {
     use serde_json::json;
 
     #[test_with_logger]
-    async fn test_wallet_status(logger: Logger) {
+    fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -28,17 +28,14 @@ mod e2e_misc {
                 "name": "Alice Main Account",
             }
         });
-        let _result = dispatch(&client, body, &logger)
-            .await
-            .get("result")
-            .unwrap();
+        let _result = dispatch(&client, body, &logger).get("result").unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "get_wallet_status",
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
         assert_eq!(status.get("network_block_height").unwrap(), "12");
@@ -67,7 +64,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    async fn test_request_with_correct_api_key(logger: Logger) {
+    fn test_request_with_correct_api_key(logger: Logger) {
         let api_key = "mobilecats";
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -89,7 +86,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    async fn test_request_with_bad_api_key(logger: Logger) {
+    fn test_request_with_bad_api_key(logger: Logger) {
         let api_key = "mobilecats";
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
