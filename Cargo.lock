@@ -1459,9 +1459,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.4"
+version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
+checksum = "bff49e947297f3312447abdca79f45f4738097cc82b06e72054d2223f601f1b9"
 dependencies = [
  "serde",
  "typenum",
@@ -2228,6 +2228,7 @@ dependencies = [
  "mc-util-serial",
  "prost",
  "rand_core 0.6.4",
+ "serde",
  "subtle",
  "zeroize",
 ]
@@ -2252,6 +2253,7 @@ dependencies = [
  "mc-attest-verifier-types",
  "mc-blockchain-types",
  "mc-common",
+ "mc-crypto-dalek",
  "mc-crypto-keys",
  "mc-crypto-multisig",
  "mc-crypto-ring-signature-signer",
@@ -2433,6 +2435,7 @@ dependencies = [
  "hex_fmt",
  "hostname",
  "lazy_static",
+ "mc-crypto-dalek",
  "mc-crypto-digestible",
  "mc-crypto-keys",
  "mc-crypto-rand",
@@ -2585,14 +2588,20 @@ dependencies = [
 name = "mc-core"
 version = "2.0.0"
 dependencies = [
+ "aes",
  "anyhow",
  "curve25519-dalek",
  "ed25519-dalek",
+ "generic-array",
  "glob 0.3.0",
  "hkdf",
  "mc-core-types",
+ "mc-crypto-dalek",
  "mc-crypto-hashes",
  "mc-crypto-keys",
+ "mc-crypto-memo-mac",
+ "mc-crypto-ring-signature",
+ "merlin",
  "sha2",
  "slip10_ed25519",
  "tiny-bip39",
@@ -2628,7 +2637,23 @@ version = "2.1.0-pre0"
 dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
+ "mc-crypto-dalek-backend-simd",
+ "mc-crypto-dalek-backend-u64",
  "x25519-dalek",
+]
+
+[[package]]
+name = "mc-crypto-dalek-backend-simd"
+version = "2.0.0"
+dependencies = [
+ "curve25519-dalek",
+]
+
+[[package]]
+name = "mc-crypto-dalek-backend-u64"
+version = "2.0.0"
+dependencies = [
+ "curve25519-dalek",
 ]
 
 [[package]]
@@ -2639,6 +2664,7 @@ dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
  "generic-array",
+ "mc-crypto-dalek",
  "mc-crypto-digestible-derive",
  "merlin",
  "x25519-dalek",
@@ -2701,6 +2727,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-crypto-memo-mac"
+version = "2.0.0"
+dependencies = [
+ "hmac",
+ "mc-crypto-keys",
+ "sha2",
+]
+
+[[package]]
 name = "mc-crypto-message-cipher"
 version = "2.1.0-pre0"
 dependencies = [
@@ -2758,9 +2793,9 @@ version = "2.1.0-pre0"
 dependencies = [
  "curve25519-dalek",
  "displaydoc",
- "hex_fmt",
- "mc-account-keys",
+ "ed25519-dalek",
  "mc-account-keys-types",
+ "mc-core-types",
  "mc-crypto-dalek",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
@@ -2780,6 +2815,7 @@ dependencies = [
 name = "mc-crypto-ring-signature-signer"
 version = "2.1.0-pre0"
 dependencies = [
+ "anyhow",
  "curve25519-dalek",
  "displaydoc",
  "generic-array",
@@ -3255,6 +3291,7 @@ dependencies = [
  "displaydoc",
  "hmac",
  "mc-account-keys",
+ "mc-crypto-dalek",
  "mc-crypto-hashes",
  "mc-crypto-keys",
  "mc-crypto-ring-signature-signer",
@@ -3289,6 +3326,7 @@ dependencies = [
  "mc-account-keys",
  "mc-common",
  "mc-crypto-box",
+ "mc-crypto-dalek",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
  "mc-crypto-keys",
@@ -3333,6 +3371,7 @@ dependencies = [
  "displaydoc",
  "hmac",
  "mc-account-keys",
+ "mc-crypto-dalek",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
  "mc-crypto-keys",
