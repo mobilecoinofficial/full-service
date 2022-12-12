@@ -48,11 +48,6 @@ lmdb-rkv = { git = "https://github.com/mozilla/lmdb-rs", rev = "df1c2f5" }
 # Fork and rename to use "OG" dalek-cryptography.
 schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git", rev = "5c98ae068ee4652d6df6463b549fbf2d5d132faa" }
 
-# Fixes the following:
-# * Allow enabling `serde/std` without also requiring `serde_cbor/std` to be enabled.
-#   See: https://github.com/pyfisch/cbor/pull/198
-serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a7c1d523aae1ec4aa7386f402cb2f4341b5" }
-
 # Fix issues with recent nightlies, bump curve25519-dalek version
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "c1966b8743d320cd07a54191475e5c0f94b2ea30" }
 
@@ -64,7 +59,6 @@ diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "026f6379
 # Override ledger requirements with local versions
 ledger-apdu = { path = "./ledger-mob/vendor/rs/ledger-apdu" }
 ledger-transport = { path = "./ledger-mob/vendor/rs/ledger-transport" }
-ledger-zondax-generic = { path = "./ledger-mob/vendor/rs/ledger-zondax-generic" }
 
 # Patch mc lib for git dependencies in ledger-mob
 mc-core = { path = "./mobilecoin/core" }

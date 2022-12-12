@@ -7481,12 +7481,3 @@ dependencies = [
  "syn 1.0.105",
  "synstructure",
 ]
-
-[[patch.unused]]
-name = "ledger-zondax-generic"
-version = "0.10.0"
-
-[[patch.unused]]
-name = "serde_cbor"
-version = "0.11.1"
-source = "git+https://github.com/mobilecoinofficial/cbor?rev=4c886a7c1d523aae1ec4aa7386f402cb2f4341b5#4c886a7c1d523aae1ec4aa7386f402cb2f4341b5"
