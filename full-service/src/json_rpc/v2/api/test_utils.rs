@@ -198,7 +198,7 @@ pub fn setup_with_api_key(
     )
 }
 
-pub async fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
+pub fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger) -> JsonValue {
     log::info!(logger, "Attempting dispatch of\n{:?}\n", request_body,);
     let request_body = request_body.to_string();
 
@@ -209,14 +209,14 @@ pub async fn dispatch(client: &Client, request_body: JsonValue, logger: &Logger)
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
 
-    let response_body = res.body().to_string().await.unwrap();
+    let response_body = res.into_string().unwrap();
     log::info!(logger, "Got response\n{}\n", response_body);
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
     res
 }
 
-pub async fn dispatch_with_header(
+pub fn dispatch_with_header(
     client: &Client,
     request_body: JsonValue,
     header: Header<'static>,
@@ -234,7 +234,7 @@ pub async fn dispatch_with_header(
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
 
-    let response_body = res.body().to_string().await.unwrap();
+    let response_body = res.into_string().unwrap();
     log::info!(logger, "Got response\n{}\n", response_body);
 
     let res: JsonValue = serde_json::from_str(&response_body).unwrap();
@@ -257,22 +257,20 @@ pub fn dispatch_with_header_expect_error(
     assert_eq!(res.status(), expected_err);
 }
 
-pub async fn dispatch_expect_error(
+pub fn dispatch_expect_error(
     client: &Client,
     request_body: JsonValue,
     logger: &Logger,
     expected_err: String,
 ) {
-    let mut res = client
+    let res = client
         .post("/wallet/v2")
         .header(ContentType::JSON)
         .body(request_body.to_string())
         .dispatch();
     assert_eq!(res.status(), Status::Ok);
-    let response_body = res.body().to_string().await.unwrap();
-    // let mut response_body = res.body();
-    // let response_body = response_body.to_string().await.unwrap();
-    // let response_body = res.body().to_string().await.unwrap();
+    let response_body = res.into_string().unwrap();
+
     log::info!(
         logger,
         "Attempted dispatch of {:?} got response {:?}",
@@ -284,7 +282,7 @@ pub async fn dispatch_expect_error(
     assert_eq!(response_json, expected_json);
 }
 
-pub async fn wait_for_sync(
+pub fn wait_for_sync(
     client: &Client,
     ledger_db: &LedgerDB,
     network_state: &Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
@@ -301,7 +299,7 @@ pub async fn wait_for_sync(
             "method": "get_wallet_status",
             "id": 1,
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let status = res["result"]["wallet_status"].clone();
 
         let is_synced_all = status["is_synced_all"].as_bool().unwrap();

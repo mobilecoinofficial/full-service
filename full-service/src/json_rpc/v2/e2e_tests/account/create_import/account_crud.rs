@@ -12,7 +12,7 @@ mod e2e_account {
     use serde_json::json;
 
     #[test_with_logger]
-    async fn test_e2e_account_crud(logger: Logger) {
+    fn test_e2e_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -25,7 +25,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             },
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
 
         let result = res.get("result").unwrap();
@@ -46,7 +46,7 @@ mod e2e_account {
             "method": "get_accounts",
             "params": {}
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 1);
@@ -68,7 +68,7 @@ mod e2e_account {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Alice Main Account", name.as_str().unwrap());
@@ -85,7 +85,7 @@ mod e2e_account {
                 "name": "Eve Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         assert_eq!(
             result.get("account").unwrap().get("name").unwrap(),
@@ -100,7 +100,7 @@ mod e2e_account {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let name = result.get("account").unwrap().get("name").unwrap();
         assert_eq!("Eve Main Account", name.as_str().unwrap());
@@ -114,7 +114,7 @@ mod e2e_account {
                 "account_id": *account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         assert_eq!(result["removed"].as_bool().unwrap(), true,);
 
@@ -124,14 +124,14 @@ mod e2e_account {
             "method": "get_accounts",
             "params": {}
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let accounts = result.get("account_ids").unwrap().as_array().unwrap();
         assert_eq!(accounts.len(), 0);
     }
 
     #[test_with_logger]
-    async fn test_e2e_create_account_with_fog(logger: Logger) {
+    fn test_e2e_create_account_with_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
         // Create Account
@@ -144,12 +144,12 @@ mod e2e_account {
                 "fog_info": {
                     "report_url": "fog://fog-report.example.com",
                     "report_id": "",
-                    "authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Iasync fnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+                    "authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
                 }
             },
         });
 
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         assert_eq!(res.get("jsonrpc").unwrap(), "2.0");
 
         let result = res.get("result").unwrap();

@@ -22,7 +22,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    async fn test_build_then_submit_transaction(logger: Logger) {
+    fn test_build_then_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -35,7 +35,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -120,7 +120,7 @@ mod e2e_transaction {
                 "value_pmob": "42000000000000", // 42.0 MOB
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
         let tx = tx_proposal.get("tx").unwrap();
@@ -179,7 +179,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status
@@ -199,7 +199,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_id = result
             .get("transaction_log")
@@ -235,7 +235,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status
@@ -274,7 +274,7 @@ mod e2e_transaction {
                 "transaction_log_id": transaction_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_log = result.get("transaction_log").unwrap();
         assert_eq!(
@@ -328,7 +328,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_log_ids = result
             .get("transaction_log_ids")
@@ -381,7 +381,7 @@ mod e2e_transaction {
             "id": 1,
             "method": "get_all_transaction_logs_ordered_by_block",
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let transaction_log_map = result
             .get("transaction_log_map")

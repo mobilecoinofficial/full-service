@@ -25,7 +25,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    async fn test_tx_status_failed_when_tombstone_block_index_exceeded(logger: Logger) {
+    fn test_tx_status_failed_when_tombstone_block_index_exceeded(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -38,7 +38,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -93,7 +93,7 @@ mod e2e_transaction {
                 "tombstone_block": "16",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_log = result.get("transaction_log").unwrap();
         let tx_log_status = tx_log.get("status").unwrap();
@@ -126,7 +126,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status
@@ -178,7 +178,7 @@ mod e2e_transaction {
                 "transaction_log_id": tx_log_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_log = result.get("transaction_log").unwrap();
         let tx_log_status = tx_log.get("status").unwrap();
@@ -194,7 +194,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status
@@ -214,7 +214,7 @@ mod e2e_transaction {
     }
 
     #[test_with_logger]
-    async fn test_received_transaction_log(logger: Logger) {
+    fn test_received_transaction_log(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -227,7 +227,7 @@ mod e2e_transaction {
                 "name": "",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -259,7 +259,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_log_id = result
             .get("transaction_log_ids")
@@ -310,7 +310,7 @@ mod e2e_transaction {
     }
 
     #[test_with_logger]
-    async fn test_paginate_transactions(logger: Logger) {
+    fn test_paginate_transactions(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -323,7 +323,7 @@ mod e2e_transaction {
                 "name": "",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -358,7 +358,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let txos_all = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos_all.len(), 10);
@@ -373,7 +373,7 @@ mod e2e_transaction {
                 "limit": "5",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let txos_page = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos_page.len(), 5);
@@ -389,7 +389,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_logs_all = result
             .get("transaction_log_ids")
@@ -408,7 +408,7 @@ mod e2e_transaction {
                 "limit": "6",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_logs_page = result
             .get("transaction_log_ids")
@@ -421,7 +421,7 @@ mod e2e_transaction {
     }
 
     #[test_with_logger]
-    async fn test_receipts(logger: Logger) {
+    fn test_receipts(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -434,7 +434,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -466,7 +466,7 @@ mod e2e_transaction {
                 "name": "Bob Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let bob_account_obj = result.get("account").unwrap();
         let bob_account_id = bob_account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -487,7 +487,7 @@ mod e2e_transaction {
                 "value_pmob": "42000000000000", // 42 MOB
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let tx_proposal = result.get("tx_proposal").unwrap();
 
@@ -500,7 +500,7 @@ mod e2e_transaction {
                 "tx_proposal": tx_proposal
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let receipts = result["receiver_receipts"].as_array().unwrap();
         assert_eq!(receipts.len(), 1);
@@ -516,7 +516,7 @@ mod e2e_transaction {
                 "receiver_receipt": receipt,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result["receipt_transaction_status"].as_str().unwrap();
         assert_eq!(status, "TransactionPending");
@@ -553,7 +553,7 @@ mod e2e_transaction {
                 "receiver_receipt": receipt,
             }
         });
-        let res = dispatch(&client, body, &logger).await;
+        let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let status = result["receipt_transaction_status"].as_str().unwrap();
         assert_eq!(status, "TransactionSuccess");
