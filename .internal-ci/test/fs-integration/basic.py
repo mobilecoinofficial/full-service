@@ -26,30 +26,9 @@ fs = v2()
 
 
 class TestUtils:
-    # may be scuffed 
     async def wait_for_account_sync(self):
-        print("Checking if all accounts are synced...")
-        initial_response = str(
-            (await fs.get_wallet_status())
-            .get("result")
-            .get("wallet_status")
-            .get("is_synced_all")
-        )
-        if initial_response == "True":
-            print("Accounts are synced!")
-            return
-        else:
-            while str(initial_response) != "True":
-                await asyncio.sleep(15)
-                print("Waiting for accounts to sync...")
-                if str(
-                        (await fs.get_wallet_status())
-                        .get("result")
-                        .get("wallet_status")
-                        .get("is_synced_all")
-                    ) == "True":
-                        print("Accounts are synced!")
-                        break
+        while (await fs.get_wallet_status())['result']['wallet_status']['is_synced_all'] != True:
+            await asyncio.sleep(sleepy_time)  
                 
 
     async def wait_two_blocks(self):
