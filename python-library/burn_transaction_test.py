@@ -2,6 +2,8 @@ import asyncio
 import subprocess
 import sys
 from fullservice import FullServiceAPIv2 as v2
+import pytest
+
 
 repo_root_dir = (
     subprocess.check_output("git rev-parse --show-toplevel", shell=True)
@@ -16,12 +18,11 @@ from basic import TestUtils as Utils
 
 fs = v2()
 
-
+@pytest.mark.asyncio
 async def test_burn_transaction(amount_pmob: int = 600000000):
-    # await Utils.clean()
-    # await Utils.wait_for_account_sync()
+    utils = Utils()
     Utils.get_mnemonics()
-    alice = await Utils.init_test_accounts(0, "alice", True)
+    alice = await utils.init_test_accounts(0, "alice", True)
 
     balance_before = int(
         (await fs.get_account_status(alice.id))
@@ -39,7 +40,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     print(type(burn_tx.get("result").get("tx_proposal")))
 
     await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
-    await Utils.wait_two_blocks()
+    await utils.wait_two_blocks()
     balance_after = int(
         (await fs.get_account_status(alice.id))
         .get("result")
