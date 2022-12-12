@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import pytest 
+
 repo_root_dir = (
     subprocess.check_output("git rev-parse --show-toplevel", shell=True)
     .decode("utf8")
@@ -26,7 +27,7 @@ fs = v2()
 
 class TestUtils:
     # may be scuffed 
-    async def wait_for_account_sync():
+    async def wait_for_account_sync(self):
         print("Checking if all accounts are synced...")
         initial_response = str(
             (await fs.get_wallet_status())
@@ -51,7 +52,7 @@ class TestUtils:
                         break
                 
 
-    async def wait_two_blocks():
+    async def wait_two_blocks(self):
         print("Waiting for next block")
         # network_status = await fs.get_network_status()
         starting_block_height = int(
@@ -71,7 +72,7 @@ class TestUtils:
             print("Waiting for next block...")
             
 
-    async def clean():
+    async def clean(self):
         """This function will remove all of your accounts!! Be careful!"""
         print("Cleaning up accounts")
         accounts = await fs.get_accounts()
@@ -84,9 +85,9 @@ class TestUtils:
     # artifacts in the FS instance. We clean up those residual artifacts here.
     # Note: Using a testing framework like pytest would allow us to bundle this in
     # a test fixture
-    async def preclean_this_test():
-        await TestUtils.init_test_accounts(0, "alice", True)
-        await TestUtils.init_test_accounts(1, "bob", True)
+    async def preclean_this_test(self):
+        await self.init_test_accounts(0, "alice", True)
+        await self.init_test_accounts(1, "bob", True)
 
     def get_mnemonics(n=2):
         if n > len(config["Account Mnemonics"]):
@@ -94,7 +95,7 @@ class TestUtils:
         return config["Account Mnemonics"][:n]
 
     # test functions should be named differently from FS endpoint functions 
-    async def init_test_accounts(index, name="", already_imported=False):
+    async def init_test_accounts(self, index, name="", already_imported=False):
         print(index)
         mnemonic = config["Account Mnemonics"][index]["mnemonic"]
         account = await fs.import_account(
@@ -131,6 +132,7 @@ async def test_main():
 
 @pytest.mark.asyncio
 async def does_it_go(amount_pmob: int = 600000000) -> bool:
+    testutils = TestUtils()
     network_status = await fs.get_network_status()
     assert "error" not in network_status.keys(), "Failed to get network status"
     fee = int(
@@ -145,10 +147,10 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
 
     # await preclean_this_test()
 
-    alice = await TestUtils.init_test_accounts(0, "alice", True)
-    bob = await TestUtils.init_test_accounts(1, "bob", True)
+    alice = await testutils.init_test_accounts(0, "alice", True)
+    bob = await testutils.init_test_accounts(1, "bob", True)
 
-    await TestUtils.wait_for_account_sync()
+    await testutils.wait_for_account_sync()
     
 
     alice_balance_0 = int(
@@ -176,7 +178,7 @@ async def does_it_go(amount_pmob: int = 600000000) -> bool:
     )
 
     # TODO: replace this with a poll loop that waits a block or two
-    await TestUtils.wait_two_blocks()
+    await testutils.wait_two_blocks()
 
     """ Check Results """
     alice_balance_1 = int(
