@@ -180,7 +180,7 @@ impl Txo {
         if let Some(account_id) = &txo.account_id {
             account_status_map.insert(
                 account_id.clone(),
-                json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}).into(),
+                json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}),
             );
         }
 
