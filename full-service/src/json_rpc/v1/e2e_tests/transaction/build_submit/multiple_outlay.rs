@@ -22,7 +22,7 @@ mod e2e_transaction {
     use std::convert::TryFrom;
 
     #[test_with_logger]
-    fn test_multiple_outlay_transaction(logger: Logger) {
+    async fn test_multiple_outlay_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -35,7 +35,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let alice_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -50,7 +50,7 @@ mod e2e_transaction {
                 "name": "Bob Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let bob_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -64,7 +64,7 @@ mod e2e_transaction {
                 "name": "Charlie Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let charlie_account_id = account_obj.get("account_id").unwrap().as_str().unwrap();
@@ -99,7 +99,7 @@ mod e2e_transaction {
                 ]
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
 
         let tx_proposal = result.get("tx_proposal").unwrap();
@@ -147,7 +147,7 @@ mod e2e_transaction {
                 "account_id": alice_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let alice_unspent = balance_status
@@ -165,7 +165,7 @@ mod e2e_transaction {
                 "account_id": bob_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let bob_unspent = balance_status
@@ -183,7 +183,7 @@ mod e2e_transaction {
                 "account_id": charlie_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let charlie_unspent = balance_status
@@ -204,7 +204,7 @@ mod e2e_transaction {
                 "account_id": alice_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let transaction_id = result
             .get("transaction_log")
@@ -252,7 +252,7 @@ mod e2e_transaction {
                 "account_id": alice_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let unspent = balance_status
@@ -270,7 +270,7 @@ mod e2e_transaction {
                 "account_id": bob_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let bob_unspent = balance_status
@@ -288,7 +288,7 @@ mod e2e_transaction {
                 "account_id": charlie_account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_status = result.get("balance").unwrap();
         let charlie_unspent = balance_status
@@ -307,7 +307,7 @@ mod e2e_transaction {
                 "transaction_log_id": transaction_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let transaction_log = result.get("transaction_log").unwrap();
         assert_eq!(

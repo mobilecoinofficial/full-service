@@ -38,7 +38,7 @@ mod e2e_transaction {
     use std::convert::{TryFrom, TryInto};
 
     #[test_with_logger]
-    fn test_build_and_submit_transaction(logger: Logger) {
+    async fn test_build_and_submit_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -51,7 +51,7 @@ mod e2e_transaction {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -103,7 +103,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -129,7 +129,7 @@ mod e2e_transaction {
                 "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal: TxProposalJSON =
             serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
@@ -185,7 +185,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -232,7 +232,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -272,7 +272,7 @@ mod e2e_transaction {
                 "fee_token_id": "0",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let err = res.get("error");
         assert!(err.is_some());
 
@@ -286,7 +286,7 @@ mod e2e_transaction {
                 "amount": { "value": "500000000000", "token_id": "1" }
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let tx_proposal: TxProposalJSON =
             serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
@@ -322,7 +322,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
 
@@ -368,7 +368,7 @@ mod e2e_transaction {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
 

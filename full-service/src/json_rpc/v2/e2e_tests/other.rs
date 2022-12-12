@@ -23,7 +23,7 @@ mod e2e_misc {
     use serde_json::json;
 
     #[test_with_logger]
-    fn test_wallet_status(logger: Logger) {
+    async fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -35,14 +35,17 @@ mod e2e_misc {
                 "name": "Alice Main Account",
             }
         });
-        let _result = dispatch(&client, body, &logger).get("result").unwrap();
+        let _result = dispatch(&client, body, &logger)
+            .await
+            .get("result")
+            .unwrap();
 
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "get_wallet_status",
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let status = result.get("wallet_status").unwrap();
         assert_eq!(status.get("network_block_height").unwrap(), "12");
@@ -56,7 +59,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_request_with_correct_api_key(logger: Logger) {
+    async fn test_request_with_correct_api_key(logger: Logger) {
         let api_key = "mobilecats";
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -74,11 +77,11 @@ mod e2e_misc {
 
         let header = Header::new("X-API-KEY", api_key);
 
-        dispatch_with_header(&client, body, header, &logger);
+        dispatch_with_header(&client, body, header, &logger).await;
     }
 
     #[test_with_logger]
-    fn test_request_with_bad_api_key(logger: Logger) {
+    async fn test_request_with_bad_api_key(logger: Logger) {
         let api_key = "mobilecats";
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -100,7 +103,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_get_network_status(logger: Logger) {
+    async fn test_get_network_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -109,7 +112,7 @@ mod e2e_misc {
             "id": 1,
             "method": "get_network_status"
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let status = result.get("network_status").unwrap();
         assert_eq!(status.get("network_block_height").unwrap(), "12");
@@ -127,7 +130,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_get_txo_block_index(logger: Logger) {
+    async fn test_get_txo_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
@@ -154,7 +157,7 @@ mod e2e_misc {
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger).await;
 
         // A valid public key on the ledger
         let public_key = hex::encode(tx_out.public_key.as_bytes());
@@ -167,7 +170,7 @@ mod e2e_misc {
                 "public_key": public_key
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         assert_eq!(result.get("block_index").unwrap(), "13");
 
@@ -182,7 +185,7 @@ mod e2e_misc {
                 "public_key": target_key
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         assert_eq!(
             error.get("data").unwrap().get("server_error").unwrap(),
@@ -191,7 +194,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_get_block_by_txo_public_key(logger: Logger) {
+    async fn test_get_block_by_txo_public_key(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
@@ -218,7 +221,7 @@ mod e2e_misc {
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+        wait_for_sync(&client, &ledger_db, &network_state, &logger).await;
 
         // A valid public key on the ledger
         let public_key = hex::encode(tx_out.public_key.as_bytes());
@@ -231,7 +234,7 @@ mod e2e_misc {
                 "txo_public_key": public_key
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let block = result.get("block").unwrap();
 
@@ -248,7 +251,7 @@ mod e2e_misc {
                 "public_key": target_key
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         assert_eq!(
             error.get("data").unwrap().get("server_error").unwrap(),
@@ -257,7 +260,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_get_block_by_block_index(logger: Logger) {
+    async fn test_get_block_by_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _, _, _) = setup(&mut rng, logger.clone());
 
@@ -270,7 +273,7 @@ mod e2e_misc {
                 "block_index": "11"
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let block = result.get("block").unwrap();
 
@@ -285,7 +288,7 @@ mod e2e_misc {
                 "block_index": "13"
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
 
         assert_eq!(
@@ -295,7 +298,7 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
-    fn test_no_wallet_db(logger: Logger) {
+    async fn test_no_wallet_db(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) =
             setup_no_wallet_db(&mut rng, logger.clone());
@@ -307,7 +310,7 @@ mod e2e_misc {
             "method": "get_accounts",
             "params": {},
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         let data = error.get("data").unwrap();
         assert_eq!(
@@ -321,7 +324,7 @@ mod e2e_misc {
             "id": 1,
             "method": "get_network_status"
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
 
         // Check that we got a result! (We don't really care what it is, just that it's
         // working)

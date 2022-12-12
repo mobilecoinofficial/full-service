@@ -23,7 +23,7 @@ mod e2e_account {
     use serde_json::json;
 
     #[test_with_logger]
-    fn test_import_account_with_next_subaddress_index(logger: Logger) {
+    async fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -37,7 +37,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -52,7 +52,7 @@ mod e2e_account {
                 "metadata": "subaddress_index_2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let b58_public_address = address.get("public_address_b58").unwrap().as_str().unwrap();
@@ -83,7 +83,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -99,7 +99,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -110,7 +110,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         manually_sync_account(
             &ledger_db,
@@ -126,7 +126,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -148,7 +148,7 @@ mod e2e_account {
                 "metadata": "subaddress_index_2",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -158,7 +158,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -176,7 +176,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -188,7 +188,7 @@ mod e2e_account {
                 "next_subaddress_index": "3",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         manually_sync_account(
             &ledger_db,
@@ -205,7 +205,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let balance_per_token = result.get("balance_per_token").unwrap();
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
@@ -217,7 +217,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_paginate_assigned_addresses(logger: Logger) {
+    async fn test_paginate_assigned_addresses(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -230,7 +230,7 @@ mod e2e_account {
                 "name": "",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -246,7 +246,7 @@ mod e2e_account {
                     "metadata": "subaddress_index_2",
                 }
             });
-            dispatch(&client, body, &logger);
+            dispatch(&client, body, &logger).await;
         }
 
         // Check that we can paginate address output.
@@ -258,7 +258,7 @@ mod e2e_account {
                 "account_id": account_id,
             },
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let addresses_all = result.get("public_addresses").unwrap().as_array().unwrap();
         assert_eq!(addresses_all.len(), 13); // Accounts start with 3 addresses, then we created 10.
@@ -273,7 +273,7 @@ mod e2e_account {
                 "limit": 4,
             },
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let addresses_page = result.get("public_addresses").unwrap().as_array().unwrap();
         assert_eq!(addresses_page.len(), 4);
@@ -281,7 +281,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_next_subaddress_fails_with_fog(logger: Logger) {
+    async fn test_next_subaddress_fails_with_fog(logger: Logger) {
         use crate::db::WalletDbError::SubaddressesNotSupportedForFOGEnabledAccounts as subaddress_error;
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -297,12 +297,12 @@ mod e2e_account {
                 "fog_info": {
                     "report_url": "fog://fog-report.example.com",
                     "report_id": "",
-                    "authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
+                    "authority_spki": "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Iasync fnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
                 }
             },
         });
 
-        let creation_res = dispatch(&client, body, &logger);
+        let creation_res = dispatch(&client, body, &logger).await;
         let creation_result = creation_res.get("result").unwrap();
         let account_obj = creation_result.get("account").unwrap();
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
@@ -318,7 +318,7 @@ mod e2e_account {
                 "metadata": "subaddress_index_2",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         let data = error.get("data").unwrap();
         let details = data.get("details").unwrap();
@@ -326,7 +326,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_create_assigned_subaddress(logger: Logger) {
+    async fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -339,7 +339,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_id = result
             .get("account")
@@ -359,7 +359,7 @@ mod e2e_account {
                 "comment": "For Bob",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let b58_public_address = result
             .get("address")
@@ -394,7 +394,7 @@ mod e2e_account {
                 "account_id": account_id,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let txos = result.get("txo_ids").unwrap().as_array().unwrap();
         assert_eq!(txos.len(), 1);
@@ -409,7 +409,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_get_address_for_account(logger: Logger) {
+    async fn test_get_address_for_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -422,7 +422,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let account_id = result
             .get("account")
@@ -441,7 +441,7 @@ mod e2e_account {
                 "index": 2,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         let code = error.get("code").unwrap();
         assert_eq!(code, -32603);
@@ -456,7 +456,7 @@ mod e2e_account {
                 "comment": "test",
             }
         });
-        dispatch(&client, body, &logger);
+        dispatch(&client, body, &logger).await;
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -467,7 +467,7 @@ mod e2e_account {
                 "index": 2,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let address = result.get("address").unwrap();
         let subaddress_index = address.get("subaddress_index").unwrap().as_str().unwrap();
@@ -476,7 +476,7 @@ mod e2e_account {
     }
 
     #[test_with_logger]
-    fn test_verify_address(logger: Logger) {
+    async fn test_verify_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -489,7 +489,7 @@ mod e2e_account {
                 "address": "NOTVALIDB58",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let error = res.get("error").unwrap();
         let data = error.get("data").unwrap();
         assert_eq!("B58(PrintableWrapper(B58(\"provided string contained invalid character 'O' at byte 1\")))", data.get("server_error").unwrap().as_str().unwrap());
@@ -503,7 +503,7 @@ mod e2e_account {
                 "name": "Alice Main Account",
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
         let public_address_json = PublicAddress::from(&public_address);
@@ -516,7 +516,7 @@ mod e2e_account {
                 "address": b58_public_address,
             }
         });
-        let res = dispatch(&client, body, &logger);
+        let res = dispatch(&client, body, &logger).await;
         let result = res.get("result").unwrap();
         let details = result.get("details").unwrap();
         let public_address_details: PublicAddress =
