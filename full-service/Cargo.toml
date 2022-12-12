@@ -45,6 +45,8 @@ mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
+ledger-mob = { path = "../ledger-mob/lib" }
+
 base64 = "0.13.1"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.0", features = ["derive", "env"] }

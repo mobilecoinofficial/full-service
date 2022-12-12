@@ -12,6 +12,7 @@ members = [
 ]
 exclude = [
     "mobilecoin",
+    "ledger-mob",
 ]
 
 [profile.dev]
@@ -59,3 +60,21 @@ x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git
 # statically link SQLite.
 # If updating here, also update in README
 diesel = { git = "https://github.com/mobilecoinofficial/diesel", rev = "026f6379715d27c8be48396e5ca9059f4a263198" }
+
+# Override ledger requirements with local versions
+ledger-apdu = { path = "./ledger-mob/vendor/rs/ledger-apdu" }
+ledger-transport = { path = "./ledger-mob/vendor/rs/ledger-transport" }
+ledger-zondax-generic = { path = "./ledger-mob/vendor/rs/ledger-zondax-generic" }
+
+# Patch mc lib for git dependencies in ledger-mob
+mc-core = { path = "./mobilecoin/core" }
+mc-crypto-dalek = { path ="./mobilecoin/crypto/dalek" }
+mc-crypto-digestible = { path ="./mobilecoin/crypto/digestible" }
+mc-crypto-hashes = { path ="./mobilecoin/crypto/hashes" }
+mc-crypto-keys = { path ="./mobilecoin/crypto/keys" }
+mc-crypto-memo-mac = { path ="./mobilecoin/crypto/memo-mac" }
+mc-crypto-ring-signature = { path ="./mobilecoin/crypto/ring-signature" }
+mc-crypto-ring-signature-signer = { path ="./mobilecoin/crypto/ring-signature/signer" }
+mc-transaction-core = { path = "./mobilecoin/transaction/core" }
+mc-transaction-signer = { path = "./mobilecoin/transaction/signer" }
+mc-util-from-random = { path = "./mobilecoin/util/from-random" }
