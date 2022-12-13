@@ -36,14 +36,12 @@ use structopt::StructOpt;
     about = "MobileCoin offline transaction signer"
 )]
 enum Opts {
-    /// Generate an account, save the mnemonic and the request to import
-    /// the view only account. 
+    /// Generate an account, save the mnemonic and the request to import the view only account. 
     Create {
         #[structopt(short, long)]
         name: Option<String>,
     },
-    /// Import an account, save the nmemonic and the request to import 
-    /// the view only account.
+    /// Import an account, save the nmemonic and the request to import the view only account.
     Import {
         #[structopt(short, long)]
         name: Option<String>,
