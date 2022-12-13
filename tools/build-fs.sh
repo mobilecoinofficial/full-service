@@ -59,6 +59,7 @@ case ${net} in
     test|prod|main)
         check_xcode
         echo "Setting '${net}' SGX, IAS and enclave values"
+        
         # CBB: we should replicate the "prod" css bucket to "main", then we can
         #      get rid of this workaround.
         if [[ "${net}" == "main" ]]
