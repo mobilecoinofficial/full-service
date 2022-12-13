@@ -56,7 +56,7 @@ check_xcode() {
       exit 1
     fi
   else
-    echo "This is not a macOS system, so Xcode is not applicable"
+    echo 
   fi
 }
 
