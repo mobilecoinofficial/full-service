@@ -36,25 +36,30 @@ use structopt::StructOpt;
     about = "MobileCoin offline transaction signer"
 )]
 enum Opts {
+    /// Generate an account, save the mnemonic and the request to import the view only account. 
     Create {
         #[structopt(short, long)]
         name: Option<String>,
     },
+    /// Import an account, save the nmemonic and the request to import the view only account.
     Import {
         #[structopt(short, long)]
         name: Option<String>,
         mnemonic: String,
     },
+    /// Sync txos with a mnemonic and a sync request.
     r#Sync {
         secret_mnemonic: String,
         sync_request: String,
         #[structopt(short, long, default_value = "1000")]
         subaddresses: u64,
     },
+    /// Sign a transaction and save the request to submit the transaction. 
     Sign {
         secret_mnemonic: String,
         request: String,
     },
+    /// Generate a request to import a view-only account from a secret mnemonic.
     ViewOnlyImportPackage {
         secret_mnemonic: String,
     },
