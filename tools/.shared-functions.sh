@@ -3,7 +3,6 @@
 # Set of shared functions for full-service build, test and run tools.
 
 
-
 # debug - echo a debug message
 #  1: message
 debug()
@@ -44,3 +43,20 @@ get_css_file()
     debug "  css file saved ${css_file}"
     echo "${css_file}"
 }
+
+
+check_xcode() {
+  if [[ $(uname) == "Darwin" ]]; then
+    xcode_version=$(xcodebuild -version | grep "Xcode" | awk '{print $2}' | sed 's/[.].*//')
+    minimum_xcode_version=12
+    if [[ $(printf '%s\n' "$xcode_version" "$minimum_xcode_version" | sort -V | head -n1) == "$xcode_version" ]]; then
+      echo
+    else
+      echo "Xcode version $xcode_version is not supported. Use xcode-select to switch to $minimum_xcode_version."
+      exit 1
+    fi
+  else
+    echo "This is not a macOS system, so Xcode is not applicable"
+  fi
+}
+
