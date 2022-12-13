@@ -1,6 +1,6 @@
 ## Full Service Python API ( soon ™️  to be CLI as well )
 
-To get started, you can do 'poetry install --no-dev' and 'poetry shell' to set up an enviornment. 
+To get started, you can do 'poetry install --no-dev' and 'poetry shell' to set up an environment. 
 
 Here is a simple example of usage: 
 
