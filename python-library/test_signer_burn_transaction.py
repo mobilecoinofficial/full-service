@@ -4,7 +4,9 @@ import sys
 from fullservice import FullServiceAPIv2 as v2
 import pytest
 import os
-import transaction_signer_lib
+import transaction_signer_lib as signer 
+import io
+from contextlib import redirect_stdout
 
 repo_root_dir = (
     subprocess.check_output("git rev-parse --show-toplevel", shell=True)
@@ -25,9 +27,14 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     Utils.get_mnemonics()
     alice = await utils.init_test_accounts(0, "alice", True)
     alice_export = await fs.export_account_secrets(alice.id)
-    entropy = alice_export.get("result").get("account_secrets").get("mnemonic").removeprefix('(').removesuffix(')')
-
-    transaction_signer_lib.create_account(name="alice", mnemonic=entropy)
+    entropy = alice_export.get("result").get("account_secrets").get("mnemonic").removeprefix('(').removesuffix(')') # clean up entropy response 
+    # grab json output 
+    file = io.StringIO()
+    with redirect_stdout(file):
+        signer.create_account(name="alice", mnemonic=entropy)
+    output = file.getvalue(
+    ).splitlines()[1] 
+    print(output)
 
     # balance_before = int(
     #     (await fs.get_account_status(alice.id))
@@ -36,12 +43,13 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     #     .get("0")
     #     .get("unspent")
     # )
-    # os.system("../target/release/transaction-signer import ")
 
     # unsigned_burn_tx = await fs.build_unsigned_burn_transaction(
     #     alice.id,
     #     amount={"value": str(amount_pmob), "token_id": str(0)},
     # )
+    # secret_mnemonic = os.open
+    # signer.sign_transaction(secret_mnemonic)
 
     # print(type(unsigned_burn_tx.get("result").get("tx_proposal")))
 
