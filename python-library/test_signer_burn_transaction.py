@@ -45,9 +45,6 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     with open("transaction_request.json", "w") as outfile:
         outfile.write(to_json)
     
-    await asyncio.sleep(3)
-    
-
     signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
     print("\n\n\n\n")
     # print(type(unsigned_burn_tx.get("result").get("tx_proposal")))
