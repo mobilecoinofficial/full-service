@@ -1,7 +1,7 @@
 import asyncio
 import subprocess
 import sys
-from fullservice import FullServiceAPIv2 as v2
+from ..fullservice import FullServiceAPIv2 as v2
 import pytest
 
 
