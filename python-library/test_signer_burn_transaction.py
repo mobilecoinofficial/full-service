@@ -26,7 +26,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     alice = await utils.init_test_accounts(0, "alice", True)
     alice_export = await fs.export_account_secrets(alice.id)
     entropy = alice_export.get("result").get("account_secrets").get("mnemonic").removeprefix('(').removesuffix(')') # clean up entropy response 
-    signer.create_account(name="alice", mnemonic=entropy)
+    # signer.create_account(name="alice", mnemonic=entropy)
 
     balance_before = int(
         (await fs.get_account_status(alice.id))
@@ -35,14 +35,16 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .get("0")
         .get("unspent")
     )
-
-    unsigned_burn_tx = await fs.build_unsigned_burn_transaction(
-        alice.id,
-        amount={"value": str(amount_pmob), "token_id": str(0)},
-    )
-    secret_mnemonic = json.load(open(f"mobilecoin_secret_mnemonic_01eb4f.json"))
-    signer.sign_transaction(secret_mnemonic)
-
+    
+    with open('transaction_request.json', 'w') as output:
+        unsigned_burn_tx_request = await fs.build_unsigned_burn_transaction(
+            alice.id,
+            amount={"value": str(amount_pmob), "token_id": str(0)},
+        )
+        json.dump(unsigned_burn_tx_request, output)
+    
+    signer.sign_transaction(secret_mnemonic="01eb4f.json", sign_request=unsigned_burn_tx)
+    print("\n\n\n\n")
     # print(type(unsigned_burn_tx.get("result").get("tx_proposal")))
 
     # await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
