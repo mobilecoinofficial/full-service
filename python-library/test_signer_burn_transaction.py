@@ -45,7 +45,8 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     with open("transaction_request.json", "w") as outfile:
         outfile.write(to_json)
     
-    signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
+    # TODO: get first five of account ID to use 
+    # signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
 
     with open("transaction_request.json_completed.json", "r") as infile:
         signed_tx: dict = json.load(infile)
