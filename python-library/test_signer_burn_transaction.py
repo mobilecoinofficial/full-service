@@ -46,21 +46,20 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         outfile.write(to_json)
     
     signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
-    print("\n\n\n\n")
-    # print(type(unsigned_burn_tx.get("result").get("tx_proposal")))
 
-    # await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
-    # await utils.wait_two_blocks()
-    # balance_after = int(
-    #     (await fs.get_account_status(alice.id))
-    #     .get("result")
-    #     .get("balance_per_token")
-    #     .get("0")
-    #     .get("unspent")
-    # )
-    # print(balance_before, balance_after)
-    # assert balance_before > balance_after, "Burn transaction failed"
-    # exit
+
+    await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
+    await utils.wait_two_blocks()
+    balance_after = int(
+        (await fs.get_account_status(alice.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
+    print(balance_before, balance_after)
+    assert balance_before > balance_after, "Burn transaction failed"
+    exit
 
 
 asyncio.run(test_burn_transaction())
