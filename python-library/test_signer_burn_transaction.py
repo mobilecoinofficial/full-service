@@ -40,7 +40,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         amount={"value": str(amount_pmob), "token_id": str(0)},
     ) 
     
-    to_json = json.dumps(unsigned_burn_tx_request, indent=4)
+    to_json = json.dumps(unsigned_burn_tx_request.get("result"), indent=4)
     
     with open("transaction_request.json", "w") as outfile:
         outfile.write(to_json)
