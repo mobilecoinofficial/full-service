@@ -27,7 +27,8 @@ use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_core::keys::{RootSpendPublic, RootViewPrivate};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::ring_signature::KeyImage;
@@ -208,8 +209,8 @@ pub trait AccountService {
     ///
     fn import_view_only_account(
         &self,
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -479,8 +480,8 @@ where
 
     fn import_view_only_account(
         &self,
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -497,8 +498,8 @@ where
 
         transaction(&conn, || {
             Ok(Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
+                view_private_key,
+                spend_public_key,
                 name,
                 import_block_index,
                 first_block_index,

@@ -10,7 +10,7 @@ use ledger_mob::{
 
 use mc_account_keys::ViewAccountKey;
 use mc_common::logger::global_log;
-use mc_core::keys::TxOutPublic;
+use mc_core::{account::ViewAccount, keys::TxOutPublic};
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_rand::rand_core::OsRng;
 use mc_transaction_core::{ring_ct::InputRing, tx::Tx};
@@ -65,6 +65,14 @@ async fn get_device_handle() -> Result<DeviceHandle<TransportNativeHID>, Hardwar
             .await
             .map_err(|_| HardwareWalletServiceError::LedgerHID)?,
     )
+}
+
+pub async fn get_view_only_account_keys() -> Result<ViewAccount, HardwareWalletServiceError> {
+    let device_handle = get_device_handle().await?;
+    Ok(device_handle
+        .account_keys(0)
+        .await
+        .map_err(|_| HardwareWalletServiceError::LedgerHID)?)
 }
 
 pub async fn sign_tx_proposal(

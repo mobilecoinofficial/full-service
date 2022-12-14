@@ -1,23 +1,18 @@
 use std::convert::{TryFrom, TryInto};
 
-use ledger_mob::{transport::TransportNativeHID, tx::TxConfig, Connect, LedgerProvider};
-
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_api::ConversionError;
 use mc_common::logger::global_log;
 use mc_crypto_keys::RistrettoPublic;
-use mc_crypto_rand::rand_core::OsRng;
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_transaction_core::{
     onetime_keys::recover_onetime_private_key,
-    ring_ct::InputRing,
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
     Amount, FeeMap, Token,
 };
 use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
-use mc_transaction_signer::types::TxoSynced;
 
 use protobuf::Message;
 

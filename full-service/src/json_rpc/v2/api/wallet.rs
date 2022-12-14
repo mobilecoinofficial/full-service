@@ -36,6 +36,7 @@ use crate::{
         address::AddressService,
         balance::BalanceService,
         confirmation_number::ConfirmationService,
+        hardware_wallet::get_view_only_account_keys,
         ledger::LedgerService,
         models::tx_proposal::TxProposal,
         payment_request::PaymentRequestService,
@@ -1115,9 +1116,15 @@ where
                     let spend_public_key =
                         hex_to_ristretto_public(&spend_public_key).map_err(format_error)?;
 
-                    (view_private_key, spend_public_key)
+                    (view_private_key.into(), spend_public_key.into())
                 }
-                (None, None) => unimplemented!(),
+                (None, None) => {
+                    let view_account = get_view_only_account_keys().await.map_err(format_error)?;
+                    (
+                        view_account.view_private_key().clone(),
+                        view_account.spend_public_key().clone(),
+                    )
+                }
                 _ => {
                     return Err(format_error(
                         "Must provide both view_private_key and spend_public_key, or neither",

@@ -21,9 +21,12 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_core::slip10::Slip10KeyGenerator;
+use mc_core::{
+    keys::{RootSpendPublic, RootViewPrivate},
+    slip10::Slip10KeyGenerator,
+};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::RistrettoPrivate;
 use mc_transaction_core::TokenId;
 use std::fmt;
 
@@ -145,8 +148,8 @@ pub trait AccountModel {
 
     /// Import a view only account.
     fn import_view_only(
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
@@ -391,8 +394,8 @@ impl AccountModel for Account {
     }
 
     fn import_view_only(
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
@@ -401,7 +404,8 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
+        let view_account_key =
+            ViewAccountKey::new(*view_private_key.as_ref(), *spend_public_key.as_ref());
         let account_id = AccountID::from(&view_account_key);
 
         if Account::get(&account_id, conn).is_ok() {
