@@ -33,7 +33,9 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .removeprefix("(")
         .removesuffix(")")
     )  # clean up entropy response
+
     os.system(f"../target/release/transaction-signer create -n alice {entropy}")
+
     balance_before = int(
         (await fs.get_account_status(alice.id))
         .get("result")
@@ -42,18 +44,21 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .get("unspent")
     )
 
-    # write the unsigned transaction request to a file
     unsigned_burn_tx_request = await fs.build_unsigned_burn_transaction(
         alice.id,
         amount={"value": str(amount_pmob), "token_id": str(0)},
     )
+
+    # write the unsigned transaction request to a file
     to_json = json.dumps(unsigned_burn_tx_request.get("result"), indent=4)
     with open("transaction_request.json", "w") as outfile:
         outfile.write(to_json)
 
     # get id for mnemonic file name and sign transaction
     id = alice.id[0:6]
-    os.system(f"../target/release/transaction-signer sign mobilecoin_secret_mnemonic_{id}.json transaction_request.json")
+    os.system(
+        f"../target/release/transaction-signer sign mobilecoin_secret_mnemonic_{id}.json transaction_request.json"
+    )
 
     with open("transaction_request.json_completed.json", "r") as infile:
         signed_tx: dict = json.load(infile)
