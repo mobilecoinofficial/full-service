@@ -38,7 +38,9 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     unsigned_burn_tx_request = await fs.build_unsigned_burn_transaction(
         alice.id,
         amount={"value": str(amount_pmob), "token_id": str(0)},
-    ) ; to_json = json.dumps(unsigned_burn_tx_request, indent=4)
+    ) 
+    
+    to_json = json.dumps(unsigned_burn_tx_request, indent=4)
     
     with open("transaction_request.json", "w") as outfile:
         outfile.write(to_json)
@@ -46,7 +48,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     await asyncio.sleep(3)
     
 
-    await signer.sign_transaction(secret_mnemonic="./mobilecoin_secret_mnemonic_01eb4f.json", sign_request="./transaction_request.json")
+    signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
     print("\n\n\n\n")
     # print(type(unsigned_burn_tx.get("result").get("tx_proposal")))
 
