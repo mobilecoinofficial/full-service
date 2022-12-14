@@ -47,8 +47,12 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     
     signer.sign_transaction(secret_mnemonic="mobilecoin_secret_mnemonic_01eb4f.json", sign_request="transaction_request.json")
 
+    with open("transaction_request.json_completed.json", "r") as infile:
+        signed_tx: dict = json.load(infile)
+    
+    tx_proposal = signed_tx.get("params").get("tx_proposal")
 
-    await fs.submit_transaction(burn_tx.get("result").get("tx_proposal"))
+    await fs.submit_transaction(tx_proposal)
     await utils.wait_two_blocks()
     balance_after = int(
         (await fs.get_account_status(alice.id))
