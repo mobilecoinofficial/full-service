@@ -18,9 +18,7 @@ use crate::{
     },
     util::{
         constants::MNEMONIC_KEY_DERIVATION_VERSION,
-        encoding_helpers::{
-            hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
-        },
+        encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
     },
 };
 use base64;
@@ -29,7 +27,7 @@ use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::ring_signature::KeyImage;
@@ -210,8 +208,8 @@ pub trait AccountService {
     ///
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -481,8 +479,8 @@ where
 
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RistrettoPrivate,
+        spend_public_key: &RistrettoPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -494,14 +492,9 @@ where
             first_block_index,
         );
 
-        let view_private_key =
-            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
-        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
-            .map_err(AccountServiceError::Base64DecodeError)?;
-
+        let conn = self.get_conn()?;
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.get_conn()?;
         transaction(&conn, || {
             Ok(Account::import_view_only(
                 &view_private_key,
@@ -538,8 +531,8 @@ where
         let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
 
         let json_command_request = JsonCommandRequest::import_view_only_account {
-            view_private_key: ristretto_to_hex(view_private_key),
-            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            view_private_key: Some(ristretto_to_hex(view_private_key)),
+            spend_public_key: Some(ristretto_public_to_hex(&spend_public_key)),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
             next_subaddress_index: Some(account.next_subaddress_index(&conn)?.to_string()),

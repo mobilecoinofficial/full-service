@@ -46,9 +46,12 @@ use crate::{
         watcher::WatcherService,
         WalletService,
     },
-    util::b58::{
-        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
-        PrintableWrapperType,
+    util::{
+        b58::{
+            b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+            PrintableWrapperType,
+        },
+        encoding_helpers::{hex_to_ristretto, hex_to_ristretto_public},
     },
 };
 use mc_account_keys::burn_address;
@@ -1105,8 +1108,25 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
+            let (view_private_key, spend_public_key) = match (view_private_key, spend_public_key) {
+                (Some(view_private_key), Some(spend_public_key)) => {
+                    let view_private_key =
+                        hex_to_ristretto(&view_private_key).map_err(format_error)?;
+                    let spend_public_key =
+                        hex_to_ristretto_public(&spend_public_key).map_err(format_error)?;
+
+                    (view_private_key, spend_public_key)
+                }
+                (None, None) => unimplemented!(),
+                _ => {
+                    return Err(format_error(
+                        "Must provide both view_private_key and spend_public_key, or neither",
+                    ))
+                }
+            };
+
             let account = service
-                .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
+                .import_view_only_account(&view_private_key, &spend_public_key, name, fb, ns)
                 .map_err(format_error)?;
             let next_subaddress_index = service
                 .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
