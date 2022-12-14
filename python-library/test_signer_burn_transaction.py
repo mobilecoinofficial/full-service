@@ -3,8 +3,8 @@ import subprocess
 import sys
 from fullservice import FullServiceAPIv2 as v2
 import pytest
-import transaction_signer_lib as signer
 import json
+import os
 
 repo_root_dir = (
     subprocess.check_output("git rev-parse --show-toplevel", shell=True)
@@ -33,6 +33,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .removeprefix("(")
         .removesuffix(")")
     )  # clean up entropy response
+    os.system(f"../target/release/transaction-signer create -n alice {entropy}")
     signer.create_account(name="alice", mnemonic=entropy)
     balance_before = int(
         (await fs.get_account_status(alice.id))
