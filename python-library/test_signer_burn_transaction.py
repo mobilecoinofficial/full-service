@@ -34,7 +34,6 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .removesuffix(")")
     )  # clean up entropy response
     os.system(f"../target/release/transaction-signer create -n alice {entropy}")
-    signer.create_account(name="alice", mnemonic=entropy)
     balance_before = int(
         (await fs.get_account_status(alice.id))
         .get("result")
@@ -54,12 +53,8 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
 
     # get id for mnemonic file name and sign transaction
     id = alice.id[0:6]
-    signer.sign_transaction(
-        secret_mnemonic=f"mobilecoin_secret_mnemonic_{id}.json",
-        sign_request="transaction_request.json",
-    )
+    os.system(f"../target/release/transaction-signer sign mobilecoin_secret_mnemonic_{id}.json transaction_request.json")
 
-    # get the transaction request and submit it
     with open("transaction_request.json_completed.json", "r") as infile:
         signed_tx: dict = json.load(infile)
     tx_proposal = signed_tx.get("params").get("tx_proposal")
