@@ -36,6 +36,7 @@ use crate::{
         address::AddressService,
         balance::BalanceService,
         confirmation_number::ConfirmationService,
+        hardware_wallet::sync_txos,
         ledger::LedgerService,
         models::tx_proposal::TxProposal,
         network::get_token_metadata,
@@ -1327,6 +1328,44 @@ where
             account_id,
             synced_txos,
         } => {
+            let synced_txos = match synced_txos {
+                Some(synced_txos) => synced_txos,
+                None => {
+                    let unverified_txos = service
+                        .list_txos(
+                            Some(account_id.clone()),
+                            None,
+                            Some(TxoStatus::Unverified),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                        .map_err(format_error)?;
+
+                    let unsynced_txos = unverified_txos
+                        .iter()
+                        .map(|(txo, _)| {
+                            let subaddress_index = match txo.subaddress_index {
+                                Some(subaddress_index) => subaddress_index,
+                                None => {
+                                    return Err(format_error(
+                                        "Unsynced txo is missing subaddress index, which is required to sync",
+                                    ))
+                                }
+                            };
+                            let txo = service.get_txo_object(&txo.id).map_err(format_error)?;
+                            Ok((txo, subaddress_index as u64))
+                        })
+                        .collect::<Result<Vec<_>, JsonRPCError>>()?;
+
+                    sync_txos(unsynced_txos)
+                        .await
+                        .map_err(format_error)?
+                }
+            };
+
             service
                 .sync_account(&AccountID(account_id), synced_txos)
                 .map_err(format_error)?;
