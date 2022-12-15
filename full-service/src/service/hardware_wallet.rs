@@ -2,7 +2,7 @@
 
 //! Service for managing ledger materials and MobileCoin protocol objects.
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use ledger_mob::{
     transport::TransportNativeHID, tx::TxConfig, Connect, DeviceHandle, LedgerProvider,
@@ -13,7 +13,10 @@ use mc_common::logger::global_log;
 use mc_core::{account::ViewAccount, keys::TxOutPublic};
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_rand::rand_core::OsRng;
-use mc_transaction_core::{ring_ct::InputRing, tx::Tx};
+use mc_transaction_core::{
+    ring_ct::InputRing,
+    tx::{Tx, TxOut},
+};
 use mc_transaction_signer::types::TxoSynced;
 use mc_transaction_summary::verify_tx_summary;
 
@@ -65,6 +68,28 @@ async fn get_device_handle() -> Result<DeviceHandle<TransportNativeHID>, Hardwar
             .await
             .map_err(|_| HardwareWalletServiceError::LedgerHID)?,
     )
+}
+
+pub async fn sync_txos(
+    unsynced_txos: Vec<(TxOut, u64)>,
+) -> Result<Vec<TxoSynced>, HardwareWalletServiceError> {
+    let device_handle = get_device_handle().await?;
+
+    let mut synced_txos = vec![];
+    for unsynced_txo in unsynced_txos {
+        let tx_public_key = (&unsynced_txo.0.public_key).try_into()?;
+        let key_image = device_handle
+            .key_image(0, unsynced_txo.1, tx_public_key)
+            .await
+            .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+
+        synced_txos.push(TxoSynced {
+            tx_out_public_key: tx_public_key.into(),
+            key_image,
+        });
+    }
+
+    Ok(synced_txos)
 }
 
 pub async fn get_view_only_account_keys() -> Result<ViewAccount, HardwareWalletServiceError> {
