@@ -41,46 +41,49 @@ async def test_view_only_transaction(amount_pmob: int = 600000000):
     request: dict = json.loads(open(f"mobilecoin_view_account_import_package_{alice.id[0:6]}.json", "r").read()).get("params")
     await fs.import_view_only_account(**request)
 
-    # balance_before = int(
-    #     (await fs.get_account_status(alice.id))
-    #     .get("result")
-    #     .get("balance_per_token")
-    #     .get("0")
-    #     .get("unspent")
-    # )
+    balance_before = int(
+        (await fs.get_account_status(alice.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
 
-    # unsigned_burn_tx_request = await fs.build_unsigned_burn_transaction(
-    #     alice.id,
-    #     amount={"value": str(amount_pmob), "token_id": str(0)},
-    # )
+    unsigned_tx_request = await fs.build_unsigned_transaction(
+        alice.id,
+        amount={"value": str(amount_pmob), "token_id": str(0)},
+        recipient_public_address=bob.main_address,
+    )
 
-    # # write the unsigned transaction request to a file
-    # to_json = json.dumps(unsigned_burn_tx_request.get("result"), indent=4)
-    # with open("transaction_request.json", "w") as outfile:
-    #     outfile.write(to_json)
+    bob = await utils.init_test_accounts(1, "bob", True)
 
-    # # get id for mnemonic file name and sign transaction
-    # id = alice.id[0:6]
-    # os.system(
-    #     f"../target/release/transaction-signer sign mobilecoin_secret_mnemonic_{id}.json transaction_request.json"
-    # )
+    # write the unsigned transaction request to a file
+    to_json = json.dumps(unsigned_tx_request.get("result"), indent=4)
+    with open("transaction_request.json", "w") as outfile:
+        outfile.write(to_json)
 
-    # with open("transaction_request.json_completed.json", "r") as infile:
-    #     signed_tx: dict = json.load(infile)
-    # tx_proposal = signed_tx.get("params").get("tx_proposal")
-    # await fs.submit_transaction(tx_proposal)
+    # get id for mnemonic file name and sign transaction
+    id = alice.id[0:6]
+    os.system(
+        f"../target/release/transaction-signer sign mobilecoin_secret_mnemonic_{id}.json transaction_request.json"
+    )
 
-    # await utils.wait_two_blocks()
-    # balance_after = int(
-    #     (await fs.get_account_status(alice.id))
-    #     .get("result")
-    #     .get("balance_per_token")
-    #     .get("0")
-    #     .get("unspent")
-    # )
-    # print(balance_before, balance_after)
-    # assert balance_before > balance_after, "Burn transaction failed"
-    # exit
+    with open("transaction_request.json_completed.json", "r") as infile:
+        signed_tx: dict = json.load(infile)
+    tx_proposal = signed_tx.get("params").get("tx_proposal")
+    await fs.submit_transaction(tx_proposal)
+
+    await utils.wait_two_blocks()
+    balance_after = int(
+        (await fs.get_account_status(alice.id))
+        .get("result")
+        .get("balance_per_token")
+        .get("0")
+        .get("unspent")
+    )
+    print(balance_before, balance_after)
+    assert balance_before > balance_after, "transaction failed"
+    exit
 
 
 asyncio.run(test_view_only_transaction())
