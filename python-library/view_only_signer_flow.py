@@ -38,7 +38,9 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     # set up the acount as usual, but need to remove it before importing as a view only account. 
     os.system(f"../target/release/transaction-signer view-only-import-package mobilecoin_secret_mnemonic_{alice.id[0:6]}.json")
     await utils.clean()
-    # fs.import_view_only_account()
+    request = json.loads(open(f"mobilecoin_view_account_import_package_{alice.id[0:6]}.json", "r").read()).get("params")
+    print(type(request))
+    await fs.import_view_only_account(**request)
 
     # balance_before = int(
     #     (await fs.get_account_status(alice.id))
