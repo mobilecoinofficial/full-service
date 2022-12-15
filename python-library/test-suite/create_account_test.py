@@ -1,5 +1,5 @@
 import asyncio
-from fullservice import FullServiceAPIv2 as v2
+from ..fullservice import FullServiceAPIv2 as v2
 
 
 async def main():
