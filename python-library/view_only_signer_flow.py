@@ -23,7 +23,7 @@ fs = v2()
 @pytest.mark.asyncio
 async def test_burn_transaction(amount_pmob: int = 600000000):
     utils = Utils()
-    utils.get_mnemonics()    
+    Utils.get_mnemonics() # this breaks if called from the instance of the class..    
     alice = await utils.init_test_accounts(0, "alice", True)
     alice_export = await fs.export_account_secrets(alice.id)
     entropy = (
@@ -33,10 +33,12 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
         .removeprefix("(")
         .removesuffix(")")
     )  # clean up entropy response
-    os.system(f"../target/release/transaction-signer create -n alice {entropy}") 
+    print(entropy)
+    os.system(f"../target/release/transaction-signer import '{entropy}' -n alice") 
     # set up the acount as usual, but need to remove it before importing as a view only account. 
     os.system(f"../target/release/transaction-signer view-only-import-package mobilecoin_secret_mnemonic_{alice.id[0:6]}.json")
-    utils.clean()
+    await utils.clean()
+    # fs.import_view_only_account()
 
     # balance_before = int(
     #     (await fs.get_account_status(alice.id))
