@@ -21,7 +21,7 @@ fs = v2()
 
 
 @pytest.mark.asyncio
-async def test_burn_transaction(amount_pmob: int = 600000000):
+async def test_view_only_transaction(amount_pmob: int = 600000000):
     utils = Utils()
     Utils.get_mnemonics() # this breaks if called from the instance of the class..    
     alice = await utils.init_test_accounts(0, "alice", True)
@@ -38,8 +38,7 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     # set up the acount as usual, but need to remove it before importing as a view only account. 
     os.system(f"../target/release/transaction-signer view-only-import-package mobilecoin_secret_mnemonic_{alice.id[0:6]}.json")
     await utils.clean()
-    request = json.loads(open(f"mobilecoin_view_account_import_package_{alice.id[0:6]}.json", "r").read()).get("params")
-    print(type(request))
+    request: dict = json.loads(open(f"mobilecoin_view_account_import_package_{alice.id[0:6]}.json", "r").read()).get("params")
     await fs.import_view_only_account(**request)
 
     # balance_before = int(
@@ -84,4 +83,4 @@ async def test_burn_transaction(amount_pmob: int = 600000000):
     # exit
 
 
-asyncio.run(test_burn_transaction())
+asyncio.run(test_view_only_transaction())
