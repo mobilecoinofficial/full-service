@@ -54,24 +54,30 @@
         "status": "pending",
         "input_txos": [
           {
-            "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-            "value": "50000000000",
-            "token_id": "0"
+            "txo_id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
+            "amount": {
+              "value": "50000000000",
+              "token_id": "0"
+            }
           }
         ],
         "payload_txos": [
           {
-            "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-            "value": "30000000000",
-            "token_id": "0"
+            "txo_id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
+            "amount": {
+              "value": "30000000000",
+              "token_id": "0"
+            }
             "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
           }
         ],
         "change_txos": [
           {
-            "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-            "value": "10000000000",
-            "token_id": "0"
+            "txo_id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
+            "amount": {
+              "value": "10000000000",
+              "token_id": "0"
+            }
             "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
           }
         ],
@@ -93,24 +99,30 @@
         "status": "pending",
         "input_txos": [
           {
-            "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-            "value": "50000000000",
-            "token_id": "0"
+            "txo_id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
+            "amount": {
+              "value": "50000000000",
+              "token_id": "0"
+            }
           }
         ],
         "payload_txos": [
           {
-            "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-            "value": "30000000000",
-            "token_id": "0"
+            "txo_id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
+            "amount": {
+              "value": "30000000000",
+              "token_id": "0"
+            },
             "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
           }
         ],
         "change_txos": [
           {
-            "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-            "value": "10000000000",
-            "token_id": "0"
+            "txo_id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
+            "amount": {
+              "value": "10000000000",
+              "token_id": "0"
+            },
             "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
           }
         ],
@@ -132,24 +144,30 @@
         "status": "pending",
         "input_txos": [
           {
-            "id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
-            "value": "50000000000",
-            "token_id": "0"
+            "txo_id": "eb735cafa6d8b14a69361cc05cb3a5970752d27d1265a1ffdfd22c0171c2b20d",
+            "amount": {
+              "value": "50000000000",
+              "token_id": "0"
+            }
           }
         ],
         "payload_txos": [
           {
-            "id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
-            "value": "30000000000",
-            "token_id": "0"
+            "txo_id": "fd39b4e740cb302edf5da89c22c20bea0e4408df40e31c1dbb2ec0055435861c",
+            "amount": {
+              "value": "30000000000",
+              "token_id": "0"
+            },
             "recipient_public_address_b58": "vrewh94jfm43m430nmv2084j3k230j3mfm4i3mv39nffrwv43"
           }
         ],
         "change_txos": [
           {
-            "id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
-            "value": "10000000000",
-            "token_id": "0"
+            "txo_id": "bcb45b4fab868324003631b6490a0bf46aaf37078a8d366b490437513c6786e4",
+            "amount": {
+              "value": "10000000000",
+              "token_id": "0"
+            },
             "recipient_public_address_b58": "grewmvn3990435vm032492v43mgkvocdajcl2icas"
           }
         ],
