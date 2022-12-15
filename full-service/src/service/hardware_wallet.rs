@@ -2,7 +2,7 @@
 
 //! Service for managing ledger materials and MobileCoin protocol objects.
 
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use ledger_mob::{transport::GenericTransport, Connect, DeviceHandle, LedgerProvider};
 
@@ -58,6 +58,28 @@ async fn get_device_handle() -> Result<DeviceHandle<GenericTransport>, HardwareW
     // This CBB - we should iterate through each device if signing fails on the
     // current one and more are available
     Ok(Connect::<GenericTransport>::connect(&ledger_provider, &devices[0]).await?)
+}
+
+pub async fn sync_txos(
+    unsynced_txos: Vec<(TxOut, u64)>,
+) -> Result<Vec<TxoSynced>, HardwareWalletServiceError> {
+    let device_handle = get_device_handle().await?;
+
+    let mut synced_txos = vec![];
+    for unsynced_txo in unsynced_txos {
+        let tx_public_key = (&unsynced_txo.0.public_key).try_into()?;
+        let key_image = device_handle
+            .key_image(0, unsynced_txo.1, tx_public_key)
+            .await
+            .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+
+        synced_txos.push(TxoSynced {
+            tx_out_public_key: tx_public_key.into(),
+            key_image,
+        });
+    }
+
+    Ok(synced_txos)
 }
 
 pub async fn get_view_only_account_keys() -> Result<ViewAccount, HardwareWalletServiceError> {

@@ -3054,7 +3054,6 @@ dependencies = [
 name = "mc-full-service"
 version = "2.5.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "base64 0.21.0",
  "bs58",
