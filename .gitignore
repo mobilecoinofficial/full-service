@@ -80,4 +80,11 @@ __pycache__
 
 *sgx_linux_x64_sdk_2.9.101.2.bin
 
-integ-tests/entropy_config
+.internal-ci/test/fs-integration/test_config.json
+
+# mob prompt and build tmp
+.mob/
+.tmp/
+
+# Python/Poetry projects
+.venv/

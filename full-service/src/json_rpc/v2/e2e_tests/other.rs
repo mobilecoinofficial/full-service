@@ -188,6 +188,110 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
+    fn test_get_block_by_txo_public_key(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let wallet_db = db_ctx.get_db_instance(logger.clone());
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let (_, tx_out, _) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(70, Mob::ID),
+            13,
+            &mut rng,
+            &wallet_db,
+        );
+
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[tx_out.clone()],
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        wait_for_sync(&client, &ledger_db, &network_state, &logger);
+
+        // A valid public key on the ledger
+        let public_key = hex::encode(tx_out.public_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_block",
+            "params": {
+                "txo_public_key": public_key
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let block = result.get("block").unwrap();
+
+        assert_eq!(block.get("index").unwrap(), "13");
+
+        // An invalid public key on the ledger
+        let target_key = hex::encode(tx_out.target_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txo_block_index",
+            "params": {
+                "public_key": target_key
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        assert_eq!(
+            error.get("data").unwrap().get("server_error").unwrap(),
+            "LedgerDB(Record not found)"
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_block_by_block_index(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _, _, _) = setup(&mut rng, logger.clone());
+
+        // A valid block index on the ledger
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_block",
+            "params": {
+                "block_index": "11"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let block = result.get("block").unwrap();
+
+        assert_eq!("11", block.get("index").unwrap());
+
+        // An invalid block index on the ledger
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_block",
+            "params": {
+                "block_index": "13"
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+
+        assert_eq!(
+            error.get("data").unwrap().get("server_error").unwrap(),
+            "LedgerDB(Record not found)"
+        );
+    }
+
+    #[test_with_logger]
     fn test_no_wallet_db(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) =

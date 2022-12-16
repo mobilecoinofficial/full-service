@@ -5,7 +5,7 @@
 use crate::{
     db::{
         models::{TransactionLog, Txo},
-        transaction_log::{TransactionID, TransactionLogModel},
+        transaction_log::{TransactionId, TransactionLogModel},
         txo::TxoModel,
     },
     WalletService,
@@ -14,6 +14,7 @@ use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError}
 use mc_common::HashSet;
 use mc_connection::{
     BlockInfo, BlockchainConnection, RetryableBlockchainConnection, UserTxConnection,
+    _retry::delay::Fibonacci,
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -168,7 +169,7 @@ where
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
         let conn = self.get_conn()?;
         let transaction_log =
-            TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
         Ok(tx)
     }
@@ -202,7 +203,10 @@ where
             .peer_manager
             .conns()
             .par_iter()
-            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .filter_map(|conn| {
+                conn.fetch_block_info(Fibonacci::from_millis(10).take(5))
+                    .ok()
+            })
             .collect::<Vec<_>>();
 
         // Ensure that all nodes agree on the latest block version and network fees.

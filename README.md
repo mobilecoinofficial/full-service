@@ -5,7 +5,7 @@ A MobileCoin service for wallet implementations.
 
 The Full-Service Node provides ledger syncing and validation, account management, and funds transfer and receiving. It uses a JSONRPC API, so you can connect to it from command line tools or build services around its functionality. It serves the use cases of single user (and is the backing to the MobileCoin Desktop Wallet), while also serving high performance, multi-account, multi-subaddress needs (such as backing merchant services platforms).
 
-Please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
+### For installation and usage instructions, get started with Full Service [here](https://mobilecoin.gitbook.io/full-service-api/usage/environment-setup)!
 
 
 * You must read and accept the [Terms of Use for MobileCoins and MobileCoin Wallets](./TERMS-OF-USE.md) to use
@@ -35,8 +35,7 @@ information.
 
 ### Usage and Documentation
 
-For documentation, usage, and API specification, see our gitbook
-page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
+For documentation, usage, and API specification, please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
 
 For database encryption features, see [DATABASE.md](DATABASE.md).
 
@@ -87,10 +86,14 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
     CPPFLAGS="-I/usr/local/opt/openssl@3/include"
     PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
     ```
+    
+    The `ulimit` command fixes an issue related to shell resource usage. 
 
    MacOS:
     ```sh
+   echo 'ulimit -n 4096' >> ~/.bash_profile
    echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
+   source ~/.bash_profile
    export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"

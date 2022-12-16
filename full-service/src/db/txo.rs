@@ -25,7 +25,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
-        transaction_log::TransactionID,
+        transaction_log::TransactionId,
         Conn, WalletDbError,
     },
     service::models::tx_proposal::OutputTxo,
@@ -142,7 +142,7 @@ pub trait TxoModel {
     fn create_new_output(
         output_txo: &OutputTxo,
         is_change: bool,
-        transaction_id: &TransactionID,
+        transaction_id: &TransactionId,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -395,7 +395,7 @@ impl TxoModel for Txo {
     fn create_new_output(
         output_txo: &OutputTxo,
         is_change: bool,
-        transaction_id: &TransactionID,
+        transaction_id: &TransactionId,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;

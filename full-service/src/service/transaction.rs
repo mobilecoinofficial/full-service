@@ -23,7 +23,9 @@ use crate::{
 use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_connection::{
+    BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
+};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
@@ -39,7 +41,7 @@ use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-use std::{convert::TryFrom, iter::empty, sync::atomic::Ordering};
+use std::{convert::TryFrom, sync::atomic::Ordering};
 
 use super::models::tx_proposal::UnsignedTxProposal;
 
@@ -363,7 +365,7 @@ where
             let mut default_fee_token_id = Mob::ID;
 
             for (recipient_public_address, amount) in addresses_and_amounts {
-                if !self.verify_address(recipient_public_address)? {
+                if self.verify_address(recipient_public_address).is_err() {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));
@@ -446,7 +448,7 @@ where
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
             let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
 
-            TransactionLog::log_built(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
+            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 
             Ok(tx_proposal)
         })
@@ -475,7 +477,7 @@ where
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx_proposal.tx, empty())
+            .propose_tx(&tx_proposal.tx, Fibonacci::from_millis(10).take(5))
             .map_err(TransactionServiceError::from)?;
 
         log::trace!(
