@@ -142,8 +142,6 @@ pub fn sync_account(
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    // let conn = wallet_db.get_conn()?;
-
     while let SyncStatus::ChunkFinished =
         sync_account_next_chunk(ledger_db, wallet_db, logger, account_id_hex)?
     {}
