@@ -1,7 +1,6 @@
 ## Full Service Python API ( soon ™️  to be CLI as well )
 
-To get started, you can do 'poetry install' and 'poetry shell' to set up an enviornment. 
-More simply, you can just 'pip install aiohttp' and you're ready to go, as long as you're using Python 3.8+
+To get started, you can do 'poetry install --no-dev' and 'poetry shell' to set up an environment. 
 
 Here is a simple example of usage: 
 
