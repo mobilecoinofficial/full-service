@@ -19,6 +19,12 @@ changelog:
       labels:
         - Semver-Patch
         - bug
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Documentation
+      labels:
+        - documentation
     - title: Other Changes
       labels:
         - "*"
