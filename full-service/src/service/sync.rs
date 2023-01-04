@@ -207,14 +207,11 @@ fn sync_account_next_chunk(
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
-                let amount = match decode_amount(&tx_out, view_account_key.view_private_key()) {
-                    None => return None,
-                    Some(a) => a,
-                };
+                let amount = decode_amount(&tx_out, view_account_key.view_private_key())?;
                 let subaddress_index = decode_subaddress_index(
                     &tx_out,
                     view_account_key.view_private_key(),
-                    &wallet_db.get_conn().unwrap(),
+                    &wallet_db.get_conn().ok()?,
                 );
                 Some((block_index, tx_out, amount, subaddress_index))
             })
@@ -292,14 +289,11 @@ fn sync_account_next_chunk(
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
-                let amount = match decode_amount(&tx_out, account_key.view_private_key()) {
-                    None => return None,
-                    Some(a) => a,
-                };
+                let amount = decode_amount(&tx_out, account_key.view_private_key())?;
                 let (subaddress_index, key_image) = decode_subaddress_and_key_image(
                     &tx_out,
                     &account_key,
-                    &wallet_db.get_conn().unwrap(),
+                    &wallet_db.get_conn().ok()?,
                 );
                 Some((block_index, tx_out, amount, subaddress_index, key_image))
             })
