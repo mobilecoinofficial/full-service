@@ -132,10 +132,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .cloned()
             .collect();
 
-        if unspent.iter().map(|t| t.value as u128).sum::<u128>() > u64::MAX as u128 {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
-
         self.inputs = unspent;
 
         Ok(())
@@ -921,6 +917,67 @@ mod tests {
         assert_eq!(proposal.tx.prefix.inputs.len(), 2); // need one more for fee
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.tx.prefix.outputs.len(), 2); // self and change
+    }
+
+    // This test is to ensure that we can send a transaction with a total input
+    // value of > u64::MAX
+    #[test_with_logger]
+    fn test_setting_input_txos_overflow_u64(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let conn = wallet_db.get_conn().unwrap();
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![
+                7_000_000 * MOB,
+                7_000_000 * MOB,
+                7_000_000 * MOB,
+                7_000_000 * MOB,
+            ],
+            &mut rng,
+            &logger,
+        );
+
+        let txos: Vec<Txo> = Txo::list_for_account(
+            &AccountID::from(&account_key).to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(0),
+            &conn,
+        )
+        .unwrap();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
+            .unwrap();
+
+        // This is the value that will overflow u64, which should be valid.
+        builder
+            .set_txos(
+                &conn,
+                &vec![txos[0].id.clone(), txos[1].id.clone(), txos[2].id.clone()],
+            )
+            .unwrap();
     }
 
     // Test max_spendable correctly filters out txos above max_spendable
