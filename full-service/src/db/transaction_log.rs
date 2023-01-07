@@ -155,6 +155,12 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_comment(
+        &self,
+        comment: String,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
     /// Returns:
@@ -305,6 +311,20 @@ impl TransactionLogModel for TransactionLog {
             .execute(conn)?;
 
         Ok(())
+    }
+
+    fn update_comment(
+        &self,
+        comment: String,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::transaction_logs;
+
+        diesel::update(self)
+            .set(transaction_logs::comment.eq(comment))
+            .execute(conn)?;
+        
+            Ok(())
     }
 
     fn list_all(
@@ -505,6 +525,7 @@ impl TransactionLogModel for TransactionLog {
         match TransactionLog::get(&transaction_log_id, conn) {
             Ok(transaction_log) => {
                 transaction_log.update_submitted_block_index(block_index, conn)?;
+                transaction_log.update_comment(comment, conn)?;
             }
 
             Err(WalletDbError::TransactionLogNotFound(_)) => {
