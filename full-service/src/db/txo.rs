@@ -7,7 +7,7 @@ use diesel::{
     prelude::*,
 };
 use mc_account_keys::AccountKey;
-use mc_common::HashMap;
+use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -307,7 +307,7 @@ pub trait TxoModel {
     /// * Vec<Txo>
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        target_value: u64,
+        target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
         default_token_fee: u64,
@@ -1186,19 +1186,19 @@ impl TxoModel for Txo {
             query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
         }
 
-        if let Some(max_spendable_value) = max_spendable_value {
-            query = query.filter(txos::value.le(max_spendable_value as i64));
-        }
-
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(txos::account_id.eq(account_id_hex));
         }
 
-        let spendable_txos = query
+        let mut spendable_txos = query
             .select(txos::all_columns)
             .distinct()
-            .order_by(txos::value.desc())
-            .load(conn)?;
+            .load(conn)?
+            .drain(..)
+            .filter(|txo: &Txo| txo.value as u64 <= max_spendable_value.unwrap_or(u64::MAX))
+            .collect::<Vec<Txo>>();
+
+        spendable_txos.sort_by(|a: &Txo, b: &Txo| (b.value as u64).cmp(&(a.value as u64)));
 
         // The maximum spendable is limited by the maximal number of inputs we can use.
         // Since the txos are sorted by decreasing value, this is the maximum
@@ -1226,7 +1226,7 @@ impl TxoModel for Txo {
 
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        target_value: u64,
+        target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
         default_token_fee: u64,
@@ -1250,14 +1250,14 @@ impl TxoModel for Txo {
 
         // If we're trying to spend more than we have in the wallet, we may need to
         // defrag
-        if target_value as u128 > max_spendable_in_wallet + default_token_fee as u128 {
+        if target_value > max_spendable_in_wallet + default_token_fee as u128 {
             // See if we merged the UTXOs we would be able to spend this amount.
             let total_unspent_value_in_wallet: u128 = spendable_txos
                 .iter()
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
 
-            if total_unspent_value_in_wallet >= (target_value + default_token_fee) as u128 {
+            if total_unspent_value_in_wallet >= target_value + default_token_fee as u128 {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
@@ -1274,9 +1274,10 @@ impl TxoModel for Txo {
         // the back of the sorted vector until we have a window with
         // a large enough sum.
         let mut selected_utxos: Vec<Txo> = Vec::new();
-        let mut total: u64 = 0;
+        let mut total: u128 = 0;
         loop {
             if total >= target_value {
+                global_log::debug!("total is greater than target value");
                 break;
             }
 
@@ -1288,13 +1289,19 @@ impl TxoModel for Txo {
                 ))
             })?;
             selected_utxos.push(next_utxo.clone());
-            total += next_utxo.value as u64;
+            total += (next_utxo.value as u64) as u128;
+            global_log::debug!(
+                "select_spendable_txos_for_value: selected utxo: {:?}, total: {:?}, target: {:?}",
+                next_utxo.value as u64,
+                total,
+                target_value,
+            );
 
             // Cap at maximum allowed inputs.
             if selected_utxos.len() > MAX_INPUTS as usize {
                 // Remove the lowest utxo.
                 let removed = selected_utxos.remove(0);
-                total -= removed.value as u64;
+                total -= (removed.value as u64) as u128;
             }
         }
 
@@ -1816,6 +1823,79 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_list_spendable_with_large_values(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let conn = wallet_db.get_conn().unwrap();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Alice's Main Account",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        // Create some very large TXOs for the account, above i64::MAX
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(u64::MAX, Mob::ID),
+            145,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(u64::MAX, Mob::ID),
+            146,
+            &mut rng,
+            &wallet_db,
+        );
+
+        // Create some small TXOs for the account
+        // [100, 200, 300, ... 2000]
+        for i in 1..20 {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                0,
+                Amount::new(100, Mob::ID), // 100.0 MOB * i
+                (146 + i) as u64,
+                &mut rng,
+                &wallet_db,
+            );
+        }
+
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            &conn,
+        )
+        .unwrap();
+
+        // Max spendable SHOULD be u64::MAX * 2 + (100 * 14) - Mob::MINIMUM_FEE =
+        // u64::MAX * 2 + 1400 - Mob::MINIMUM_FEE
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            (u64::MAX as u128) * 2 + (100 * 14) - Mob::MINIMUM_FEE as u128
+        );
+    }
+
+    #[test_with_logger]
     fn test_select_txos_for_value(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -1853,7 +1933,7 @@ mod tests {
         // Greedily take smallest to exact value
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            300 * MOB,
+            300 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -1866,7 +1946,7 @@ mod tests {
         // Once we include the fee, we need another txo
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            300 * MOB + Mob::MINIMUM_FEE,
+            (300 * MOB + Mob::MINIMUM_FEE) as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -1882,7 +1962,7 @@ mod tests {
         // Setting max spendable value gives us insufficient funds - only allows 100
         let res = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            300 * MOB + Mob::MINIMUM_FEE,
+            (300 * MOB + Mob::MINIMUM_FEE) as u128,
             Some(200 * MOB),
             0,
             Mob::MINIMUM_FEE,
@@ -1899,7 +1979,7 @@ mod tests {
         // txos, and also fill up all 16 input slots.
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            16800 * MOB,
+            16800 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -1969,7 +2049,7 @@ mod tests {
         // txos, and also fill up all 16 input slots.
         Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            16800 * MOB,
+            16800 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -1979,7 +2059,7 @@ mod tests {
 
         let res = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            16800 * MOB,
+            16800 * MOB as u128,
             Some(100 * MOB),
             0,
             Mob::MINIMUM_FEE,
@@ -2033,7 +2113,7 @@ mod tests {
 
         let res = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
-            1800 * MOB,
+            1800 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -2813,7 +2893,7 @@ mod tests {
 
     #[test_with_logger]
     fn test_select_unspent_txos_target_value_equal_max_spendable_in_account(logger: Logger) {
-        let target_value: u64 = 200 as u64 * MOB - Mob::MINIMUM_FEE;
+        let target_value = (200 * MOB - Mob::MINIMUM_FEE) as u128;
         let (account_id, wallet_db) = setup_select_unspent_txos_tests(logger, false);
 
         let result = Txo::select_spendable_txos_for_value(
@@ -2827,7 +2907,7 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 16);
         let sum: u64 = result.iter().map(|x| x.value as u64).sum();
-        assert_eq!(target_value, sum - Mob::MINIMUM_FEE);
+        assert_eq!(target_value, (sum - Mob::MINIMUM_FEE) as u128);
     }
 
     #[test_with_logger]
@@ -2836,7 +2916,7 @@ mod tests {
 
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
-            201 as u64 * MOB,
+            201 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -2854,7 +2934,7 @@ mod tests {
 
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
-            3 as u64,
+            3,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -2870,7 +2950,7 @@ mod tests {
 
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
-            500 as u64 * MOB,
+            500 * MOB as u128,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -2887,7 +2967,7 @@ mod tests {
 
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
-            12400000000 as u64,
+            12400000000,
             None,
             0,
             Mob::MINIMUM_FEE,
