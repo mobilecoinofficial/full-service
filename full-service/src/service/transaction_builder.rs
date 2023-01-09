@@ -21,7 +21,7 @@ use crate::{
     service::transaction::TransactionMemo,
 };
 use mc_account_keys::PublicAddress;
-use mc_common::HashSet;
+use mc_common::{logger::global_log, HashSet};
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -134,10 +134,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .or_insert(fee_value as u128);
 
         for (token_id, target_value) in outlay_value_sum_map {
-            if target_value > u64::MAX as u128 {
-                return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-            }
-
             let fee_value = if token_id == fee_token_id {
                 fee_value
             } else {
@@ -146,7 +142,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
-                target_value as u64,
+                target_value,
                 max_spendable_value,
                 *token_id,
                 fee_value,
@@ -163,22 +159,6 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         value: u64,
         token_id: TokenId,
     ) -> Result<(), WalletTransactionBuilderError> {
-        // Verify that the maximum output value of this transaction remains under
-        // u64::MAX for the given Token Id
-        let cur_sum = self
-            .outlays
-            .iter()
-            .filter_map(|(_r, v, t)| {
-                if *t == token_id {
-                    Some(*v as u128)
-                } else {
-                    None
-                }
-            })
-            .sum::<u128>();
-        if cur_sum > u64::MAX as u128 {
-            return Err(WalletTransactionBuilderError::OutboundValueTooLarge);
-        }
         self.outlays.push((recipient, value, token_id));
         Ok(())
     }
@@ -384,14 +364,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         let mut total_value_per_token = BTreeMap::new();
-        total_value_per_token.insert(fee_token_id, fee);
+        total_value_per_token.insert(fee_token_id, fee as u128);
 
         let mut payload_txos = Vec::new();
         for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
             total_value_per_token
                 .entry(token_id)
-                .and_modify(|value| *value += amount)
-                .or_insert(amount);
+                .and_modify(|value| *value += amount as u128)
+                .or_insert(amount as u128);
 
             let amount = Amount::new(amount, token_id);
             let tx_out_context = transaction_builder.add_output(amount, &receiver, &mut rng)?;
@@ -410,8 +390,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 .iter()
                 .fold(BTreeMap::new(), |mut acc, (utxo, _proof)| {
                     acc.entry(TokenId::from(utxo.token_id as u64))
-                        .and_modify(|value| *value += utxo.value as u64)
-                        .or_insert(utxo.value as u64);
+                        .and_modify(|value| {
+                            global_log::debug!(
+                                "Adding value: {:?} to existing token: {:?}",
+                                (utxo.value as u64) as u128,
+                                *value
+                            );
+                            *value += (utxo.value as u64) as u128
+                        })
+                        .or_insert((utxo.value as u64) as u128);
                     acc
                 });
 
@@ -431,7 +418,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             }
 
             let change_value = input_value - *total_value;
-            let change_amount = Amount::new(change_value, token_id);
+
+            if change_value > u64::MAX as u128 {
+                return Err(WalletTransactionBuilderError::ChangeLargerThanMaxValue(
+                    change_value,
+                ));
+            }
+
+            let change_amount = Amount::new(change_value as u64, token_id);
             let tx_out_context = transaction_builder.add_change_output(
                 change_amount,
                 &reserved_subaddresses,
@@ -622,7 +616,10 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let balance: u128 = unspent.iter().map(|t| t.value as u128).sum::<u128>();
+        let balance: u128 = unspent
+            .iter()
+            .map(|t| (t.value as u64) as u128)
+            .sum::<u128>();
         assert_eq!(balance, 21_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value > u64::MAX
@@ -635,12 +632,7 @@ mod tests {
             .add_recipient(recipient.clone(), value, Mob::ID)
             .unwrap();
 
-        // Select the txos for the recipient - should error because > u64::MAX
-        match builder.select_txos(&conn, None) {
-            Ok(_) => panic!("Should not be allowed to construct outbound values > u64::MAX"),
-            Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
-            Err(e) => panic!("Unexpected error {:?}", e),
-        }
+        builder.select_txos(&conn, None).unwrap();
     }
 
     // Users should be able to set the txos specifically that they want to send
@@ -739,12 +731,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-            ],
+            &vec![u64::MAX, u64::MAX, u64::MAX],
             &mut rng,
             &logger,
         );
@@ -765,13 +752,11 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
+            .add_recipient(recipient.clone(), u64::MAX, Mob::ID)
             .unwrap();
+
         builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
+            .add_recipient(recipient.clone(), u64::MAX, Mob::ID)
             .unwrap();
 
         // This is the value that will overflow u64, which should be valid.
@@ -1150,11 +1135,9 @@ mod tests {
             .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
             .unwrap();
 
-        match builder.select_txos(&wallet_db.get_conn().unwrap(), None) {
-            Ok(_) => panic!("Should not be able to select txos with > u64::MAX output value"),
-            Err(WalletTransactionBuilderError::OutboundValueTooLarge) => {}
-            Err(e) => panic!("Unexpected error {:?}", e),
-        }
+        builder
+            .select_txos(&wallet_db.get_conn().unwrap(), None)
+            .unwrap();
     }
 
     // We should be able to add multiple TxOuts to multiple recipients.
