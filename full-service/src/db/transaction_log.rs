@@ -161,6 +161,13 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    fn update_tx_and_tombstone_block_index(
+        &self,
+        tx: &Vec<u8>,
+        tombstone_block_index: Option<i64>,
+        conn: &Conn
+    ) -> Result<(), WalletDbError>;
+
     /// List all TransactionLogs and their associated Txos for a given account.
     ///
     /// Returns:
@@ -324,7 +331,25 @@ impl TransactionLogModel for TransactionLog {
             .set(transaction_logs::comment.eq(comment))
             .execute(conn)?;
         
-            Ok(())
+        Ok(())
+    }
+
+    fn update_tx_and_tombstone_block_index(
+        &self,
+        tx: &Vec<u8>,
+        tombstone_block_index: Option<i64>,
+        conn: &Conn
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::transaction_logs;
+
+        diesel::update(self)
+                    .set((
+                        transaction_logs::tx.eq(tx),
+                        transaction_logs::tombstone_block_index
+                            .eq(tombstone_block_index),
+                    ))
+                    .execute(conn)?;
+        Ok(())
     }
 
     fn list_all(
@@ -437,8 +462,6 @@ impl TransactionLogModel for TransactionLog {
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -455,14 +478,9 @@ impl TransactionLogModel for TransactionLog {
                     let txo_id = TxoID::from(&input_txo.tx_out);
                     Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
                 }
+                transaction_log.update_comment(comment, conn)?;
+                transaction_log.update_tx_and_tombstone_block_index(&tx, Some(tx_proposal.tx.prefix.tombstone_block as i64), conn)?;
 
-                diesel::update(&transaction_log)
-                    .set((
-                        transaction_logs::tx.eq(&tx),
-                        transaction_logs::tombstone_block_index
-                            .eq(Some(tx_proposal.tx.prefix.tombstone_block as i64)),
-                    ))
-                    .execute(conn)?;
             }
             Err(WalletDbError::TransactionLogNotFound(_)) => {
                 let new_transaction_log = NewTransactionLog {
