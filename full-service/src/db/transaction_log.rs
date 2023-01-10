@@ -155,17 +155,13 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    fn update_comment(
-        &self,
-        comment: String,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError>;
+    fn update_comment(&self, comment: String, conn: &Conn) -> Result<(), WalletDbError>;
 
     fn update_tx_and_tombstone_block_index(
         &self,
         tx: &Vec<u8>,
         tombstone_block_index: Option<i64>,
-        conn: &Conn
+        conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
     /// List all TransactionLogs and their associated Txos for a given account.
@@ -320,17 +316,13 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
-    fn update_comment(
-        &self,
-        comment: String,
-        conn: &Conn,
-    ) -> Result<(), WalletDbError> {
+    fn update_comment(&self, comment: String, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
         diesel::update(self)
             .set(transaction_logs::comment.eq(comment))
             .execute(conn)?;
-        
+
         Ok(())
     }
 
@@ -338,17 +330,16 @@ impl TransactionLogModel for TransactionLog {
         &self,
         tx: &Vec<u8>,
         tombstone_block_index: Option<i64>,
-        conn: &Conn
+        conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
         diesel::update(self)
-                    .set((
-                        transaction_logs::tx.eq(tx),
-                        transaction_logs::tombstone_block_index
-                            .eq(tombstone_block_index),
-                    ))
-                    .execute(conn)?;
+            .set((
+                transaction_logs::tx.eq(tx),
+                transaction_logs::tombstone_block_index.eq(tombstone_block_index),
+            ))
+            .execute(conn)?;
         Ok(())
     }
 
@@ -479,8 +470,11 @@ impl TransactionLogModel for TransactionLog {
                     Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
                 }
                 transaction_log.update_comment(comment, conn)?;
-                transaction_log.update_tx_and_tombstone_block_index(&tx, Some(tx_proposal.tx.prefix.tombstone_block as i64), conn)?;
-
+                transaction_log.update_tx_and_tombstone_block_index(
+                    &tx,
+                    Some(tx_proposal.tx.prefix.tombstone_block as i64),
+                    conn,
+                )?;
             }
             Err(WalletDbError::TransactionLogNotFound(_)) => {
                 let new_transaction_log = NewTransactionLog {
@@ -1588,7 +1582,7 @@ mod tests {
 
         // log_submitted
 
-        // Returned transaction log should be 
+        // Returned transaction log should be
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
