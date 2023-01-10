@@ -1582,6 +1582,118 @@ mod tests {
         );
     }
 
+    #[test_with_logger]
+    fn test_log_submitted_with_comment_change(logger: Logger) {
+        // Test setup
+
+        // log_submitted
+
+        // Returned transaction log should be 
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &vec![70 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        // Build a transaction
+        let conn = wallet_db.get_conn().unwrap();
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+        builder
+            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
+            .unwrap();
+        builder.set_tombstone(0).unwrap();
+        builder.select_txos(&conn, None).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+
+        let tx_log =
+            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
+                .unwrap();
+
+        let expected_tx_log = TransactionLog {
+            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            account_id: AccountID::from(&account_key).to_string(),
+            fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
+            fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
+            submitted_block_index: None,
+            tombstone_block_index: None,
+            finalized_block_index: None,
+            comment: "".to_string(),
+            tx: vec![],
+            failed: false,
+        };
+
+        assert_eq!(tx_log, expected_tx_log);
+
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
+        let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
+
+        assert_eq!(
+            TransactionId::from(&tx_proposal),
+            TransactionId::from(&unsigned_tx_proposal)
+        );
+
+        let tx_log = TransactionLog::log_signed(
+            tx_proposal.clone(),
+            "first change".to_string(),
+            &AccountID::from(&account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let expected_tx_log = TransactionLog {
+            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            account_id: AccountID::from(&account_key).to_string(),
+            fee_value: tx_proposal.tx.prefix.fee as i64,
+            fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
+            submitted_block_index: None,
+            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+            finalized_block_index: None,
+            comment: "first change".to_string(),
+            tx: tx_bytes.clone(),
+            failed: false,
+        };
+
+        assert_eq!(tx_log, expected_tx_log);
+
+        // Log submitted transaction from tx_proposal
+        let tx_log = TransactionLog::log_submitted(
+            &tx_proposal,
+            ledger_db.num_blocks().unwrap(),
+            "second change".to_string(),
+            &AccountID::from(&account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let expected_tx_log = TransactionLog {
+            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            account_id: AccountID::from(&account_key).to_string(),
+            fee_value: tx_proposal.tx.prefix.fee as i64,
+            fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
+            submitted_block_index: Some(ledger_db.num_blocks().unwrap() as i64),
+            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+            finalized_block_index: None,
+            comment: "second change".to_string(),
+            tx: tx_bytes.clone(),
+            failed: false,
+        };
+
+        assert_eq!(tx_log.tx, expected_tx_log.tx);
+    }
+
     // FIXME: test_log_submitted for recovered
     // FIXME: test_log_submitted offline flow
 }
