@@ -111,7 +111,7 @@ fn main() {
             .max_send_message_len(-1)
             .max_reconnect_backoff(Duration::from_millis(2000))
             .initial_reconnect_backoff(Duration::from_millis(1000))
-            .connect_to_uri(&config.mirror_public_uri, &logger);
+            .connect(&config.mirror_public_uri.to_string());
 
         WalletServiceMirrorClient::new(ch)
     };
