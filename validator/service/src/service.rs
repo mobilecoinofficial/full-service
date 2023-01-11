@@ -51,12 +51,12 @@ impl Service {
                 .build(),
         );
 
-        let server = ServerBuilder::new(env)
+        let mut server = ServerBuilder::new(env)
             .register_service(build_info_service)
             .register_service(health_service)
             .register_service(validator_service)
             .register_service(blockchain_service)
-            .build_using_uri(uri, logger)
+            .build_using_uri(listen_uri, logger)
             .expect("Failed to build grpc server");
 
         server.start();

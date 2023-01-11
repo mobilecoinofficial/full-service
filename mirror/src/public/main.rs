@@ -27,7 +27,7 @@ use rocket::{
     data::ToByteUnit, http::Status, launch, post, response::Responder, routes,
     tokio::io::AsyncReadExt, Data, Request, Response,
 };
-use std::{io::Read, sync::Arc};
+use std::sync::Arc;
 use structopt::StructOpt;
 
 pub type ClientUri = Uri<ClientUriScheme>;
