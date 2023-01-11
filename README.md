@@ -41,28 +41,6 @@ For database encryption features, see [DATABASE.md](DATABASE.md).
 
 ### Build and Run
 
-Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
-
-Download the latest Xcode 12 and add it to your applications folder.
-
-If you are on OSX Monterey or higher, you will need to fake the version to get OSX to allow you to open it.  Follow these steps (for Xcode 12.5.1):
-
-```sh
-# Change build version to Xcode 13.1
-/usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 19466' /Applications/Xcode_12.5.1.app/Contents/Info.plist
-
-# Open Xcode (system will check build version and cache it)
-open /Applications/Xcode_12.5.1.app/
-
-# Revert Xcode's build version
-/usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 18212' /Applications/Xcode_12.5.1.app/Contents/Info.plist
-```
-
-Then set your system to use it with:
-```sh
-sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
-```
-
 1. Install Rust from https://www.rust-lang.org/tools/install
 
 2. Install dependencies (from this top-level full-service directory).
