@@ -3003,6 +3003,7 @@ dependencies = [
  "mc-util-build-script",
  "mc-util-grpc",
  "mc-util-uri",
+ "num_cpus",
  "protobuf",
  "rand 0.8.5",
  "rand_core 0.6.4",
@@ -4807,12 +4808,15 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "ref-cast",
+ "rustls",
+ "rustls-pemfile",
  "serde",
  "smallvec",
  "stable-pattern",
  "state",
  "time 0.3.17",
  "tokio",
+ "tokio-rustls",
  "uncased",
 ]
 
