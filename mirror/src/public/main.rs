@@ -23,7 +23,10 @@ use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
 use mirror_service::MirrorService;
 use query::QueryManager;
-use rocket::{http::Status, post, response::Responder, routes, Data, Request, Response};
+use rocket::{
+    data::ToByteUnit, http::Status, launch, post, response::Responder, routes,
+    tokio::io::AsyncReadExt, Data, Request, Response,
+};
 use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
 
@@ -99,12 +102,15 @@ impl From<String> for BadRequest {
 }
 
 #[post("/unencrypted-request", format = "json", data = "<request_data>")]
-fn unencrypted_request(
-    state: rocket::State<State>,
-    request_data: rocket::Data,
+async fn unencrypted_request(
+    state: &rocket::State<State>,
+    request_data: rocket::Data<'_>,
 ) -> Result<String, BadRequest> {
     let mut request = String::new();
-    let res = request_data.open().read_to_string(&mut request);
+    let res = request_data
+        .open(2.mebibytes())
+        .read_to_string(&mut request)
+        .await;
     if res.is_err() {
         let msg = "Could not read request data for unencrypted request.";
         log::error!(state.logger, "{}", msg,);
@@ -155,9 +161,12 @@ fn unencrypted_request(
     format = "application/octet-stream",
     data = "<data>"
 )]
-fn encrypted_request(state: rocket::State<State>, data: Data) -> Result<Vec<u8>, BadRequest> {
+async fn encrypted_request(
+    state: &rocket::State<State>,
+    data: Data<'_>,
+) -> Result<Vec<u8>, BadRequest> {
     let mut payload = Vec::new();
-    if let Err(err) = data.open().read_to_end(&mut payload) {
+    if let Err(err) = data.open(2.mebibytes()).read_to_end(&mut payload).await {
         let msg = format!(
             "Could not read request data for unencrypted request: {}",
             err
@@ -209,7 +218,8 @@ fn encrypted_request(state: rocket::State<State>, data: Data) -> Result<Vec<u8>,
     Ok(response.get_payload().to_vec())
 }
 
-fn main() {
+#[launch]
+fn rocket() -> _ {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 
@@ -248,14 +258,14 @@ fn main() {
         .max_receive_message_len(-1)
         .max_send_message_len(-1);
 
-    let server_builder = ServerBuilder::new(env)
+    let mut server = ServerBuilder::new(env)
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
         .channel_args(ch_builder.build_args())
-        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
+        .build_using_uri(&config.mirror_listen_uri, logger.clone())
+        .expect("Failed to build mirror GRPC server");
 
-    let mut server = server_builder.build().unwrap();
     server.start();
 
     // Start the client-facing webserver.
@@ -263,7 +273,7 @@ fn main() {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
     }
 
-    let mut rocket_config = rocket::Config::figment()
+    let mut rocket_config: rocket::Config = rocket::Config::figment()
         .merge(("address", config.client_listen_uri.host()))
         .merge(("port", config.client_listen_uri.port()))
         .extract()
@@ -297,10 +307,9 @@ fn main() {
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![unencrypted_request, encrypted_request])
         .manage(State {
             query_manager,
             logger,
         })
-        .launch();
+        .mount("/", routes![unencrypted_request, encrypted_request])
 }
