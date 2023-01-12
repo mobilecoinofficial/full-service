@@ -37,7 +37,6 @@ A sender can provide the confirmation numbers from a transaction to the recipien
   "result": {
     "validated": true
   },
-  "error": null,
   "jsonrpc": "2.0",
   "id": 1,
 }

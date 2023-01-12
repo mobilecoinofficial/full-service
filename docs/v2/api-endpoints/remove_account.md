@@ -35,7 +35,6 @@ description: Remove an account from a given wallet.
   "result": {
     "removed": true
   },
-  "error": null,
   "jsonrpc": "2.0",
   "id": 1
 }
