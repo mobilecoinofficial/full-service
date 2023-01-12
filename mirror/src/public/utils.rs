@@ -18,7 +18,7 @@ pub fn is_tls_self_signed(uri: &impl ConnectionUri) -> Result<bool, String> {
     let cert_pem_bytes = uri.tls_chain()?;
 
     let (rem, pem) =
-        pem_to_der(&cert_pem_bytes).map_err(|err| format!("pem_to_der failed: {}", err))?;
+        pem_to_der(&cert_pem_bytes).map_err(|err| format!("pem_to_der failed: {e}"))?;
     if !rem.is_empty() || pem.label != "CERTIFICATE" {
         return Err(format!(
             "Failed parsing PEM: rem={:?}, pem.label={}",
@@ -27,7 +27,7 @@ pub fn is_tls_self_signed(uri: &impl ConnectionUri) -> Result<bool, String> {
     }
 
     let (rem, cert) =
-        parse_x509_der(&pem.contents).map_err(|err| format!("parse_x509_der failed: {}", err))?;
+        parse_x509_der(&pem.contents).map_err(|err| format!("parse_x509_der failed: {e}"))?;
     if !rem.is_empty() {
         return Err(format!("Failed parsing DER: rem={:?}", rem));
     }

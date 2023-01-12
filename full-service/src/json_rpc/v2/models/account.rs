@@ -61,11 +61,11 @@ impl Account {
         let main_public_address = if src.view_only {
             let account_key: mc_account_keys::ViewAccountKey =
                 mc_util_serial::decode(&src.account_key)
-                    .map_err(|e| format!("Failed to decode view account key: {}", e))?;
+                    .map_err(|e| format!("Failed to decode view account key: {e}"))?;
             account_key.default_subaddress()
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-                .map_err(|e| format!("Failed to decode account key: {}", e))?;
+                .map_err(|e| format!("Failed to decode account key: {e}"))?;
             account_key.default_subaddress()
         };
 

@@ -131,7 +131,7 @@ impl APIConfig {
             } else if let Some(verifier) = verifier.as_ref() {
                 let report_responses = conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
-                    .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
+                    .map_err(|err| format!("Failed fetching fog reports: {err}"))?;
                 log::debug!(logger, "Got report responses {:?}", report_responses);
                 Ok(FogResolver::new(report_responses, verifier)
                     .expect("Could not construct fog resolver"))

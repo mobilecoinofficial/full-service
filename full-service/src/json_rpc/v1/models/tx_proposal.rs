@@ -160,7 +160,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             .map(|(key, val)| {
                 key.parse::<usize>()
                     .and_then(|k| val.parse::<usize>().and_then(|v| Ok((k, v))))
-                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {}", err))
+                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {err}"))
             })
             .collect::<Result<Vec<(usize, usize)>, String>>()?;
         Ok(Self {
@@ -174,7 +174,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             fee: src
                 .fee
                 .parse::<u64>()
-                .map_err(|err| format!("Failed to parse u64 from fee: {}", err))?,
+                .map_err(|err| format!("Failed to parse u64 from fee: {err}"))?,
             outlay_index_to_tx_out_index: outlay_map,
             outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
         })
