@@ -54,7 +54,7 @@ impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
             object: "amount".to_string(),
             commitment: hex::encode(src.commitment().to_bytes()),
             masked_value: src.get_masked_value().to_string(),
-            masked_token_id: hex::encode(&src.masked_token_id()),
+            masked_token_id: hex::encode(src.masked_token_id()),
             version,
         }
     }

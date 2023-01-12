@@ -39,9 +39,9 @@ impl TryFrom<&service::receipt::ReceiverReceipt> for ReceiverReceipt {
     fn try_from(src: &service::receipt::ReceiverReceipt) -> Result<ReceiverReceipt, String> {
         Ok(ReceiverReceipt {
             object: "receiver_receipt".to_string(),
-            public_key: hex::encode(&mc_util_serial::encode(&src.public_key)),
+            public_key: hex::encode(mc_util_serial::encode(&src.public_key)),
             tombstone_block: src.tombstone_block.to_string(),
-            confirmation: hex::encode(&mc_util_serial::encode(&src.confirmation)),
+            confirmation: hex::encode(mc_util_serial::encode(&src.confirmation)),
             amount: MaskedAmount::from(&src.amount),
         })
     }

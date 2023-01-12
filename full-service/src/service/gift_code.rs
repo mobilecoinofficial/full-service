@@ -494,7 +494,7 @@ where
         let gift_code_b58 = b58_encode_transfer_payload(
             gift_code_bip39_entropy_bytes.to_vec(),
             proto_tx_pubkey,
-            memo.unwrap_or_else(|| "".to_string()),
+            memo.unwrap_or_default(),
         )?;
 
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
@@ -602,7 +602,7 @@ where
             let onetime_private_key = recover_onetime_private_key(
                 &RistrettoPublic::try_from(&transfer_payload.txo_public_key)?,
                 gift_account_key.view_private_key(),
-                &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX as u64),
+                &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
             );
             KeyImage::from(&onetime_private_key)
         };

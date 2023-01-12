@@ -37,7 +37,7 @@ impl FromStr for TxoStatus {
             "txo_status_pending" => Ok(TxoStatus::Pending),
             "txo_status_spent" => Ok(TxoStatus::Spent),
             "txo_status_orphaned" => Ok(TxoStatus::Orphaned),
-            _ => Err(format!("Unknown TxoStatus: {}", s)),
+            _ => Err(format!("Unknown TxoStatus: {s}")),
         }
     }
 }
@@ -200,7 +200,7 @@ impl Txo {
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|i| i.to_string()),
             assigned_address: None,
-            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(k)),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
         }
     }

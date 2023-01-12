@@ -71,7 +71,7 @@ impl Txo {
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            key_image: txo.key_image.as_ref().map(|k| hex::encode(k)),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
         }
     }

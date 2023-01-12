@@ -113,7 +113,7 @@ where
         let payment_request_b58 = b58_encode_payment_request(
             &public_address,
             &amount,
-            memo.unwrap_or_else(|| "".to_string()),
+            memo.unwrap_or_default(),
         )?;
 
         Ok(payment_request_b58)

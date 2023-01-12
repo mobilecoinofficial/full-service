@@ -226,8 +226,8 @@ impl AccountModel for Account {
         let account_key: AccountKey = slip_10_key.into();
         let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
-            &fog_report_id,
-            &base64::decode(fog_authority_spki)?,
+            fog_report_id,
+            base64::decode(fog_authority_spki)?,
         );
 
         Account::create(
@@ -333,7 +333,7 @@ impl AccountModel for Account {
             )?;
 
             for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
-                AssignedSubaddress::create(account_key, subaddress_index as u64, "", conn)?;
+                AssignedSubaddress::create(account_key, subaddress_index, "", conn)?;
             }
         }
 
@@ -356,7 +356,7 @@ impl AccountModel for Account {
             first_block_index,
             Some(import_block_index),
             next_subaddress_index,
-            &name.unwrap_or_else(|| "".to_string()),
+            &name.unwrap_or_default(),
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
@@ -381,7 +381,7 @@ impl AccountModel for Account {
             first_block_index,
             Some(import_block_index),
             next_subaddress_index,
-            &name.unwrap_or_else(|| "".to_string()),
+            &name.unwrap_or_default(),
             fog_report_url,
             fog_report_id,
             fog_authority_spki,
@@ -422,7 +422,7 @@ impl AccountModel for Account {
             first_block_index,
             next_block_index,
             import_block_index: Some(import_block_index as i64),
-            name: &name.unwrap_or_else(|| "".to_string()),
+            name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
         };
@@ -455,7 +455,7 @@ impl AccountModel for Account {
         for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
             AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
-                subaddress_index as u64,
+                subaddress_index,
                 "",
                 conn,
             )?;

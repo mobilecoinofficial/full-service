@@ -470,7 +470,7 @@ where
                     .map(|a| {
                         (
                             a.public_address_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
+                            serde_json::to_value(Address::from(a))
                                 .expect("Could not get json value"),
                         )
                     })

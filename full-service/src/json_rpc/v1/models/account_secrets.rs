@@ -104,8 +104,7 @@ impl TryFrom<&Account> for AccountSecrets {
                 account_key: Some(AccountKey::try_from(&account_key).map_err(|err| {
                     format!(
                         "Could not convert account_key to json_rpc
-                representation: {:?}",
-                        err
+                representation: {err:?}"
                     )
                 })?),
                 view_account_key: None,
