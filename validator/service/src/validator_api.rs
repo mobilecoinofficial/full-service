@@ -177,11 +177,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
                     result.set_result(err);
                     Ok(())
                 }
-                err => Err(rpc_internal_error(
-                    "propose_tx",
-                    format!("{:?}", err),
-                    logger,
-                )),
+                err => Err(rpc_internal_error("propose_tx", format!("{err:?}"), logger)),
             },
         }?;
 
@@ -214,7 +210,7 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             // Err(FogConnectionError::Grpc(Error::RpcFailure(status_code))) ?
             err => Err(rpc_internal_error(
                 "fetch_fog_report",
-                format!("{:?}", err),
+                format!("{err:?}"),
                 logger,
             )),
         }

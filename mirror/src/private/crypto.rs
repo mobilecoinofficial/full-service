@@ -22,7 +22,7 @@ pub fn encrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
             let mut output = vec![0u8; key_size];
 
             key.private_encrypt(chunk, &mut output, Padding::PKCS1)
-                .map_err(|e| format!("encrypt failed: {:?}", e))?;
+                .map_err(|e| format!("encrypt failed: {e:?}"))?;
 
             Ok(output)
         })
@@ -44,8 +44,8 @@ pub fn decrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
             let mut output = vec![0u8; key_size];
             let num_bytes = key
                 .private_decrypt(chunk, &mut output, Padding::PKCS1)
-                .map_err(|e| format!("decrypt failed: {:?}", e))?;
-            output.truncate(num_bytes as usize);
+                .map_err(|e| format!("decrypt failed: {e:?}"))?;
+            output.truncate(num_bytes);
             Ok(output)
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -59,10 +59,10 @@ pub fn decrypt(key: &Rsa<Private>, payload: &[u8]) -> Result<Vec<u8>, String> {
 /// Load a private key from a file
 pub fn load_private_key(src: &str) -> Result<Rsa<Private>, String> {
     let key_str = std::fs::read_to_string(src)
-        .map_err(|err| format!("failed reading key file {}: {:?}", src, err))?;
+        .map_err(|err| format!("failed reading key file {src}: {err:?}"))?;
 
     Rsa::private_key_from_pem_passphrase(key_str.as_bytes(), &[])
-        .map_err(|err| format!("failed parsing key file {}: {:?}", src, err))
+        .map_err(|err| format!("failed parsing key file {src}: {err:?}"))
 }
 
 #[cfg(test)]

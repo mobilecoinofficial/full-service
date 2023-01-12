@@ -176,10 +176,7 @@ async fn encrypted_request(
 ) -> Result<Vec<u8>, BadRequest> {
     let mut payload = Vec::new();
     if let Err(err) = data.open(2.mebibytes()).read_to_end(&mut payload).await {
-        let msg = format!(
-            "Could not read request data for unencrypted request: {}",
-            err
-        );
+        let msg = format!("Could not read request data for unencrypted request: {err}");
         log::error!(state.logger, "{}", msg);
         return Err(msg.into());
     }
