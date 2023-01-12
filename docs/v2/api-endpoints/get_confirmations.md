@@ -36,20 +36,18 @@ When calling `get_confirmations` for a transaction, only the confirmation number
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_confirmations",
-  "result": {
-    "confirmations": [
+  "method":"get_confirmations",
+  "result":{
+    "confirmations":[
       {
-        "object": "confirmation",
-        "txo_id": "9e0de29bfee9a391e520a0b9411a91f094a454ebc70122bdc0e36889ab59d466",
-        "txo_index": "458865",
-        "confirmation": "0a20faca10509c32845041e49e009ddc4e35b61e7982a11aced50493b4b8aaab7a1f"
+        "txo_id":"fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
+        "txo_index":"4061770",
+        "confirmation":"0a20bf46e135b4eeb5c45fcc8ee69a5e564469fd3985269010f6738a96f832992afe"
       }
     ]
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

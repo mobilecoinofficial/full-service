@@ -19,23 +19,23 @@ description: Check the status of a receiver receipt.
 {% tab title="Request Body" %}
 ```text
 {
-  "method": "check_receiver_receipt_status",
-  "params": {
-    "address": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
-    "receiver_receipt": {
-      "object": "receiver_receipt",
-      "public_key": "0a20d2118a065192f11e228e0fce39e90a878b5aa628b7613a4556c193461ebd4f67",
-      "confirmation": "0a205e5ca2fa40f837d7aff6d37e9314329d21bad03d5fac2ec1fc844a09368c33e5",
-      "tombstone_block": "154512",
-      "amount": {
-        "object": "amount",
-        "commitment": "782c575ed7d893245d10d7dd49dcffc3515a7ed252bcade74e719a17d639092d",
-        "masked_value": "12052895925511073331"
+  "method":"check_receiver_receipt_status",
+  "params":{
+    "address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+    "receiver_receipt":{
+      "public_key":"0a20728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
+      "confirmation":"0a20013e277d63f9223f37dace93974b5cff87257b7d413d66638155af89345016d0",
+      "tombstone_block":"1352860",
+      "amount":{
+        "commitment":"b0eec3e4ac1605ebd32e74598ce8ae6a7730e6b159918df2d77537d5f349e43c",
+        "masked_value":"15435919858782335364",
+        "masked_token_id":"3dcdec57c18e114b",
+        "version":"V1"
       }
     }
   },
-  "jsonrpc": "2.0",
-  "id": 1
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}
@@ -43,37 +43,27 @@ description: Check the status of a receiver receipt.
 {% tab title="Response" %}
 ```text
 {
-  "method": "check_receiver_receipt_status",
-  "result": {
-    "receipts_transaction_status": "TransactionSuccess",
-    "txo": {
-      "object": "txo",
-      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
-      "value_pmob": "2960000000000",
-      "received_block_index": "8094",
-      "spent_block_index": "8180",
-      "is_spent_recovered": false,
-      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-      "minted_account_id": null,
-      "account_status_map": {
-        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-          "txo_status": "spent",
-          "txo_type": "received"
-        }
-      },
-      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
-      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
-      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
-      "subaddress_index": "0",
-      "assigned_subaddress": "3Dg4iFavKJScgCUeqb1VnET5ADmKjZgWz15fN7jfeCCWb72serxKE7fqz7htQvRirN4yeU2xxtcHRAN2zbF6V9n7FomDm69VX3FghvkDfpq",
-      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null,
-      "offset_count": 25
+  "method":"check_receiver_receipt_status",
+  "result":{
+    "receipt_transaction_status":"TransactionSuccess",
+    "txo":{
+      "id":"454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
+      "value":"1234600000000",
+      "token_id":"0",
+      "received_block_index":"1352852",
+      "spent_block_index":null,
+      "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "status":"unspent",
+      "target_key":"0a20807982b36edcb72ff9b61630ffdb7949bfe1778798708f80d6c349fc0672e011",
+      "public_key":"0a20728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
+      "e_fog_hint":"0a54c4f56d207fbd86401c6f8bcf2dfb344aba7f8f8dcf542da046c92ed62f9582b281068872044ca71b8c70e9a8c5b3e2c134fb36a570293ceff55d3555eb8710fbb6635cc58242ff9b2383ae832881dca8698f0100",
+      "subaddress_index":"0",
+      "key_image":"0a2062a2cd3c08f4ff68f46ce7ba50afb8e1e441ac21e5e9d3ae9f7016c89a2cac23",
+      "confirmation":"0a20013e277d63f9223f37dace93974b5cff87257b7d413d66638155af89345016d0"
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

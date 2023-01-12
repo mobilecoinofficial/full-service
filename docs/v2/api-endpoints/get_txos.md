@@ -41,114 +41,63 @@ description: Get TXOs for a given account with offset and limit parameters
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_txos",
-  "result": {
-    "txo_ids": [
-      "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
-      "00408833347550b046f0996afe92313745f76e307904686e93de5bab3590e9da",
-      "005b41a40be1401426f9a00965cc334e4703e4089adb8fa00616e7b25b92c6e5"
+  "method":"get_txos",
+  "result":{
+    "txo_ids":[
+      "fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
+      "454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
+      "490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84"
     ],
-    "txo_map": {
-      "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167": {
-        "account_status_map": {
-          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-            "txo_status": "spent",
-            "txo_type": "received"
-          }
-        },
-        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "e_fog_hint": "0a54bf0a5f37989b379b9db3e8937387c5033428b399d44ee524c02b53ce8b7fa7ffc7181a854255cefc68704f69eedd43a891d2ed65c9f6e4c0fc645c2bc156278395221100a4fc3a1d617d04f6eca8851e846a0100",
-        "is_spent_recovered": false,
-        "key_image": "0a20f041e3da520a6e3328d43a920b90bf87826a1602c9249cf6591dd32328a4544e",
-        "minted_account_id": null,
-        "object": "txo",
-        "confirmation": null,
-        "public_key": "0a201a592874a596aeb14cbeb1c7d3449cbd20dc8078ad7fff657e131d619145ef0a",
-        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_index": "128567",
-        "spent_block_index": "128569",
-        "subaddress_index": "0",
-        "target_key": "0a209e1067117870549a77a47de04bd810da052abfc23d60a0c433367bfc689b7428",
-        "txo_id": "001cdcc1f0a22dc0ddcdaac6020cc03d919cbc3c36923f157b4a6bf0dc980167",
-        "value_pmob": "990000000000"
+    "txo_map":{
+      "fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542":{
+        "id":"fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
+        "value":"1234600000000",
+        "token_id":"0",
+        "received_block_index":"1352857",
+        "spent_block_index":null,
+        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+        "status":"unspent",
+        "target_key":"0a20269a33ccc56fc4e17e8be492638d4160e2a20e067e876f31068ae8ac7ddcda73",
+        "public_key":"0a2052d89fc3cfd035bf2162f03bbf44139613fab7151d7cddc6d0ef44910edbd975",
+        "e_fog_hint":"0a542ed0bc15d1395f54a4077c7a08f1eb0e713aab700a18fe55a66419c6b5abf250e0be3098f317b1f948e8f3c5dcfe800870c8150f386f732a850e4ef8bd2fd0bd5124ad78f2d4799fbb1e0e82a05d6002e2c30100",
+        "subaddress_index":"0",
+        "key_image":"0a204269ee4734aa5fa9b029b39fdb39f0f493c538aaefabb7e6290be56e402a2174",
+        "confirmation":"0a20bf46e135b4eeb5c45fcc8ee69a5e564469fd3985269010f6738a96f832992afe"
       },
-      "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba": {
-        "account_status_map": {
-          "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c": {
-            "txo_status": "unspent",
-            "txo_type": "received"
-          },
-          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-            "txo_status": "secreted",
-            "txo_type": "minted"
-          }
-        },
-        "assigned_subaddress": null,
-        "e_fog_hint": "0a5472b079a520696518cc7d7c3036e855cbbcf1a3e247db32ab2e62e835183077b862ef86ec4963a584650cc028eb645569f9de1392b88f8fd7fa07aa28c4e035fd5f4866f3db3d403a05d2adb5e4f2992c010b0100",
-        "is_spent_recovered": false,
-        "key_image": null,
-        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "object": "txo",
-        "confirmation": "0a204488e153cce1e4bcdd4419eecb778f3d2d2b024b39aaa29532d2e47e238b2e31",
-        "public_key": "0a20e6736474f73e440686736bfd045d838c2b3bc056ffc647ad6b1c990f5a46b123",
-        "received_account_id": "36fdf8fbdaa35ad8e661209b8a7c7057f29bf16a1e399a34aa92c3873dfb853c",
-        "received_block_index": 128567,
-        "spent_block_index": null,
-        "subaddress_index": null,
-        "target_key": "0a20762d8a723aae2aa70cc11c62c91af715f957a7455b695641fe8c94210812cf1b",
-        "txo_id": "84f30233774d728bb7844bed59d471fe55ee3680ab70ddc312840db0f978f3ba",
-        "value_pmob": "200"
+      "454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f":{
+        "id":"454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
+        "value":"1234600000000",
+        "token_id":"0",
+        "received_block_index":"1352852",
+        "spent_block_index":null,
+        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+        "status":"unspent",
+        "target_key":"0a20807982b36edcb72ff9b61630ffdb7949bfe1778798708f80d6c349fc0672e011",
+        "public_key":"0a20728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
+        "e_fog_hint":"0a54c4f56d207fbd86401c6f8bcf2dfb344aba7f8f8dcf542da046c92ed62f9582b281068872044ca71b8c70e9a8c5b3e2c134fb36a570293ceff55d3555eb8710fbb6635cc58242ff9b2383ae832881dca8698f0100",
+        "subaddress_index":"0",
+        "key_image":"0a2062a2cd3c08f4ff68f46ce7ba50afb8e1e441ac21e5e9d3ae9f7016c89a2cac23",
+        "confirmation":"0a20013e277d63f9223f37dace93974b5cff87257b7d413d66638155af89345016d0"
       },
-      "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280": {
-        "account_status_map": {
-          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-            "txo_status": "unspent",
-            "txo_type": "received"
-          }
-        },
-        "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-        "e_fog_hint": "0a546f862ccf5e96a89b3ede770a70aa26ce8be704a7e5a73fff02d16ee1f694297b6c17d2e668d6181df047ae68730dfc7913b28aca66450ee1de0ca3b0bedb07664918899848f217bcbbe48be2ef40074ae5dd0100",
-        "is_spent_recovered": false,
-        "key_image": "0a20784ab38c4541ce23abbec6744431d6ae14101c49c6535b3e9bf3fd728db13848",
-        "minted_account_id": null,
-        "object": "txo",
-        "confirmation": null,
-        "public_key": "0a20d803a979c9ec0531f106363a885dde29101fcd70209f9ed686905512dfd14d5f",
-        "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "received_block_index": "128567",
-        "spent_block_index": null,
-        "subaddress_index": "0",
-        "target_key": "0a209abadbfcec6c81b3d184dc104e51cac4c4faa8bab4da21a3714901519810c20d",
-        "txo_id": "58c2c3780792ccf9c51014c7688a71f03732b633f8c5dfa49040fa7f51328280",
-        "value_pmob": "4000000000000"
-      },
-      "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726": {
-        "account_status_map": {
-          "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-            "txo_status": "secreted",
-            "txo_type": "minted"
-          }
-        },
-        "assigned_subaddress": null,
-        "e_fog_hint": "0a54338fcf8609cf80dfe017bee2339b22b626af2957ef579ae8829f3d8e7fab6c20365b6a99727fcd5e3de7784fca7e1cbb77ec35e7f2c39ea47ef6121716119ba5a67f8a6026a6a6274e7262ea8ea8280782440100",
-        "is_spent_recovered": false,
-        "key_image": null,
-        "minted_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-        "object": "txo",
-        "confirmation": null,
-        "public_key": "0a209432c589bb4e5101c26e935b70930dfe45c78417527fb994872ebd65fcb9c116",
-        "received_account_id": null,
-        "received_block_index": null,
-        "spent_block_index": null,
-        "subaddress_index": null,
-        "target_key": "0a208c75723e9b9a4af0c833bfe190c43900c3b41834cf37024f5fecfbe9919dff23",
-        "txo_id": "b496f4f3ec3159bf48517aa7d9cda193ef8bfcac343f81eaed0e0a55849e4726",
-        "value_pmob": "980000000000"
+      "490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84":{
+        "id":"490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84",
+        "value":"1929999999798",
+        "token_id":"0",
+        "received_block_index":"1352847",
+        "spent_block_index":null,
+        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+        "status":"unspent",
+        "target_key":"0a20dce16f8febe0dc3b4d7f7e47755030fe7204b03eb070b4dd0ccb6aead37a4d33",
+        "public_key":"0a20ea6f11280167408088cff1aa92eecf8e3268bc2480609681f07569c1ac5e8c79",
+        "e_fog_hint":"0a544df6b851a3d7684e0a88e9b1be2b1df9b69afc9af44310bed49750c5482cc860d87cdc7eb18187807f9288e43b5ce9aad1b08ba7472d639f1abbe1ab3e713cb6f509367787687bcf9e2a1b72ed0e944e42c70100",
+        "subaddress_index":"0",
+        "key_image":"0a206683694c35b4126247079d31811a7ff0b5fe7e5a5412b85a20b9d48595788321",
+        "confirmation":"0a2057cdcc39a113f09e40968e9b5ff18060288bf55c5be16b4e798370a8432f64dc"
       }
     }
   },
-  "jsonrpc": "2.0",
-  "id": 1
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}
