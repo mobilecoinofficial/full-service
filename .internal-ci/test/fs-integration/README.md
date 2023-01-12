@@ -1,6 +1,24 @@
 # fs-integration
 
-These scrips use Python Poetry Env/Package manager.
+These scrips use Python Poetry Env/Package manager
+
+## To run locally
+
+1. Setup poetry (see sections below for more details)
+
+```
+curl -sSL https://install.python-poetry.org | python3 -
+poetry install
+```
+
+2. Add mnemonics to `test_config.json` (or create another configuration file and pass as another parameter when running the test)
+   - Don't worry, `.gitignore` will prevent you from accidentally checking in your secrets
+
+3. Run the test
+
+```
+poetry run python3 basic.py
+```
 
 ## Install Dependencies
 
@@ -45,6 +63,12 @@ Remove the default directory project directory in the `pyproject.toml`, we're no
 
 ```
 {include = "fs_integration"}
+```
+
+## Use existing poetry configuration
+To read and install dependencies from current project's `pyproject.toml`: 
+```
+poetry install
 ```
 
 ## VSCode hints.

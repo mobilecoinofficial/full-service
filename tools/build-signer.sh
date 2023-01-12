@@ -1,7 +1,7 @@
 #!/bin/bash
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 
-# To use this script, run build-fs test or build-fs main
+# To use this script, run build-signer test or build-signer main
 
 # Overrides and Options
 #  - DEBUG or RUNNER_DEBUG print debug messages
@@ -100,7 +100,8 @@ echo "  SGX_MODE: ${SGX_MODE}"
 echo "  CONSENSUS_ENCLAVE_CSS: ${CONSENSUS_ENCLAVE_CSS}"
 echo "  INGEST_ENCLAVE_CSS: ${INGEST_ENCLAVE_CSS}"
 
-echo "building full service..."
+echo "building transaction signer..."
+cd transaction-signer
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options
 cargo build --release ${BUILD_OPTIONS}
 

@@ -1,7 +1,7 @@
 use crate::{
     db::{
         account::AccountID,
-        transaction_log::TransactionID,
+        transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
     json_rpc::{
@@ -236,7 +236,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -286,7 +286,7 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
@@ -556,9 +556,12 @@ where
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
 
+            let mut transaction_log_ids = Vec::new();
+
             for received_tx_log in received_tx_logs.iter() {
                 let tx_log_json = serde_json::to_value(received_tx_log).map_err(format_error)?;
                 transaction_log_map.insert(received_tx_log.transaction_log_id.clone(), tx_log_json);
+                transaction_log_ids.push(received_tx_log.transaction_log_id.clone());
             }
 
             for (tx_log, associated_txos, _status) in &transaction_logs_and_txos {
@@ -568,13 +571,11 @@ where
                         associated_txos
                     ));
                 transaction_log_map.insert(tx_log.id.clone(), tx_log_json);
+                transaction_log_ids.push(tx_log.id.clone());
             }
 
             JsonCommandResponse::get_all_transaction_logs_for_block {
-                transaction_log_ids: transaction_logs_and_txos
-                    .iter()
-                    .map(|(t, _a, _v)| t.id.to_string())
-                    .collect(),
+                transaction_log_ids,
                 transaction_log_map,
             }
         }
@@ -1084,7 +1085,7 @@ where
             JsonCommandResponse::validate_confirmation { validated: result }
         }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).map_err(format_error)?,
+            verified: service.verify_address(&address).is_ok(),
         },
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),

@@ -1,13 +1,14 @@
 use crate::{
     db::{
         account::AccountID,
-        transaction_log::TransactionID,
+        transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::{
-            format_error, format_invalid_request_error, JsonRPCError, JsonRPCResponse,
+            format_error, format_invalid_params_error, format_invalid_request_error, JsonRPCError,
+            JsonRPCResponse,
         },
         v2::{
             api::{request::JsonCommandRequest, response::JsonCommandResponse},
@@ -19,6 +20,7 @@ use crate::{
                 block::{Block, BlockContents},
                 confirmation_number::Confirmation,
                 network_status::NetworkStatus,
+                public_address::PublicAddress,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::TransactionLog,
                 tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
@@ -240,7 +242,7 @@ where
 
             JsonCommandResponse::build_burn_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -291,7 +293,7 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionID::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
             }
         }
         JsonCommandRequest::build_unsigned_burn_transaction {
@@ -654,10 +656,39 @@ where
                 balance_per_token,
             }
         }
-        JsonCommandRequest::get_block { block_index } => {
-            let (block, block_contents) = service
-                .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
-                .map_err(format_error)?;
+        JsonCommandRequest::get_block {
+            block_index,
+            txo_public_key,
+        } => {
+            let (block, block_contents) = match (block_index, txo_public_key) {
+                (None, None) => {
+                    return Err(format_invalid_params_error(
+                        "Must specify either block_index or txo_public_key",
+                    ));
+                }
+                (Some(_), Some(_)) => {
+                    return Err(format_invalid_params_error(
+                        "Must specify either block_index or txo_public_key, not both",
+                    ))
+                }
+                (None, Some(txo_public_key)) => {
+                    let public_key_bytes = hex::decode(txo_public_key).map_err(format_error)?;
+                    let public_key: CompressedRistrettoPublic = public_key_bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(format_error)?;
+                    let block_index = service
+                        .get_block_index_from_txo_public_key(&public_key)
+                        .map_err(format_error)?;
+                    service
+                        .get_block_object(block_index)
+                        .map_err(format_error)?
+                }
+                (Some(block_index), None) => service
+                    .get_block_object(block_index.parse::<u64>().map_err(format_error)?)
+                    .map_err(format_error)?,
+            };
+
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
@@ -1080,9 +1111,13 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).map_err(format_error)?,
-        },
+        JsonCommandRequest::verify_address { address } => {
+            let address = service.verify_address(&address).map_err(format_error)?;
+
+            JsonCommandResponse::verify_address {
+                details: PublicAddress::from(&address),
+            }
+        }
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (

@@ -6,9 +6,10 @@ description: Get the JSON representation of the "Block" object in the ledger.
 
 ## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
-| Required Param | Purpose | Requirements |
+| Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+| `block_index` | The block on which to perform this action. | Block must exist in the ledger. |
+| `txo_public_key` | The public key on which to perform this action, as hex encoded bytes | Public key must exist in the ledger. |
 
 ## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 

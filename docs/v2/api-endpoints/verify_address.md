@@ -33,7 +33,13 @@ description: Verify whether an address is correctly b58-encoded.
 {
   "method": "verify_address",
   "result": {
-    "verified": true
+    "details": {
+        "view_public_key": "08ad42828b934e6590794f788c5a5599afa12ca8080b90afbbbf928a0a30cd6f",
+        "spend_public_key": "4aa1eb7d23b7bfe4db3973277d85872eb7dcfe175c93c5c8758ecfd780ad6a10",
+        "fog_report_url": "fog://fog.prod.mobilecoinww.com",
+        "fog_report_id": null,
+        "fog_authority_sig": "c4ab081494440128d24e6b1451323888699a5fa2bf9922c36469774ac5114f0ad6ccc48b95a5e633cb4827e53569a74159b9941871890aa5bb3c73b341b75d82"
+    }
   },
   "error": null,
   "jsonrpc": "2.0",
