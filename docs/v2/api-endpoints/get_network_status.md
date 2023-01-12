@@ -24,22 +24,21 @@ description: 'Get the current status of the network.'
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_network_status",
-  "result": {
-    "network_status": {
-      object: "network_status",
-      "network_block_height": "152918",
-      "local_block_height": ""152918,
-        "fees": {
-            "0": "400000000",
-            "1": "2560"
-        },
-
+  "method":"get_network_status",
+  "result":{
+    "network_status":{
+      "network_block_height":"1352942",
+      "local_block_height":"1352942",
+      "fees":{
+        "0":"400000000",
+        "1":"2560",
+        "8192":"2560"
+      },
+      "block_version":"2"
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

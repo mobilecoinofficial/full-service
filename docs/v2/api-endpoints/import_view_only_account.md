@@ -27,19 +27,16 @@ description: >-
 {% tab title="Request Body" %}
 ```
 {
-  "method": "import_view_only_account",
-  "result": {
-    "account": {
-      "view_private_key": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "spend_public_key": "fcewc434g5353v535323f43f43f43g5342v3b67n8576453f4dcv56b77n857b46",
-      "name": "Coins for cats",
-      "first_block_index": "3500",
-      "next_block_index": "4000",
-    }
-  },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+    "method": "import_view_only_account",
+    "params": {
+        "view_private_key": "0a2078062debfa72270373d13d52e228b2acc7e3d55790447e7a58905b986fc3780a",
+        "spend_public_key": "0a208007986832d9269e62d9c0b2a33478ec761f8b6f6c32316bc8a993ed02964d51",
+        "name": "Bob",
+        "first_block_index": "1352037",
+        "next_subaddress_index": "2"
+    },
+    "jsonrpc": "2.0",
+    "id": 1
 }
 ```
 {% endtab %}
@@ -47,21 +44,23 @@ description: >-
 {% tab title="Response" %}
 ```
 {
-    "method": "import_view_only_account",
-    "params": {
-      "account": {
-      "object": "account",
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "name": "Bob",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "next_subaddress_index": "2",
-      "first_block_index": "3500",
-      "recovery_mode": false
-      }
-    },
-    "jsonrpc": "2.0",
-    "api_version": "2",
-    "id": 1
+  "method":"import_view_only_account",
+  "result":{
+    "account":{
+      "id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "name":"Bob",
+      "key_derivation_version":"2",
+      "main_address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+      "next_subaddress_index":"2",
+      "first_block_index":"1352037",
+      "next_block_index":"1352037",
+      "recovery_mode":false,
+      "fog_enabled":false,
+      "view_only":true
+    }
+  },
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}
