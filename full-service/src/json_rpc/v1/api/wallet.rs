@@ -914,7 +914,7 @@ where
                     let account = Account::new(a, next_subaddress_index)?;
                     serde_json::to_value(account)
                         .map(|v| (i.to_string(), v))
-                        .map_err(|e| format!("Coult not convert account map:{:?}", e))
+                        .map_err(|e| format!("Coult not convert account map:{e:?}"))
                 })
                 .collect::<Result<Vec<(String, serde_json::Value)>, String>>()
                 .map_err(format_error)?;

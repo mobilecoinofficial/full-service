@@ -37,7 +37,7 @@ pub fn is_tls_self_signed(uri: &impl ConnectionUri) -> Result<bool, String> {
     match cert.verify_signature(Some(&cert.tbs_certificate.subject_pki)) {
         Ok(()) => Ok(true),
         Err(X509Error::SignatureVerificationError) => Ok(false),
-        Err(err) => Err(format!("Error verifying certificate: {:?}", err)),
+        Err(err) => Err(format!("Error verifying certificate: {err:?}")),
     }
 }
 */

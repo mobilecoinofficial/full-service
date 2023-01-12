@@ -70,7 +70,7 @@ impl Account {
         };
 
         let main_public_address_b58 = b58_encode_public_address(&main_public_address)
-            .map_err(|e| format!("Could not b58 encode public address {:?}", e))?;
+            .map_err(|e| format!("Could not b58 encode public address {e:?}"))?;
 
         Ok(Account {
             object: "account".to_string(),

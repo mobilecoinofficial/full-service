@@ -53,24 +53,24 @@ impl TryFrom<&ReceiverReceipt> for service::receipt::ReceiverReceipt {
     fn try_from(src: &ReceiverReceipt) -> Result<service::receipt::ReceiverReceipt, String> {
         let txo_public_key: CompressedRistrettoPublic = mc_util_serial::decode(
             &hex::decode(&src.public_key)
-                .map_err(|err| format!("Could not decode hex for txo_public_key: {:?}", err))?,
+                .map_err(|err| format!("Could not decode hex for txo_public_key: {err:?}"))?,
         )
-        .map_err(|err| format!("Could not decode txo public key: {:?}", err))?;
+        .map_err(|err| format!("Could not decode txo public key: {err:?}"))?;
         let proof: TxOutConfirmationNumber = mc_util_serial::decode(
             &hex::decode(&src.confirmation)
-                .map_err(|err| format!("Could not decode hex for proof: {:?}", err))?,
+                .map_err(|err| format!("Could not decode hex for proof: {err:?}"))?,
         )
-        .map_err(|err| format!("Could not decode proof: {:?}", err))?;
+        .map_err(|err| format!("Could not decode proof: {err:?}"))?;
 
         let amount = mc_transaction_core::MaskedAmount::try_from(&src.amount)
-            .map_err(|err| format!("Could not convert amount: {:?}", err))?;
+            .map_err(|err| format!("Could not convert amount: {err:?}"))?;
 
         Ok(service::receipt::ReceiverReceipt {
             public_key: txo_public_key,
             tombstone_block: src
                 .tombstone_block
                 .parse::<u64>()
-                .map_err(|err| format!("Could not parse u64: {:?}", err))?,
+                .map_err(|err| format!("Could not parse u64: {err:?}"))?,
             confirmation: proof,
             amount,
         })

@@ -31,7 +31,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
         let method = src_json.get_mut("method").ok_or("Missing method")?;
         *method = method_alias(method.as_str().ok_or("Method is not a string")?).into();
 
-        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
+        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {e:?}"))
     }
 }
 

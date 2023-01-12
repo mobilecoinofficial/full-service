@@ -85,7 +85,7 @@ mod tests {
                 let mut output = vec![0u8; key_size];
 
                 key.public_encrypt(&chunk[..], &mut output, Padding::PKCS1)
-                    .map_err(|e| format!("encrypt failed: {:?}", e))?;
+                    .map_err(|e| format!("encrypt failed: {e:?}"))?;
 
                 Ok(output)
             })
@@ -107,7 +107,7 @@ mod tests {
                 let mut output = vec![0u8; key_size];
                 let num_bytes = key
                     .public_decrypt(&chunk[..], &mut output, Padding::PKCS1)
-                    .map_err(|e| format!("decrypt failed: {:?}", e))?;
+                    .map_err(|e| format!("decrypt failed: {e:?}"))?;
                 output.truncate(num_bytes as usize);
                 Ok(output)
             })

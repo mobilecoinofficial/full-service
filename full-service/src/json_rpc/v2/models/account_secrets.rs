@@ -50,7 +50,7 @@ impl TryFrom<&Account> for AccountSecrets {
         if src.view_only {
             let view_account_key: mc_account_keys::ViewAccountKey =
                 mc_util_serial::decode(&src.account_key).map_err(|err| {
-                    format!("Could not decode account key from database: {:?}", err)
+                    format!("Could not decode account key from database: {err:?}")
                 })?;
 
             Ok(AccountSecrets {
@@ -64,7 +64,7 @@ impl TryFrom<&Account> for AccountSecrets {
             })
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-                .map_err(|err| format!("Could not decode account key from database: {:?}", err))?;
+                .map_err(|err| format!("Could not decode account key from database: {err:?}"))?;
 
             let entropy = match src.key_derivation_version {
                 1 => Some(hex::encode(src.entropy.as_ref().ok_or("No entropy found")?)),
@@ -77,7 +77,7 @@ impl TryFrom<&Account> for AccountSecrets {
                         src.entropy.as_ref().ok_or("No entropy found")?,
                         Language::English,
                     )
-                    .map_err(|err| format!("Could not create mnemonic: {:?}", err))?
+                    .map_err(|err| format!("Could not create mnemonic: {err:?}"))?
                     .phrase()
                     .to_string(),
                 ),
