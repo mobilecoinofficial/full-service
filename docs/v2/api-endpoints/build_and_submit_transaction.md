@@ -19,7 +19,7 @@ description: >-
 | `addresses_and_amounts` | (string, [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs))[] | An array of public addresses and Amount object tuples |
 | `recipient_public_address` | string | b58-encoded public address bytes of the recipient for this transaction. |
 | `amount` | [Amount](../../../full-service/src/json_rpc/v2/models/amount.rs) | The Amount to send in this transaction |
-| `input_txo_ids` | string[] | Specific TXOs to use as inputs to this transaction |
+| `input_txo_ids` | string[]] | Specific TXOs to use as inputs to this transaction |
 | `fee_value` | string(u64) | The fee value to submit with this transaction. If not provided, uses `MINIMUM_FEE` of the first outputs token_id, if available, or defaults to MOB |
 | `fee_token_id` | string(u64) | The fee token to submit with this transaction. If not provided, uses token_id of first output, if available, or defaults to MOB |
 | `tombstone_block` | string(u64) | The block after which this transaction expires. If not provided, uses `cur_height` + 10 |

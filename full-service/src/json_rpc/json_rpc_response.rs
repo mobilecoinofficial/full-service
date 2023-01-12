@@ -100,13 +100,3 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
         data,
     }
 }
-
-pub fn format_invalid_params_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
-    let data: serde_json::Value =
-        json!({"server_error": format!("{:?}", e), "details": e.to_string()}).into();
-    JsonRPCError::error {
-        code: JsonRPCErrorCodes::InvalidParams as i32,
-        message: JsonRPCErrorCodes::InvalidParams.to_string(),
-        data,
-    }
-}

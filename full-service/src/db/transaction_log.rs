@@ -5,11 +5,7 @@
 use diesel::prelude::*;
 use mc_common::HashMap;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{
-    tx::{Tx, TxPrefix},
-    Amount, TokenId,
-};
-use mc_transaction_extra::UnsignedTx;
+use mc_transaction_core::{tx::Tx, Amount, TokenId};
 use std::fmt;
 
 use crate::{
@@ -22,50 +18,33 @@ use crate::{
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
-    service::models::tx_proposal::{TxProposal, UnsignedTxProposal},
+    service::models::tx_proposal::TxProposal,
 };
 
-#[derive(Debug, PartialEq)]
-pub struct TransactionId(pub String);
+#[derive(Debug)]
+pub struct TransactionID(pub String);
 
-impl From<&TransactionLog> for TransactionId {
+impl From<&TransactionLog> for TransactionID {
     fn from(tx_log: &TransactionLog) -> Self {
         Self(tx_log.id.clone())
     }
 }
 
-impl From<&TxProposal> for TransactionId {
+impl From<&TxProposal> for TransactionID {
     fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(&_tx_proposal.tx.prefix)
+        Self::from(&_tx_proposal.tx)
     }
 }
 
-impl From<&UnsignedTxProposal> for TransactionId {
-    fn from(_tx_proposal: &UnsignedTxProposal) -> Self {
-        Self::from(&_tx_proposal.unsigned_tx.tx_prefix)
-    }
-}
-
-impl From<&Tx> for TransactionId {
-    fn from(src: &Tx) -> TransactionId {
-        Self::from(&src.prefix)
-    }
-}
-
-impl From<&UnsignedTx> for TransactionId {
-    fn from(src: &UnsignedTx) -> TransactionId {
-        Self::from(&src.tx_prefix)
-    }
-}
-
-impl From<&TxPrefix> for TransactionId {
-    fn from(src: &TxPrefix) -> TransactionId {
+// TransactionID is formed from the contents of the transaction when sent
+impl From<&Tx> for TransactionID {
+    fn from(src: &Tx) -> TransactionID {
         let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"transaction_data");
         Self(hex::encode(temp))
     }
 }
 
-impl fmt::Display for TransactionId {
+impl fmt::Display for TransactionID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -73,10 +52,8 @@ impl fmt::Display for TransactionId {
 
 #[derive(Debug, PartialEq)]
 pub enum TxStatus {
-    // The transaction log has been built but not yet signed
+    // The transaction log has been built but not yet submitted to consensus
     Built,
-    // The transaction log has been signed but not yet submitted to consensus
-    Signed,
     // The transaction log has been submitted to consensus
     Pending,
     // The txos associated with this transaction log have appeared on the ledger, indicating that
@@ -91,7 +68,6 @@ impl fmt::Display for TxStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TxStatus::Built => write!(f, "built"),
-            TxStatus::Signed => write!(f, "signed"),
             TxStatus::Pending => write!(f, "pending"),
             TxStatus::Succeeded => write!(f, "succeeded"),
             TxStatus::Failed => write!(f, "failed"),
@@ -140,7 +116,7 @@ impl TransactionLog {
 
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
-    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
+    fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
 
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
@@ -168,21 +144,7 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
-    /// Log a transaction that has been built but not yet signed.
-    ///
-    /// Returns:
-    /// * TransactionLog
     fn log_built(
-        unsigned_tx_proposal: &UnsignedTxProposal,
-        account_id: &AccountID,
-        conn: &Conn,
-    ) -> Result<TransactionLog, WalletDbError>;
-
-    /// Log a transaction that has been signed
-    ///
-    /// Returns:
-    /// * TransactionLog
-    fn log_signed(
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
@@ -241,7 +203,7 @@ impl TransactionLogModel for TransactionLog {
         }
     }
 
-    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
+    fn get(id: &TransactionID, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{id as dsl_id, transaction_logs};
 
         match transaction_logs
@@ -354,136 +316,53 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn log_built(
-        unsigned_tx_proposal: &UnsignedTxProposal,
-        account_id: &AccountID,
-        conn: &Conn,
-    ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_logs};
-        // Verify that the account exists.
-        Account::get(account_id, conn)?;
-
-        let unsigned_tx = &unsigned_tx_proposal.unsigned_tx;
-        let transaction_log_id = TransactionId::from(unsigned_tx);
-
-        let new_transaction_log = NewTransactionLog {
-            id: &transaction_log_id.to_string(),
-            account_id: &account_id.to_string(),
-            fee_value: unsigned_tx.tx_prefix.fee as i64,
-            fee_token_id: unsigned_tx.tx_prefix.fee_token_id as i64,
-            submitted_block_index: None,
-            tombstone_block_index: None,
-            finalized_block_index: None,
-            comment: "",
-            tx: &[],
-            failed: false,
-        };
-
-        diesel::insert_into(transaction_logs::table)
-            .values(&new_transaction_log)
-            .execute(conn)?;
-
-        // Get each input txo and add it to the transaction_input_txos
-        // table for this transaction.
-        for input_txo in unsigned_tx_proposal.unsigned_input_txos.iter() {
-            let txo_id = TxoID::from(&input_txo.tx_out);
-            let new_transaction_input_txo = NewTransactionInputTxo {
-                transaction_log_id: &transaction_log_id.to_string(),
-                txo_id: &txo_id.to_string(),
-            };
-
-            diesel::insert_into(transaction_input_txos::table)
-                .values(&new_transaction_input_txo)
-                .execute(conn)?;
-        }
-
-        // TODO - Get each payload txo and add it to the transaction_output_txos
-        // table for this transactions.
-        for payload_txo in unsigned_tx_proposal.payload_txos.iter() {
-            Txo::create_new_output(payload_txo, false, &transaction_log_id, conn)?;
-        }
-
-        // TODO - Get each change txo and add it to the transaction_output_txos
-        // table for this transaction as change.
-        for change_txo in unsigned_tx_proposal.change_txos.iter() {
-            Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
-        }
-
-        TransactionLog::get(&transaction_log_id, conn)
-    }
-
-    fn log_signed(
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
         conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal);
+        let transaction_log_id = TransactionID::from(&tx_proposal);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
-        match TransactionLog::get(&transaction_log_id, conn) {
-            Ok(transaction_log) => {
-                // If the transaction log already exists, we just need to update
-                // the input txos with their key images that
-                // were generated during signing and the tx bytes with the
-                // signed tx and the tombstone block index.
-                for input_txo in tx_proposal.input_txos.iter() {
-                    let txo_id = TxoID::from(&input_txo.tx_out);
-                    Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
-                }
+        let new_transaction_log = NewTransactionLog {
+            id: &transaction_log_id.to_string(),
+            account_id: account_id_hex,
+            fee_value: tx_proposal.tx.prefix.fee as i64,
+            fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
+            submitted_block_index: None,
+            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
+            finalized_block_index: None,
+            comment: &comment,
+            tx: &tx,
+            failed: false,
+        };
 
-                diesel::update(&transaction_log)
-                    .set((
-                        transaction_logs::tx.eq(&tx),
-                        transaction_logs::tombstone_block_index
-                            .eq(Some(tx_proposal.tx.prefix.tombstone_block as i64)),
-                    ))
-                    .execute(conn)?;
-            }
-            Err(WalletDbError::TransactionLogNotFound(_)) => {
-                let new_transaction_log = NewTransactionLog {
-                    id: &transaction_log_id.to_string(),
-                    account_id: account_id_hex,
-                    fee_value: tx_proposal.tx.prefix.fee as i64,
-                    fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
-                    submitted_block_index: None,
-                    tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-                    finalized_block_index: None,
-                    comment: &comment,
-                    tx: &tx,
-                    failed: false,
-                };
+        diesel::insert_into(crate::db::schema::transaction_logs::table)
+            .values(&new_transaction_log)
+            .execute(conn)?;
 
-                diesel::insert_into(crate::db::schema::transaction_logs::table)
-                    .values(&new_transaction_log)
-                    .execute(conn)?;
+        for txo in tx_proposal.input_txos.iter() {
+            let txo_id = TxoID::from(&txo.tx_out);
+            Txo::update_key_image(&txo_id.to_string(), &txo.key_image, None, conn)?;
+            let transaction_input_txo = NewTransactionInputTxo {
+                transaction_log_id: &transaction_log_id.to_string(),
+                txo_id: &txo_id.to_string(),
+            };
 
-                for txo in tx_proposal.input_txos.iter() {
-                    let txo_id = TxoID::from(&txo.tx_out);
-                    Txo::update_key_image(&txo_id.to_string(), &txo.key_image, None, conn)?;
-                    let transaction_input_txo = NewTransactionInputTxo {
-                        transaction_log_id: &transaction_log_id.to_string(),
-                        txo_id: &txo_id.to_string(),
-                    };
+            diesel::insert_into(crate::db::schema::transaction_input_txos::table)
+                .values(&transaction_input_txo)
+                .execute(conn)?;
+        }
 
-                    diesel::insert_into(crate::db::schema::transaction_input_txos::table)
-                        .values(&transaction_input_txo)
-                        .execute(conn)?;
-                }
+        for output_txo in tx_proposal.payload_txos.iter() {
+            Txo::create_new_output(output_txo, false, &transaction_log_id, conn)?;
+        }
 
-                for output_txo in tx_proposal.payload_txos.iter() {
-                    Txo::create_new_output(output_txo, false, &transaction_log_id, conn)?;
-                }
-
-                for change_txo in tx_proposal.change_txos.iter() {
-                    Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
-                }
-            }
-            Err(e) => return Err(e),
+        for change_txo in tx_proposal.change_txos.iter() {
+            Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
         }
 
         TransactionLog::get(&transaction_log_id, conn)
@@ -499,7 +378,7 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal.tx);
+        let transaction_log_id = TransactionID::from(&tx_proposal.tx);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
@@ -667,7 +546,7 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
+        db::{account::AccountID, transaction_log::TransactionID, txo::TxoStatus},
         service::{
             sync::SyncThread, transaction::TransactionMemo,
             transaction_builder::WalletTransactionBuilder,
@@ -721,12 +600,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
-
-        assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
-        );
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -835,7 +709,7 @@ mod tests {
         );
 
         let updated_tx_log = TransactionLog::get(
-            &TransactionId::from(&tx_log),
+            &TransactionID::from(&tx_log),
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
@@ -1322,221 +1196,6 @@ mod tests {
             TxoStatus::Unspent
         );
         assert_eq!(updated_change_details.account_id, Some(tx_log.account_id));
-        assert_eq!(
-            updated_change_details.subaddress_index,
-            Some(CHANGE_SUBADDRESS_INDEX as i64)
-        );
-    }
-
-    #[test_with_logger]
-    fn test_log_built_signed_and_submitted(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
-
-        let account_key = random_account_with_seed_values(
-            &wallet_db,
-            &mut ledger_db,
-            &vec![70 * MOB],
-            &mut rng,
-            &logger,
-        );
-
-        // Build a transaction
-        let conn = wallet_db.get_conn().unwrap();
-        let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
-        builder
-            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
-            .unwrap();
-        builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-
-        let tx_log =
-            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
-                .unwrap();
-
-        let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
-            account_id: AccountID::from(&account_key).to_string(),
-            fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
-            fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
-            submitted_block_index: None,
-            tombstone_block_index: None,
-            finalized_block_index: None,
-            comment: "".to_string(),
-            tx: vec![],
-            failed: false,
-        };
-
-        assert_eq!(tx_log, expected_tx_log);
-
-        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
-        let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
-
-        assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
-        );
-
-        let tx_log = TransactionLog::log_signed(
-            tx_proposal.clone(),
-            "".to_string(),
-            &AccountID::from(&account_key).to_string(),
-            &conn,
-        )
-        .unwrap();
-
-        let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
-            account_id: AccountID::from(&account_key).to_string(),
-            fee_value: tx_proposal.tx.prefix.fee as i64,
-            fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
-            submitted_block_index: None,
-            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-            finalized_block_index: None,
-            comment: "".to_string(),
-            tx: tx_bytes.clone(),
-            failed: false,
-        };
-
-        assert_eq!(tx_log, expected_tx_log);
-
-        // Log submitted transaction from tx_proposal
-        let tx_log = TransactionLog::log_submitted(
-            &tx_proposal,
-            ledger_db.num_blocks().unwrap(),
-            "".to_string(),
-            &AccountID::from(&account_key).to_string(),
-            &conn,
-        )
-        .unwrap();
-
-        let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
-            account_id: AccountID::from(&account_key).to_string(),
-            fee_value: tx_proposal.tx.prefix.fee as i64,
-            fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
-            submitted_block_index: Some(ledger_db.num_blocks().unwrap() as i64),
-            tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
-            finalized_block_index: None,
-            comment: "".to_string(),
-            tx: tx_bytes,
-            failed: false,
-        };
-        assert_eq!(tx_log, expected_tx_log);
-        assert_eq!(tx_log.value_for_token_id(Mob::ID, &conn).unwrap(), 50 * MOB);
-        assert_eq!(tx_log.status(), TxStatus::Pending);
-
-        // Check the associated_txos for this transaction_log are as expected
-        let associated_txos = tx_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
-
-        // There is one associated input TXO to this transaction, and it is now pending.
-        assert_eq!(associated_txos.inputs.len(), 1);
-        let input_details = Txo::get(
-            &associated_txos.inputs[0].id,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(input_details.value as u64, 70 * MOB);
-        assert_eq!(
-            input_details
-                .status(&wallet_db.get_conn().unwrap())
-                .unwrap(),
-            TxoStatus::Pending
-        );
-        assert_eq!(input_details.subaddress_index.unwrap(), 0);
-
-        // There is one associated output TXO to this transaction, and its recipient
-        // is the destination addr
-        assert_eq!(associated_txos.outputs.len(), 1);
-        assert_eq!(
-            associated_txos.outputs[0].1,
-            b58_encode_public_address(&recipient).unwrap()
-        );
-        let output_details = Txo::get(
-            &associated_txos.outputs[0].0.id,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(output_details.value as u64, 50 * MOB);
-
-        // We cannot know any details about the received_to_account for this TXO, as it
-        // was sent out of the wallet
-        assert!(output_details.subaddress_index.is_none());
-
-        // Assert change is as expected
-        assert_eq!(associated_txos.change.len(), 1);
-        let change_details = Txo::get(
-            &associated_txos.change[0].0.id,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
-
-        // Note, this will still be marked as not change until the txo
-        // appears on the ledger and the account syncs.
-        // change becomes unspent once scanned.
-        // The subaddress will also be set once received.
-        assert_eq!(change_details.subaddress_index, None,);
-
-        let key_images: Vec<KeyImage> = tx_proposal
-            .input_txos
-            .iter()
-            .map(|txo| txo.key_image.clone())
-            .collect();
-
-        // Note: This block doesn't contain the fee output.
-        add_block_with_tx_outs(
-            &mut ledger_db,
-            &[
-                tx_proposal.change_txos[0].tx_out.clone(),
-                tx_proposal.payload_txos[0].tx_out.clone(),
-            ],
-            &key_images,
-            &mut rng,
-        );
-
-        assert_eq!(ledger_db.num_blocks().unwrap(), 14);
-        let _sync = manually_sync_account(
-            &ledger_db,
-            &wallet_db,
-            &AccountID(tx_log.account_id.to_string()),
-            &logger,
-        );
-
-        let updated_tx_log = TransactionLog::get(
-            &TransactionId::from(&tx_log),
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(updated_tx_log.status(), TxStatus::Succeeded);
-
-        // Get the change txo again
-        let updated_change_details = Txo::get(
-            &associated_txos.change[0].0.id,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-
-        assert_eq!(
-            updated_change_details.status(&conn).unwrap(),
-            TxoStatus::Unspent
-        );
-        assert_eq!(
-            updated_change_details.account_id.unwrap(),
-            tx_log.account_id
-        );
         assert_eq!(
             updated_change_details.subaddress_index,
             Some(CHANGE_SUBADDRESS_INDEX as i64)

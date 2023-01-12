@@ -32,7 +32,6 @@ impl From<&db::transaction_log::TxStatus> for TxStatus {
     fn from(tx_status: &db::transaction_log::TxStatus) -> Self {
         match tx_status {
             db::transaction_log::TxStatus::Built => TxStatus::Built,
-            db::transaction_log::TxStatus::Signed => TxStatus::Built,
             db::transaction_log::TxStatus::Pending => TxStatus::Pending,
             db::transaction_log::TxStatus::Succeeded => TxStatus::Succeeded,
             db::transaction_log::TxStatus::Failed => TxStatus::Failed,

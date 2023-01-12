@@ -86,14 +86,10 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
     CPPFLAGS="-I/usr/local/opt/openssl@3/include"
     PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
     ```
-    
-    The `ulimit` command fixes an issue related to shell resource usage. 
 
    MacOS:
     ```sh
-   echo 'ulimit -n 4096' >> ~/.bash_profile
    echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
-   source ~/.bash_profile
    export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"

@@ -5,7 +5,7 @@ import aiohttp
 import json
 import logging
 import base64
-from typing import Any, Dict, List, Union, Optional
+from typing import Optional
 import ssl
 import forest_utils as utils
 from rich import print_json
@@ -28,15 +28,11 @@ else:
 
 
 class Request:
-    def __init__(self, logLevel: int = logging.ERROR) -> None:
+    def __init__(self, logLevel = logging.ERROR):
         self.logger = utils.logger
+    url = utils.get_secret('URL')
 
-    url = utils.get_secret("URL")
-
-    async def req(
-        self,
-        request_data: dict,
-    ) -> dict:
+    async def req(self, request_data: dict) -> dict:
         logging.info("request: %s", request_data.get("method"))
         if len(request_data["params"]) > 0:
             request_data["params"] = {
@@ -51,10 +47,9 @@ class Request:
             self.logger.info(response_data)
         return response_data
 
-    async def request(self, request_data: dict) -> Dict[str, Any]:
+    async def request(self, request_data: dict):
         request_data = {"jsonrpc": "2.0", "id": "1", **request_data}
-        # TODO: come back and sanitize
-        # self.logger.debug(f"request data: {request_data}")
+        self.logger.debug(f"request data: {request_data}")
         async with aiohttp.TCPConnector(ssl=ssl_context) as conn:
             async with aiohttp.ClientSession(connector=conn) as sess:
                 # this can hang (forever?) if there's no full-service at that url
@@ -110,15 +105,15 @@ class FullServiceAPIv2(Request):
 
     async def build_burn_transaction(
         self,
-        account_id: str,
-        amount: Dict[str, str]={"value": "", "token_id": ""},
-        redemption_memo_hex: str="",
-        input_txo_ids: str="",
-        fee_value: str="",
-        fee_token_id: str="",
-        tombstone_block: str="",
-        max_spendable_value: str="",
-    ) -> Dict[str, Union[str, Dict[str, Union[Dict[str, Union[List[Dict[str, Union[str, Dict[str, str]]]], Dict[str, str], str]], str]]]]:
+        account_id,
+        amount={"value": "", "token_id": ""},
+        redemption_memo_hex="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
         return await self.req(
             {
                 "method": "build_burn_transaction",
@@ -137,16 +132,16 @@ class FullServiceAPIv2(Request):
 
     async def build_transaction(
         self,
-        account_id: str,
-        addresses_and_amounts: str = "",
-        recipient_public_address: str = "",
-        amount: Dict[str, str] = "",
-        input_txo_ids: str = "",
-        fee_value: str = "",
-        fee_token_id: str = "",
-        tombstone_block: str = "",
-        max_spendable_value: str = "",
-    ) -> Dict[str, Any]:
+        account_id,
+        addresses_and_amounts="",
+        recipient_public_address="",
+        amount="",
+        input_txo_ids="",
+        fee_value="",
+        fee_token_id="",
+        tombstone_block="",
+        max_spendable_value="",
+    ):
         return await self.req(
             {
                 "method": "build_transaction",
@@ -267,8 +262,8 @@ class FullServiceAPIv2(Request):
 
     async def export_account_secrets(
         self,
-        account_id: str,
-    ) -> Dict[str, Union[str, Dict[str, Dict[str, Union[str, Dict[str, str]]]]]]:
+        account_id,
+    ):
         return await self.req(
             {
                 "method": "export_account_secrets",
@@ -280,16 +275,8 @@ class FullServiceAPIv2(Request):
 
     async def get_account_status(
         self,
-        account_id: str,
-    ) -> Dict[
-        str,
-        Union[
-            str,
-            Dict[
-                str, Union[Dict[str, Union[str, bool]], str, Dict[str, Dict[str, str]]]
-            ],
-        ],
-    ]:
+        account_id,
+    ):
         return await self.req(
             {
                 "method": "get_account_status",
@@ -405,17 +392,10 @@ class FullServiceAPIv2(Request):
             }
         )
 
-    async def get_network_status(
-        self,
-    ) -> Dict[str, Union[str, Dict[str, Dict[str, Union[str, Dict[str, str]]]]]]:
+    async def get_network_status(self):
         return await self.req({"method": "get_network_status", "params": {}})
 
-    async def get_wallet_status(
-        self,
-    ) -> Dict[
-        str,
-        Union[str, Dict[str, Dict[str, Union[str, bool, Dict[str, Dict[str, str]]]]]],
-    ]:
+    async def get_wallet_status(self):
         return await self.req({"method": "get_wallet_status", "params": {}})
 
     async def version(self):
@@ -471,7 +451,7 @@ class FullServiceAPIv2(Request):
             }
         )
 
-    async def get_accounts(self, offset: str="", limit: str="") -> Dict[str, Union[str, Dict[str, Union[List[str], Dict[str, Dict[str, Union[str, bool]]]]]]]:
+    async def get_accounts(self, offset="", limit=""):
         return await self.req(
             {"method": "get_accounts", "params": {"offset": offset, "limit": limit}}
         )
@@ -538,13 +518,13 @@ class FullServiceAPIv2(Request):
 
     async def import_account(
         self,
-        mnemonic: str,
-        key_derivation_version: str,
-        name: str = "",
-        first_block_index: str = "",
-        next_subaddress_index: str = "",
-        fog_info: str = "",
-    ) -> Dict[str, Union[str, Dict[str, Union[int, str, Dict[str, str]]]]]:
+        mnemonic,
+        key_derivation_version,
+        name="",
+        first_block_index="",
+        next_subaddress_index="",
+        fog_info="",
+    ):
         return await self.req(
             {
                 "method": "import_account",
@@ -614,9 +594,7 @@ class FullServiceAPIv2(Request):
 
     async def submit_transaction(
         self,
-        tx_proposal: Dict[
-            str, Union[List[Dict[str, Union[str, Dict[str, str]]]], Dict[str, str], str]
-        ] = {
+        tx_proposal={
             "input_txos": [],
             "payload_txos": [],
             "change_txos": [],
@@ -624,9 +602,9 @@ class FullServiceAPIv2(Request):
             "tombstone_block_index": "",
             "tx_proto": "",
         },
-        comment: str = "",
-        account_id: str = "",
-    ) -> Dict[str, Union[str, Dict[str, None]]]:
+        comment="",
+        account_id="",
+    ):
         return await self.req(
             {
                 "method": "submit_transaction",
@@ -1201,3 +1179,4 @@ class FullServiceAPIv1(Request):
         return await self.req(
             {"method": "verify_address", "params": {"address": address}}
         )
+

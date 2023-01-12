@@ -121,7 +121,7 @@ $ curl -s localhost:9090/wallet -d '{"method": "get_confirmations", "params": {"
     "confirmations": [
       {
         "object": "confirmation",
-        "txo_id": "c50c2d1fbeae481e8bf68e90692f537a9d9fca62177d411d37dbb88e19a8f4d6",
+        "txo_id_hex": "c50c2d1fbeae481e8bf68e90692f537a9d9fca62177d411d37dbb88e19a8f4d6",
         "txo_index": "949838",
         "confirmation": "0a209d298c11da7d6f3798c7ddef69aea407170cc8f917c5cbfb4e8651513995db31"
       }
@@ -132,10 +132,10 @@ $ curl -s localhost:9090/wallet -d '{"method": "get_confirmations", "params": {"
 }
 ```
 
-3. For the TXO that you wish to confirm, this is where you would send the recipient the `txo_id` and `confirmation` pairing for each txo you wish to have them validate.
+3. For the TXO that you wish to confirm, this is where you would send the recipient the txo_id and confirmation pairing for each txo you wish to have them validate.
 
 ### Receiver Validates the TXO Confirmation
 
-1. For each of the txo_id and confirmation pairings generated in the previous step, call [`validate_confirmation`](../transactions/transaction-confirmation/validate_confirmation.md) using the `account_id` of receiving account.
+1. For each of the txo_id and confirmation pairings generated in the previous step, call [`validate_confirmation`](../transactions/transaction-confirmation/validate_confirmation.md) using the `account_id` of `account_b`, which is the receiving account.
 
 If all is successful, you should have gotten a response with a result of `"validated": true`

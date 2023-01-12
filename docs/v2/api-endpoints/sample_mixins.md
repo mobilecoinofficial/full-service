@@ -8,8 +8,7 @@ description: Sample a desired number of mixins from the ledger, excluding a list
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `num_mixins` | The number of mixins to sample | Must be less than the number of txos in the ledger minus number of excluded outputs |
-| `excluded_outputs` | Txos to exclude from sampling | Txo must exist in the ledger |
+| `outputs` | The TXOs to get the membership proofs for | TXO must exist in the ledger |
 
 ## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 

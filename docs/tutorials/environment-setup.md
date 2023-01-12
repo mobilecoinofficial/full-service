@@ -43,7 +43,7 @@ description: Set up your environment to run full service on Mac or Linux.
        --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
        --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
-       --chain-id main
+       --chain-id test
    ```
 
 {% hint style="info" %}

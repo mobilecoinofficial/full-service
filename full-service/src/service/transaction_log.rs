@@ -5,7 +5,7 @@
 use crate::{
     db::{
         models::TransactionLog,
-        transaction_log::{AssociatedTxos, TransactionId, TransactionLogModel, ValueMap},
+        transaction_log::{AssociatedTxos, TransactionID, TransactionLogModel, ValueMap},
         WalletDbError,
     },
     error::WalletServiceError,
@@ -88,7 +88,7 @@ where
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
         let conn = self.get_conn()?;
         let transaction_log =
-            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
+            TransactionLog::get(&TransactionID(transaction_id_hex.to_string()), &conn)?;
         let associated = transaction_log.get_associated_txos(&conn)?;
         let value_map = transaction_log.value_map(&conn)?;
 

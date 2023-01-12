@@ -35,8 +35,9 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `txo_id` | string | Unique identifier for the txo. |
-| `amount` | [Amount](../../../../full-service/src/json_rpc/v2/models/amount.rs) | Amount of this txo. |
+| `id` | string | Unique identifier for the txo. |
+| `value` | string \(uint64\) | Value of this txo. |
+| `token_id` | string \(uint64\) | Token id of this txo. |
 
 # Output Txo
 
@@ -44,8 +45,9 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 | _Name_ | _Type_ | _Description_ |
 | :--- | :--- | :--- |
-| `txo_id` | string | Unique identifier for the txo. |
-| `amount` | [Amount](../../../../full-service/src/json_rpc/v2/models/amount.rs) | Amount of this txo. |
+| `id` | string | Unique identifier for the txo. |
+| `value` | string \(uint64\) | Value of this txo. |
+| `token_id` | string \(uint64\) | Token id of this txo. |
 | `recipient_public_address_b58` | string | Public address b58 of the recipient of this txo. |
 
 ## Example

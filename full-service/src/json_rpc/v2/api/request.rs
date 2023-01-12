@@ -155,8 +155,7 @@ pub enum JsonCommandRequest {
         limit: Option<u64>,
     },
     get_block {
-        block_index: Option<String>,
-        txo_public_key: Option<String>,
+        block_index: String,
     },
     get_confirmations {
         transaction_log_id: String,
