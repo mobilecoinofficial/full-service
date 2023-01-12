@@ -22,7 +22,7 @@ description: >-
 {
   "method": "export_account_secrets",
   "params": {
-    "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
+    "account_id": "b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -33,27 +33,24 @@ description: >-
 {% tab title="Response" %}
 ```text
 {
-  "method": "export_account_secrets",
-  "result": {
-    "account_secrets": {
-      "object": "account_secrets",
-      "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "entropy": "c0b285cc589447c7d47f3yfdc466e7e946753fd412337bfc1a7008f0184b0479",
-      "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
-      "key_derivation_version": "2",
-      "account_key": {
-        "object": "account_key",
-        "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
-        "spend_private_key": "0a201f33b194e13176341b4e696b70be5ba5c4e0021f5a79664ab9a8b128f0d6d40d",
-        "fog_report_url": "",
-        "fog_report_id": "",
-        "fog_authority_spki": ""
+  "method":"export_account_secrets",
+  "result":{
+    "account_secrets":{
+      "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "name":"SAMPLE ACCOUNT",
+      "mnemonic":"into text kick two bread dish air simple throw glow topic yard heavy donkey guess permit captain thank weekend daring mad helmet safe olympic",
+      "key_derivation_version":"2",
+      "account_key":{
+        "view_private_key":"0a2078062debfa72270373d13d52e228b2acc7e3d55790447e7a58905b986fc3780a",
+        "spend_private_key":"0a201f4ba0099acc804e09b011deeabc6c5e1ce6f9a8fd626dcccb0dfd4142c63209",
+        "fog_report_url":"",
+        "fog_report_id":"",
+        "fog_authority_spki":""
       }
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}
