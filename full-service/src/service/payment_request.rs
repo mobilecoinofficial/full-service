@@ -110,11 +110,8 @@ where
 
         let public_address = b58_decode_public_address(&assigned_subaddress.public_address_b58)?;
 
-        let payment_request_b58 = b58_encode_payment_request(
-            &public_address,
-            &amount,
-            memo.unwrap_or_default(),
-        )?;
+        let payment_request_b58 =
+            b58_encode_payment_request(&public_address, &amount, memo.unwrap_or_default())?;
 
         Ok(payment_request_b58)
     }

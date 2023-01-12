@@ -40,6 +40,7 @@ pub struct WalletService<
 
     /// Fog resolver factory to obtain the public key of the ingest enclave from
     /// a fog address.
+    #[allow(clippy::type_complexity)]
     pub fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
 
     /// Background ledger sync thread.
@@ -61,7 +62,7 @@ impl<
         FPR: FogPubkeyResolver + Send + Sync + 'static,
     > WalletService<T, FPR>
 {
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
     pub fn new(
         wallet_db: Option<WalletDb>,
         ledger_db: LedgerDB,

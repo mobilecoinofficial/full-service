@@ -70,9 +70,11 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// Fog resolver maker, used when constructing outputs to fog recipients.
     /// This is abstracted because in tests, we don't want to form grpc
     /// connections to fog.
+    #[allow(clippy::type_complexity)]
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
 }
 
+#[allow(clippy::type_complexity)]
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     pub fn new(
         account_id_hex: String,

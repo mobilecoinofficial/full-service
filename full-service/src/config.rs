@@ -110,6 +110,7 @@ impl APIConfig {
     ///
     /// The string error should be mapped by invoker of this factory to
     /// Error::FogError.
+    #[allow(clippy::type_complexity)]
     pub fn get_fog_resolver_factory(
         &self,
         logger: Logger,
