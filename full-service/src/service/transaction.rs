@@ -22,7 +22,9 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 use mc_common::logger::log;
-use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
+use mc_connection::{
+    BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
+};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_mobilecoind::payments::TxProposal;
@@ -351,7 +353,7 @@ where
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
-            .propose_tx(&tx, empty())
+            .propose_tx(&tx_proposal.tx, Fibonacci::from_millis(10).take(5))
             .map_err(TransactionServiceError::from)?;
 
         log::trace!(

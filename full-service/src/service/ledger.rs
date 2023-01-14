@@ -12,6 +12,7 @@ use crate::{
 };
 use mc_connection::{
     BlockInfo, BlockchainConnection, RetryableBlockchainConnection, UserTxConnection,
+    _retry::delay::Fibonacci,
 };
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
@@ -159,7 +160,10 @@ where
             .peer_manager
             .conns()
             .par_iter()
-            .filter_map(|conn| conn.fetch_block_info(std::iter::empty()).ok())
+            .filter_map(|conn| {
+                conn.fetch_block_info(Fibonacci::from_millis(10).take(5))
+                    .ok()
+            })
             .collect::<Vec<_>>();
 
         // Ensure that all nodes agree on the latest block version and network fees.
