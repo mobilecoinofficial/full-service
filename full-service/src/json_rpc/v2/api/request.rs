@@ -158,6 +158,10 @@ pub enum JsonCommandRequest {
         block_index: Option<String>,
         txo_public_key: Option<String>,
     },
+    get_blocks {
+        first_block_index: String,
+        limit: usize,
+    },
     get_recent_blocks {
         limit: Option<usize>,
     },

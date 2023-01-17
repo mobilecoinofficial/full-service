@@ -18,7 +18,7 @@ use mc_connection::{
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_db::{Error as LedgerError, Ledger, LedgerDB};
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
@@ -123,6 +123,12 @@ pub trait LedgerService {
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
 
+    fn get_block_objects(
+        &self,
+        first_block_index: u64,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
+
     fn get_recent_block_objects(
         &self,
         limit: usize,
@@ -196,6 +202,28 @@ where
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((block, block_contents))
+    }
+
+    fn get_block_objects(
+        &self,
+        first_block_index: u64,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError> {
+        let mut results = vec![];
+
+        let last_block_index = first_block_index.saturating_add(limit as u64);
+
+        for block_index in first_block_index..last_block_index {
+            let block = match self.ledger_db.get_block(block_index) {
+                Ok(block) => block,
+                Err(LedgerError::NotFound) => break,
+                Err(err) => return Err(LedgerServiceError::from(err)),
+            };
+            let block_contents = self.ledger_db.get_block_contents(block_index)?;
+            results.push((block, block_contents));
+        }
+
+        Ok(results)
     }
 
     fn get_recent_block_objects(
