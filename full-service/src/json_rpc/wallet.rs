@@ -26,9 +26,15 @@ use mc_fog_report_resolver::FogResolver;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
-    self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes, Request, State,
+    self, get,
+    http::{Method, Status},
+    outcome::Outcome,
+    post,
+    request::FromRequest,
+    routes, Request, State,
 };
 use rocket_contrib::json::Json;
+use rocket_cors::{AllowedHeaders, AllowedOrigins};
 
 /// State managed by rocket.
 pub struct WalletState<
@@ -129,6 +135,16 @@ pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
 ) -> rocket::Rocket {
+    let cors = rocket_cors::CorsOptions {
+        allowed_origins: AllowedOrigins::all(),
+        allowed_methods: vec![Method::Post].into_iter().map(From::from).collect(),
+        allowed_headers: AllowedHeaders::all(),
+        allow_credentials: true,
+        ..Default::default()
+    }
+    .to_cors()
+    .unwrap();
+
     rocket::custom(rocket_config)
         .mount(
             "/",
@@ -140,6 +156,7 @@ pub fn consensus_backed_rocket(
                 health
             ],
         )
+        .attach(cors)
         .manage(state)
 }
 
