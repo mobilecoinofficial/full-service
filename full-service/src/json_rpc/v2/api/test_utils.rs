@@ -116,6 +116,7 @@ pub fn create_test_setup(
     let service = WalletService::new(
         wallet_db,
         ledger_db.clone(),
+        None,
         peer_manager,
         network_state.clone(),
         get_resolver_factory(&mut rng).unwrap(),

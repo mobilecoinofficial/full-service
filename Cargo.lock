@@ -2878,6 +2878,8 @@ dependencies = [
  "mc-util-uri",
  "mc-validator-api",
  "mc-validator-connection",
+ "mc-watcher",
+ "mc-watcher-api",
  "num_cpus",
  "protobuf",
  "rand 0.8.5",
