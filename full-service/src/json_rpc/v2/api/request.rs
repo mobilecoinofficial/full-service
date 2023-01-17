@@ -157,6 +157,10 @@ pub enum JsonCommandRequest {
     get_block {
         block_index: String,
     },
+    get_blocks {
+        first_block_index: String,
+        limit: usize,
+    },
     get_recent_blocks {
         limit: Option<usize>,
     },
