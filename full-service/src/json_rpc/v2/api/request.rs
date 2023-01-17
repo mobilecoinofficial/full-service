@@ -157,6 +157,9 @@ pub enum JsonCommandRequest {
     get_block {
         block_index: String,
     },
+    get_recent_blocks {
+        limit: Option<usize>,
+    },
     get_confirmations {
         transaction_log_id: String,
     },

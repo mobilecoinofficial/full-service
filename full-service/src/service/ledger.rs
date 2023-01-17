@@ -122,6 +122,11 @@ pub trait LedgerService {
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
 
+    fn get_recent_block_objects(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
+
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
     fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
@@ -190,6 +195,35 @@ where
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((block, block_contents))
+    }
+
+    fn get_recent_block_objects(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError> {
+        let latest_block_index = self.ledger_db.num_blocks()?.checked_sub(1).ok_or_else(|| {
+            LedgerServiceError::InvalidArgument("No blocks in ledger".to_string())
+        })?;
+        let mut block_index = latest_block_index;
+        let mut results = vec![];
+
+        loop {
+            if results.len() >= limit {
+                break;
+            }
+
+            let block = self.ledger_db.get_block(block_index)?;
+            let block_contents = self.ledger_db.get_block_contents(block_index)?;
+            results.push((block, block_contents));
+
+            if block_index == 0 {
+                break;
+            }
+
+            block_index -= 1;
+        }
+
+        Ok(results)
     }
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
