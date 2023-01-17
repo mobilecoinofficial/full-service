@@ -112,6 +112,7 @@ impl Default for &Balance {
 pub struct NetworkStatus {
     pub network_block_height: u64,
     pub local_block_height: u64,
+    pub local_num_txos: u64,
     pub fees: BTreeMap<TokenId, u64>,
     pub block_version: u32,
 }
@@ -233,6 +234,7 @@ where
         Ok(NetworkStatus {
             network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
+            local_num_txos: self.ledger_db.num_txos()?,
             fees,
             block_version,
         })
