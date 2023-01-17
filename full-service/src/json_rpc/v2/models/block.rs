@@ -57,3 +57,19 @@ impl BlockContents {
         }
     }
 }
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct BlockSignature {
+    pub signature: String,
+    pub signer: String,
+    pub signed_at: String,
+}
+impl From<&mc_blockchain_types::BlockSignature> for BlockSignature {
+    fn from(src: &mc_blockchain_types::BlockSignature) -> Self {
+        Self {
+            signature: hex::encode(src.signature()),
+            signer: hex::encode(src.signer()),
+            signed_at: src.signed_at().to_string(),
+        }
+    }
+}

@@ -65,6 +65,10 @@ pub struct APIConfig {
     /// network directly.
     #[structopt(long)]
     pub validator: Option<ValidatorUri>,
+
+    /// Path to watcher db (lmdb).
+    #[structopt(long)]
+    pub watcher_db: Option<PathBuf>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {

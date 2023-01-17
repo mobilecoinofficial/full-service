@@ -44,6 +44,8 @@ mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
+mc-watcher = { path = "../mobilecoin/watcher" }
+mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
 base64 = "0.13.1"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }

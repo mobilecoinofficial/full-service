@@ -19,6 +19,7 @@ use mc_full_service::{
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
+use mc_watcher::{watcher::WatcherSyncThread, watcher_db::create_or_open_rw_watcher_db};
 use std::{
     env,
     process::exit,
@@ -148,15 +149,50 @@ fn consensus_backed_full_service(
             ledger_db.clone(),
             peer_manager.clone(),
             network_state.clone(),
-            transactions_fetcher,
+            transactions_fetcher.clone(),
             config.poll_interval,
             logger.clone(),
         ))
     };
 
+    // Optionally instantiate the watcher sync thread and get the watcher_db handle.
+    let (watcher_db, _watcher_sync_thread) = match &config.watcher_db {
+        Some(watcher_db_path) => {
+            log::info!(logger, "Launching watcher.");
+
+            log::info!(logger, "Opening watcher db at {:?}.", watcher_db_path);
+            let watcher_db = create_or_open_rw_watcher_db(
+                watcher_db_path,
+                &transactions_fetcher.source_urls,
+                logger.clone(),
+            )
+            .expect("Could not create or open WatcherDB");
+
+            // Start watcher db sync thread, unless running in offline mode.
+            let watcher_sync_thread = if config.offline {
+                panic!("Attempted to start watcher but we are configured in offline mode");
+            } else {
+                log::info!(logger, "Starting watcher sync thread");
+                Some(
+                    WatcherSyncThread::new(
+                        watcher_db.clone(),
+                        ledger_db.clone(),
+                        config.poll_interval,
+                        false,
+                        logger.clone(),
+                    )
+                    .expect("Failed starting watcher thread"),
+                )
+            };
+            (Some(watcher_db), watcher_sync_thread)
+        }
+        None => (None, None),
+    };
+
     let service = WalletService::new(
         wallet_db,
         ledger_db,
+        watcher_db,
         peer_manager,
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
@@ -177,6 +213,10 @@ fn validator_backed_full_service(
     rocket_config: rocket::Config,
     logger: Logger,
 ) {
+    if config.wallet_db.is_some() {
+        panic!("Watcher syncing is not yet supported in a validator configuration");
+    }
+
     let validator_conn = ValidatorConnection::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
@@ -227,6 +267,7 @@ fn validator_backed_full_service(
     let service = WalletService::new(
         wallet_db,
         ledger_db,
+        None,
         conn_manager,
         network_state,
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
