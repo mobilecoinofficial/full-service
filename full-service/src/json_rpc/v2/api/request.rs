@@ -158,6 +158,9 @@ pub enum JsonCommandRequest {
         block_index: Option<String>,
         txo_public_key: Option<String>,
     },
+    get_recent_blocks {
+        limit: Option<usize>,
+    },
     get_confirmations {
         transaction_log_id: String,
     },
