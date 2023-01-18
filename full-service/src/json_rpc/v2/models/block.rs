@@ -5,7 +5,7 @@
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct Block {
     pub id: String,
     pub version: String,
@@ -32,7 +32,13 @@ impl Block {
     }
 }
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+impl From<&mc_blockchain_types::Block> for Block {
+    fn from(src: &mc_blockchain_types::Block) -> Self {
+        Self::new(src)
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct BlockContents {
     pub key_images: Vec<String>,
     pub outputs: Vec<JsonTxOut>,
@@ -55,6 +61,12 @@ impl BlockContents {
                 })
                 .collect::<Vec<JsonTxOut>>(),
         }
+    }
+}
+
+impl From<&mc_blockchain_types::BlockContents> for BlockContents {
+    fn from(src: &mc_blockchain_types::BlockContents) -> Self {
+        Self::new(src)
     }
 }
 

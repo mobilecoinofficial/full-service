@@ -414,13 +414,15 @@ fn search_ledger_by_tx_out_pub_key(
         return Ok(None);
     };
 
-    let global_tx_out_index = match ledger_db.get_tx_out_index_by_public_key(&public_key) {
+    let tx_out_global_index = match ledger_db.get_tx_out_index_by_public_key(&public_key) {
         Ok(index) => index,
         Err(LedgerError::NotFound) => return Ok(None),
         Err(e) => return Err(LedgerServiceError::from(e)),
     };
 
-    let block_index = ledger_db.get_block_index_by_tx_out_index(global_tx_out_index)?;
+    let block_index = ledger_db.get_block_index_by_tx_out_index(tx_out_global_index)?;
+
+    let block = ledger_db.get_block(block_index)?;
 
     let block_contents = ledger_db.get_block_contents(block_index)?;
 
@@ -432,9 +434,10 @@ fn search_ledger_by_tx_out_pub_key(
         as u64;
 
     Ok(Some(LedgerSearchResult::TxOut {
-        block_index,
+        block,
+        block_contents,
         block_contents_tx_out_index,
-        global_tx_out_index,
+        tx_out_global_index,
     }))
 }
 
@@ -454,6 +457,8 @@ fn search_ledger_by_key_image(
         return Ok(None);
     };
 
+    let block = ledger_db.get_block(block_index)?;
+
     let block_contents = ledger_db.get_block_contents(block_index)?;
 
     let block_contents_key_image_index = block_contents
@@ -464,7 +469,8 @@ fn search_ledger_by_key_image(
         as u64;
 
     Ok(Some(LedgerSearchResult::KeyImage {
-        block_index,
+        block,
+        block_contents,
         block_contents_key_image_index,
     }))
 }
