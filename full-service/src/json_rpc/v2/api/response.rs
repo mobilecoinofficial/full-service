@@ -15,6 +15,7 @@ use crate::{
             balance::BalanceMap,
             block::{Block, BlockContents},
             confirmation_number::Confirmation,
+            ledger::LedgerSearchResult,
             network_status::NetworkStatus,
             receiver_receipt::ReceiverReceipt,
             transaction_log::TransactionLog,
@@ -200,6 +201,9 @@ pub enum JsonCommandResponse {
         string: String,
         number: (String, String, String, String),
         commit: String,
+    },
+    search_ledger {
+        results: Vec<LedgerSearchResult>,
     },
 }
 

@@ -256,4 +256,7 @@ pub enum JsonCommandRequest {
         address: String,
     },
     version,
+    search_ledger {
+        query: String,
+    },
 }
