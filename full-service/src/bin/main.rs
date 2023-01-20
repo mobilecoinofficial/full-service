@@ -22,7 +22,9 @@ use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
     env,
+    net::IpAddr,
     process::exit,
+    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -79,11 +81,11 @@ async fn main() -> Result<(), rocket::Error> {
         None => None,
     };
 
-    let rocket_config = rocket::Config::figment()
-        .merge(("port", config.listen_port))
-        .merge(("address", config.listen_host.to_string()))
-        .extract()
-        .unwrap();
+    let rocket_config = rocket::Config {
+        address: IpAddr::from_str(&config.listen_host).expect("failed parsing host"),
+        port: config.listen_port,
+        ..rocket::Config::default()
+    };
 
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
