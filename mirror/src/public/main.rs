@@ -13,7 +13,8 @@ mod mirror_service;
 mod query;
 mod utils;
 
-use grpcio::{ChannelBuilder, EnvBuilder, ServerBuilder};
+use mirror_service::MirrorService;
+
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service_mirror::{
     uri::WalletServiceMirrorUri,
@@ -21,14 +22,22 @@ use mc_full_service_mirror::{
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
-use mirror_service::MirrorService;
+
+use grpcio::{ChannelBuilder, EnvBuilder, ServerBuilder};
 use query::QueryManager;
 use rocket::{
-    data::ToByteUnit, http::Status, launch, post, response::Responder, routes,
-    tokio::io::AsyncReadExt, Data, Request, Response,
+    config::{Config as RocketConfig, TlsConfig},
+    data::ToByteUnit,
+    http::Status,
+    launch, post,
+    response::Responder,
+    routes,
+    tokio::io::AsyncReadExt,
+    Data, Request, Response,
 };
-use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
+
+use std::{net::IpAddr, str::FromStr, sync::Arc};
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
@@ -273,17 +282,37 @@ fn rocket() -> _ {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
     }
 
-    let mut rocket_config: rocket::Config = rocket::Config::figment()
-        .merge(("address", config.client_listen_uri.host()))
-        .merge(("port", config.client_listen_uri.port()))
-        .extract()
-        .unwrap();
+    let tls_config = if config.client_listen_uri.use_tls() {
+        Some(TlsConfig::from_paths(
+            config
+                .client_listen_uri
+                .tls_chain_path()
+                .expect("failed getting tls chain path"),
+            config
+                .client_listen_uri
+                .tls_key_path()
+                .expect("failed getting tls key path"),
+        ))
+    } else {
+        None
+    };
 
-    // let mut rocket_config = RocketConfig::build(
-    //     RocketEnvironment::active().expect("Failed getitng rocket environment"),
-    // )
-    // .address(config.client_listen_uri.host())
-    // .port(config.client_listen_uri.port());
+    let rocket_config = RocketConfig {
+        address: IpAddr::from_str(&config.client_listen_uri.host()).expect("failed parsing host"),
+        port: config.client_listen_uri.port(),
+        tls: tls_config,
+        workers: config
+            .num_workers
+            .map(|n| n as usize)
+            .unwrap_or(num_cpus::get()),
+        ..RocketConfig::default()
+    };
+
+    // let mut rocket_config = rocket::Config::figment()
+    //     .merge(("address", config.client_listen_uri.host()))
+    //     .merge(("port", config.client_listen_uri.port()));
+    // .extract()
+    // .unwrap();
 
     // if config.client_listen_uri.use_tls() {
     // rocket_config = rocket
