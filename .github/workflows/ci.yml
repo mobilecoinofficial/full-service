@@ -51,7 +51,7 @@ jobs:
       - name: Cargo sort
         run: |
           cargo install cargo-sort --force
-          cargo sort --workspace --grouped --check 
+          cargo +stable sort --workspace --grouped --check 
 
       - name: Cargo fmt
         run: |
@@ -59,7 +59,7 @@ jobs:
 
       - name: Cargo Clippy
         run: | 
-          cargo +stable clippy --all --all-features
+          cargo clippy --all --all-features
 
   test:
     runs-on: [self-hosted, Linux, large]
