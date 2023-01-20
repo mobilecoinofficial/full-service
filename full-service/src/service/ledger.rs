@@ -19,7 +19,7 @@ use mc_connection::{
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_db::{Error as LedgerError, Ledger, LedgerDB};
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
