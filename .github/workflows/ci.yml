@@ -50,11 +50,12 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           override: true
+          components: rustfmt, clippy
       - name: Cargo sort
         run: |
-          cargo +nightly install cargo-sort --force
+          cargo +stable install cargo-sort --force
           cargo sort --workspace --grouped --check 
 
       - name: Cargo fmt
