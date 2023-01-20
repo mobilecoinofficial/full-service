@@ -267,14 +267,16 @@ fn rocket() -> _ {
         .max_receive_message_len(-1)
         .max_send_message_len(-1);
 
-    let mut server = ServerBuilder::new(env)
+    let server_builder = ServerBuilder::new(env)
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
         .channel_args(ch_builder.build_args())
-        .build_using_uri(&config.mirror_listen_uri, logger.clone())
-        .expect("Failed to build mirror GRPC server");
+        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
+    let mut server = server_builder
+        .build()
+        .expect("Failed to build mirror GRPC server");
     server.start();
 
     // Start the client-facing webserver.
@@ -307,32 +309,6 @@ fn rocket() -> _ {
             .unwrap_or(num_cpus::get()),
         ..RocketConfig::default()
     };
-
-    // let mut rocket_config = rocket::Config::figment()
-    //     .merge(("address", config.client_listen_uri.host()))
-    //     .merge(("port", config.client_listen_uri.port()));
-    // .extract()
-    // .unwrap();
-
-    // if config.client_listen_uri.use_tls() {
-    // rocket_config = rocket
-    // rocket_config = rocket_config.tls(
-    //     config
-    //         .client_listen_uri
-    //         .tls_chain_path()
-    //         .expect("failed getting tls chain path"),
-    //     config
-    //         .client_listen_uri
-    //         .tls_key_path()
-    //         .expect("failed getting tls key path"),
-    // );
-    // }
-    // if let Some(num_workers) = config.num_workers {
-    //     rocket_config = rocket_config.workers(num_workers);
-    // }
-    // let rocket_config = rocket_config
-    //     .finalize()
-    //     .expect("Failed creating client http server config");
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
