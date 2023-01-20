@@ -54,7 +54,7 @@ jobs:
           override: true
       - name: Cargo sort
         run: |
-          cargo +stable install cargo-sort --force
+          cargo +nightly install cargo-sort --force
           cargo sort --workspace --grouped --check 
 
       - name: Cargo fmt
