@@ -48,10 +48,15 @@ jobs:
           SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2023-01-04
+          override: true
+
       - name: Cargo sort
         run: |
           cargo install cargo-sort --force
-          cargo sort --workspace --grouped --check 
+          cargo sort --workspace --grouped --check
 
       - name: Cargo fmt
         run: |
@@ -98,9 +103,16 @@ jobs:
         with:
           command: test
         env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          CARGO_INCREMENTAL: "0"
+          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+          RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2023-01-04
+          override: true
+          components: llvm-tools-preview
 
       - id: coverage
         uses: actions-rs/grcov@v0.1

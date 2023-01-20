@@ -16,6 +16,7 @@ mod e2e_account {
     use mc_ledger_db::Ledger;
     use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
+    use serde_json::json;
 
     #[test_with_logger]
     fn test_e2e_import_account(logger: Logger) {
