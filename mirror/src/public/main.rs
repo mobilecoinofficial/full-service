@@ -23,13 +23,7 @@ use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
 use mirror_service::MirrorService;
 use query::QueryManager;
-use rocket::{
-    config::{Config as RocketConfig, Environment as RocketEnvironment},
-    http::Status,
-    post,
-    response::Responder,
-    routes, Data, Request, Response,
-};
+use rocket::{http::Status, post, response::Responder, routes, Data, Request, Response};
 use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
 
@@ -85,8 +79,8 @@ pub struct BadRequest(pub String);
 
 /// Sets the status code of the response to 400 Bad Request and include an error
 /// message in the response.
-impl<'r> Responder<'r> for BadRequest {
-    fn respond_to(self, req: &Request) -> Result<Response<'r>, Status> {
+impl<'r> Responder<'r, 'static> for BadRequest {
+    fn respond_to(self, req: &'r Request<'_>) -> Result<Response<'static>, Status> {
         let mut build = Response::build();
         build.merge(self.0.respond_to(req)?);
 
@@ -269,29 +263,37 @@ fn main() {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
     }
 
-    let mut rocket_config = RocketConfig::build(
-        RocketEnvironment::active().expect("Failed getitng rocket environment"),
-    )
-    .address(config.client_listen_uri.host())
-    .port(config.client_listen_uri.port());
-    if config.client_listen_uri.use_tls() {
-        rocket_config = rocket_config.tls(
-            config
-                .client_listen_uri
-                .tls_chain_path()
-                .expect("failed getting tls chain path"),
-            config
-                .client_listen_uri
-                .tls_key_path()
-                .expect("failed getting tls key path"),
-        );
-    }
-    if let Some(num_workers) = config.num_workers {
-        rocket_config = rocket_config.workers(num_workers);
-    }
-    let rocket_config = rocket_config
-        .finalize()
-        .expect("Failed creating client http server config");
+    let mut rocket_config = rocket::Config::figment()
+        .merge(("address", config.client_listen_uri.host()))
+        .merge(("port", config.client_listen_uri.port()))
+        .extract()
+        .unwrap();
+
+    // let mut rocket_config = RocketConfig::build(
+    //     RocketEnvironment::active().expect("Failed getitng rocket environment"),
+    // )
+    // .address(config.client_listen_uri.host())
+    // .port(config.client_listen_uri.port());
+
+    // if config.client_listen_uri.use_tls() {
+    // rocket_config = rocket
+    // rocket_config = rocket_config.tls(
+    //     config
+    //         .client_listen_uri
+    //         .tls_chain_path()
+    //         .expect("failed getting tls chain path"),
+    //     config
+    //         .client_listen_uri
+    //         .tls_key_path()
+    //         .expect("failed getting tls key path"),
+    // );
+    // }
+    // if let Some(num_workers) = config.num_workers {
+    //     rocket_config = rocket_config.workers(num_workers);
+    // }
+    // let rocket_config = rocket_config
+    //     .finalize()
+    //     .expect("Failed creating client http server config");
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
