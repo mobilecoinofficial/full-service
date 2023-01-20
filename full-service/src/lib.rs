@@ -22,12 +22,12 @@ extern crate alloc;
 #[macro_use]
 extern crate diesel;
 extern crate dotenv;
-#[allow(unused_imports)] // Needed for json!
-#[macro_use]
-extern crate rocket_contrib;
 #[allow(unused_imports)] // Needed for embedded_migrations!
 #[macro_use]
 extern crate diesel_migrations;
+#[allow(unused_imports)] // Needed for json!
+#[macro_use]
+extern crate rocket;
 
 #[cfg(any(test, feature = "test_utils"))]
 mod test_utils;

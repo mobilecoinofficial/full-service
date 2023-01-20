@@ -13,7 +13,8 @@ mod mirror_service;
 mod query;
 mod utils;
 
-use grpcio::{ChannelBuilder, EnvBuilder, ServerBuilder};
+use mirror_service::MirrorService;
+
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service_mirror::{
     uri::WalletServiceMirrorUri,
@@ -21,17 +22,22 @@ use mc_full_service_mirror::{
 };
 use mc_util_grpc::{BuildInfoService, ConnectionUriGrpcioServer, HealthService};
 use mc_util_uri::{ConnectionUri, Uri, UriScheme};
-use mirror_service::MirrorService;
+
+use grpcio::{ChannelBuilder, EnvBuilder, ServerBuilder};
 use query::QueryManager;
 use rocket::{
-    config::{Config as RocketConfig, Environment as RocketEnvironment},
+    config::{Config as RocketConfig, TlsConfig},
+    data::ToByteUnit,
     http::Status,
-    post,
+    launch, post,
     response::Responder,
-    routes, Data, Request, Response,
+    routes,
+    tokio::io::AsyncReadExt,
+    Data, Request, Response,
 };
-use std::{io::Read, sync::Arc};
 use structopt::StructOpt;
+
+use std::{net::IpAddr, str::FromStr, sync::Arc};
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
@@ -85,8 +91,8 @@ pub struct BadRequest(pub String);
 
 /// Sets the status code of the response to 400 Bad Request and include an error
 /// message in the response.
-impl<'r> Responder<'r> for BadRequest {
-    fn respond_to(self, req: &Request) -> Result<Response<'r>, Status> {
+impl<'r> Responder<'r, 'static> for BadRequest {
+    fn respond_to(self, req: &'r Request<'_>) -> Result<Response<'static>, Status> {
         let mut build = Response::build();
         build.merge(self.0.respond_to(req)?);
 
@@ -105,12 +111,15 @@ impl From<String> for BadRequest {
 }
 
 #[post("/unencrypted-request", format = "json", data = "<request_data>")]
-fn unencrypted_request(
-    state: rocket::State<State>,
-    request_data: rocket::Data,
+async fn unencrypted_request(
+    state: &rocket::State<State>,
+    request_data: rocket::Data<'_>,
 ) -> Result<String, BadRequest> {
     let mut request = String::new();
-    let res = request_data.open().read_to_string(&mut request);
+    let res = request_data
+        .open(2.mebibytes())
+        .read_to_string(&mut request)
+        .await;
     if res.is_err() {
         let msg = "Could not read request data for unencrypted request.";
         log::error!(state.logger, "{}", msg,);
@@ -161,9 +170,12 @@ fn unencrypted_request(
     format = "application/octet-stream",
     data = "<data>"
 )]
-fn encrypted_request(state: rocket::State<State>, data: Data) -> Result<Vec<u8>, BadRequest> {
+async fn encrypted_request(
+    state: &rocket::State<State>,
+    data: Data<'_>,
+) -> Result<Vec<u8>, BadRequest> {
     let mut payload = Vec::new();
-    if let Err(err) = data.open().read_to_end(&mut payload) {
+    if let Err(err) = data.open(2.mebibytes()).read_to_end(&mut payload).await {
         let msg = format!(
             "Could not read request data for unencrypted request: {}",
             err
@@ -215,7 +227,8 @@ fn encrypted_request(state: rocket::State<State>, data: Data) -> Result<Vec<u8>,
     Ok(response.get_payload().to_vec())
 }
 
-fn main() {
+#[launch]
+fn rocket() -> _ {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 
@@ -261,7 +274,9 @@ fn main() {
         .channel_args(ch_builder.build_args())
         .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
-    let mut server = server_builder.build().unwrap();
+    let mut server = server_builder
+        .build()
+        .expect("Failed to build mirror GRPC server");
     server.start();
 
     // Start the client-facing webserver.
@@ -269,13 +284,8 @@ fn main() {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
     }
 
-    let mut rocket_config = RocketConfig::build(
-        RocketEnvironment::active().expect("Failed getitng rocket environment"),
-    )
-    .address(config.client_listen_uri.host())
-    .port(config.client_listen_uri.port());
-    if config.client_listen_uri.use_tls() {
-        rocket_config = rocket_config.tls(
+    let tls_config = if config.client_listen_uri.use_tls() {
+        Some(TlsConfig::from_paths(
             config
                 .client_listen_uri
                 .tls_chain_path()
@@ -284,21 +294,27 @@ fn main() {
                 .client_listen_uri
                 .tls_key_path()
                 .expect("failed getting tls key path"),
-        );
-    }
-    if let Some(num_workers) = config.num_workers {
-        rocket_config = rocket_config.workers(num_workers);
-    }
-    let rocket_config = rocket_config
-        .finalize()
-        .expect("Failed creating client http server config");
+        ))
+    } else {
+        None
+    };
+
+    let rocket_config = RocketConfig {
+        address: IpAddr::from_str(&config.client_listen_uri.host()).expect("failed parsing host"),
+        port: config.client_listen_uri.port(),
+        tls: tls_config,
+        workers: config
+            .num_workers
+            .map(|n| n as usize)
+            .unwrap_or_else(num_cpus::get),
+        ..RocketConfig::default()
+    };
 
     log::info!(logger, "Starting client web server");
     rocket::custom(rocket_config)
-        .mount("/", routes![unencrypted_request, encrypted_request])
         .manage(State {
             query_manager,
             logger,
         })
-        .launch();
+        .mount("/", routes![unencrypted_request, encrypted_request])
 }

@@ -59,8 +59,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
 use mc_transaction_extra::BurnRedemptionMemo;
-use rocket::{self};
-use rocket_contrib::json::Json;
+use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{
     collections::HashMap,
@@ -69,9 +68,9 @@ use std::{
     str::FromStr,
 };
 
-pub fn generic_wallet_api<T, FPR>(
+pub async fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
-    state: rocket::State<WalletState<T, FPR>>,
+    state: &rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String>
 where
@@ -96,7 +95,7 @@ where
         }
     };
 
-    match wallet_api_inner(&state.service, request) {
+    match wallet_api_inner(&state.service, request).await {
         Ok(command_response) => {
             response.result = Some(command_response);
         }
@@ -114,7 +113,7 @@ where
 /// take explicit Rocket state, and then pass the service to the inner method.
 /// This allows us to properly construct state with Mock Connection Objects in
 /// tests. This also allows us to version the overall API easily.
-pub fn wallet_api_inner<T, FPR>(
+pub async fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
     command: JsonCommandRequest,
 ) -> Result<JsonCommandResponse, JsonRPCError>
