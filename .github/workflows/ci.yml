@@ -59,7 +59,7 @@ jobs:
 
       - name: Cargo Clippy
         run: | 
-          cargo +nightly clippy --all --all-features
+          cargo +stable clippy --all --all-features
 
   test:
     runs-on: [self-hosted, Linux, large]
@@ -105,7 +105,7 @@ jobs:
       - id: coverage
         uses: actions-rs/grcov@v0.1
         with:
-          toolchain: nightly
+          toolchain: stable
           override: true
       - name: Codecov
         uses: codecov/codecov-action@v3.1.1
