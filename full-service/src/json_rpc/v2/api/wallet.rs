@@ -69,10 +69,10 @@ use std::{
 };
 
 /// Default amount of recent blocks to return
-const RECENT_BLOCKS_DEFAULT_LIMIT: usize = 10;
+pub const RECENT_BLOCKS_DEFAULT_LIMIT: usize = 10;
 
 /// Maximal amount of blocks we can return in a single request
-const MAX_BLOCKS_PER_REQUEST: usize = 100;
+pub const MAX_BLOCKS_PER_REQUEST: usize = 100;
 
 
 pub async fn generic_wallet_api<T, FPR>(
