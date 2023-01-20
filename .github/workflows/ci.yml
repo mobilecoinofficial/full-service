@@ -47,7 +47,11 @@ jobs:
         run: |
           SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
-
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
       - name: Cargo sort
         run: |
           cargo +stable install cargo-sort --force
@@ -103,13 +107,10 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           override: true
       - id: coverage
         uses: actions-rs/grcov@v0.1
-        with:
-          toolchain: stable
-          override: true
       - name: Codecov
         uses: codecov/codecov-action@v3.1.1
         with:
