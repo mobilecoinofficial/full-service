@@ -306,7 +306,7 @@ fn rocket() -> _ {
         workers: config
             .num_workers
             .map(|n| n as usize)
-            .unwrap_or(num_cpus::get()),
+            .unwrap_or_else(num_cpus::get),
         ..RocketConfig::default()
     };
 
