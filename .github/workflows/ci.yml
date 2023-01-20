@@ -58,8 +58,8 @@ jobs:
           cargo fmt -- --unstable-features --check
 
       - name: Cargo Clippy
-        run: |
-          cargo clippy --all --all-features
+        run: | 
+          cargo +nightly clippy --all --all-features
 
   test:
     runs-on: [self-hosted, Linux, large]
@@ -104,7 +104,9 @@ jobs:
 
       - id: coverage
         uses: actions-rs/grcov@v0.1
-
+        with:
+          toolchain: nightly
+          override: true
       - name: Codecov
         uses: codecov/codecov-action@v3.1.1
         with:
