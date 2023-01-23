@@ -328,7 +328,12 @@ pub fn manually_sync_account(
 ) -> Account {
     let mut account: Account;
     loop {
-        match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
+        match sync_account(
+            &ledger_db,
+            &wallet_db.get_conn().unwrap(),
+            &account_id.to_string(),
+            &logger,
+        ) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
                 diesel::result::Error::DatabaseError(_kind, info),
