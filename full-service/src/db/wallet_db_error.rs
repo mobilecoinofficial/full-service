@@ -19,7 +19,7 @@ pub enum WalletDbError {
     Diesel(diesel::result::Error),
 
     /// Error with rocket databases: {0}
-    RocketDB(rocket_contrib::databases::r2d2::Error),
+    RocketDB(rocket_sync_db_pools::r2d2::Error),
 
     /// Duplicate entries with the same ID: {0}
     DuplicateEntries(String),
@@ -160,8 +160,8 @@ impl From<diesel::result::Error> for WalletDbError {
     }
 }
 
-impl From<rocket_contrib::databases::r2d2::Error> for WalletDbError {
-    fn from(src: rocket_contrib::databases::r2d2::Error) -> Self {
+impl From<rocket_sync_db_pools::r2d2::Error> for WalletDbError {
+    fn from(src: rocket_sync_db_pools::r2d2::Error) -> Self {
         Self::RocketDB(src)
     }
 }

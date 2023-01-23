@@ -4,7 +4,7 @@
 
 use crate::db;
 use serde_derive::{Deserialize, Serialize};
-use serde_json::Map;
+use serde_json::{json, Map};
 use std::{convert::TryFrom, fmt, str::FromStr};
 
 pub enum TxoStatus {
@@ -180,7 +180,7 @@ impl Txo {
         if let Some(account_id) = &txo.account_id {
             account_status_map.insert(
                 account_id.clone(),
-                json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}).into(),
+                json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}),
             );
         }
 
