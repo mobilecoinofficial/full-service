@@ -22,7 +22,9 @@ use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use std::{
     env,
+    net::IpAddr,
     process::exit,
+    str::FromStr,
     sync::{Arc, RwLock},
 };
 
@@ -35,7 +37,8 @@ const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
 const EXIT_WRONG_PASSWORD: i32 = 3;
 const EXIT_INVALID_HOST: i32 = 4;
 
-fn main() {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     dotenv().ok();
 
     mc_common::setup_panic_handler();
@@ -54,12 +57,6 @@ fn main() {
     }
 
     let (logger, _global_logger_guard) = create_app_logger(o!());
-
-    let rocket_config: rocket::Config =
-        rocket::Config::build(rocket::config::Environment::Development)
-            .address(&config.listen_host)
-            .port(config.listen_port)
-            .unwrap();
 
     let wallet_db = match config.wallet_db {
         Some(ref wallet_db_path_buf) => {
@@ -84,20 +81,27 @@ fn main() {
         None => None,
     };
 
+    let rocket_config = rocket::Config {
+        address: IpAddr::from_str(&config.listen_host).expect("failed parsing host"),
+        port: config.listen_port,
+        ..rocket::Config::default()
+    };
+
     // Start WalletService based on our configuration
     if let Some(validator_uri) = config.validator.as_ref() {
         validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
+            .await
     } else {
-        consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
-    };
+        consensus_backed_full_service(&config, wallet_db, rocket_config, logger).await
+    }
 }
 
-fn consensus_backed_full_service(
+async fn consensus_backed_full_service(
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) {
+) -> Result<(), rocket::Error> {
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
@@ -167,16 +171,18 @@ fn consensus_backed_full_service(
 
     let rocket = consensus_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key)).launch();
+    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
+
+    Ok(())
 }
 
-fn validator_backed_full_service(
+async fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) {
+) -> Result<(), rocket::Error> {
     let validator_conn = ValidatorConnection::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
@@ -259,5 +265,7 @@ fn validator_backed_full_service(
 
     let rocket = validator_backed_rocket(rocket_config, state);
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key)).launch();
+    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
+
+    Ok(())
 }
