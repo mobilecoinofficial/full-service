@@ -1058,6 +1058,12 @@ where
                 membership_proofs,
             }
         }
+        JsonCommandRequest::search_ledger { query } => {
+            let results = service.search_ledger(&query).map_err(format_error)?;
+            JsonCommandResponse::search_ledger {
+                results: results.iter().map(Into::into).collect(),
+            }
+        }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
@@ -1127,12 +1133,6 @@ where
             ),
             commit: env!("VERGEN_GIT_SHA").to_string(),
         },
-        JsonCommandRequest::search_ledger { query } => {
-            let results = service.search_ledger(&query).map_err(format_error)?;
-            JsonCommandResponse::search_ledger {
-                results: results.iter().map(Into::into).collect(),
-            }
-        }
     };
 
     Ok(response)

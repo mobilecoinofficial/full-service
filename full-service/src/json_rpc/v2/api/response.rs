@@ -172,6 +172,9 @@ pub enum JsonCommandResponse {
         mixins: Vec<JsonTxOut>,
         membership_proofs: Vec<JsonTxOutMembershipProof>,
     },
+    search_ledger {
+        results: Vec<LedgerSearchResult>,
+    },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },
@@ -189,9 +192,6 @@ pub enum JsonCommandResponse {
         string: String,
         number: (String, String, String, String),
         commit: String,
-    },
-    search_ledger {
-        results: Vec<LedgerSearchResult>,
     },
 }
 

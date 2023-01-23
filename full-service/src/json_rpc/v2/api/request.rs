@@ -227,6 +227,9 @@ pub enum JsonCommandRequest {
         num_mixins: u64,
         excluded_outputs: Vec<JsonTxOut>,
     },
+    search_ledger {
+        query: String,
+    },
     submit_transaction {
         tx_proposal: TxProposal,
         comment: Option<String>,
@@ -250,7 +253,4 @@ pub enum JsonCommandRequest {
         address: String,
     },
     version,
-    search_ledger {
-        query: String,
-    },
 }
