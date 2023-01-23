@@ -1,0 +1,1 @@
+DROP INDEX idx_assigned_subaddresses__spend_public_key;

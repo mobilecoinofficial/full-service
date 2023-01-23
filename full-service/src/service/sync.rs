@@ -31,7 +31,7 @@ use mc_transaction_core::{
 use rayon::prelude::*;
 
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryFrom,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -111,20 +111,18 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
 
+    let conn = wallet_db.get_conn()?;
+
     // Go over our list of accounts and see which ones need to process more blocks.
-    let accounts: Vec<Account> = {
-        let conn = &wallet_db
-            .get_conn()
-            .expect("Could not get connection to DB");
-        Account::list_all(conn, None, None).expect("Failed getting accounts from database")
-    };
+    let accounts: Vec<Account> =
+        { Account::list_all(&conn, None, None).expect("Failed getting accounts from database") };
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, wallet_db, &account.id, logger)?;
+        sync_account(ledger_db, &conn, &account.id, logger)?;
     }
 
     Ok(())
@@ -139,14 +137,12 @@ enum SyncStatus {
 /// Sync a single account.
 pub fn sync_account(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn: &Conn,
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    let conn = wallet_db.get_conn()?;
-
     while let SyncStatus::ChunkFinished =
-        sync_account_next_chunk(ledger_db, &conn, logger, account_id_hex)?
+        sync_account_next_chunk(ledger_db, conn, logger, account_id_hex)?
     {}
 
     Ok(())
@@ -162,15 +158,6 @@ fn sync_account_next_chunk(
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-
-        // Load subaddresses for this account into a hash map.
-        let mut subaddress_keys: HashMap<RistrettoPublic, u64> = HashMap::default();
-        let subaddresses: Vec<_> =
-            AssignedSubaddress::list_all(Some(account_id_hex.to_string()), None, None, conn)?;
-        for s in subaddresses {
-            let subaddress_key: RistrettoPublic = s.spend_public_key.as_slice().try_into()?;
-            subaddress_keys.insert(subaddress_key, s.subaddress_index as u64);
-        }
 
         let start_time = Instant::now();
         let start_block_index = account.next_block_index as u64;
@@ -217,22 +204,28 @@ fn sync_account_next_chunk(
             let received_txos: Vec<_> = tx_outs
                 .into_par_iter()
                 .filter_map(|(block_index, tx_out)| {
-                    let amount = match decode_amount(&tx_out, view_account_key.view_private_key()) {
-                        None => return None,
-                        Some(a) => a,
-                    };
-                    let subaddress_index = decode_subaddress_index(
-                        &tx_out,
-                        view_account_key.view_private_key(),
-                        &subaddress_keys,
-                    );
-                    Some((block_index, tx_out, amount, subaddress_index))
+                    let amount = decode_amount(&tx_out, view_account_key.view_private_key())?;
+                    Some((block_index, tx_out, amount))
                 })
                 .collect();
-            let num_received_txos = received_txos.len();
+
+            let mut received_txos_with_subaddresses = Vec::new();
+            for (block_index, tx_out, amount) in received_txos {
+                let subaddress_index =
+                    decode_subaddress_index(&tx_out, view_account_key.view_private_key(), conn);
+
+                received_txos_with_subaddresses.push((
+                    block_index,
+                    tx_out,
+                    amount,
+                    subaddress_index,
+                ));
+            }
+
+            let num_received_txos = received_txos_with_subaddresses.len();
 
             // Write received transactions to the database.
-            for (block_index, tx_out, amount, subaddress_index) in received_txos {
+            for (block_index, tx_out, amount, subaddress_index) in received_txos_with_subaddresses {
                 Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
@@ -256,6 +249,7 @@ fn sync_account_next_chunk(
                 })
                 .collect();
             let num_spent_txos = spent_txos.len();
+
             for (block_index, txo_id_hex) in &spent_txos {
                 Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
@@ -302,19 +296,31 @@ fn sync_account_next_chunk(
             let received_txos: Vec<_> = tx_outs
                 .into_par_iter()
                 .filter_map(|(block_index, tx_out)| {
-                    let amount = match decode_amount(&tx_out, account_key.view_private_key()) {
-                        None => return None,
-                        Some(a) => a,
-                    };
-                    let (subaddress_index, key_image) =
-                        decode_subaddress_and_key_image(&tx_out, &account_key, &subaddress_keys);
-                    Some((block_index, tx_out, amount, subaddress_index, key_image))
+                    let amount = decode_amount(&tx_out, account_key.view_private_key())?;
+                    Some((block_index, tx_out, amount))
                 })
                 .collect();
-            let num_received_txos = received_txos.len();
+
+            let mut received_txos_with_subaddresses_and_key_images = Vec::new();
+            for (block_index, tx_out, amount) in received_txos {
+                let (subaddress_index, key_image) =
+                    decode_subaddress_and_key_image(&tx_out, &account_key, conn);
+
+                received_txos_with_subaddresses_and_key_images.push((
+                    block_index,
+                    tx_out,
+                    amount,
+                    subaddress_index,
+                    key_image,
+                ));
+            }
+
+            let num_received_txos = received_txos_with_subaddresses_and_key_images.len();
 
             // Write received transactions to the database.
-            for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
+            for (block_index, tx_out, amount, subaddress_index, key_image) in
+                received_txos_with_subaddresses_and_key_images
+            {
                 Txo::create_received(
                     tx_out.clone(),
                     subaddress_index,
@@ -398,7 +404,7 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
 pub fn decode_subaddress_index(
     tx_out: &TxOut,
     view_private_key: &RistrettoPrivate,
-    subaddress_keys: &HashMap<RistrettoPublic, u64>,
+    conn: &Conn,
 ) -> Option<u64> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Ok(k) => k,
@@ -409,9 +415,12 @@ pub fn decode_subaddress_index(
         Err(_) => return None,
     };
 
-    let subaddress_spk: RistrettoPublic =
+    let subaddress_spend_public_key: RistrettoPublic =
         recover_public_subaddress_spend_key(view_private_key, &tx_out_target_key, &tx_public_key);
-    subaddress_keys.get(&subaddress_spk).copied()
+
+    AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spend_public_key, conn)
+        .ok()
+        .map(|(idx, _b58)| idx as u64)
 }
 
 /// Attempt to match the target address with one of our subaddresses. This
@@ -421,15 +430,14 @@ pub fn decode_subaddress_index(
 pub fn decode_subaddress_and_key_image(
     tx_out: &TxOut,
     account_key: &AccountKey,
-    subaddress_keys: &HashMap<RistrettoPublic, u64>,
+    conn: &Conn,
 ) -> (Option<u64>, Option<KeyImage>) {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Ok(k) => k,
         Err(_) => return (None, None),
     };
 
-    let subaddress_index =
-        decode_subaddress_index(tx_out, account_key.view_private_key(), subaddress_keys);
+    let subaddress_index = decode_subaddress_index(tx_out, account_key.view_private_key(), conn);
 
     let key_image = if let Some(subaddress_i) = subaddress_index {
         let onetime_private_key = recover_onetime_private_key(
