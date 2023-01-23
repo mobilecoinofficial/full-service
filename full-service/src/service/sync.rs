@@ -110,20 +110,18 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
 
+    let conn = wallet_db.get_conn()?;
+
     // Go over our list of accounts and see which ones need to process more blocks.
-    let accounts: Vec<Account> = {
-        let conn = &wallet_db
-            .get_conn()
-            .expect("Could not get connection to DB");
-        Account::list_all(conn, None, None).expect("Failed getting accounts from database")
-    };
+    let accounts: Vec<Account> =
+        { Account::list_all(&conn, None, None).expect("Failed getting accounts from database") };
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, wallet_db, &account.id, logger)?;
+        sync_account(ledger_db, &conn, &account.id, logger)?;
     }
 
     Ok(())
@@ -138,12 +136,12 @@ enum SyncStatus {
 /// Sync a single account.
 pub fn sync_account(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn: &Conn,
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     while let SyncStatus::ChunkFinished =
-        sync_account_next_chunk(ledger_db, wallet_db, logger, account_id_hex)?
+        sync_account_next_chunk(ledger_db, conn, logger, account_id_hex)?
     {}
 
     Ok(())
@@ -151,16 +149,13 @@ pub fn sync_account(
 
 fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
 ) -> Result<SyncStatus, SyncError> {
     // Get the account data. If it is no longer available, the account has been
     // removed and we can simply return.
-    let account = Account::get(
-        &AccountID(account_id_hex.to_string()),
-        &wallet_db.get_conn()?,
-    )?;
+    let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
     let start_time = Instant::now();
     let start_block_index = account.next_block_index as u64;
@@ -214,11 +209,8 @@ fn sync_account_next_chunk(
 
         let mut received_txos_with_subaddresses = Vec::new();
         for (block_index, tx_out, amount) in received_txos {
-            let subaddress_index = decode_subaddress_index(
-                &tx_out,
-                view_account_key.view_private_key(),
-                &wallet_db.get_conn()?,
-            );
+            let subaddress_index =
+                decode_subaddress_index(&tx_out, view_account_key.view_private_key(), conn);
 
             received_txos_with_subaddresses.push((block_index, tx_out, amount, subaddress_index));
         }
@@ -234,13 +226,13 @@ fn sync_account_next_chunk(
                 amount,
                 block_index,
                 account_id_hex,
-                &wallet_db.get_conn()?,
+                conn,
             )?;
         }
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            Txo::list_unspent_or_pending_key_images(account_id_hex, None, &wallet_db.get_conn()?)?;
+            Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -252,21 +244,21 @@ fn sync_account_next_chunk(
         let num_spent_txos = spent_txos.len();
 
         for (block_index, txo_id_hex) in &spent_txos {
-            Txo::update_spent_block_index(txo_id_hex, *block_index as u64, &wallet_db.get_conn()?)?;
+            Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
             TransactionLog::update_pending_associated_with_txo_to_succeeded(
                 txo_id_hex,
                 *block_index,
-                &wallet_db.get_conn()?,
+                conn,
             )?;
         }
 
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
             end_block_index + 1,
-            &wallet_db.get_conn()?,
+            conn,
         )?;
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(end_block_index + 1, &wallet_db.get_conn()?)?;
+        account.update_next_block_index(end_block_index + 1, conn)?;
 
         let num_blocks_synced = end_block_index - start_block_index + 1;
 
@@ -305,7 +297,7 @@ fn sync_account_next_chunk(
         let mut received_txos_with_subaddresses_and_key_images = Vec::new();
         for (block_index, tx_out, amount) in received_txos {
             let (subaddress_index, key_image) =
-                decode_subaddress_and_key_image(&tx_out, &account_key, &wallet_db.get_conn()?);
+                decode_subaddress_and_key_image(&tx_out, &account_key, conn);
 
             received_txos_with_subaddresses_and_key_images.push((
                 block_index,
@@ -329,13 +321,13 @@ fn sync_account_next_chunk(
                 amount,
                 block_index,
                 account_id_hex,
-                &wallet_db.get_conn()?,
+                conn,
             )?;
         }
 
         // Match key images to mark existing unspent transactions as spent.
         let unspent_key_images: HashMap<KeyImage, String> =
-            Txo::list_unspent_or_pending_key_images(account_id_hex, None, &wallet_db.get_conn()?)?;
+            Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -346,21 +338,21 @@ fn sync_account_next_chunk(
             .collect();
         let num_spent_txos = spent_txos.len();
         for (block_index, txo_id_hex) in &spent_txos {
-            Txo::update_spent_block_index(txo_id_hex, *block_index as u64, &wallet_db.get_conn()?)?;
+            Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
             TransactionLog::update_pending_associated_with_txo_to_succeeded(
                 txo_id_hex,
                 *block_index,
-                &wallet_db.get_conn()?,
+                conn,
             )?;
         }
 
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
             end_block_index + 1,
-            &wallet_db.get_conn()?,
+            conn,
         )?;
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
-        account.update_next_block_index(end_block_index + 1, &wallet_db.get_conn()?)?;
+        account.update_next_block_index(end_block_index + 1, conn)?;
 
         let num_blocks_synced = end_block_index - start_block_index + 1;
 
