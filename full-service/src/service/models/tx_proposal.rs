@@ -81,7 +81,7 @@ impl UnsignedTxProposal {
 
         let signer = LocalRingSigner::from(account_key);
         let mut rng = rand::thread_rng();
-        let tx = self.unsigned_tx.sign(&signer, &mut rng)?;
+        let tx = self.unsigned_tx.sign(&signer, None, &mut rng)?;
 
         Ok(TxProposal {
             tx,
