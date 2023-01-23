@@ -74,7 +74,6 @@ pub const RECENT_BLOCKS_DEFAULT_LIMIT: usize = 10;
 /// Maximal amount of blocks we can return in a single request
 pub const MAX_BLOCKS_PER_REQUEST: usize = 100;
 
-
 pub async fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<T, FPR>>,
