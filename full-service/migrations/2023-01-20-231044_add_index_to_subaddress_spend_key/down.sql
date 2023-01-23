@@ -1,1 +1,1 @@
--- This file should undo anything in `up.sql`
+DROP INDEX idx_assigned_subaddresses__spend_public_key;
