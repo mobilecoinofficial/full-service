@@ -15,8 +15,8 @@ mod e2e_misc {
             },
             models::{
                 block::{Block, BlockContents},
+                ledger::LedgerSearchResult,
                 network_status::NetworkStatus,
-            ledger::LedgerSearchResult,
             },
         },
         test_utils::{
