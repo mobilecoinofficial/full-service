@@ -208,18 +208,25 @@ fn sync_account_next_chunk(
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
                 let amount = decode_amount(&tx_out, view_account_key.view_private_key())?;
-                let subaddress_index = decode_subaddress_index(
-                    &tx_out,
-                    view_account_key.view_private_key(),
-                    &wallet_db.get_conn().ok()?,
-                );
-                Some((block_index, tx_out, amount, subaddress_index))
+                Some((block_index, tx_out, amount))
             })
             .collect();
-        let num_received_txos = received_txos.len();
+
+        let mut received_txos_with_subaddresses = Vec::new();
+        for (block_index, tx_out, amount) in received_txos {
+            let subaddress_index = decode_subaddress_index(
+                &tx_out,
+                view_account_key.view_private_key(),
+                &wallet_db.get_conn()?,
+            );
+
+            received_txos_with_subaddresses.push((block_index, tx_out, amount, subaddress_index));
+        }
+
+        let num_received_txos = received_txos_with_subaddresses.len();
 
         // Write received transactions to the database.
-        for (block_index, tx_out, amount, subaddress_index) in received_txos {
+        for (block_index, tx_out, amount, subaddress_index) in received_txos_with_subaddresses {
             Txo::create_received(
                 tx_out.clone(),
                 subaddress_index,
@@ -243,6 +250,7 @@ fn sync_account_next_chunk(
             })
             .collect();
         let num_spent_txos = spent_txos.len();
+
         for (block_index, txo_id_hex) in &spent_txos {
             Txo::update_spent_block_index(txo_id_hex, *block_index as u64, &wallet_db.get_conn()?)?;
             TransactionLog::update_pending_associated_with_txo_to_succeeded(
@@ -290,18 +298,30 @@ fn sync_account_next_chunk(
             .into_par_iter()
             .filter_map(|(block_index, tx_out)| {
                 let amount = decode_amount(&tx_out, account_key.view_private_key())?;
-                let (subaddress_index, key_image) = decode_subaddress_and_key_image(
-                    &tx_out,
-                    &account_key,
-                    &wallet_db.get_conn().ok()?,
-                );
-                Some((block_index, tx_out, amount, subaddress_index, key_image))
+                Some((block_index, tx_out, amount))
             })
             .collect();
-        let num_received_txos = received_txos.len();
+
+        let mut received_txos_with_subaddresses_and_key_images = Vec::new();
+        for (block_index, tx_out, amount) in received_txos {
+            let (subaddress_index, key_image) =
+                decode_subaddress_and_key_image(&tx_out, &account_key, &wallet_db.get_conn()?);
+
+            received_txos_with_subaddresses_and_key_images.push((
+                block_index,
+                tx_out,
+                amount,
+                subaddress_index,
+                key_image,
+            ));
+        }
+
+        let num_received_txos = received_txos_with_subaddresses_and_key_images.len();
 
         // Write received transactions to the database.
-        for (block_index, tx_out, amount, subaddress_index, key_image) in received_txos {
+        for (block_index, tx_out, amount, subaddress_index, key_image) in
+            received_txos_with_subaddresses_and_key_images
+        {
             Txo::create_received(
                 tx_out.clone(),
                 subaddress_index,
