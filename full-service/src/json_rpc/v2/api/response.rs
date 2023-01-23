@@ -119,6 +119,15 @@ pub enum JsonCommandResponse {
         block: Block,
         block_contents: BlockContents,
     },
+    get_blocks {
+        blocks: Vec<Block>,
+        block_contents: Vec<BlockContents>,
+    },
+    get_recent_blocks {
+        blocks: Vec<Block>,
+        block_contents: Vec<BlockContents>,
+        network_status: NetworkStatus,
+    },
     get_confirmations {
         confirmations: Vec<Confirmation>,
     },
