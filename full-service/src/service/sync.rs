@@ -418,13 +418,9 @@ pub fn decode_subaddress_index(
     let subaddress_spend_public_key: RistrettoPublic =
         recover_public_subaddress_spend_key(view_private_key, &tx_out_target_key, &tx_public_key);
 
-    match AssignedSubaddress::find_by_subaddress_spend_public_key(
-        &subaddress_spend_public_key,
-        conn,
-    ) {
-        Ok(a) => Some(a.0 as u64),
-        Err(_) => None,
-    }
+    AssignedSubaddress::find_by_subaddress_spend_public_key(&subaddress_spend_public_key, conn)
+        .ok()
+        .map(|(idx, _b58)| idx as u64)
 }
 
 /// Attempt to match the target address with one of our subaddresses. This
