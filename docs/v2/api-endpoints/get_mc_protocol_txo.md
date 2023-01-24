@@ -31,35 +31,23 @@ description: 'Get the MobileCoin transaction TXO'
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_mc_protocol_txo",
-  "result": {
-    "txo": {
-      "object": "txo",
-      "txo_id": "fff4cae55a74e5ce852b79c31576f4041d510c26e59fec178b3e45705c5b35a7",
-      "value_pmob": "2960000000000",
-      "received_block_index": "8094",
-      "spent_block_index": "8180",
-      "is_spent_recovered": false,
-      "received_account_id": "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10",
-      "minted_account_id": null,
-      "account_status_map": {
-        "a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10": {
-          "txo_status": "spent",
-          "txo_type": "received"
-        }
+  "method":"get_mc_protocol_txo",
+  "result":{
+    "txo":{
+      "masked_amount":{
+        "commitment":"c29cbaee8f6e1e824bf3e4a010a4a4479b61432082c890fc7481ddecff5e4d3d",
+        "masked_value":"1242678427782368707",
+        "masked_token_id":"4aee541399075d50",
+        "version":null
       },
-      "target_key": "0a209eefc082a656a34fae5cec81044d1b13bd8963c411afa28aecfce4839fc9f74e",
-      "public_key": "0a20f03f9684e5420d5410fe732f121626352d45e4e799d725432a0c61fa1343ac51",
-      "e_fog_hint": "0a544944e7527b7f09322651b7242663edf17478fd1804aeea24838a35ad3c66d5194763642ae1c1e0cd2bbe2571a97a8c0fb49e346d2fd5262113e7333c7f012e61114bd32d335b1a8183be8e1865b0a10199b60100",
-      "subaddress_index": "0",
-      "assigned_subaddress": "7BeDc5jpZu72AuNavumc8qo8CRJijtQ7QJXyPo9dpnqULaPhe6GdaDNF7cjxkTrDfTcfMgWVgDzKzbvTTwp32KQ78qpx7bUnPYxAgy92caJ",
-      "key_image": "0a205445b406012d26baebb51cbcaaaceb0d56387a67353637d07265f4e886f33419",
-      "confirmation": null
+      "target_key":"58020dbb7e6047ba3ebd701f760066a8fde253932c02cfed125459aa0f45fa27",
+      "public_key":"3c0225fab2d6df245887b7acebf22c238ffafa54842ab2663ac27833975a2212",
+      "e_fog_hint":"d572db8d9d8df79884eb8334c6e8ece9a7f268d1643307760206a95b9198360140845214e93c373f5401da3efb2be0357a30a8d3e590e7360ec124230ea628c4820568c302270be4f6dfcc6263a657164a590100",
+      "e_memo":"e236aa212d0f726f44d3f257934ff59dbf0ff79a3a37e51efb4fe740ee547a8e2948bf0fe2620c1c573ccb4b176c86af178f71eaa2bc88308e6ec82bfc4d519f9a88"
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

@@ -30,7 +30,7 @@ description: Import an existing account from the secret entropy.
   "method": "import_account_from_legacy_root_entropy",
   "params": {
     "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-    "name": "Bob"
+    "name": "Bob",
     "next_subaddress_index": 2,
     "first_block_index": "3500",
   },
