@@ -426,7 +426,7 @@ pub fn create_test_minted_and_change_txos(
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
