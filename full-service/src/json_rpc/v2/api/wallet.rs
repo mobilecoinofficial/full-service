@@ -68,6 +68,12 @@ use std::{
     str::FromStr,
 };
 
+/// Default amount of recent blocks to return
+pub const RECENT_BLOCKS_DEFAULT_LIMIT: usize = 10;
+
+/// Maximal amount of blocks we can return in a single request
+pub const MAX_BLOCKS_PER_REQUEST: usize = 100;
+
 pub async fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<T, FPR>>,
@@ -693,6 +699,65 @@ where
                 block_contents: BlockContents::new(&block_contents),
             }
         }
+        JsonCommandRequest::get_blocks {
+            first_block_index,
+            limit,
+        } => {
+            if limit > MAX_BLOCKS_PER_REQUEST {
+                return Err(format_error(format!(
+                    "Limit must be less than or equal to {}",
+                    MAX_BLOCKS_PER_REQUEST
+                )));
+            }
+
+            let first_block_index = first_block_index.parse::<u64>().map_err(format_error)?;
+
+            let blocks_and_contents = service
+                .get_block_objects(first_block_index, limit)
+                .map_err(format_error)?;
+
+            let (blocks, block_contents): (Vec<_>, Vec<_>) = blocks_and_contents
+                .iter()
+                .map(|(block, block_contents)| {
+                    (Block::new(block), BlockContents::new(block_contents))
+                })
+                .unzip();
+
+            JsonCommandResponse::get_blocks {
+                blocks,
+                block_contents,
+            }
+        }
+        JsonCommandRequest::get_recent_blocks { limit } => {
+            let limit = limit.unwrap_or(RECENT_BLOCKS_DEFAULT_LIMIT);
+            if limit > MAX_BLOCKS_PER_REQUEST {
+                return Err(format_error(format!(
+                    "Limit must be less than or equal to {}",
+                    MAX_BLOCKS_PER_REQUEST
+                )));
+            }
+
+            let blocks_and_contents = service
+                .get_recent_block_objects(limit)
+                .map_err(format_error)?;
+
+            let (blocks, block_contents): (Vec<_>, Vec<_>) = blocks_and_contents
+                .iter()
+                .map(|(block, block_contents)| {
+                    (Block::new(block), BlockContents::new(block_contents))
+                })
+                .unzip();
+
+            let network_status =
+                NetworkStatus::try_from(&service.get_network_status().map_err(format_error)?)
+                    .map_err(format_error)?;
+
+            JsonCommandResponse::get_recent_blocks {
+                blocks,
+                block_contents,
+                network_status,
+            }
+        }
         JsonCommandRequest::get_confirmations { transaction_log_id } => {
             JsonCommandResponse::get_confirmations {
                 confirmations: service
@@ -1056,6 +1121,12 @@ where
             JsonCommandResponse::sample_mixins {
                 mixins,
                 membership_proofs,
+            }
+        }
+        JsonCommandRequest::search_ledger { query } => {
+            let results = service.search_ledger(&query).map_err(format_error)?;
+            JsonCommandResponse::search_ledger {
+                results: results.iter().map(Into::into).collect(),
             }
         }
         JsonCommandRequest::submit_transaction {

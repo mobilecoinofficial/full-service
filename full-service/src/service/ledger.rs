@@ -8,6 +8,7 @@ use crate::{
         transaction_log::{TransactionId, TransactionLogModel},
         txo::TxoModel,
     },
+    service::models::ledger::LedgerSearchResult,
     WalletService,
 };
 use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError};
@@ -18,7 +19,7 @@ use mc_connection::{
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_db::{Error as LedgerError, Ledger, LedgerDB};
 use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
@@ -70,6 +71,9 @@ pub enum LedgerServiceError {
 
     /// Block version: {0}
     BlockVersion(BlockVersionError),
+
+    /// Ledger inconsistent
+    LedgerInconsistent,
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -123,6 +127,17 @@ pub trait LedgerService {
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
 
+    fn get_block_objects(
+        &self,
+        first_block_index: u64,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
+
+    fn get_recent_block_objects(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
+
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
 
     fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
@@ -151,6 +166,8 @@ pub trait LedgerService {
         &self,
         public_key: &CompressedRistrettoPublic,
     ) -> Result<u64, LedgerServiceError>;
+
+    fn search_ledger(&self, query: &str) -> Result<Vec<LedgerSearchResult>, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>
@@ -191,6 +208,57 @@ where
         let block = self.ledger_db.get_block(block_index)?;
         let block_contents = self.ledger_db.get_block_contents(block_index)?;
         Ok((block, block_contents))
+    }
+
+    fn get_block_objects(
+        &self,
+        first_block_index: u64,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError> {
+        let mut results = vec![];
+
+        let last_block_index = first_block_index.saturating_add(limit as u64);
+
+        for block_index in first_block_index..last_block_index {
+            let block = match self.ledger_db.get_block(block_index) {
+                Ok(block) => block,
+                Err(LedgerError::NotFound) => break,
+                Err(err) => return Err(LedgerServiceError::from(err)),
+            };
+            let block_contents = self.ledger_db.get_block_contents(block_index)?;
+            results.push((block, block_contents));
+        }
+
+        Ok(results)
+    }
+
+    fn get_recent_block_objects(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError> {
+        let latest_block_index = self.ledger_db.num_blocks()?.checked_sub(1).ok_or_else(|| {
+            LedgerServiceError::InvalidArgument("No blocks in ledger".to_string())
+        })?;
+        let mut block_index = latest_block_index;
+        let mut results = vec![];
+
+        loop {
+            if results.len() >= limit {
+                break;
+            }
+
+            let block = self.ledger_db.get_block(block_index)?;
+            let block_contents = self.ledger_db.get_block_contents(block_index)?;
+            results.push((block, block_contents));
+
+            if block_index == 0 {
+                break;
+            }
+
+            block_index -= 1;
+        }
+
+        Ok(results)
     }
 
     fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError> {
@@ -300,6 +368,35 @@ where
         let index = self.ledger_db.get_tx_out_index_by_public_key(public_key)?;
         Ok(self.ledger_db.get_block_index_by_tx_out_index(index)?)
     }
+
+    fn search_ledger(&self, query: &str) -> Result<Vec<LedgerSearchResult>, LedgerServiceError> {
+        let mut results = vec![];
+
+        // Try intepreting the query as a hex string.
+        if let Some(mut query_bytes) = hex::decode(query).ok() {
+            // Hack - strip away the protobuf header if we have one. This hack
+            // is needed because sometimes full-service returns protobuf-encoded
+            // bytes instead of just returning the raw bytes.
+            // See https://github.com/mobilecoinofficial/full-service/issues/201
+            // The protobuf encoded bytes start with 0x0a20
+            if query_bytes.len() == 34 && query_bytes[0] == 0x0a && query_bytes[1] == 0x20 {
+                query_bytes.remove(0);
+                query_bytes.remove(0);
+            }
+
+            // Try and search for a tx out by public key.
+            if let Some(result) = search_ledger_by_tx_out_pub_key(&self.ledger_db, &query_bytes)? {
+                results.push(result);
+            }
+
+            // Try and search for a key image.
+            if let Some(result) = search_ledger_by_key_image(&self.ledger_db, &query_bytes)? {
+                results.push(result);
+            }
+        }
+
+        Ok(results)
+    }
 }
 
 pub fn get_tx_out_by_public_key(
@@ -309,4 +406,75 @@ pub fn get_tx_out_by_public_key(
     let txo_index = ledger_db.get_tx_out_index_by_public_key(public_key)?;
     let txo = ledger_db.get_tx_out_by_index(txo_index)?;
     Ok(txo)
+}
+
+fn search_ledger_by_tx_out_pub_key(
+    ledger_db: &LedgerDB,
+    query_bytes: &[u8],
+) -> Result<Option<LedgerSearchResult>, LedgerServiceError> {
+    let public_key = if let Ok(pk) = CompressedRistrettoPublic::try_from(&query_bytes[..]) {
+        pk
+    } else {
+        return Ok(None);
+    };
+
+    let tx_out_global_index = match ledger_db.get_tx_out_index_by_public_key(&public_key) {
+        Ok(index) => index,
+        Err(LedgerError::NotFound) => return Ok(None),
+        Err(e) => return Err(LedgerServiceError::from(e)),
+    };
+
+    let block_index = ledger_db.get_block_index_by_tx_out_index(tx_out_global_index)?;
+
+    let block = ledger_db.get_block(block_index)?;
+
+    let block_contents = ledger_db.get_block_contents(block_index)?;
+
+    let block_contents_tx_out_index = block_contents
+        .outputs
+        .iter()
+        .position(|tx_out| tx_out.public_key == public_key)
+        .ok_or(LedgerServiceError::LedgerInconsistent)?
+        as u64;
+
+    Ok(Some(LedgerSearchResult::TxOut {
+        block,
+        block_contents,
+        block_contents_tx_out_index,
+        tx_out_global_index,
+    }))
+}
+
+fn search_ledger_by_key_image(
+    ledger_db: &LedgerDB,
+    query_bytes: &[u8],
+) -> Result<Option<LedgerSearchResult>, LedgerServiceError> {
+    let key_image = if let Ok(ki) = KeyImage::try_from(&query_bytes[..]) {
+        ki
+    } else {
+        return Ok(None);
+    };
+
+    let block_index = if let Some(idx) = ledger_db.check_key_image(&key_image)? {
+        idx
+    } else {
+        return Ok(None);
+    };
+
+    let block = ledger_db.get_block(block_index)?;
+
+    let block_contents = ledger_db.get_block_contents(block_index)?;
+
+    let block_contents_key_image_index = block_contents
+        .key_images
+        .iter()
+        .position(|key_image2| key_image2 == &key_image)
+        .ok_or(LedgerServiceError::LedgerInconsistent)?
+        as u64;
+
+    Ok(Some(LedgerSearchResult::KeyImage {
+        block,
+        block_contents,
+        block_contents_key_image_index,
+    }))
 }

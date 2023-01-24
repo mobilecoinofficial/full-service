@@ -5,9 +5,19 @@
 #[cfg(test)]
 mod e2e_misc {
     use crate::{
-        json_rpc::v2::api::test_utils::{
-            dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
-            setup_no_wallet_db, setup_with_api_key, wait_for_sync,
+        json_rpc::v2::{
+            api::{
+                test_utils::{
+                    dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
+                    setup_no_wallet_db, setup_with_api_key, wait_for_sync,
+                },
+                wallet::RECENT_BLOCKS_DEFAULT_LIMIT,
+            },
+            models::{
+                block::{Block, BlockContents},
+                ledger::LedgerSearchResult,
+                network_status::NetworkStatus,
+            },
         },
         test_utils::{
             add_block_with_tx_outs, create_test_received_txo, random_account_with_seed_values, MOB,
@@ -16,6 +26,7 @@ mod e2e_misc {
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
+    use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, BlockVersion, Token};
 
     use rand::{rngs::StdRng, SeedableRng};
@@ -114,6 +125,7 @@ mod e2e_misc {
         let status = result.get("network_status").unwrap();
         assert_eq!(status.get("network_block_height").unwrap(), "12");
         assert_eq!(status.get("local_block_height").unwrap(), "12");
+        assert_eq!(status.get("local_num_txos").unwrap(), "60");
         assert_eq!(
             status.get("block_version").unwrap(),
             &BlockVersion::MAX.to_string()
@@ -295,6 +307,107 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
+    fn test_get_recent_blocks(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _, _, _) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_recent_blocks",
+            "params": {
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let blocks: Vec<Block> =
+            serde_json::from_value(result.get("blocks").unwrap().clone()).unwrap();
+        let block_contents: Vec<BlockContents> =
+            serde_json::from_value(result.get("block_contents").unwrap().clone()).unwrap();
+        let network_status: NetworkStatus =
+            serde_json::from_value(result.get("network_status").unwrap().clone()).unwrap();
+
+        assert_eq!(network_status.network_block_height, "12");
+        assert_eq!(network_status.local_block_height, "12");
+
+        assert_eq!(blocks.len(), block_contents.len());
+        assert_eq!(blocks.len(), RECENT_BLOCKS_DEFAULT_LIMIT);
+
+        // The most recent block should be the last one
+        assert_eq!(blocks[0].index, "11");
+
+        // Blocks should be in decending order
+        assert!(blocks
+            .windows(2)
+            .all(|w| w[0].index.parse::<u64>().unwrap() == w[1].index.parse::<u64>().unwrap() + 1));
+
+        // Limit should work
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_recent_blocks",
+            "params": {
+                "limit": 3,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let blocks: Vec<Block> =
+            serde_json::from_value(result.get("blocks").unwrap().clone()).unwrap();
+        let block_contents: Vec<BlockContents> =
+            serde_json::from_value(result.get("block_contents").unwrap().clone()).unwrap();
+        let network_status: NetworkStatus =
+            serde_json::from_value(result.get("network_status").unwrap().clone()).unwrap();
+
+        assert_eq!(network_status.network_block_height, "12");
+        assert_eq!(network_status.local_block_height, "12");
+
+        assert_eq!(blocks.len(), block_contents.len());
+        assert_eq!(blocks.len(), 3);
+
+        // The most recent block should be the last one
+        assert_eq!(blocks[0].index, "11");
+
+        // Blocks should be in decending order
+        assert!(blocks
+            .windows(2)
+            .all(|w| w[0].index.parse::<u64>().unwrap() == w[1].index.parse::<u64>().unwrap() + 1));
+    }
+
+    #[test_with_logger]
+    fn test_get_blocks(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _, _, _) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_blocks",
+            "params": {
+                "first_block_index": "5",
+                "limit": 3,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let blocks: Vec<Block> =
+            serde_json::from_value(result.get("blocks").unwrap().clone()).unwrap();
+        let block_contents: Vec<BlockContents> =
+            serde_json::from_value(result.get("block_contents").unwrap().clone()).unwrap();
+
+        assert_eq!(blocks.len(), block_contents.len());
+        assert_eq!(blocks.len(), 3);
+
+        // The first block should be the one we requested
+        assert_eq!(blocks[0].index, "5");
+
+        // Blocks should be in ascending order
+        assert!(blocks
+            .windows(2)
+            .all(|w| w[0].index.parse::<u64>().unwrap() == w[1].index.parse::<u64>().unwrap() - 1));
+    }
+
+    #[test_with_logger]
     fn test_no_wallet_db(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _ledger_db, _db_ctx, _network_state) =
@@ -326,5 +439,76 @@ mod e2e_misc {
         // Check that we got a result! (We don't really care what it is, just that it's
         // working)
         let _ = res.get("result").unwrap();
+    }
+
+    #[test_with_logger]
+    fn test_ledger_search(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, ledger_db, _, _) = setup(&mut rng, logger.clone());
+
+        // Search a non-existent hash
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "search_ledger",
+            "params": {
+                "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let results: Vec<LedgerSearchResult> =
+            serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
+        assert_eq!(results.len(), 0);
+
+        // Search by txo public key
+        let txo = ledger_db.get_tx_out_by_index(5).unwrap();
+        let pub_key_hex = hex::encode(txo.public_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "search_ledger",
+            "params": {
+                "query": pub_key_hex
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let results: Vec<LedgerSearchResult> =
+            serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
+        assert_eq!(results.len(), 1);
+
+        assert_eq!(results[0].result_type, "TxOut".to_string());
+        assert_eq!(results[0].tx_out.as_ref().unwrap().global_tx_out_index, "5");
+
+        // Search by key image
+        let block_contents = ledger_db.get_block_contents(3).unwrap();
+        let key_image_hex = hex::encode(block_contents.key_images[0].as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "search_ledger",
+            "params": {
+                "query": key_image_hex
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let results: Vec<LedgerSearchResult> =
+            serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
+        assert_eq!(results.len(), 1);
+
+        assert_eq!(results[0].result_type, "KeyImage".to_string());
+        assert_eq!(results[0].block.index, "3");
+        assert_eq!(
+            results[0]
+                .key_image
+                .as_ref()
+                .unwrap()
+                .block_contents_key_image_index,
+            "0"
+        );
     }
 }

@@ -16,6 +16,9 @@ pub struct NetworkStatus {
     /// is synced when the local_block_height reaches the network_block_height.
     pub local_block_height: String,
 
+    /// The number of TxOuts in the local ledger.
+    pub local_num_txos: String,
+
     /// The current network fee per token_id.
     pub fees: BTreeMap<String, String>,
 
@@ -30,6 +33,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
         Ok(NetworkStatus {
             network_block_height: src.network_block_height.to_string(),
             local_block_height: src.local_block_height.to_string(),
+            local_num_txos: src.local_num_txos.to_string(),
             fees: src
                 .fees
                 .iter()
