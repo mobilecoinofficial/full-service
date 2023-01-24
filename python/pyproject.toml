@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mobilecoin"
-version = "0.1.0"
+version = "2.1.2"
 description = ""
 authors = ["Christian Oudard <ChristianOudard@pm.me>"]
 readme = "README.md"
