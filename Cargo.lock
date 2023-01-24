@@ -217,6 +217,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 
 [[package]]
+name = "base64"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
+
+[[package]]
 name = "binascii"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -641,7 +647,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94d4706de1b0fa5b132270cddffa8585166037822e260a944fe161acd137ca05"
 dependencies = [
  "aes-gcm",
- "base64",
+ "base64 0.13.1",
  "hkdf",
  "hmac",
  "percent-encoding",
@@ -2132,7 +2138,7 @@ dependencies = [
 name = "mc-attest-core"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "bitflags",
  "cargo-emit",
  "chrono",
@@ -2199,7 +2205,7 @@ dependencies = [
 name = "mc-attest-verifier-types"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "hex_fmt",
@@ -2501,7 +2507,7 @@ dependencies = [
 name = "mc-crypto-keys"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "curve25519-dalek",
  "digest",
  "displaydoc",
@@ -2764,7 +2770,7 @@ name = "mc-full-service"
 version = "2.1.2"
 dependencies = [
  "anyhow",
- "base64",
+ "base64 0.13.1",
  "bs58",
  "chrono",
  "clap 4.0.26",
@@ -3182,7 +3188,7 @@ dependencies = [
 name = "mc-transaction-signer"
 version = "2.1.2"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "hex",
  "mc-account-keys",
  "mc-common",
@@ -3269,7 +3275,7 @@ dependencies = [
 name = "mc-util-encodings"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "mc-util-repr-bytes",
@@ -3287,7 +3293,7 @@ dependencies = [
 name = "mc-util-grpc"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "clap 4.0.26",
  "cookie",
  "displaydoc",
@@ -3406,7 +3412,7 @@ dependencies = [
 name = "mc-util-uri"
 version = "2.1.0-pre0"
 dependencies = [
- "base64",
+ "base64 0.13.1",
  "displaydoc",
  "hex",
  "mc-common",
@@ -3981,7 +3987,7 @@ version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03c64931a1a212348ec4f3b4362585eca7159d0d09cbdf4a7f74f02173596fd4"
 dependencies = [
- "base64",
+ "base64 0.13.1",
 ]
 
 [[package]]
@@ -4498,12 +4504,12 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.13"
+version = "0.11.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68cc60575865c7831548863cc02356512e3f1dc2f3f82cb837d7fc4cc8f3c97c"
+checksum = "21eed90ec8570952d53b772ecf8f206aa1ec9a3d76b2521c56c42973f2d91ee9"
 dependencies = [
  "async-compression",
- "base64",
+ "base64 0.21.0",
  "bytes 1.1.0",
  "encoding_rs",
  "futures-core",
@@ -4739,7 +4745,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0864aeff53f8c05aa08d86e5ef839d3dfcf07aeba2db32f12db0ef716e87bd55"
 dependencies = [
- "base64",
+ "base64 0.13.1",
 ]
 
 [[package]]
