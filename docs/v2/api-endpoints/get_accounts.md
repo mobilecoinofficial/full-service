@@ -30,38 +30,41 @@ description: Get the details of all accounts in a given wallet.
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_accounts",
-  "result": {
-    "account_ids": [
-      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0"
+  "method":"get_accounts",
+  "result":{
+    "account_ids":[
+      "f3b957b5140d8a7d6b3204aaba96489a293f8316772462c982a262f822b35bae",
+      "589deddcb912f52787b44d9bd76c9d6f94052bc6ece975f497ba1fd6ba9c067e"
     ],
-    "account_map": {
-      "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52": {
-        "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-        "key_derivation_version:": "1",
-        "main_address": "4bgkVAH1hs55dwLTGVpZER8ZayhqXbYqfuyisoRrmQPXoWcYQ3SQRTjsAytCiAgk21CRrVNysVw5qwzweURzDK9HL3rGXFmAAahb364kYe3",
-        "name": "Alice",
-        "next_subaddress_index": "2",
-        "first_block_index": "3500",
-        "object": "account",
-        "recovery_mode": false
+    "account_map":{
+      "589deddcb912f52787b44d9bd76c9d6f94052bc6ece975f497ba1fd6ba9c067e":{
+        "id":"589deddcb912f52787b44d9bd76c9d6f94052bc6ece975f497ba1fd6ba9c067e",
+        "name":"Alice",
+        "key_derivation_version":"2",
+        "main_address":"GJ3yis7S8ucUAYsmouuUbxMEm7q6CRsQ6fU3CjbJ9mSD8MrRMt839mr74n1y5UrzMqDxkfrjLkgu31u55koP15Aj1syHMzmu6cWp4pEPYh",
+        "next_subaddress_index":"2",
+        "first_block_index":"0",
+        "next_block_index":"1352091",
+        "recovery_mode":false,
+        "fog_enabled":false,
+        "view_only":false
       },
-      "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0": {
-        "account_id": "b6c9f6f779372ae25e93d68a79d725d71f3767d1bfd1c5fe155f948a2cc5c0a0",
-        "key_derivation_version:": "2",
-        "main_address": "7EqduSDpM1R5AfQejbjAqFxpuCoh6zJECtvJB9AZFwjK13dCzZgYbyfLf4TfHcE8LVPjzDdpcxYLkdMBh694mHfftJmsFZuz6xUeRtmsUdc",
-        "name": "Alice",
-        "next_subaddress_index": "2",
-        "first_block_index": "3500",
-        "object": "account",
-        "recovery_mode": false
+      "f3b957b5140d8a7d6b3204aaba96489a293f8316772462c982a262f822b35bae":{
+        "id":"f3b957b5140d8a7d6b3204aaba96489a293f8316772462c982a262f822b35bae",
+        "name":"Bob",
+        "key_derivation_version":"2",
+        "main_address":"3z2TYXp3E9bCh5K5HGmgcGzkSJyyySmuYLtrNK5Qwt54ZM9yhSALeJdE5RnfyBXwFD4GZQb54Qv5AmhPsFpZgpr1p9tAtT5SvrzBFvK4LB3",
+        "next_subaddress_index":"2",
+        "first_block_index":"1346263",
+        "next_block_index":"1352091",
+        "recovery_mode":false,
+        "fog_enabled":false,
+        "view_only":false
       }
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

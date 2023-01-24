@@ -32,7 +32,7 @@ description: Import an existing account from the secret entropy.
   "params": {
     "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
     "key_derivation_version": "2",
-    "name": "Bob"
+    "name": "Bob",
     "next_subaddress_index": 2,
     "first_block_index": "3500"
   },
@@ -45,23 +45,44 @@ description: Import an existing account from the secret entropy.
 {% tab title="Response" %}
 ```text
 {
-  "method": "import_account",
-  "result": {
-    "account": {
-      "object": "account",
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "name": "Bob",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-      "next_subaddress_index": "2",
-      "first_block_index": "3500",
-      "recovery_mode": false
+  "method":"import_account",
+  "result":{
+    "account":{
+      "id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "name":"Bob",
+      "key_derivation_version":"2",
+      "main_address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+      "next_subaddress_index":"2",
+      "first_block_index":"1352037",
+      "next_block_index":"1352037",
+      "recovery_mode":false,
+      "fog_enabled":false,
+      "view_only":false
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}
 {% endtabs %}
 
+{% hint style="warning" %}
+`If you attempt to import an account already in the wallet, you will see the following error message:`
+
+```text
+{
+  "method":"import_account",
+  "error":{
+    "code":-32603,
+    "message":"InternalError",
+    "data":{
+      "server_error":"Database(AccountAlreadyExists(\"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c\"))",
+      "details":"Error interacting& with the database: Account already exists: b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c"
+    }
+  },
+  "jsonrpc":"2.0",
+  "id":1
+}
+```
+{% endhint %}
