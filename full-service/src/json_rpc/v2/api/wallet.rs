@@ -1123,6 +1123,12 @@ where
                 membership_proofs,
             }
         }
+        JsonCommandRequest::search_ledger { query } => {
+            let results = service.search_ledger(&query).map_err(format_error)?;
+            JsonCommandResponse::search_ledger {
+                results: results.iter().map(Into::into).collect(),
+            }
+        }
         JsonCommandRequest::submit_transaction {
             tx_proposal,
             comment,
