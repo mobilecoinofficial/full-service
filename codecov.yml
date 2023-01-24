@@ -3,16 +3,18 @@ codecov:
 coverage:
   status:
     project:
-      #default: false
       full-service:
         target: auto
-        paths: 
+        threshold: 0%
+        paths:
           - "full-service/"
       mirror:
         target: auto
-        paths: 
+        threshold: 0%
+        paths:
           - "mirror/"
       validator:
         target: auto
-        paths: 
+        threshold: 0%
+        paths:
           - "validator/"
