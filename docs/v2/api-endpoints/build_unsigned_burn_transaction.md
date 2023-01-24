@@ -41,6 +41,55 @@ description: >-
 ```
 {% endtab %}
 
+{% tab title="Response" %}
+```
+{
+  "method":"build_unsigned_burn_transaction",
+  "result":{
+    "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
+    "unsigned_tx_proposal":{
+      "unsigned_tx_proto_bytes_hex":"0ac77b0af6760acf0112220a20642814347652a3b1307cc5887e....",
+      "unsigned_input_txos":[
+        {
+          "tx_out_proto":"0a370a220a20742a88da7cc2652473c159e22c037da4c9758f356c9968c1acd5fe2a2...",
+          "amount":{
+            "value":"3529600000000",
+            "token_id":"0"
+          },
+          "subaddress_index":"18446744073709551614"
+        }
+      ],
+      "payload_txos":[
+        {
+          "tx_out_proto":"0a370a220a20046cabffdf4d01d9391edd411b250c986a138205801975f2d548d39e0...",
+          "amount":{
+            "value":"12346000",
+            "token_id":"0"
+          },
+          "recipient_public_address_b58":"3cn4Y8V6p5u51z8AEEQsdUvFWcQKYwv25q6SaXeiXyz8kp19g7rLkuxu6rgefYWdZzun2RNrVPsMkM4djfhNzxC8LKKFmZXptcsxqndvbd9",
+          "confirmation_number":"c9cdd9b7d5dcc753d1ec977512a963410e8c5a6c1efa497ab0ef25fac37110f6"
+        }
+      ],
+      "change_txos":[
+        {
+          "tx_out_proto":"0a370a220a201494b66804787f13c526f5fa79d209908097f03a5fd5c5c0bdb6c7a3...",
+          "amount":{
+            "value":"3529187654000",
+            "token_id":"0"
+          },
+          "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h",
+          "confirmation_number":"28fd8cfa53dc9f1246179206e70521866d02fecfb81201f9567f039bf13bb8a3"
+        }
+      ]
+    }
+  },
+  "jsonrpc":"2.0",
+  "id":1
+}
+```
+{% endtab %}
+{% endtabs %}
+
 {% hint style="info" %}
 Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
 
@@ -57,232 +106,3 @@ Since the `tx_proposal`JSON object is quite large, you may wish to write the res
 }
 ```
 {% endhint %}
-
-{% tab title="Response" %}
-```
-{
-    "method": "build_unsigned_transaction",
-    "result": {
-        "account_id": "f85920dd83f69d8850799e28240e3d395f0ad46dec2561b71f4614dd90a3edb5",
-        "unsigned_tx": {
-            "inputs_and_real_indices_and_subaddress_indices": [
-                [
-                    {
-                        "ring": [
-                            {
-                                "amount": {
-                                    "commitment": {
-                                        "point": [
-                                            110,
-                                            67,
-                                            108,
-                                            179,
-                                            54,
-                                            239,
-                                            253,
-                                            171,
-                                            25,
-                                            26,
-                                            42,
-                                            36,
-                                            161,
-                                            47,
-                                            182,
-                                            162,
-                                            238,
-                                            150,
-                                            19,
-                                            239,
-                                            135,
-                                            105,
-                                            35,
-                                            199,
-                                            135,
-                                            39,
-                                            241,
-                                            153,
-                                            28,
-                                            47,
-                                            238,
-                                            34
-                                        ]
-                                    },
-                                    "masked_value": 13622244978257257768
-                                },
-                                "target_key": [
-                                    244,
-                                    70,
-                                    136,
-                                    223,
-                                    79,
-                                    40,
-                                    46,
-                                    133,
-                                    26,
-                                    58,
-                                    228,
-                                    199,
-                                    51,
-                                    186,
-                                    193,
-                                    201,
-                                    129,
-                                    44,
-                                    96,
-                                    80,
-                                    91,
-                                    41,
-                                    103,
-                                    74,
-                                    9,
-                                    240,
-                                    9,
-                                    160,
-                                    33,
-                                    251,
-                                    13,
-                                    86
-                                ],
-                                "public_key": [
-                                    202,
-                                    221,
-                                    20,
-                                    237,
-                                    139,
-                                    55,
-                                    248,
-                                    142,
-                                    20,
-                                    163,
-                                    56,
-                                    0,
-                                    203,
-                                    217,
-                                    174,
-                                    194,
-                                    249,
-                                    51,
-                                    180,
-                                    242,
-                                    161,
-                                    82,
-                                    223,
-                                    204,
-                                    72,
-                                    3,
-                                    62,
-                                    149,
-                                    66,
-                                    222,
-                                    117,
-                                    106
-                                ],
-                                "e_fog_hint": {
-                                    "bytes": [
-                                        110,
-                                        125,
-                                        227,
-                                        82,
-                                        218,
-                                        223,
-                                        95,
-                                        65,
-                                        209,
-                                        228,
-                                        38,
-                                        49,
-                                        180,
-                                        30,
-                                        18,
-                                        49,
-                                        58,
-                                        67,
-                                        91,
-                                        98,
-                                        221,
-                                        188,
-                                        168,
-                                        9,
-                                        11,
-                                        66,
-                                        158,
-                                        35,
-                                        115,
-                                        162,
-                                        5,
-                                        22,
-                                        132,
-                                        130,
-                                        172,
-                                        91,
-                                        159,
-                                        113,
-                                        119,
-                                        242,
-                                        178,
-                                        138,
-                                        201,
-                                        130,
-                                        130,
-                                        199,
-                                        191,
-                                        105,
-                                        231,
-                                        220,
-                                        247,
-                                        41,
-                                        98,
-                                        55,
-                                        110,
-                                        66,
-                                        36,
-                                        92,
-                                        129,
-                                        122,
-                                        27,
-                                        4,
-                                        197,
-                                        19,
-                                        129,
-                                        63,
-                                        29,
-                                        172,
-                                        110,
-                                        35,
-                                        188,
-                                        80,
-                                        155,
-                                        166,
-                                        150,
-                                        57,
-                                        186,
-                                        20,
-                                        204,
-                                        69,
-                                        238,
-                                        45,
-                                        1,
-                                        0
-                                    ]
-                                },
-                                "e_memo": null
-                            },
-            ...
-            ],
-            "outlays": [
-                [
-                    "2zXcnQgVixbzzicVCq6mYeiQrFJBcnkDJ2oNYN3dUU5sEJ9DJheKXZseAwkkuCKdhW3KWVjmb4owwHsA3DuhAWaZUQcEjixsjbVvAGUHJ2P",
-                    50000000000
-                ]
-            ],
-            "fee": 400000000,
-            "tombstone_block_index": 692515
-        },
-        "fog_resolver": {}
-    },
-    "jsonrpc": "2.0",
-    "id": 1
-}
-```
-{% endtab %}
-{% endtabs %}
