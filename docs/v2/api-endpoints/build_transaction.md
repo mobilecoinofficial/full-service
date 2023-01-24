@@ -48,34 +48,53 @@ description: >-
 {% tab title="Response" %}
 ```
 {
-  "method": "build_transaction",
-  "result": {
-    "transaction_log_id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
-     "tx_proposal": {
-      "input_txos": [
-        "tx_out_proto": "439f9843vmtbgdrv5...",
-        "value": "10000000000",
-        "token_id": "0",
-        "key_image": "dfj42v03mn40c353v53vvjyh5tr...",
+  "method":"build_transaction",
+  "result":{
+    "tx_proposal":{
+      "input_txos":[
+        {
+          "tx_out_proto":"0a2d0a220a20ea91069208a5c017b84254c27f828adbb8...",
+          "amount":{
+            "value":"7929999999798",
+            "token_id":"0"
+          },
+          "subaddress_index":"0",
+          "key_image":"8ef8c4f8f4580a61516073a2e029f5bd6e776188556232e9fcea7b2e5f43bf18"
+        }
       ],
-      "payload_txos": [
-        "tx_out_proto": "vr243095b89nvrimwec...",
-        "value": "5000000000",
-        "token_id": "0",
-        "recipient_public_address_b58": "ewvr3m49350c932emr3cew2...",
+      "payload_txos":[
+        {
+          "tx_out_proto":"0a370a220a20d6067be6475351ea719d3c5f9c026d26d1...",
+          "amount":{
+            "value":"929999999798",
+            "token_id":"0"
+          },
+          "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+          "confirmation_number":"0e7de1ff74132c9bd6ae7951dabd656b1b0a1317e8b34bc6ec08d0b7d74e8aa1"
+        }
       ],
-      "change_txos": [
-        "tx_out_proto": "defvr34v5t4b6b...",
-        "value": "4060000000",
-        "token_id": "0",
-        "recipient_public_address_b58": "n23924mtb89vck31...",
-      ]
-      "fee": "40000000",
-      "fee_token_id": "0",
-      "tombstone_block_index": "152700",
-      "tx_proto": "328fi4n94902cmjinrievn49jg9439nvr3v..."
-    }
-  }
+      "change_txos":[
+        {
+          "tx_out_proto":"0a370a220a20307a1ea3b33ae13a3b23492e0f638a5d41c...",
+          "amount":{
+            "value":"6999600000000",
+            "token_id":"0"
+          },
+          "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h",
+          "confirmation_number":"1cceb521744d44047caa7c0849877df8ccb1980d526fc475042eab7e9bb137da"
+        }
+      ],
+      "fee_amount":{
+        "value":"400000000",
+        "token_id":"0"
+      },
+      "tombstone_block_index":"1352830",
+      "tx_proto":"0aa27b0ad1760acf010a2d0a220a20427e72e004a81f0253d529a..."
+    },
+    "transaction_log_id":"830d59e6562562df0791b9434cb2cda867c5387e0d89bd4b487929ec764182e3"
+  },
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

@@ -6,6 +6,7 @@ pub mod amount;
 pub mod balance;
 pub mod block;
 pub mod confirmation_number;
+pub mod ledger;
 pub mod masked_amount;
 pub mod network_status;
 pub mod public_address;

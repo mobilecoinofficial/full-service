@@ -15,6 +15,7 @@ use crate::{
             balance::BalanceMap,
             block::{Block, BlockContents},
             confirmation_number::Confirmation,
+            ledger::LedgerSearchResult,
             network_status::NetworkStatus,
             public_address::PublicAddress,
             receiver_receipt::ReceiverReceipt,
@@ -119,6 +120,15 @@ pub enum JsonCommandResponse {
         block: Block,
         block_contents: BlockContents,
     },
+    get_blocks {
+        blocks: Vec<Block>,
+        block_contents: Vec<BlockContents>,
+    },
+    get_recent_blocks {
+        blocks: Vec<Block>,
+        block_contents: Vec<BlockContents>,
+        network_status: NetworkStatus,
+    },
     get_confirmations {
         confirmations: Vec<Confirmation>,
     },
@@ -170,6 +180,9 @@ pub enum JsonCommandResponse {
     sample_mixins {
         mixins: Vec<JsonTxOut>,
         membership_proofs: Vec<JsonTxOutMembershipProof>,
+    },
+    search_ledger {
+        results: Vec<LedgerSearchResult>,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
