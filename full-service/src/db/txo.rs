@@ -1887,8 +1887,9 @@ mod tests {
         )
         .unwrap();
 
-        // Max spendable SHOULD be u64::MAX * 2 + (100 * 14) - Mob::MINIMUM_FEE =
-        // u64::MAX * 2 + 1400 - Mob::MINIMUM_FEE
+        // Max spendable SHOULD be the largest 16 txos in the wallet (which is the
+        // limit enforced by consensus), which would be u64::MAX * 2 + (100 * 14) -
+        // Mob::MINIMUM_FEE = u64::MAX * 2 + 1400 - Mob::MINIMUM_FEE
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
             (u64::MAX as u128) * 2 + (100 * 14) - Mob::MINIMUM_FEE as u128

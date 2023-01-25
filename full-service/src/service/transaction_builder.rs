@@ -851,7 +851,7 @@ mod tests {
         // Check that the payload txos are correct
         assert_eq!(unsigned_tx_proposal.payload_txos.len(), 2);
         assert_eq!(unsigned_tx_proposal.payload_txos[0].amount.value, u64::MAX);
-        assert_eq!(unsigned_tx_proposal.payload_txos[0].amount.value, u64::MAX);
+        assert_eq!(unsigned_tx_proposal.payload_txos[1].amount.value, u64::MAX);
 
         // Check that the change txo is correct
         assert_eq!(unsigned_tx_proposal.change_txos.len(), 1);
