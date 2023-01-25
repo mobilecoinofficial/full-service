@@ -1864,13 +1864,13 @@ mod tests {
             &wallet_db,
         );
 
-        // Create some small TXOs for the account
-        // [100, 200, 300, ... 2000]
-        for i in 1..20 {
+        // Create some small TXOs for the account, more than the max number of TXOs we
+        // can use as inputs per transaction (16). 20 should do.
+        for i in 1..=20 {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new(100, Mob::ID), // 100.0 MOB * i
+                Amount::new(100, Mob::ID), // 100.0 MOB
                 (146 + i) as u64,
                 &mut rng,
                 &wallet_db,
