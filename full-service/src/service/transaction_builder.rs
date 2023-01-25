@@ -831,7 +831,34 @@ mod tests {
         // because of a u64::MAX limit on the total_outlay value.
         // See https://github.com/mobilecoinfoundation/mobilecoin/blob/437133a545b85958278efcb655bce36929c8f72a/transaction/extra/src/memo/destination_with_payment_request_id.rs#L51
         // for more details.
-        let _unsigned_tx_proposal = builder.build(TransactionMemo::Empty, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, &conn).unwrap();
+
+        // Check that the input txos are correct
+        assert_eq!(unsigned_tx_proposal.unsigned_input_txos.len(), 3);
+        assert_eq!(
+            unsigned_tx_proposal.unsigned_input_txos[0].amount.value,
+            u64::MAX
+        );
+        assert_eq!(
+            unsigned_tx_proposal.unsigned_input_txos[1].amount.value,
+            u64::MAX
+        );
+        assert_eq!(
+            unsigned_tx_proposal.unsigned_input_txos[2].amount.value,
+            u64::MAX
+        );
+
+        // Check that the payload txos are correct
+        assert_eq!(unsigned_tx_proposal.payload_txos.len(), 2);
+        assert_eq!(unsigned_tx_proposal.payload_txos[0].amount.value, u64::MAX);
+        assert_eq!(unsigned_tx_proposal.payload_txos[0].amount.value, u64::MAX);
+
+        // Check that the change txo is correct
+        assert_eq!(unsigned_tx_proposal.change_txos.len(), 1);
+        assert_eq!(
+            unsigned_tx_proposal.change_txos[0].amount.value,
+            u64::MAX - Mob::MINIMUM_FEE
+        );
     }
 
     // This test is to check that change > u64::MAX is handled correctly. Currently,
