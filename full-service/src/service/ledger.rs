@@ -24,14 +24,14 @@ use mc_ledger_sync::NetworkState;
 use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::{Tx, TxOut, TxOutMembershipProof},
-    TokenId,
+    FeeMap, FeeMapError,
 };
 use rand::Rng;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{collections::BTreeMap, convert::TryFrom};
+use std::convert::TryFrom;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -74,6 +74,9 @@ pub enum LedgerServiceError {
 
     /// Ledger inconsistent
     LedgerInconsistent,
+
+    /// Error with FeeMap: {0}
+    FeeMap(FeeMapError),
 }
 
 impl From<mc_ledger_db::Error> for LedgerServiceError {
@@ -112,6 +115,12 @@ impl From<BlockVersionError> for LedgerServiceError {
     }
 }
 
+impl From<FeeMapError> for LedgerServiceError {
+    fn from(src: FeeMapError) -> Self {
+        Self::FeeMap(src)
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
 pub trait LedgerService {
@@ -142,7 +151,7 @@ pub trait LedgerService {
 
     fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
 
-    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError>;
+    fn get_network_fees(&self) -> Result<FeeMap, LedgerServiceError>;
 
     fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError>;
 
@@ -291,8 +300,10 @@ where
             .ok_or(LedgerServiceError::NoLastBlockInfo)
     }
 
-    fn get_network_fees(&self) -> Result<BTreeMap<TokenId, u64>, LedgerServiceError> {
-        Ok(self.get_latest_block_info()?.minimum_fees)
+    fn get_network_fees(&self) -> Result<FeeMap, LedgerServiceError> {
+        Ok(FeeMap::try_from(
+            self.get_latest_block_info()?.minimum_fees,
+        )?)
     }
 
     fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {

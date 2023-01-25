@@ -9,7 +9,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Token,
+    Amount, FeeMap, Token,
 };
 use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
 use protobuf::Message;
@@ -56,7 +56,11 @@ pub struct UnsignedTxProposal {
 }
 
 impl UnsignedTxProposal {
-    pub fn sign(self, account_key: &AccountKey) -> Result<TxProposal, TransactionServiceError> {
+    pub fn sign(
+        self,
+        account_key: &AccountKey,
+        fee_map: Option<&FeeMap>,
+    ) -> Result<TxProposal, TransactionServiceError> {
         let input_txos = self
             .unsigned_input_txos
             .iter()
@@ -81,7 +85,7 @@ impl UnsignedTxProposal {
 
         let signer = LocalRingSigner::from(account_key);
         let mut rng = rand::thread_rng();
-        let tx = self.unsigned_tx.sign(&signer, &mut rng)?;
+        let tx = self.unsigned_tx.sign(&signer, fee_map, &mut rng)?;
 
         Ok(TxProposal {
             tx,
