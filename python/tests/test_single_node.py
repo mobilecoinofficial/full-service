@@ -3,7 +3,6 @@ Send transactions to each node individually, and check that they
 completed successfully.
 """
 
-import time
 from pathlib import Path
 from subprocess import (
     Popen,
@@ -24,7 +23,7 @@ mc://ams1-mc-node1.dreamhost.com:3223/
 '''.strip().splitlines()
 
 BASE_ENV = dict(
-    MC_FOG_INGEST_ENCLAVE_CSS='/home/christian/.mobilecoin/test/ingest-enclave.css',
+    MC_FOG_INGEST_ENCLAVE_CSS=str(Path.home() / '.mobilecoin/test/ingest-enclave.css'),
     MC_TX_SOURCE_URL='https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/',
     MC_WALLET_DB=str(Path.home() / '.mobilecoin/main/wallet-db/wallet.db'),
     MC_LEDGER_DB=str(Path.home() / '.mobilecoin/main/ledger-db'),
