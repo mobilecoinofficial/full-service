@@ -35,6 +35,10 @@ do
             build=1
             shift 1
             ;;
+        --offline)
+            offline=1
+            shift 1
+            ;;
         *)
             net="${1}"
             shift 1
@@ -76,9 +80,12 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
-        MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-        MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${WORK_DIR}/ingest-enclave.css")
+        if [[ -z "${offline}" ]]
+        then
+            MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
+            MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${WORK_DIR}/ingest-enclave.css")
+        fi
 
         ;;
     prod|main)
@@ -95,9 +102,12 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
-        MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-        MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/ingest-enclave.css")
+        if [[ -z "${offline}" ]]
+        then
+            MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
+            MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/ingest-enclave.css")
+        fi
     ;;
     alpha)
         echo "alpha network doesn't yet publish enclave css measurements, manually download or copy ${WORK_DIR}/ingest-enclave.css"
@@ -107,15 +117,21 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
-        MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+        if [[ -z "${offline}" ]]
+        then
+            MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
+            MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+        fi
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
     local)
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
-        MC_TX_SOURCE_URL="http://localhost:4566/node-0-ledger/,http://localhost:4566/node-1-ledger/"
+        if [[ -z "${offline}" ]]
+        then
+            MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
+            MC_TX_SOURCE_URL="http://localhost:4566/node-0-ledger/,http://localhost:4566/node-1-ledger/"
+        fi
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
     *)
@@ -129,11 +145,18 @@ echo "Setting '${net}' environment values"
 export MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS MC_WALLET_DB MC_LEDGER_DB
 
 echo "  MC_CHAIN_ID: ${MC_CHAIN_ID}"
-echo "  MC_PEER: ${MC_PEER}"
-echo "  MC_TX_SOURCE_URL: ${MC_TX_SOURCE_URL}"
+if [[ -z "${offline}" ]]
+then
+    echo "  MC_PEER: ${MC_PEER}"
+    echo "  MC_TX_SOURCE_URL: ${MC_TX_SOURCE_URL}"
+else
+    echo "  running with --offline"
+fi
 echo "  MC_FOG_INGEST_ENCLAVE_CSS: ${MC_FOG_INGEST_ENCLAVE_CSS}"
 echo "  MC_WALLET_DB: ${MC_WALLET_DB}"
 echo "  MC_LEDGER_DB: ${MC_LEDGER_DB}"
+
+
 
 # Optionally call build-fs.sh to build the current version.
 if [[ -n "${build}" ]]
@@ -142,5 +165,10 @@ then
 fi
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
-echo "  executing ${target_dir}/release/full-service"
-"${target_dir}/release/full-service"
+
+if [[ -z "${offline}" ]]
+then
+    "${target_dir}/release/full-service"
+else
+    "${target_dir}/release/full-service" --offline
+fi

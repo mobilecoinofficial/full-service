@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "mobilecoin"
+version = "2.1.2"
+description = ""
+authors = ["Christian Oudard <ChristianOudard@pm.me>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+segno = "^1.5.2"
+base58 = "^2.1.1"
+protobuf = "^4.21.12"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

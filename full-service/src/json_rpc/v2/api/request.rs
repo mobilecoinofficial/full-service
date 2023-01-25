@@ -158,6 +158,13 @@ pub enum JsonCommandRequest {
         block_index: Option<String>,
         txo_public_key: Option<String>,
     },
+    get_blocks {
+        first_block_index: String,
+        limit: usize,
+    },
+    get_recent_blocks {
+        limit: Option<usize>,
+    },
     get_confirmations {
         transaction_log_id: String,
     },
@@ -226,6 +233,9 @@ pub enum JsonCommandRequest {
     sample_mixins {
         num_mixins: u64,
         excluded_outputs: Vec<JsonTxOut>,
+    },
+    search_ledger {
+        query: String,
     },
     submit_transaction {
         tx_proposal: TxProposal,

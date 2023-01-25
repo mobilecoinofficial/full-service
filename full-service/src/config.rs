@@ -28,7 +28,11 @@ use std::{
 };
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, Parser)]
-#[clap(name = "full-service", about = "An HTTP wallet service for MobileCoin")]
+#[clap(
+    name = "full-service",
+    about = "An HTTP wallet service for MobileCoin",
+    version
+)]
 pub struct APIConfig {
     /// Host to listen on.
     #[clap(long, default_value = "127.0.0.1", env = "MC_LISTEN_HOST")]

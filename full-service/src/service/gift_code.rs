@@ -29,8 +29,7 @@ use crate::{
         b58_encode_transfer_payload, B58Error, DecodedTransferPayload,
     },
 };
-use bip39::{Language, Mnemonic, MnemonicType};
-use displaydoc::Display;
+
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -51,8 +50,13 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::SenderMemoCredential;
 use mc_util_uri::FogUri;
+
+use bip39::{Language, Mnemonic, MnemonicType};
+use displaydoc::Display;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
+
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
 #[derive(Display, Debug)]
@@ -477,7 +481,12 @@ where
         )?;
 
         let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
-        let tx_proposal = signing_data.sign(&account_key)?;
+        let fee_map = if self.offline {
+            None
+        } else {
+            Some(self.get_network_fees()?)
+        };
+        let tx_proposal = signing_data.sign(&account_key, fee_map.as_ref())?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);

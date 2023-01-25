@@ -38,19 +38,17 @@ description: Assign an address to a given account.
 {% tab title="Response" %}
 ```text
 {
-  "method": "assign_address_for_account",
-  "result": {
-    "address": {
-      "object": "address",
-      "public_address": "3P4GtGkp5UVBXUzBqirgj7QFetWn4PsFPsHBXbC6A8AXw1a9CMej969jneiN1qKcwdn6e1VtD64EruGVSFQ8wHk5xuBHndpV9WUGQ78vV7Z",
-      "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-      "metadata": "",
-      "subaddress_index": "2"
+  "method":"assign_address_for_account",
+  "result":{
+    "address":{
+      "public_address_b58":"2tzZu4aYJH6MmfNJo2iqPFw6jmJJouKsXkHLtXBBB6zgoSgsQ76YBPcqLJYJdY1yfNYWfWDMMf9BsLPD6QHiq6NeJVM7fzfDxqnXs6kEQtK",
+      "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "metadata":"For transactions from Carol",
+      "subaddress_index":"2"
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

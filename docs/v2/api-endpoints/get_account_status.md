@@ -22,7 +22,7 @@ description: >-
 {
   "method": "get_account_status",
   "params": {
-     "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+     "account_id": "b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -33,33 +33,28 @@ description: >-
 {% tab title="Response" %}
 ```text
 {
-  "method": "get_account_status",
-  "result": {
-    "account": {
-      "account_id": "b0be5377a2f45b1573586ed530b2901a559d9952ea8a02f8c2dbb033a935ac17",
-      "main_address": "7JvajhkAZYGmrpCY7ZpEiXRK5yW1ooTV7EWfDNu3Eyt572mH1wNb37BWiU6JqRUvgopPqSVZRexhXXpjF3wqLQR7HaJrcdbHmULujgFmzav",
-      "name": "Brady",
-      "next_subaddress_index": "2",
-      "first_block_index": "3500",
-      "object": "account",
-      "recovery_mode": false
+  "method":"get_account_status",
+  "result":{
+    "account":{
+      "id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "name":"Bob",
+      "key_derivation_version":"2",
+      "main_address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+      "next_subaddress_index":"2",
+      "first_block_index":"1352037",
+      "next_block_index":"1352685",
+      "recovery_mode":false,
+      "fog_enabled":false,
+      "view_only":false
     },
-    "network_block_height": "2",
-    "local_block_height": "2",
-    "balance_per_token": {
-      "0": {
-        "orphaned": "0",
-        "pending": "2040016523222112112",
-        "secreted": "204273415999956272",
-        "spent": "0",
-        "unspent": "51080511222211091",
-        "unverified": "0"
-      }
+    "network_block_height":"1352685",
+    "local_block_height":"1352685",
+    "balance_per_token":{
+      
     }
   },
-  "error": null,
-  "jsonrpc": "2.0",
-  "id": 1,
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

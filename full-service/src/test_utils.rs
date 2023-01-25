@@ -18,13 +18,11 @@ use crate::{
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
-use mc_attest_verifier::Verifier;
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
-use mc_connection::{Connection, ConnectionManager, HardcodedCredentialsProvider, ThickClient};
+use mc_connection::{Connection, ConnectionManager};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
-use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
@@ -37,7 +35,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Token, TokenId,
+    Amount, FeeMap, Token, TokenId,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -329,7 +327,12 @@ pub fn manually_sync_account(
 ) -> Account {
     let mut account: Account;
     loop {
-        match sync_account(&ledger_db, &wallet_db, &account_id.to_string(), &logger) {
+        match sync_account(
+            &ledger_db,
+            &wallet_db.get_conn().unwrap(),
+            &account_id.to_string(),
+            &logger,
+        ) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
                 diesel::result::Error::DatabaseError(_kind, info),
@@ -345,58 +348,6 @@ pub fn manually_sync_account(
         }
     }
     account
-}
-
-pub fn setup_grpc_peer_manager_and_network_state(
-    logger: Logger,
-) -> (
-    ConnectionManager<ThickClient<HardcodedCredentialsProvider>>,
-    Arc<RwLock<PollingNetworkState<ThickClient<HardcodedCredentialsProvider>>>>,
-) {
-    let peer1 = test_client_uri(1);
-    let peer2 = test_client_uri(2);
-    let peers = vec![peer1.clone(), peer2.clone()];
-
-    let grpc_env = Arc::new(
-        grpcio::EnvBuilder::new()
-            .cq_count(1)
-            .name_prefix("peer")
-            .build(),
-    );
-
-    let verifier = Verifier::default();
-
-    let connected_peers = peers
-        .iter()
-        .map(|client_uri| {
-            ThickClient::new(
-                "local".to_string(),
-                client_uri.clone(),
-                verifier.clone(),
-                grpc_env.clone(),
-                HardcodedCredentialsProvider::from(client_uri),
-                logger.clone(),
-            )
-            .expect("Could not create thick client.")
-        })
-        .collect();
-
-    let peer_manager = ConnectionManager::new(connected_peers, logger.clone());
-    let quorum_set = QuorumSet::new_with_node_ids(
-        2,
-        vec![peer1.responder_id().unwrap(), peer2.responder_id().unwrap()],
-    );
-    let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
-        quorum_set,
-        peer_manager.clone(),
-        logger.clone(),
-    )));
-
-    {
-        let mut network_state = network_state.write().unwrap();
-        network_state.poll();
-    }
-    (peer_manager, network_state)
 }
 
 pub fn create_test_txo_for_recipient(
@@ -475,7 +426,7 @@ pub fn create_test_minted_and_change_txos(
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -612,13 +563,6 @@ pub fn setup_wallet_service_offline(
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     setup_wallet_service_impl(ledger_db, logger, true, false)
-}
-
-pub fn setup_wallet_service_no_wallet_db(
-    ledger_db: LedgerDB,
-    logger: Logger,
-) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, false, true)
 }
 
 fn setup_wallet_service_impl(
