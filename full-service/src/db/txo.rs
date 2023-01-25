@@ -2267,7 +2267,9 @@ mod tests {
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let proposal = unsigned_tx_proposal.sign(&sender_account_key).unwrap();
+        let proposal = unsigned_tx_proposal
+            .sign(&sender_account_key, None)
+            .unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

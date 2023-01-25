@@ -754,7 +754,10 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal
+            .clone()
+            .sign(&account_key, None)
+            .unwrap();
 
         assert_eq!(
             TransactionId::from(&tx_proposal),
@@ -929,7 +932,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -1008,7 +1011,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
@@ -1106,7 +1109,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         assert_eq!(
             tx_proposal.payload_txos[0].amount.value,
@@ -1173,7 +1176,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -1411,7 +1414,10 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal
+            .clone()
+            .sign(&account_key, None)
+            .unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
@@ -1631,7 +1637,10 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal.clone().sign(&account_key).unwrap();
+        let tx_proposal = unsigned_tx_proposal
+            .clone()
+            .sign(&account_key, None)
+            .unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
