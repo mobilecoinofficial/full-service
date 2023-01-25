@@ -14,9 +14,9 @@
 {% tab title="Request Body" %}
 ```
 {
-    "method": "export_view_only_account_import_request",
+    "method": "create_view_only_account_import_request",
     "params": {
-        "account_id": "6d95067c5fcc0dd7bbcdd42d49cc3571fe1bb2597a9c397c75b7280eca534208"
+        "account_id": "b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c"
     },
     "jsonrpc": "2.0",
     "id": 1
@@ -27,25 +27,23 @@
 {% tab title="Response" %}
 ```
 {
-    "method": "export_view_only_account_import_request",
-    "result": {
-        "json_rpc_request": {
-            "method": "import_view_only_account",
-            "params": {
-                "account": {
-                    "view_private_key": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-                    "spend_public_key": "fcewc434g5353v535323f43f43f43g5342v3b67n8576453f4dcv56b77n857b46",
-                    "name": "Coins for cats",
-                    "first_block_index": "3500",
-                    "next_block_index": "4000",
-                }
-            },
-            "jsonrpc": "2.0",
-            "id": 1
-        }
-    },
-    "jsonrpc": "2.0",
-    "id": 1
+  "method":"create_view_only_account_import_request",
+  "result":{
+    "json_rpc_request":{
+      "method":"import_view_only_account",
+      "params":{
+        "view_private_key":"0a2078062debfa72270373d13d52e228b2acc7e3d55790447e7a58905b986fc3780a",
+        "spend_public_key":"0a208007986832d9269e62d9c0b2a33478ec761f8b6f6c32316bc8a993ed02964d51",
+        "name":"Bob",
+        "first_block_index":"1352037",
+        "next_subaddress_index":"2"
+      },
+      "jsonrpc":"2.0",
+      "id":1
+    }
+  },
+  "jsonrpc":"2.0",
+  "id":1
 }
 ```
 {% endtab %}

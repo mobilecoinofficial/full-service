@@ -23,7 +23,6 @@ use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
 use mc_connection::{Connection, ConnectionManager};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
-use mc_consensus_enclave_api::FeeMap;
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_crypto_rand::{CryptoRng, RngCore};
@@ -36,7 +35,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, Token, TokenId,
+    Amount, FeeMap, Token, TokenId,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -427,7 +426,7 @@ pub fn create_test_minted_and_change_txos(
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
-    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);

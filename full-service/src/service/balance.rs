@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, convert::TryFrom};
 
 use crate::{
     db::{
@@ -23,7 +23,7 @@ use mc_common::HashMap;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::{tokens::Mob, Token, TokenId};
+use mc_transaction_core::{tokens::Mob, FeeMap, FeeMapError, Token, TokenId};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -46,6 +46,9 @@ pub enum BalanceServiceError {
 
     /// AccountServiceError
     AccountServiceError(AccountServiceError),
+
+    /// FeeMapError: {0}
+    FeeMap(FeeMapError),
 }
 
 impl From<WalletDbError> for BalanceServiceError {
@@ -75,6 +78,12 @@ impl From<LedgerServiceError> for BalanceServiceError {
 impl From<AccountServiceError> for BalanceServiceError {
     fn from(src: AccountServiceError) -> Self {
         Self::AccountServiceError(src)
+    }
+}
+
+impl From<FeeMapError> for BalanceServiceError {
+    fn from(src: FeeMapError) -> Self {
+        Self::FeeMap(src)
     }
 }
 
@@ -113,7 +122,7 @@ pub struct NetworkStatus {
     pub network_block_height: u64,
     pub local_block_height: u64,
     pub local_num_txos: u64,
-    pub fees: BTreeMap<TokenId, u64>,
+    pub fees: FeeMap,
     pub block_version: u32,
 }
 
@@ -172,12 +181,15 @@ where
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status
+                    .fees
+                    .get_fee_for_token(&token_id)
+                    .unwrap_or(0);
                 let balance = Self::get_balance_inner(
                     Some(&account_id.to_string()),
                     None,
                     token_id,
-                    default_token_fee,
+                    &default_token_fee,
                     conn,
                 )?;
                 Ok((token_id, balance))
@@ -201,12 +213,15 @@ where
         let balances = distinct_token_ids
             .into_iter()
             .map(|token_id| {
-                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status
+                    .fees
+                    .get_fee_for_token(&token_id)
+                    .unwrap_or(0);
                 let balance = Self::get_balance_inner(
                     None,
                     Some(address),
                     token_id,
-                    default_token_fee,
+                    &default_token_fee,
                     conn,
                 )?;
                 Ok((token_id, balance))
@@ -217,12 +232,13 @@ where
     }
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
-        let (network_block_height, fees, block_version) = match self.offline {
+        let (network_block_height, fee_map, block_version) = match self.offline {
             true => {
                 let mut fees = BTreeMap::new();
                 fees.insert(Mob::ID, Mob::MINIMUM_FEE);
                 fees.insert(TokenId::from(1), 2560);
-                (0, fees, *BlockVersion::MAX)
+                let fee_map = FeeMap::try_from(fees)?;
+                (0, fee_map, *BlockVersion::MAX)
             }
             false => (
                 self.get_network_block_height()?,
@@ -235,7 +251,7 @@ where
             network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
             local_num_txos: self.ledger_db.num_txos()?,
-            fees,
+            fees: fee_map,
             block_version,
         })
     }
@@ -258,12 +274,15 @@ where
             let token_ids = account.clone().get_token_ids(&conn)?;
 
             for token_id in token_ids {
-                let default_token_fee = network_status.fees.get(&token_id).unwrap_or(&0);
+                let default_token_fee = network_status
+                    .fees
+                    .get_fee_for_token(&token_id)
+                    .unwrap_or(0);
                 let balance = Self::get_balance_inner(
                     Some(&account_id.to_string()),
                     None,
                     token_id,
-                    default_token_fee,
+                    &default_token_fee,
                     &conn,
                 )?;
                 balance_per_token
