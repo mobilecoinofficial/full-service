@@ -773,7 +773,7 @@ mod tests {
     // This test is to ensure that we can send a transaction with a total input
     // value of > u64::MAX
     #[test_with_logger]
-    fn test_setting_input_txos_overflow_u64(logger: Logger) {
+    fn test_setting_input_and_output_txos_overflow_u64(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1271,50 +1271,6 @@ mod tests {
         assert_eq!(proposal.payload_txos[3].amount.value, 40 * MOB);
         assert_eq!(proposal.tx.prefix.inputs.len(), 2);
         assert_eq!(proposal.tx.prefix.outputs.len(), 5); // outlays + change
-    }
-
-    // Adding multiple values that exceed u64::MAX should fail
-    #[test_with_logger]
-    fn test_add_multiple_outputs_integer_overflow(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let known_recipients: Vec<PublicAddress> = Vec::new();
-        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-
-        // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
-
-        let account_key = random_account_with_seed_values(
-            &wallet_db,
-            &mut ledger_db,
-            &vec![
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-                7_000_000 * MOB,
-            ],
-            &mut rng,
-            &logger,
-        );
-
-        let (recipient, mut builder) =
-            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
-
-        builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
-            .unwrap();
-        builder
-            .add_recipient(recipient.clone(), 7_000_000 * MOB, Mob::ID)
-            .unwrap();
-
-        builder
-            .select_txos(&wallet_db.get_conn().unwrap(), None)
-            .unwrap();
     }
 
     // We should be able to add multiple TxOuts to multiple recipients.
