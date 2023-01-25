@@ -32,7 +32,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
     type Error = String;
 
     fn try_from(src: &service::balance::NetworkStatus) -> Result<NetworkStatus, String> {
-        let fee = match src.fees.get(&Mob::ID) {
+        let fee = match src.fees.get_fee_for_token(&Mob::ID) {
             Some(fee) => fee,
             None => return Err(format!("Could not find fee for token {}", Mob::ID)),
         };

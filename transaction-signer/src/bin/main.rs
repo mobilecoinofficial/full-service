@@ -244,7 +244,7 @@ fn sign_transaction(secret_mnemonic: &str, sign_request: &str) {
 
     let unsigned_tx_proposal: UnsignedTxProposal = unsigned_tx_proposal_json.try_into().unwrap();
 
-    let tx_proposal = unsigned_tx_proposal.sign(&account_key).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
     let tx_proposal_json = TxProposalJSON::try_from(&tx_proposal).unwrap();
     let json_command_request = JsonCommandRequest::submit_transaction {
         tx_proposal: tx_proposal_json,

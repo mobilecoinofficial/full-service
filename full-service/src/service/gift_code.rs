@@ -481,7 +481,12 @@ where
         )?;
 
         let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
-        let tx_proposal = signing_data.sign(&account_key)?;
+        let fee_map = if self.offline {
+            None
+        } else {
+            Some(self.get_network_fees()?)
+        };
+        let tx_proposal = signing_data.sign(&account_key, fee_map.as_ref())?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);

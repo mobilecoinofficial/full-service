@@ -390,9 +390,12 @@ where
 
             let fee_value = match fee_value {
                 Some(f) => f.parse::<u64>()?,
-                None => *self.get_network_fees()?.get(&fee_token_id).ok_or(
-                    TransactionServiceError::DefaultFeeNotFoundForToken(fee_token_id),
-                )?,
+                None => self
+                    .get_network_fees()?
+                    .get_fee_for_token(&fee_token_id)
+                    .ok_or(TransactionServiceError::DefaultFeeNotFoundForToken(
+                        fee_token_id,
+                    ))?,
             };
 
             builder.set_fee(fee_value, fee_token_id)?;
@@ -446,7 +449,14 @@ where
         transaction(&conn, || {
             let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let tx_proposal = unsigned_tx_proposal.sign(&account_key)?;
+
+            let fee_map = if self.offline {
+                None
+            } else {
+                Some(self.get_network_fees()?)
+            };
+
+            let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
 
             TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
 

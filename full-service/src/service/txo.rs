@@ -13,6 +13,7 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
+        ledger::{LedgerService, LedgerServiceError},
         models::tx_proposal::TxProposal,
         transaction::{TransactionMemo, TransactionService, TransactionServiceError},
     },
@@ -22,6 +23,7 @@ use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_transaction_core::FeeMapError;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -65,6 +67,12 @@ pub enum TxoServiceError {
 
     /// TxBuilderError: {0}
     TxBuilder(mc_transaction_builder::TxBuilderError),
+
+    /// Error with FeeMap: {0}
+    FeeMap(FeeMapError),
+
+    /// Ledger Service Error: {0}
+    LedgerService(LedgerServiceError),
 }
 
 impl From<WalletDbError> for TxoServiceError {
@@ -118,6 +126,18 @@ impl From<String> for TxoServiceError {
 impl From<mc_transaction_builder::TxBuilderError> for TxoServiceError {
     fn from(src: mc_transaction_builder::TxBuilderError) -> Self {
         Self::TxBuilder(src)
+    }
+}
+
+impl From<FeeMapError> for TxoServiceError {
+    fn from(src: FeeMapError) -> Self {
+        Self::FeeMap(src)
+    }
+}
+
+impl From<LedgerServiceError> for TxoServiceError {
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
@@ -275,7 +295,14 @@ where
 
         let account = Account::get(&AccountID(account_id_hex), &conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-        Ok(unsigned_transaction.sign(&account_key)?)
+
+        let fee_map = if self.offline {
+            None
+        } else {
+            Some(self.get_network_fees()?)
+        };
+
+        Ok(unsigned_transaction.sign(&account_key, fee_map.as_ref())?)
     }
 }
 
