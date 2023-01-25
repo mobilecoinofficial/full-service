@@ -324,6 +324,11 @@ pub enum WalletTransactionBuilderError {
 
     /// Cannot use orphaned txo as an input: {0}
     CannotUseOrphanedTxoAsInput(String),
+
+    /**
+     * Change amount must be <= u64::MAX, but total change value is: {0}
+     */
+    ChangeLargerThanMaxValue(u128),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
