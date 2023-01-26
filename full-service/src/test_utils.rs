@@ -10,8 +10,8 @@ use crate::{
     },
     error::SyncError,
     service::{
-        models::tx_proposal::TxProposal, sync::sync_account_next_chunk, transaction::TransactionMemo,
-        transaction_builder::WalletTransactionBuilder,
+        models::tx_proposal::TxProposal, sync::sync_account_next_chunk,
+        transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
 };
