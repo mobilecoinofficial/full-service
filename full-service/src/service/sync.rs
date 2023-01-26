@@ -64,17 +64,23 @@ impl SyncThread {
                 .spawn(move || {
                     log::debug!(logger, "Sync thread started.");
 
+                    let conn = wallet_db
+                        .get_conn()
+                        .expect("failed getting wallet db connection");
+
                     loop {
                         if thread_stop_requested.load(Ordering::SeqCst) {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        match sync_all_accounts(&ledger_db, &wallet_db, &logger) {
+                        match sync_all_accounts(&ledger_db, &conn, &logger) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
                         }
-
-                        thread::sleep(std::time::Duration::from_secs(1));
+                        // This sleep is to allow other API calls that need access to the database a
+                        // chance to execute, because the sync process requires a write lock on the
+                        // database.
+                        thread::sleep(std::time::Duration::from_millis(10));
                     }
                     log::debug!(logger, "SyncThread stopped.");
                 })
@@ -103,7 +109,7 @@ impl Drop for SyncThread {
 
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn: &Conn,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
@@ -111,49 +117,28 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
 
-    let conn = wallet_db.get_conn()?;
-
     // Go over our list of accounts and see which ones need to process more blocks.
     let accounts: Vec<Account> =
-        { Account::list_all(&conn, None, None).expect("Failed getting accounts from database") };
+        { Account::list_all(conn, None, None).expect("Failed getting accounts from database") };
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, &conn, &account.id, logger)?;
+
+        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
     }
 
     Ok(())
 }
 
-#[derive(Debug)]
-enum SyncStatus {
-    ChunkFinished,
-    NoMoreBlocks,
-}
-
-/// Sync a single account.
-pub fn sync_account(
+pub fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
     conn: &Conn,
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    while let SyncStatus::ChunkFinished =
-        sync_account_next_chunk(ledger_db, conn, logger, account_id_hex)?
-    {}
-
-    Ok(())
-}
-
-fn sync_account_next_chunk(
-    ledger_db: &LedgerDB,
-    conn: &Conn,
-    logger: &Logger,
-    account_id_hex: &str,
-) -> Result<SyncStatus, SyncError> {
     transaction(conn, || {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -193,7 +178,7 @@ fn sync_account_next_chunk(
 
         // If no blocks were found, exit.
         if end_block_index.is_none() {
-            return Ok(SyncStatus::NoMoreBlocks);
+            return Ok(());
         }
         let end_block_index = end_block_index.unwrap();
 
@@ -281,14 +266,7 @@ fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len(),
-        );
-
-            if num_blocks_synced < BLOCKS_CHUNK_SIZE {
-                Ok(SyncStatus::NoMoreBlocks)
-            } else {
-                Ok(SyncStatus::ChunkFinished)
-            }
+            unspent_key_images.len());
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -375,15 +353,10 @@ fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len(),
-        );
+            unspent_key_images.len());
+        };
 
-            if num_blocks_synced < BLOCKS_CHUNK_SIZE {
-                Ok(SyncStatus::NoMoreBlocks)
-            } else {
-                Ok(SyncStatus::ChunkFinished)
-            }
-        }
+        Ok(())
     })
 }
 

@@ -384,7 +384,7 @@ where
         let mut results = vec![];
 
         // Try intepreting the query as a hex string.
-        if let Some(mut query_bytes) = hex::decode(query).ok() {
+        if let Ok(mut query_bytes) = hex::decode(query) {
             // Hack - strip away the protobuf header if we have one. This hack
             // is needed because sometimes full-service returns protobuf-encoded
             // bytes instead of just returning the raw bytes.
@@ -423,7 +423,7 @@ fn search_ledger_by_tx_out_pub_key(
     ledger_db: &LedgerDB,
     query_bytes: &[u8],
 ) -> Result<Option<LedgerSearchResult>, LedgerServiceError> {
-    let public_key = if let Ok(pk) = CompressedRistrettoPublic::try_from(&query_bytes[..]) {
+    let public_key = if let Ok(pk) = CompressedRistrettoPublic::try_from(query_bytes) {
         pk
     } else {
         return Ok(None);
@@ -460,7 +460,7 @@ fn search_ledger_by_key_image(
     ledger_db: &LedgerDB,
     query_bytes: &[u8],
 ) -> Result<Option<LedgerSearchResult>, LedgerServiceError> {
-    let key_image = if let Ok(ki) = KeyImage::try_from(&query_bytes[..]) {
+    let key_image = if let Ok(ki) = KeyImage::try_from(query_bytes) {
         ki
     } else {
         return Ok(None);
