@@ -85,8 +85,13 @@ case ${net} in
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
-        CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
+        
         INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
+        if test -f "${WORK_DIR}/consensus-enclave.css"; then
+            CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
+        elif 
+            CONSENSUS_ENCLAVE_CSS=`pwd`/target/docker/release/consensus-enclave.css
+        fi
     ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
