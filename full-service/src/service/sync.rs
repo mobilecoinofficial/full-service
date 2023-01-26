@@ -127,17 +127,17 @@ pub fn sync_all_accounts(
             continue;
         }
 
-        let _status = sync_account_next_chunk(ledger_db, conn, logger, &account.id)?;
+        let _status = sync_account(ledger_db, conn, &account.id, logger)?;
     }
 
     Ok(())
 }
 
-fn sync_account_next_chunk(
+fn sync_account(
     ledger_db: &LedgerDB,
     conn: &Conn,
-    logger: &Logger,
     account_id_hex: &str,
+    logger: &Logger,
 ) -> Result<(), SyncError> {
     transaction(conn, || {
         // Get the account data. If it is no longer available, the account has been
@@ -178,7 +178,7 @@ fn sync_account_next_chunk(
 
         // If no blocks were found, exit.
         if end_block_index.is_none() {
-            return Ok(SyncStatus::NoMoreBlocks);
+            return Ok(());
         }
         let end_block_index = end_block_index.unwrap();
 
@@ -357,9 +357,7 @@ fn sync_account_next_chunk(
         };
 
         Ok(())
-    });
-
-    Ok(())
+    })
 }
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
