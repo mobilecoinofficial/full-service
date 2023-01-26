@@ -127,13 +127,13 @@ pub fn sync_all_accounts(
             continue;
         }
 
-        let _status = sync_account(ledger_db, conn, &account.id, logger)?;
+        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
     }
 
     Ok(())
 }
 
-pub fn sync_account(
+pub fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
     conn: &Conn,
     account_id_hex: &str,

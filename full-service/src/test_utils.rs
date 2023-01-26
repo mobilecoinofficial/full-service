@@ -10,7 +10,7 @@ use crate::{
     },
     error::SyncError,
     service::{
-        models::tx_proposal::TxProposal, sync::sync_account, transaction::TransactionMemo,
+        models::tx_proposal::TxProposal, sync::sync_account_next_chunk, transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
@@ -327,7 +327,7 @@ pub fn manually_sync_account(
 ) -> Account {
     let mut account: Account;
     loop {
-        match sync_account(
+        match sync_account_next_chunk(
             &ledger_db,
             &wallet_db.get_conn().unwrap(),
             &account_id.to_string(),
