@@ -64,17 +64,23 @@ impl SyncThread {
                 .spawn(move || {
                     log::debug!(logger, "Sync thread started.");
 
+                    let conn = wallet_db
+                        .get_conn()
+                        .expect("failed getting wallet db connection");
+
                     loop {
                         if thread_stop_requested.load(Ordering::SeqCst) {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        match sync_all_accounts(&ledger_db, &wallet_db, &logger) {
+                        match sync_all_accounts(&ledger_db, &conn, &logger) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
                         }
-
-                        thread::sleep(std::time::Duration::from_secs(1));
+                        // This sleep is to allow other API calls that need access to the database a
+                        // chance to execute, because the sync process requires a write lock on the
+                        // database.
+                        thread::sleep(std::time::Duration::from_millis(10));
                     }
                     log::debug!(logger, "SyncThread stopped.");
                 })
@@ -103,15 +109,13 @@ impl Drop for SyncThread {
 
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
-    wallet_db: &WalletDb,
+    conn: &Conn,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
     let num_blocks = ledger_db
         .num_blocks()
         .expect("failed getting number of blocks");
-
-    let conn = wallet_db.get_conn()?;
 
     // Go over our list of accounts and see which ones need to process more blocks.
     let accounts: Vec<Account> =
@@ -122,28 +126,9 @@ pub fn sync_all_accounts(
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-        sync_account(ledger_db, &conn, &account.id, logger)?;
+
+        let _status = sync_account_next_chunk(ledger_db, conn, logger, &account.id)?;
     }
-
-    Ok(())
-}
-
-#[derive(Debug)]
-enum SyncStatus {
-    ChunkFinished,
-    NoMoreBlocks,
-}
-
-/// Sync a single account.
-pub fn sync_account(
-    ledger_db: &LedgerDB,
-    conn: &Conn,
-    account_id_hex: &str,
-    logger: &Logger,
-) -> Result<(), SyncError> {
-    while let SyncStatus::ChunkFinished =
-        sync_account_next_chunk(ledger_db, conn, logger, account_id_hex)?
-    {}
 
     Ok(())
 }
@@ -153,7 +138,7 @@ fn sync_account_next_chunk(
     conn: &Conn,
     logger: &Logger,
     account_id_hex: &str,
-) -> Result<SyncStatus, SyncError> {
+) -> Result<(), SyncError> {
     transaction(conn, || {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -281,14 +266,7 @@ fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len(),
-        );
-
-            if num_blocks_synced < BLOCKS_CHUNK_SIZE {
-                Ok(SyncStatus::NoMoreBlocks)
-            } else {
-                Ok(SyncStatus::ChunkFinished)
-            }
+            unspent_key_images.len());
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -375,16 +353,13 @@ fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len(),
-        );
+            unspent_key_images.len());
+        };
 
-            if num_blocks_synced < BLOCKS_CHUNK_SIZE {
-                Ok(SyncStatus::NoMoreBlocks)
-            } else {
-                Ok(SyncStatus::ChunkFinished)
-            }
-        }
-    })
+        Ok(())
+    });
+
+    Ok(())
 }
 
 /// Attempt to decode the transaction amount. If we can't, then this transaction
