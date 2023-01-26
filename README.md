@@ -72,12 +72,6 @@ You can build Full Service using the the mobilecoin `mob` tool.
     cd mobilecoin
     cargo build --release
     ```
-1. Copy the consensus enclave to where your build script will read it
-    ```sh
-    cd .. # this takes you back to the full-service repo root
-    cp ./target/docker/release/consensus-enclave.css ~/.mobilecoin/local
-    cp ./target/docker/release/ingest-enclave.css ~/.mobilecoin/local
-    ```
 
 1. Run the build script using the relevant network type (substitute `main` with `test` or `local` if appropriate)
     ```sh
@@ -89,12 +83,17 @@ You can run full-service from within `mob prompt`, or exit the container to run 
      ```sh
     ./tools/run-fs.sh main
     ```
-- From outside the `mob` container, you'll need to set an environment variable before running the `run-fs.sh` script
-     ```sh
+- From outside the `mob` container, there are potentially extra steps
+    - If running local network, copy the `ingest-enclave.css` file from the mobilecoin network build to where you want the runscript to pick it up from
+    ** IMPORTANT: make sure you local instance of the local network is running before running full-service against it **
+    ```sh
+    cp ./target/docker/release/ingest-enclave.css ~/.mobilecoin/local
+    ``` 
+    - For any network, you'll need to set an environment variable before running the `run-fs.sh` script,  replacing `main` with the appropriate network type.
+    ```sh
     export CARGO_TARGET_DIR=./target/docker
     ./tools/run-fs.sh main
     ```
-
 
 
 
