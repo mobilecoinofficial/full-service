@@ -119,7 +119,7 @@ pub fn sync_all_accounts(
 
     // Go over our list of accounts and see which ones need to process more blocks.
     let accounts: Vec<Account> =
-        { Account::list_all(&conn, None, None).expect("Failed getting accounts from database") };
+        { Account::list_all(conn, None, None).expect("Failed getting accounts from database") };
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
@@ -133,7 +133,7 @@ pub fn sync_all_accounts(
     Ok(())
 }
 
-fn sync_account(
+pub fn sync_account(
     ledger_db: &LedgerDB,
     conn: &Conn,
     account_id_hex: &str,
