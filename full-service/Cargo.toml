@@ -51,7 +51,7 @@ clap = { version = "4.0", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled", "chrono"] }
 diesel-derive-enum = { version = "1", features = ["sqlite"] }
-diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
+diesel_migrations = { version = "2.0.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.11"
