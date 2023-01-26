@@ -70,7 +70,8 @@ pub struct APIConfig {
     #[clap(long, env = "MC_VALIDATOR")]
     pub validator: Option<ValidatorUri>,
 
-    /// Path to watcher db (lmdb).
+    /// Path to watcher db (lmdb). When provided, watcher syncing will take
+    /// place.
     #[structopt(long)]
     pub watcher_db: Option<PathBuf>,
 }
