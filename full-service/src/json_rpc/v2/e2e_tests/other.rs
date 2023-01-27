@@ -684,7 +684,7 @@ mod e2e_misc {
             serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
         assert_eq!(results.len(), 1);
 
-        assert_eq!(results[0].result_type, "TxOut".to_string());
+        assert_eq!(results[0].result_type, "KeyImage".to_string());
         assert_eq!(
             results[0]
                 .watcher_info
