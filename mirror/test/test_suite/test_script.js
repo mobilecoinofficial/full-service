@@ -218,7 +218,6 @@ async function testGetAddressStatus(public_mirror_host, public_mirror_port, key_
                 "address": address
             },
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1
         };
         let requestString = JSON.stringify(request, fields);
