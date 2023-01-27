@@ -43,6 +43,7 @@ use crate::{
         transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
+        watcher::WatcherService,
         WalletService,
     },
     util::b58::{
@@ -694,9 +695,14 @@ where
                     .map_err(format_error)?,
             };
 
+            let watcher_info = service
+                .get_watcher_block_info(block.index)
+                .map_err(format_error)?;
+
             JsonCommandResponse::get_block {
                 block: Block::new(&block),
                 block_contents: BlockContents::new(&block_contents),
+                watcher_info: watcher_info.as_ref().map(Into::into),
             }
         }
         JsonCommandRequest::get_blocks {
@@ -723,9 +729,22 @@ where
                 })
                 .unzip();
 
+            let watcher_infos = blocks_and_contents
+                .iter()
+                .map(|(block, _contents)| {
+                    service
+                        .get_watcher_block_info(block.index)
+                        .map_err(format_error)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
             JsonCommandResponse::get_blocks {
                 blocks,
                 block_contents,
+                watcher_infos: watcher_infos
+                    .iter()
+                    .map(|info| info.as_ref().map(Into::into))
+                    .collect(),
             }
         }
         JsonCommandRequest::get_recent_blocks { limit } => {
@@ -748,6 +767,15 @@ where
                 })
                 .unzip();
 
+            let watcher_infos = blocks_and_contents
+                .iter()
+                .map(|(block, _contents)| {
+                    service
+                        .get_watcher_block_info(block.index)
+                        .map_err(format_error)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
             let network_status =
                 NetworkStatus::try_from(&service.get_network_status().map_err(format_error)?)
                     .map_err(format_error)?;
@@ -755,6 +783,10 @@ where
             JsonCommandResponse::get_recent_blocks {
                 blocks,
                 block_contents,
+                watcher_infos: watcher_infos
+                    .iter()
+                    .map(|info| info.as_ref().map(Into::into))
+                    .collect(),
                 network_status,
             }
         }
