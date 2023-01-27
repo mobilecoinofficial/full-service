@@ -69,6 +69,11 @@ pub struct APIConfig {
     /// network directly.
     #[clap(long, env = "MC_VALIDATOR")]
     pub validator: Option<ValidatorUri>,
+
+    /// Path to watcher db (lmdb). When provided, watcher syncing will take
+    /// place.
+    #[structopt(long)]
+    pub watcher_db: Option<PathBuf>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
