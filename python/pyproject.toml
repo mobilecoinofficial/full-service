@@ -10,6 +10,7 @@ python = "^3.10"
 segno = "^1.5.2"
 base58 = "^2.1.1"
 protobuf = "^4.21.12"
+aiohttp = "^3.8.3"
 
 [build-system]
 requires = ["poetry-core"]
