@@ -298,6 +298,14 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
+    // !TODO
+    fn list_created(
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
+    // !TODO
+    fn list_secreted(
+    ) -> Result<Vec<Txo>, WalletDbError>;
+
     /// Get the details for a specific Txo.
     ///
     /// Returns:
@@ -943,6 +951,14 @@ impl TxoModel for Txo {
             .distinct()
             .order(txos::received_block_index.desc())
             .load(conn)?)
+    }
+
+    fn list_created() -> Result<Vec<Txo>, WalletDbError>{
+        !todo()
+    }
+
+    fn list_secreted() -> Result<Vec<Txo>, WalletDbError>{
+        !todo()
     }
 
     fn list_unspent_or_pending_key_images(
