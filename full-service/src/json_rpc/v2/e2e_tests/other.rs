@@ -29,7 +29,6 @@ mod e2e_misc {
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, BlockVersion, Token};
 
-    use mc_watcher_api::TimestampResultCode;
     use rand::{rngs::StdRng, SeedableRng};
     use rocket::http::{Header, Status};
     use serde_json::json;
