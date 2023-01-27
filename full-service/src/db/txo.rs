@@ -34,30 +34,46 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub enum TxoStatus {
-    // The txo has been received at a known subaddress index, but the key image cannot
-    // be derived (usually because this is a view only account)
-    Unverified,
-    // The txo has been received at a known subaddress index with a known key image, has not been
-    // spent, and is not part of a pending transaction
-    Unspent,
-    // The txo is part of a pending transaction
-    Pending,
-    // The txo has a known spent block index
-    Spent,
+    // The txo has been created as part of build-transaction, but its associated transaction is 
+    // neither pending, or submitted successfully
+    Created, 
+
     // The txo has been received but the subaddress index and key image cannot be determined. This
     // happens typically when an account is imported but all subaddresses it was using were not
     // recreated
-    Orphaned,
+    Orphaned, 
+
+    // The txo is part of a pending transaction
+    Pending, 
+    
+    // The txo is created and released as part of a successful transaction, but we do not know 
+    // what block it was received at, the subaddress, keyimage, nor spent block. For example, 
+    // the txo going to a recipient's account is often secreted.
+    Secreted, 
+    
+    // The txo has a known spent block index
+    Spent, 
+    
+    // The txo has been received at a known subaddress index with a known key image, has not been
+    // spent, and is not part of a pending transaction
+    Unspent, 
+
+    // The txo has been received at a known subaddress index, but the key image cannot
+    // be derived (usually because this is a view only account)
+    Unverified, 
+
 }
 
 impl fmt::Display for TxoStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TxoStatus::Unverified => write!(f, "unverified"),
-            TxoStatus::Unspent => write!(f, "unspent"),
-            TxoStatus::Pending => write!(f, "pending"),
-            TxoStatus::Spent => write!(f, "spent"),
+            TxoStatus::Created => write!(f, "created"),
             TxoStatus::Orphaned => write!(f, "orphaned"),
+            TxoStatus::Pending => write!(f, "pending"),
+            TxoStatus::Secreted => write!(f, "secreted"),
+            TxoStatus::Spent => write!(f, "spent"),
+            TxoStatus::Unspent => write!(f, "unspent"),
+            TxoStatus::Unverified => write!(f, "unverified"),
         }
     }
 }
@@ -67,11 +83,13 @@ impl FromStr for TxoStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "unverified" => Ok(TxoStatus::Unverified),
-            "unspent" => Ok(TxoStatus::Unspent),
-            "pending" => Ok(TxoStatus::Pending),
-            "spent" => Ok(TxoStatus::Spent),
+            "created" => Ok(TxoStatus::Created),
             "orphaned" => Ok(TxoStatus::Orphaned),
+            "pending" => Ok(TxoStatus::Pending),
+            "secreted"=> Ok(TxoStatus::Secreted),
+            "spent" => Ok(TxoStatus::Spent),
+            "unspent" => Ok(TxoStatus::Unspent),
+            "unverified" => Ok(TxoStatus::Unverified),    
             _ => Err(WalletDbError::InvalidTxoStatus(s.to_string())),
         }
     }
@@ -567,6 +585,7 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
+                TxoStatus::Created | TxoStatus::Secreted => todo!()
             }
         }
 
@@ -664,6 +683,7 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
+                TxoStatus::Created | TxoStatus::Secreted => todo!()
             }
         }
 
@@ -755,6 +775,7 @@ impl TxoModel for Txo {
                 TxoStatus::Orphaned => {
                     return Ok(vec![]);
                 }
+                TxoStatus::Created | TxoStatus::Secreted => todo!()
             }
         }
 
