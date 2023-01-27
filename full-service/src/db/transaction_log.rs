@@ -159,7 +159,7 @@ pub trait TransactionLogModel {
 
     fn update_tx_and_tombstone_block_index(
         &self,
-        tx: &Vec<u8>,
+        tx: &[u8],
         tombstone_block_index: Option<i64>,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
@@ -328,7 +328,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn update_tx_and_tombstone_block_index(
         &self,
-        tx: &Vec<u8>,
+        tx: &[u8],
         tombstone_block_index: Option<i64>,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {

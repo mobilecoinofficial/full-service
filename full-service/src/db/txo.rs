@@ -1437,11 +1437,7 @@ mod tests {
             models::{Account, TransactionLog},
             transaction_log::TransactionLogModel,
         },
-        service::{
-            sync::{sync_account, SyncThread},
-            transaction::TransactionMemo,
-            transaction_builder::WalletTransactionBuilder,
-        },
+        service::{transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
             create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
@@ -2158,13 +2154,12 @@ mod tests {
         .unwrap();
 
         // Process the txos in the ledger into the DB
-        sync_account(
+        manually_sync_account(
             &ledger_db,
-            &wallet_db.get_conn().unwrap(),
-            &AccountID::from(&src_account).to_string(),
+            &wallet_db,
+            &AccountID::from(&src_account),
             &logger,
-        )
-        .unwrap();
+        );
 
         let recipient =
             AccountKey::from(&RootIdentity::from_random(&mut rng)).subaddress(rng.next_u64());
@@ -2235,7 +2230,6 @@ mod tests {
 
         // Start sync thread
         log::info!(logger, "Starting sync thread");
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
 
         log::info!(logger, "Creating a random sender account");
         let sender_account_key = random_account_with_seed_values(
