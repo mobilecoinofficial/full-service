@@ -290,10 +290,10 @@ class CommandLineInterface:
             root_entropy = None
             try:
                 b = bytes.fromhex(backup)
+                if len(b) == 32:
+                    root_entropy = b.hex()
             except ValueError:
                 pass
-            if len(b) == 32:
-                root_entropy = b.hex()
             if root_entropy is not None:
                 account = self.client.import_account_from_legacy_root_entropy(root_entropy)
             else:
@@ -356,7 +356,7 @@ class CommandLineInterface:
         account_id = account['account_id']
         balance = self.client.get_balance_for_account(account_id)
 
-        if account['view_only']:
+        if account.get('view_only'):
             print('You are about to remove this view key:')
             print()
             _print_account(account, balance)
@@ -449,7 +449,7 @@ class CommandLineInterface:
             print('There is not enough MOB in account {} to pay for this transaction.'.format(account_id[:6]))
             return
 
-        if account['view_only']:
+        if account.get('view_only'):
             verb = 'Building unsigned transaction for'
         elif build_only:
             verb = 'Building transaction for'
@@ -479,7 +479,7 @@ class CommandLineInterface:
             ]).format(_format_mob(unspent)))
             return
 
-        if account['view_only']:
+        if account.get('view_only'):
             response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal_{}_{}_unsigned.json'.format(
                 account_id[:6],
@@ -798,7 +798,7 @@ def _format_account_header(account):
     output = account['account_id'][:6]
     if account['name']:
         output += ' ' + account['name']
-    if account['view_only']:
+    if account.get('view_only'):
         output += ' [view-only]'
     return output
 
