@@ -9,7 +9,7 @@ mod e2e_misc {
             api::{
                 test_utils::{
                     dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
-                    setup_no_wallet_db, setup_with_api_key, wait_for_sync,
+                    setup_no_wallet_db, setup_with_api_key, setup_with_watcher, wait_for_sync,
                 },
                 wallet::RECENT_BLOCKS_DEFAULT_LIMIT,
             },
@@ -265,6 +265,43 @@ mod e2e_misc {
         assert_eq!(
             error.get("data").unwrap().get("server_error").unwrap(),
             "LedgerDB(Record not found)"
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_block_by_txo_public_key_with_watcher(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, ledger_db, _db_ctx, _network_state) =
+            setup_with_watcher(&mut rng, logger.clone());
+        let txo = ledger_db.get_tx_out_by_index(5).unwrap();
+
+        // A valid public key on the ledger
+        let public_key = hex::encode(txo.public_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_block",
+            "params": {
+                "txo_public_key": public_key
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let watcher_info = result.get("watcher_info").unwrap();
+        assert_eq!(
+            watcher_info.get("timestamp_result_code").unwrap(),
+            "TimestampFound"
+        );
+        // create_test_watcher_db generated two signatures
+        assert_eq!(
+            watcher_info
+                .get("signatures")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            2
         );
     }
 

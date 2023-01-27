@@ -2896,6 +2896,7 @@ dependencies = [
  "strum_macros",
  "tempdir",
  "tiny-bip39",
+ "url",
  "uuid",
  "vergen",
 ]
