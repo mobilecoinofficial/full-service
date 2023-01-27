@@ -17,7 +17,6 @@ use crate::{
             confirmation_number::Confirmation,
             ledger::LedgerSearchResult,
             network_status::NetworkStatus,
-            public_address::PublicAddress,
             receiver_receipt::ReceiverReceipt,
             transaction_log::TransactionLog,
             tx_proposal::{TxProposal, UnsignedTxProposal},
@@ -195,7 +194,7 @@ pub enum JsonCommandResponse {
         validated: bool,
     },
     verify_address {
-        details: PublicAddress,
+        verified: bool,
     },
     version {
         string: String,
