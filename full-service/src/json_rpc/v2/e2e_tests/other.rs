@@ -9,7 +9,7 @@ mod e2e_misc {
             api::{
                 test_utils::{
                     dispatch, dispatch_with_header, dispatch_with_header_expect_error, setup,
-                    setup_no_wallet_db, setup_with_api_key, wait_for_sync,
+                    setup_no_wallet_db, setup_with_api_key, setup_with_watcher, wait_for_sync,
                 },
                 wallet::RECENT_BLOCKS_DEFAULT_LIMIT,
             },
@@ -269,6 +269,43 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
+    fn test_get_block_by_txo_public_key_with_watcher(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, ledger_db, _db_ctx, _network_state) =
+            setup_with_watcher(&mut rng, logger.clone());
+        let txo = ledger_db.get_tx_out_by_index(5).unwrap();
+
+        // A valid public key on the ledger
+        let public_key = hex::encode(txo.public_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_block",
+            "params": {
+                "txo_public_key": public_key
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let watcher_info = result.get("watcher_info").unwrap();
+        assert_eq!(
+            watcher_info.get("timestamp_result_code").unwrap(),
+            "TimestampFound"
+        );
+        // create_test_watcher_db generated two signatures
+        assert_eq!(
+            watcher_info
+                .get("signatures")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+
+    #[test_with_logger]
     fn test_get_block_by_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _, _, _) = setup(&mut rng, logger.clone());
@@ -375,6 +412,45 @@ mod e2e_misc {
     }
 
     #[test_with_logger]
+    fn test_get_recent_blocks_with_watcher(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _, _, _) = setup_with_watcher(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_recent_blocks",
+            "params": {
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let blocks: Vec<Block> =
+            serde_json::from_value(result.get("blocks").unwrap().clone()).unwrap();
+
+        assert_eq!(blocks.len(), RECENT_BLOCKS_DEFAULT_LIMIT);
+
+        let watcher_infos = result.get("watcher_infos").unwrap().as_array().unwrap();
+        assert_eq!(watcher_infos.len(), blocks.len());
+        for watcher_info in watcher_infos {
+            assert_eq!(
+                watcher_info.get("timestamp_result_code").unwrap(),
+                "TimestampFound"
+            );
+            // create_test_watcher_db generated two signatures
+            assert_eq!(
+                watcher_info
+                    .get("signatures")
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                2
+            );
+        }
+    }
+
+    #[test_with_logger]
     fn test_get_blocks(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, _, _, _) = setup(&mut rng, logger.clone());
@@ -405,6 +481,46 @@ mod e2e_misc {
         assert!(blocks
             .windows(2)
             .all(|w| w[0].index.parse::<u64>().unwrap() == w[1].index.parse::<u64>().unwrap() - 1));
+    }
+
+    #[test_with_logger]
+    fn test_get_blocks_with_watcher(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _, _, _) = setup_with_watcher(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_blocks",
+            "params": {
+                "first_block_index": "5",
+                "limit": 3,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let blocks: Vec<Block> =
+            serde_json::from_value(result.get("blocks").unwrap().clone()).unwrap();
+        assert_eq!(blocks.len(), 3);
+
+        let watcher_infos = result.get("watcher_infos").unwrap().as_array().unwrap();
+        assert_eq!(watcher_infos.len(), blocks.len());
+        for watcher_info in watcher_infos {
+            assert_eq!(
+                watcher_info.get("timestamp_result_code").unwrap(),
+                "TimestampFound"
+            );
+            // create_test_watcher_db generated two signatures
+            assert_eq!(
+                watcher_info
+                    .get("signatures")
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .len(),
+                2
+            );
+        }
     }
 
     #[test_with_logger]
@@ -509,6 +625,73 @@ mod e2e_misc {
                 .unwrap()
                 .block_contents_key_image_index,
             "0"
+        );
+    }
+
+    #[test_with_logger]
+    fn test_ledger_search_with_watcher(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, ledger_db, _, _) = setup_with_watcher(&mut rng, logger.clone());
+
+        // Search by txo public key
+        let txo = ledger_db.get_tx_out_by_index(5).unwrap();
+        let pub_key_hex = hex::encode(txo.public_key.as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "search_ledger",
+            "params": {
+                "query": pub_key_hex
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let results: Vec<LedgerSearchResult> =
+            serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
+        assert_eq!(results.len(), 1);
+
+        assert_eq!(results[0].result_type, "TxOut".to_string());
+        assert_eq!(
+            results[0]
+                .watcher_info
+                .as_ref()
+                .unwrap()
+                .timestamp_result_code,
+            "TimestampFound"
+        );
+        // create_test_watcher_db generated two signatures
+        assert_eq!(
+            results[0].watcher_info.as_ref().unwrap().signatures.len(),
+            2
+        );
+
+        // Search by key image
+        let block_contents = ledger_db.get_block_contents(3).unwrap();
+        let key_image_hex = hex::encode(block_contents.key_images[0].as_bytes());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "search_ledger",
+            "params": {
+                "query": key_image_hex
+            },
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let results: Vec<LedgerSearchResult> =
+            serde_json::from_value(result.get("results").unwrap().clone()).unwrap();
+        assert_eq!(results.len(), 1);
+
+        assert_eq!(results[0].result_type, "KeyImage".to_string());
+        assert_eq!(
+            results[0]
+                .watcher_info
+                .as_ref()
+                .unwrap()
+                .timestamp_result_code,
+            "TimestampFound"
         );
     }
 }

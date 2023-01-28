@@ -16,6 +16,8 @@ pub mod transaction;
 pub mod transaction_builder;
 pub mod transaction_log;
 pub mod txo;
+pub mod watcher;
+
 mod wallet_service;
 
 pub use wallet_service::WalletService;

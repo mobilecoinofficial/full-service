@@ -180,7 +180,7 @@ jobs:
     - metadata
     - deploy
     container:
-      image: mobilecoin/builder-install:v0.0.21
+      image: mobilecoin/builder-install:v0.0.22
     env:
       POETRY_HOME: /opt/poetry
       URL: http://full-service.${{ needs.metadata.outputs.namespace }}:9090/wallet/v2

@@ -2,6 +2,7 @@
 
 //! API definition for LedgerService-related objects.
 
+use crate::service::models::watcher::WatcherBlockInfo;
 use mc_blockchain_types::{Block, BlockContents};
 use serde_derive::{Deserialize, Serialize};
 
@@ -21,6 +22,9 @@ pub enum LedgerSearchResult {
 
         /// The global index of the TxOut
         tx_out_global_index: u64,
+
+        /// Watcher info, when available.
+        watcher_info: Option<WatcherBlockInfo>,
     },
 
     /// Query matched a KeyImage
@@ -33,5 +37,8 @@ pub enum LedgerSearchResult {
 
         /// The index of the key image inside the block contents
         block_contents_key_image_index: u64,
+
+        /// Watcher info, when available.
+        watcher_info: Option<WatcherBlockInfo>,
     },
 }
