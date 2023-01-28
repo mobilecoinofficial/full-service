@@ -81,7 +81,6 @@ mod e2e_account {
         // Add an account
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "create_account",
             "params": {
@@ -111,7 +110,6 @@ mod e2e_account {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_address_status",
             "params": {
@@ -136,7 +134,6 @@ mod e2e_account {
         // Create a subaddress
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "assign_address_for_account",
             "params": {
@@ -174,7 +171,6 @@ mod e2e_account {
 
         let body = json!({
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
             "method": "get_address_status",
             "params": {
