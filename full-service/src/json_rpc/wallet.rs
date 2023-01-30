@@ -94,6 +94,33 @@ impl<'r> FromRequest<'r> for ApiKeyGuard {
     }
 }
 
+/// Add CORS headers for a specific origin. Required for full-service to be used
+/// by a browser.
+pub struct CORS {
+    allowed_origin: String,
+}
+
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Cross-Origin-Resource-Sharing Fairing",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new(
+            "Access-Control-Allow-Origin",
+            self.allowed_origin.clone(),
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+        // response.set_header(Header::new("Access-Control-Allow-Credentials",
+        // "true"));
+    }
+}
+
 #[get("/health")]
 fn health() -> Result<(), ()> {
     Ok(())
@@ -146,40 +173,29 @@ async fn validator_backed_wallet_api_v2(
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse_v2>>, String> {
     generic_wallet_api_v2(_api_key_guard, state, command).await
 }
-/// Catches all OPTION requests in order to get the CORS related Fairing triggered.
+/// Needed to preflight OPTIONS queries for CORS.
+/// Catches all OPTION requests in order to get the CORS related Fairing
+/// triggered.
 #[options("/<_..>")]
 fn all_options() {
     /* Intentionally left empty */
-}
-pub struct CORS;
-
-#[rocket::async_trait]
-impl Fairing for CORS {
-    fn info(&self) -> Info {
-        Info {
-            name: "Cross-Origin-Resource-Sharing Fairing",
-            kind: Kind::Response,
-        }
-    }
-
-    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
-        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
-        response.set_header(Header::new(
-            "Access-Control-Allow-Methods",
-            "POST, PATCH, PUT, DELETE, HEAD, OPTIONS, GET"
-        ));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
-    }
 }
 
 /// Returns an instance of a Rocket server.
 pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
+    allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
-        .attach(CORS)
+    let mut consensus_rocket = rocket::custom(rocket_config);
+
+    if let Some(origin) = allowed_origin {
+        consensus_rocket = consensus_rocket.attach(CORS {
+            allowed_origin: origin,
+        });
+    }
+
+    consensus_rocket
         .mount(
             "/",
             routes![

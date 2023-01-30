@@ -74,6 +74,12 @@ pub struct APIConfig {
     /// place.
     #[structopt(long)]
     pub watcher_db: Option<PathBuf>,
+
+    /// Allowed CORS origin. When provided, the http server will add CORS
+    /// headers for the provided origin. If not provided, the http server
+    /// will not add any CORS headers
+    #[clap(long, env = "ALLOWED_ORIGIN")]
+    pub allowed_origin: Option<String>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
