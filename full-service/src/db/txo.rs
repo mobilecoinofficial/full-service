@@ -300,10 +300,26 @@ pub trait TxoModel {
 
     // !TODO
     fn list_created(
+        account_id_hex: Option<&str>,
+        assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     // !TODO
     fn list_secreted(
+        account_id_hex: Option<&str>,
+        assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo.
@@ -953,7 +969,16 @@ impl TxoModel for Txo {
             .load(conn)?)
     }
 
-    fn list_created() -> Result<Vec<Txo>, WalletDbError>{
+    fn list_created(
+        account_id_hex: Option<&str>,
+        assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>{
         /*
             SELECT * FROM txos
             LEFT JOIN transaction_txos
@@ -971,7 +996,16 @@ impl TxoModel for Txo {
         !todo()
     }
 
-    fn list_secreted() -> Result<Vec<Txo>, WalletDbError>{
+    fn list_secreted(
+        account_id_hex: Option<&str>,
+        assigned_subaddress_b58: Option<&str>,
+        token_id: Option<u64>,
+        min_received_block_index: Option<u64>,
+        max_received_block_index: Option<u64>,
+        offset: Option<u64>,
+        limit: Option<u64>,
+        conn: &Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>{
             /*
             SELECT * FROM txos
             LEFT JOIN transaction_txos
