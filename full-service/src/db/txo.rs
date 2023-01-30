@@ -954,10 +954,37 @@ impl TxoModel for Txo {
     }
 
     fn list_created() -> Result<Vec<Txo>, WalletDbError>{
+        /*
+            SELECT * FROM txos
+            LEFT JOIN transaction_txos
+            ON txos.id = transaction_txos.txo_id
+            LEFT JOIN transaction_logs
+            ON transaction_txos.transaction_log_id = transaction_logs.id
+            AND transaction_txos.used_as = "output"
+            AND ((transaction_logs.failed = 1) OR (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index = null AND  submitted_block_index = null)
+            AND txos.key_image IS NULL
+            AND txos.spent_block_index IS NULL
+            AND txos.subaddress_index IS NULL
+            AND txos.received_block_index IS NULL 
+        */
+
         !todo()
     }
 
     fn list_secreted() -> Result<Vec<Txo>, WalletDbError>{
+            /*
+            SELECT * FROM txos
+            LEFT JOIN transaction_txos
+            ON txos.id = transaction_txos.txo_id
+            LEFT JOIN transaction_logs
+            ON transaction_txos.transaction_log_id = transaction_logs.id
+            AND transaction_txos.used_as = "output"
+            AND ((transaction_logs.failed = 1) OR (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index != null AND  submitted_block_index != null)
+            AND txos.key_image IS NULL
+            AND txos.spent_block_index IS NULL
+            AND txos.subaddress_index IS NULL
+            AND txos.received_block_index IS NULL 
+        */
         !todo()
     }
 
