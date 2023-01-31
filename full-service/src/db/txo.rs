@@ -298,9 +298,8 @@ pub trait TxoModel {
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
-    // !TODO
     fn list_created(
-        _conn: &Conn,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_secreted(
@@ -955,7 +954,7 @@ impl TxoModel for Txo {
     }
 
     fn list_created(
-        _conn: &Conn,
+        conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
         /*
             SELECT * FROM txos
@@ -970,7 +969,35 @@ impl TxoModel for Txo {
             AND txos.subaddress_index IS NULL
             AND txos.received_block_index IS NULL 
         */
-        todo!()
+        use crate::db::schema::{transaction_output_txos, transaction_logs, txos};
+    
+        let mut query = txos::table
+            .into_boxed()
+            .inner_join(transaction_output_txos::table)
+            .left_join(
+                transaction_logs::table
+                    .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
+            );
+
+        query = query
+            .filter(
+                transaction_logs::failed.eq(true)
+                .or( 
+                    transaction_logs::failed.eq(false)
+                    .and(transaction_logs::finalized_block_index.is_null())
+                    .and(transaction_logs::submitted_block_index.is_null())
+                )
+            )
+            .filter(txos::key_image.is_null())
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::subaddress_index.is_null())
+            .filter(txos::received_block_index.is_null());
+
+        Ok(query
+            .select(txos::all_columns)
+            .distinct()
+            .order(txos::id.desc()) // TODO: arbitrary ordering, ask if it matters
+            .load(conn)?)
     }
 
     fn list_secreted(
