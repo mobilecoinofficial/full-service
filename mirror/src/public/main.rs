@@ -33,7 +33,7 @@ use rocket::{
     response::Responder,
     routes,
     tokio::io::AsyncReadExt,
-    Data, Request, Response,
+    Build, Data, Request, Response, Rocket,
 };
 use structopt::StructOpt;
 
@@ -228,7 +228,7 @@ async fn encrypted_request(
 }
 
 #[launch]
-fn rocket() -> _ {
+fn rocket() -> Rocket<Build> {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 

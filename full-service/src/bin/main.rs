@@ -20,6 +20,7 @@ use mc_full_service::{
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
+use rocket::{launch, Build, Rocket};
 use std::{
     env,
     net::IpAddr,
@@ -37,8 +38,8 @@ const EXIT_NO_DATABASE_CONNECTION: i32 = 2;
 const EXIT_WRONG_PASSWORD: i32 = 3;
 const EXIT_INVALID_HOST: i32 = 4;
 
-#[rocket::main]
-async fn main() -> Result<(), rocket::Error> {
+#[launch]
+fn rocket() -> Rocket<Build> {
     dotenv().ok();
 
     mc_common::setup_panic_handler();
@@ -91,21 +92,27 @@ async fn main() -> Result<(), rocket::Error> {
         ..rocket::Config::default()
     };
 
-    // Start WalletService based on our configuration
+    let api_key = env::var("MC_API_KEY").unwrap_or_default();
+
     if let Some(validator_uri) = config.validator.as_ref() {
-        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
-            .await
+        let (rocket, _ledger_sync_service_thread) =
+            validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger);
+
+        rocket.manage(APIKeyState(api_key))
     } else {
-        consensus_backed_full_service(&config, wallet_db, rocket_config, logger).await
+        let (rocket, _ledger_sync_service_thread) =
+            consensus_backed_full_service(&config, wallet_db, rocket_config, logger);
+
+        rocket.manage(APIKeyState(api_key))
     }
 }
 
-async fn consensus_backed_full_service(
+fn consensus_backed_full_service(
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) -> Result<(), rocket::Error> {
+) -> (Rocket<Build>, Option<LedgerSyncServiceThread>) {
     // Verifier
     let mut mr_signer_verifier =
         MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
@@ -149,7 +156,7 @@ async fn consensus_backed_full_service(
     );
 
     // Start ledger sync thread unless running in offline mode.
-    let _ledger_sync_service_thread = if config.offline {
+    let ledger_sync_service_thread = if config.offline {
         None
     } else {
         Some(LedgerSyncServiceThread::new(
@@ -173,20 +180,19 @@ async fn consensus_backed_full_service(
     );
     let state = WalletState { service };
 
-    let rocket = consensus_backed_rocket(rocket_config, state);
-    let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
-
-    Ok(())
+    (
+        consensus_backed_rocket(rocket_config, state),
+        ledger_sync_service_thread,
+    )
 }
 
-async fn validator_backed_full_service(
+fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
-) -> Result<(), rocket::Error> {
+) -> (Rocket<Build>, ValidatorLedgerSyncThread) {
     let validator_conn = ValidatorConnection::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
@@ -223,7 +229,7 @@ async fn validator_backed_full_service(
     )));
 
     // Create the ledger sync thread.
-    let _ledger_sync_thread = ValidatorLedgerSyncThread::new(
+    let ledger_sync_thread = ValidatorLedgerSyncThread::new(
         validator_uri,
         config.peers_config.chain_id.clone(),
         config.poll_interval,
@@ -267,9 +273,8 @@ async fn validator_backed_full_service(
     );
     let state = WalletState { service };
 
-    let rocket = validator_backed_rocket(rocket_config, state);
-    let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
-
-    Ok(())
+    (
+        validator_backed_rocket(rocket_config, state),
+        ledger_sync_thread,
+    )
 }
