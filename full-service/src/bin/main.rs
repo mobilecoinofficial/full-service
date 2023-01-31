@@ -56,7 +56,11 @@ async fn main() -> Result<(), rocket::Error> {
         exit(EXIT_INVALID_HOST);
     }
 
-    let (logger, _global_logger_guard) = create_app_logger(o!());
+    let (logger, global_logger_guard) = create_app_logger(o!());
+
+    // This is necessary to prevent the logger from being reset when it goes out of
+    // scope so that rocket can use it in its own async context
+    global_logger_guard.cancel_reset();
 
     let wallet_db = match config.wallet_db {
         Some(ref wallet_db_path_buf) => {

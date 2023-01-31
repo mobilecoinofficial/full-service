@@ -239,7 +239,12 @@ fn rocket() -> _ {
     //     panic!("Refusing to start with self-signed TLS certificate. Use
     // --allow-self-signed-tls to override this check."); }
 
-    let (logger, _global_logger_guard) = create_app_logger(o!());
+    let (logger, global_logger_guard) = create_app_logger(o!());
+
+    // This is necessary to prevent the logger from being reset when it goes out of
+    // scope so that rocket can use it in its own async context
+    global_logger_guard.cancel_reset();
+
     log::info!(
         logger,
         "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
