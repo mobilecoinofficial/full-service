@@ -982,7 +982,7 @@ impl TxoModel for Txo {
             ON txos.id = transaction_txos.txo_id
             LEFT JOIN transaction_logs
             ON transaction_output_txos.transaction_log_id = transaction_logs.id
-            AND ((transaction_logs.failed = 1) OR (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index != null AND  submitted_block_index != null)
+            AND (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index != null AND  submitted_block_index != null)
             AND txos.key_image IS NULL
             AND txos.spent_block_index IS NULL
             AND txos.subaddress_index IS NULL
@@ -1000,12 +1000,9 @@ impl TxoModel for Txo {
     
         query = query
             .filter(
-                transaction_logs::failed.eq(true)
-                .or( 
                     transaction_logs::failed.eq(false)
                     .and(transaction_logs::finalized_block_index.is_not_null())
                     .and(transaction_logs::submitted_block_index.is_not_null())
-                )
             )
             .filter(txos::key_image.is_null())
             .filter(txos::spent_block_index.is_null())
