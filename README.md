@@ -346,6 +346,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
+| `allowed-origin`         | URL of the client for CORS headers. '\*' to allow all origins                                            | If not provided, no CORS headers will be set                     |
 
 ### Parameters as Environment Variables
 All available parameters can be set as Environment Variables. Parameters names are converted to `SCREAMING_SNAKE_CASE` and are prefixed with `MC_`. See `full-service --help` for the full list. CLI arguments take precedence over Environment Variables.
