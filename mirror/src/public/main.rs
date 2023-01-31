@@ -243,6 +243,11 @@ fn rocket() -> Rocket<Build> {
     build_rocket(config, query_manager, logger)
 }
 
+/// Starts the GRPC server in it's own thread. This is required because rocket
+/// runs in an async context, which either requires the main function to return
+/// the Rocket<Build> which drops the grpc server out of scope, or requires the
+/// grpc server to cross an async await, which it's not allowed to do because it
+/// does not implement the Sync trait.
 fn start_grpc_server(config: Config, query_manager: QueryManager, logger: Logger) {
     thread::spawn(move || {
         log::info!(
@@ -283,10 +288,13 @@ fn start_grpc_server(config: Config, query_manager: QueryManager, logger: Logger
 
         server.start();
 
-        loop {}
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(10))
+        }
     });
 }
 
+/// Builds the rocket instance given the configuration.
 fn build_rocket(config: Config, query_manager: QueryManager, logger: Logger) -> Rocket<Build> {
     // Start the client-facing webserver.
     if config.client_listen_uri.use_tls() {
