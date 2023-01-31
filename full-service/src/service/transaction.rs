@@ -365,7 +365,7 @@ where
             let mut default_fee_token_id = Mob::ID;
 
             for (recipient_public_address, amount) in addresses_and_amounts {
-                if !self.verify_address(recipient_public_address).is_ok() {
+                if self.verify_address(recipient_public_address).is_err() {
                     return Err(TransactionServiceError::InvalidPublicAddress(
                         recipient_public_address.to_string(),
                     ));

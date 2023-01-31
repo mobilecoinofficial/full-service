@@ -30,7 +30,7 @@ impl From<&mc_account_keys::PublicAddress> for PublicAddress {
             spend_public_key: hex::encode(src.spend_public_key().to_bytes()),
             fog_report_url: src.fog_report_url().map(|url| url.to_string()),
             fog_report_id: src.fog_report_id().map(|id| id.to_string()),
-            fog_authority_sig: src.fog_authority_sig().map(|sig| hex::encode(sig)),
+            fog_authority_sig: src.fog_authority_sig().map(hex::encode),
         }
     }
 }
