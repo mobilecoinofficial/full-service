@@ -300,25 +300,10 @@ pub trait TxoModel {
 
     // !TODO
     fn list_created(
-        account_id_hex: Option<&str>,
-        assigned_subaddress_b58: Option<&str>,
-        token_id: Option<u64>,
-        min_received_block_index: Option<u64>,
-        max_received_block_index: Option<u64>,
-        offset: Option<u64>,
-        limit: Option<u64>,
-        conn: &Conn,
+        _conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    // !TODO
     fn list_secreted(
-        account_id_hex: Option<&str>,
-        assigned_subaddress_b58: Option<&str>,
-        token_id: Option<u64>,
-        min_received_block_index: Option<u64>,
-        max_received_block_index: Option<u64>,
-        offset: Option<u64>,
-        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -970,14 +955,7 @@ impl TxoModel for Txo {
     }
 
     fn list_created(
-        account_id_hex: Option<&str>,
-        assigned_subaddress_b58: Option<&str>,
-        token_id: Option<u64>,
-        min_received_block_index: Option<u64>,
-        max_received_block_index: Option<u64>,
-        offset: Option<u64>,
-        limit: Option<u64>,
-        conn: &Conn,
+        _conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
         /*
             SELECT * FROM txos
@@ -992,36 +970,55 @@ impl TxoModel for Txo {
             AND txos.subaddress_index IS NULL
             AND txos.received_block_index IS NULL 
         */
-
-        !todo()
+        todo!()
     }
 
     fn list_secreted(
-        account_id_hex: Option<&str>,
-        assigned_subaddress_b58: Option<&str>,
-        token_id: Option<u64>,
-        min_received_block_index: Option<u64>,
-        max_received_block_index: Option<u64>,
-        offset: Option<u64>,
-        limit: Option<u64>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
             /*
             SELECT * FROM txos
-            LEFT JOIN transaction_txos
+            INNER JOIN transaction_outputs_txos
             ON txos.id = transaction_txos.txo_id
             LEFT JOIN transaction_logs
-            ON transaction_txos.transaction_log_id = transaction_logs.id
-            AND transaction_txos.used_as = "output"
+            ON transaction_output_txos.transaction_log_id = transaction_logs.id
             AND ((transaction_logs.failed = 1) OR (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index != null AND  submitted_block_index != null)
             AND txos.key_image IS NULL
             AND txos.spent_block_index IS NULL
             AND txos.subaddress_index IS NULL
             AND txos.received_block_index IS NULL 
         */
-        !todo()
+        use crate::db::schema::{transaction_output_txos, transaction_logs, txos};
+    
+        let mut query = txos::table
+            .into_boxed()
+            .inner_join(transaction_output_txos::table)
+            .left_join(
+                transaction_logs::table
+                    .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
+            );
+    
+        query = query
+            .filter(
+                transaction_logs::failed.eq(true)
+                .or( 
+                    transaction_logs::failed.eq(false)
+                    .and(transaction_logs::finalized_block_index.is_not_null())
+                    .and(transaction_logs::submitted_block_index.is_not_null())
+                )
+            )
+            .filter(txos::key_image.is_null())
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::subaddress_index.is_null())
+            .filter(txos::received_block_index.is_null());
+    
+        Ok(query
+            .select(txos::all_columns)
+            .distinct()
+            .order(txos::id.desc()) // TODO: arbitrary ordering, ask if it matters
+            .load(conn)?)
+    
     }
-
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
         token_id: Option<u64>,
