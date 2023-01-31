@@ -5,10 +5,10 @@ from pathlib import Path
 from textwrap import indent
 
 from .client import (
-    Client, WalletAPIError,
-    MAX_TOMBSTONE_BLOCKS,
-    pmob2mob,
+    ClientSync as Client,
+    WalletAPIError,
 )
+from .tokens import get_token
 
 
 class CommandLineInterface:
@@ -29,7 +29,7 @@ class CommandLineInterface:
         self.verbose = args.pop('verbose')
         self.auto_confirm = args.pop('yes')
 
-        self.client = Client(verbose=self.verbose)
+        self.client = Client()
 
         # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
@@ -211,21 +211,21 @@ class CommandLineInterface:
             print('Network fee is {}'.format(_format_mob(fee)))
 
     def list(self):
-        accounts = self.client.get_all_accounts()
+        accounts = self.client.get_accounts()
         if len(accounts) == 0:
             print('No accounts.')
             return
 
         account_list = []
-        for account_id, account in accounts.items():
-            balance = self.client.get_balance_for_account(account_id)
-            account_list.append((account_id, account, balance))
+        for account_id in accounts.keys():
+            status = self.client.get_account_status(account_id)
+            account_list.append(status)
 
-        for (account_id, account, balance) in account_list:
+        for status in account_list:
             print()
-            _print_account(account, balance)
+            _print_account(status)
 
-        print()
+        # print()
 
     def create(self, **args):
         account = self.client.create_account(**args)
@@ -781,21 +781,24 @@ class CommandLineInterface:
         print('commit', version['commit'][:6])
 
 
-def _format_mob(mob):
-    return '{} MOB'.format(_format_decimal(mob))
-
-
-def _format_decimal(d):
-    # Adapted from https://stackoverflow.com/questions/11227620/drop-trailing-zeros-from-decimal
-    d = Decimal(d)
-    normalized = d.normalize()
-    sign, digit, exponent = normalized.as_tuple()
-    result = normalized if exponent <= 0 else normalized.quantize(1)
-    return '{:f}'.format(result)
+def _print_account(status):
+    print(_format_account_header(status['account']))
+    print(indent(
+        _format_sync_state(status),
+        ' '*2,
+    ))
+    print(indent(
+        'address {}'.format(status['account']['main_address']),
+        ' '*2,
+    ))
+    print(indent(
+        _format_balances(status['balance_per_token']),
+        ' '*2,
+    ))
 
 
 def _format_account_header(account):
-    output = account['account_id'][:6]
+    output = account['id'][:6]
     if account['name']:
         output += ' ' + account['name']
     if account.get('view_only'):
@@ -803,42 +806,49 @@ def _format_account_header(account):
     return output
 
 
-def _format_balance(balance):
+def _format_sync_state(status):
+    account_block = int(status['account']['next_block_index'])
+
     offline = False
-    network_block = int(balance['network_block_height'])
+    network_block = int(status['network_block_height'])
     if network_block == 0:
         offline = True
-        network_block = int(balance['local_block_height'])
+        network_block = int(status['local_block_height'])
 
-    orphaned_status = ''
-    if 'orphaned_pmob' in balance:
-        orphaned = pmob2mob(balance['orphaned_pmob'])
-        if orphaned > 0:
-            orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
-
-    account_block = int(balance['account_block_height'])
     if account_block == network_block:
-        sync_status = 'synced'
+        sync_state = 'synced'
     else:
-        sync_status = 'syncing, {}/{}'.format(balance['account_block_height'], network_block)
+        sync_state = 'syncing, {}/{}'.format(account_block, network_block)
 
     if offline:
-        offline_status = ' [offline]'
+        offline_state = ' [offline]'
     else:
-        offline_status = ''
+        offline_state = ''
 
-    if 'unspent_pmob' in balance:
-        amount = balance['unspent_pmob']
-    elif 'balance' in balance:
-        amount = balance['balance']
+    return '{}{}'.format(sync_state, offline_state)
 
-    result = '{}{} ({}){}'.format(
-        _format_mob(pmob2mob(amount)),
-        orphaned_status,
-        sync_status,
-        offline_status,
-    )
-    return result
+
+
+
+def _format_balances(balances):
+
+    lines = []
+    for token_id, balance in balances.items():
+
+        # orphaned_status = ''
+        # if 'orphaned_pmob' in balance:
+        #     orphaned = pmob2mob(balance['orphaned_pmob'])
+        #     if orphaned > 0:
+        #         orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
+        # if 'unspent_pmob' in balance:
+        #     amount = balance['unspent_pmob']
+        # elif 'balance' in balance:
+        #     amount = balance['balance']
+
+        token = get_token(token_id)
+        lines.append(token.format(balance['unspent']))
+
+    return '\n'.join(lines)
 
 
 def _format_gift_code_status(status):
@@ -847,20 +857,6 @@ def _format_gift_code_status(status):
         'GiftCodeAvailable': 'available',
         'GiftCodeClaimed': 'claimed',
     }[status]
-
-
-def _print_account(account, balance=None):
-    print(_format_account_header(account))
-    if 'main_address' in account:
-        print(indent(
-            'address {}'.format(account['main_address']),
-            ' '*2,
-        ))
-    if balance is not None:
-        print(indent(
-            _format_balance(balance),
-            ' '*2,
-        ))
 
 
 def _print_gift_code(gift_code_b58, amount, memo='', status=None):
