@@ -304,7 +304,7 @@ async fn validator_backed_full_service(
     );
     let state = WalletState { service };
 
-    let rocket = validator_backed_rocket(rocket_config, state);
+    let rocket = validator_backed_rocket(rocket_config, state, config.allowed_origin.clone());
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
     let _ = rocket.manage(APIKeyState(api_key)).launch().await?;
 

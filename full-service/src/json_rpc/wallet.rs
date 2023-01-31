@@ -211,8 +211,17 @@ pub fn consensus_backed_rocket(
 pub fn validator_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ValidatorConnection, FogResolver>,
+    allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
+    let mut validator_rocket = rocket::custom(rocket_config);
+
+    if let Some(origin) = allowed_origin {
+        validator_rocket = validator_rocket.attach(CORS {
+            allowed_origin: origin,
+        });
+    }
+
+    validator_rocket
         .mount(
             "/",
             routes![
@@ -221,6 +230,7 @@ pub fn validator_backed_rocket(
                 wallet_help_v1,
                 wallet_help_v2,
                 health,
+                all_options
             ],
         )
         .manage(state)
