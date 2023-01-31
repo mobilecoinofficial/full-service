@@ -37,7 +37,7 @@ use rocket::{
 };
 use structopt::StructOpt;
 
-use std::{net::IpAddr, str::FromStr, sync::Arc};
+use std::{net::IpAddr, str::FromStr, sync::Arc, thread};
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
@@ -233,57 +233,61 @@ fn rocket() -> Rocket<Build> {
     let _sentry_guard = mc_common::sentry::init();
 
     let config = Config::from_args();
-    // if !config.allow_self_signed_tls
-    //     && utils::is_tls_self_signed(&config.mirror_listen_uri).expect("
-    // is_tls_self_signed failed") {
-    //     panic!("Refusing to start with self-signed TLS certificate. Use
-    // --allow-self-signed-tls to override this check."); }
 
     let (logger, global_logger_guard) = create_app_logger(o!());
-
-    // This is necessary to prevent the logger from being reset when it goes out of
-    // scope so that rocket can use it in its own async context
     global_logger_guard.cancel_reset();
 
-    log::info!(
-        logger,
-        "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
-        config.mirror_listen_uri.addr(),
-        config.client_listen_uri.addr(),
-    );
-
-    // Common state.
     let query_manager = QueryManager::default();
 
-    // Start the mirror-facing GRPC server.
-    log::info!(logger, "Starting mirror GRPC server");
+    start_grpc_server(config.clone(), query_manager.clone(), logger.clone());
+    build_rocket(config, query_manager, logger)
+}
 
-    let build_info_service = BuildInfoService::new(logger.clone()).into_service();
-    let health_service = HealthService::new(None, logger.clone()).into_service();
-    let mirror_service = MirrorService::new(query_manager.clone(), logger.clone()).into_service();
+fn start_grpc_server(config: Config, query_manager: QueryManager, logger: Logger) {
+    thread::spawn(move || {
+        log::info!(
+            logger.clone(),
+            "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
+            config.mirror_listen_uri.addr(),
+            config.client_listen_uri.addr(),
+        );
 
-    let env = Arc::new(
-        EnvBuilder::new()
-            .name_prefix("Mirror-RPC".to_string())
-            .build(),
-    );
+        // Start the mirror-facing GRPC server.
+        log::info!(logger.clone(), "Starting mirror GRPC server");
 
-    let ch_builder = ChannelBuilder::new(env.clone())
-        .max_receive_message_len(-1)
-        .max_send_message_len(-1);
+        let build_info_service = BuildInfoService::new(logger.clone()).into_service();
+        let health_service = HealthService::new(None, logger.clone()).into_service();
+        let mirror_service =
+            MirrorService::new(query_manager.clone(), logger.clone()).into_service();
 
-    let server_builder = ServerBuilder::new(env)
-        .register_service(build_info_service)
-        .register_service(health_service)
-        .register_service(mirror_service)
-        .channel_args(ch_builder.build_args())
-        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
+        let env = Arc::new(
+            EnvBuilder::new()
+                .name_prefix("Mirror-RPC".to_string())
+                .build(),
+        );
 
-    let mut server = server_builder
-        .build()
-        .expect("Failed to build mirror GRPC server");
-    server.start();
+        let ch_builder = ChannelBuilder::new(env.clone())
+            .max_receive_message_len(-1)
+            .max_send_message_len(-1);
 
+        let server_builder = ServerBuilder::new(env)
+            .register_service(build_info_service)
+            .register_service(health_service)
+            .register_service(mirror_service)
+            .channel_args(ch_builder.build_args())
+            .bind_using_uri(&config.mirror_listen_uri, logger.clone());
+
+        let mut server = server_builder
+            .build()
+            .expect("Failed to build mirror GRPC server");
+
+        server.start();
+
+        loop {}
+    });
+}
+
+fn build_rocket(config: Config, query_manager: QueryManager, logger: Logger) -> Rocket<Build> {
     // Start the client-facing webserver.
     if config.client_listen_uri.use_tls() {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
