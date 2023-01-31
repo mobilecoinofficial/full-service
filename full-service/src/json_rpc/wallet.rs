@@ -140,38 +140,28 @@ async fn validator_backed_wallet_api_v2(
 }
 
 /// Returns an instance of a Rocket server.
-pub fn consensus_backed_rocket(
-    rocket_config: rocket::Config,
-    state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
-) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
-        .mount(
-            "/",
-            routes![
-                consensus_backed_wallet_api_v1,
-                consensus_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health
-            ],
-        )
-        .manage(state)
+pub fn consensus_backed_rocket(rocket_config: rocket::Config) -> rocket::Rocket<rocket::Build> {
+    rocket::custom(rocket_config).mount(
+        "/",
+        routes![
+            consensus_backed_wallet_api_v1,
+            consensus_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health
+        ],
+    )
 }
 
-pub fn validator_backed_rocket(
-    rocket_config: rocket::Config,
-    state: WalletState<ValidatorConnection, FogResolver>,
-) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
-        .mount(
-            "/",
-            routes![
-                validator_backed_wallet_api_v1,
-                validator_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health
-            ],
-        )
-        .manage(state)
+pub fn validator_backed_rocket(rocket_config: rocket::Config) -> rocket::Rocket<rocket::Build> {
+    rocket::custom(rocket_config).mount(
+        "/",
+        routes![
+            validator_backed_wallet_api_v1,
+            validator_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health
+        ],
+    )
 }
