@@ -4,7 +4,6 @@ import aiohttp
 import json
 
 log = logging.getLogger('client_async')
-# log.setLevel('DEBUG')
 
 DEFAULT_URL = 'http://127.0.0.1:9090/wallet/v2'
 MAX_TOMBSTONE_BLOCKS = 100
@@ -43,19 +42,26 @@ class ClientAsync:
             "id": 1,
         }
         request_data = {**request_data, **default_params}
-        log.debug(json.dumps(request_data, indent=4))
+        log.debug(f'POST {json.dumps(request_data, indent=4)}')
         async with self.session.post(self.url, json=request_data) as response:
             r_json = await response.text()
         r = json.loads(r_json)
-        log.debug(json.dumps(r, indent=4))
+        log.debug(f'Response: {json.dumps(r, indent=4)}')
         try:
             return r['result']
         except KeyError:
             raise WalletAPIError(r)
 
+    async def version(self):
+        return await self._req({"method": "version"})
+
     async def get_network_status(self):
         r = await self._req({"method": "get_network_status"})
         return r['network_status']
+
+    async def get_wallet_status(self):
+        r = await self._req({"method": "get_wallet_status"})
+        return r['wallet_status']
 
     async def get_accounts(self, offset=None, limit=None):
         r = await self._req({
@@ -75,6 +81,48 @@ class ClientAsync:
             },
         })
 
+    async def create_account(self, name=None):
+        r = await self._req({
+            "method": "create_account",
+            "params": {
+                "name": name,
+            }
+        })
+        return r['account']
+
+    async def import_account(
+        self,
+        mnemonic,
+        key_derivation_version=2,
+        name=None,
+        first_block_index=None,
+        next_subaddress_index=None,
+        fog_keys=None,
+    ):
+        params = {
+            'mnemonic': mnemonic,
+            'key_derivation_version': str(int(key_derivation_version)),
+        }
+        if name is not None:
+            params['name'] = name
+        if first_block_index is not None:
+            params['first_block_index'] = str(int(first_block_index))
+        if next_subaddress_index is not None:
+            params['next_subaddress_index'] = str(int(next_subaddress_index))
+        if fog_keys is not None:
+            params.update(fog_keys)
+
+        r = await self._req({
+            "method": "import_account",
+            "params": params
+        })
+        return r['account']
+
+    async def remove_account(self, account_id):
+        return await self._req({
+            "method": "remove_account",
+            "params": {"account_id": account_id}
+        })
 
 class ClientSync:
     """

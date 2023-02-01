@@ -7,31 +7,29 @@ from textwrap import indent
 from .client import (
     ClientSync as Client,
     WalletAPIError,
+    log as client_log,
 )
 from .tokens import get_token, TOKENS
 
 
 class CommandLineInterface:
 
-    def __init__(self):
-        self.verbose = False
-
     def main(self):
-        self._create_parsers()
+        self.client = Client()
 
+        # Parse arguments.
+        self._create_parsers()
         args = self.parser.parse_args()
         args = vars(args)
+        self.auto_confirm = args.pop('yes')
+        if args.pop('verbose'):
+            client_log.setLevel('DEBUG')
+
+        # Dispatch command.
         command = args.pop('command')
         if command is None:
             self.parser.print_help()
             exit(1)
-
-        self.verbose = args.pop('verbose')
-        self.auto_confirm = args.pop('yes')
-
-        self.client = Client()
-
-        # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
         command = command.translate(str.maketrans('-', '_'))
         command_func = getattr(self, command)
@@ -171,7 +169,7 @@ class CommandLineInterface:
         self.version_args = command_sp.add_parser('version', help='Show version number.')
 
     def _load_account_prefix(self, prefix):
-        accounts = self.client.get_all_accounts()
+        accounts = self.client.get_accounts()
 
         matching_ids = [
             a_id for a_id in accounts.keys()
@@ -195,20 +193,40 @@ class CommandLineInterface:
         return confirmation.lower() in ['y', 'yes']
 
     def status(self):
+        wallet_status = self.client.get_wallet_status()
         network_status = self.client.get_network_status()
-        if int(network_status['network_block_height']) == 0:
+
+        # Show sync state.
+        if int(wallet_status['network_block_height']) == 0:
             print('Offline.')
-            print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
+            print('Local ledger has {} blocks.'.format(
+                wallet_status['local_block_height']))
         else:
-            print('Connected to network.')
-            print('Local ledger has {}/{} blocks.'.format(
-                network_status['local_block_height'],
-                network_status['network_block_height'],
-            ))
+            print('Connected to MobileCoin network.')
+            if wallet_status['is_synced_all']:
+                print('All accounts synced, {} blocks.'.format(
+                    wallet_status['network_block_height']))
+            else:
+                print('Syncing, {}/{} blocks completed.'.format(
+                    wallet_status['min_synced_block_index'],
+                    wallet_status['network_block_height'],
+                ))
+
+        # Show balances.
+        print()
+        print('Total balance for all accounts:')
+        for token in TOKENS:
+            value = wallet_status['balance_per_token'][str(token.token_id)]['unspent']
+            print(indent(token.format(value), '  '))
+
+        # Show transaction fees.
+        print()
         print('Transaction Fees:')
         for token in TOKENS:
-            fee = network_status['fees'][str(token.token_id)]
-            print(indent(token.format(fee, extra_precision=True), '  '))
+            value = network_status['fees'][str(token.token_id)]
+            print(indent(token.format(value, extra_precision=True), '  '))
+
+
 
     def list(self):
         accounts = self.client.get_accounts()
@@ -225,14 +243,10 @@ class CommandLineInterface:
             print()
             _print_account(status)
 
-        # print()
-
     def create(self, **args):
         account = self.client.create_account(**args)
         print('Created a new account.')
-        print()
-        _print_account(account)
-        print()
+        print(_format_account_header(account))
 
     def rename(self, account_id, name):
         account = self._load_account_prefix(account_id)
@@ -305,8 +319,7 @@ class CommandLineInterface:
             return
 
         print('Imported account.')
-        print()
-        _print_account(account)
+        print(_format_account_header(account))
         print()
 
     def export(self, account_id, show=False):
@@ -353,20 +366,20 @@ class CommandLineInterface:
 
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+        account_id = account['id']
+        status = self.client.get_account_status(account_id)
 
         if account.get('view_only'):
             print('You are about to remove this view key:')
             print()
-            _print_account(account, balance)
+            _print_account(status)
             print()
             print('You will lose the ability to see related transactions unless you')
             print('restore it from backup.')
         else:
             print('You are about to remove this account:')
             print()
-            _print_account(account, balance)
+            _print_account(status)
             print()
             print('You will lose access to the funds in this account unless you')
             print('restore it from the mnemonic phrase.')
@@ -782,11 +795,12 @@ class CommandLineInterface:
 
 
 def _print_account(status):
-    print(_format_account_header(status['account']))
-    print(indent(
-        _format_sync_state(status),
-        ' '*2,
-    ))
+    print(
+        '{} ({})'.format(
+            _format_account_header(status['account']),
+            _format_sync_state(status),
+        )
+    )
     print(indent(
         'address {}'.format(status['account']['main_address']),
         ' '*2,
@@ -831,23 +845,13 @@ def _format_sync_state(status):
 
 
 def _format_balances(balances):
+    if len(balances) == 0:
+        return '0 MOB'
 
     lines = []
     for token_id, balance in balances.items():
-
-        # orphaned_status = ''
-        # if 'orphaned_pmob' in balance:
-        #     orphaned = pmob2mob(balance['orphaned_pmob'])
-        #     if orphaned > 0:
-        #         orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
-        # if 'unspent_pmob' in balance:
-        #     amount = balance['unspent_pmob']
-        # elif 'balance' in balance:
-        #     amount = balance['balance']
-
         token = get_token(token_id)
         lines.append(token.format(balance['unspent']))
-
     return '\n'.join(lines)
 
 
