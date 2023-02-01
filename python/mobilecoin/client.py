@@ -54,7 +54,8 @@ class ClientAsync:
             raise WalletAPIError(r)
 
     async def get_network_status(self):
-        return await self._req({"method": "get_network_status"})
+        r = await self._req({"method": "get_network_status"})
+        return r['network_status']
 
     async def get_accounts(self, offset=None, limit=None):
         r = await self._req({

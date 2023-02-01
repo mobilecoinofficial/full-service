@@ -10,13 +10,14 @@ class Token:
     suggested_precision: int
 
     def conversion_factor(self):
-        return 10**self.decimals
+        return Decimal(10**self.decimals)
 
     def convert(self, value):
         """
         Convert fixed-point stored units of this token into displayed units. 
         """
-        result = int(value) / self.conversion_factor()
+        value = Decimal(int(value))
+        result = value / self.conversion_factor()
         if result == 0:
             result = Decimal("0")
         return result
@@ -25,14 +26,22 @@ class Token:
         """
         Convert displayed units of this token into fixed-point stored units.
         """
-        result = round(Decimal(display_value) * self.conversion_factor())
+        display_value = Decimal(display_value)
+        result = round(display_value * self.conversion_factor())
         return result
 
-    def format(self, value):
+    def format(self, value, extra_precision=False):
         display_value = self.convert(value)
+        precision = self.suggested_precision
+
+        if extra_precision:
+            normalized = display_value.normalize()
+            _, _, exponent = normalized.as_tuple()
+            precision = max(-exponent, precision)
+
         return '{:.{}f} {}'.format(
             display_value,
-            self.suggested_precision,
+            precision,
             self.short_code,
         )
 

@@ -8,7 +8,7 @@ from .client import (
     ClientSync as Client,
     WalletAPIError,
 )
-from .tokens import get_token
+from .tokens import get_token, TOKENS
 
 
 class CommandLineInterface:
@@ -196,19 +196,19 @@ class CommandLineInterface:
 
     def status(self):
         network_status = self.client.get_network_status()
-        fee = pmob2mob(network_status['fee_pmob'])
-
         if int(network_status['network_block_height']) == 0:
             print('Offline.')
             print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
-            print('Expected fee is {}'.format(_format_mob(fee)))
         else:
             print('Connected to network.')
             print('Local ledger has {}/{} blocks.'.format(
                 network_status['local_block_height'],
                 network_status['network_block_height'],
             ))
-            print('Network fee is {}'.format(_format_mob(fee)))
+        print('Transaction Fees:')
+        for token in TOKENS:
+            fee = network_status['fees'][str(token.token_id)]
+            print(indent(token.format(fee, extra_precision=True), '  '))
 
     def list(self):
         accounts = self.client.get_accounts()
