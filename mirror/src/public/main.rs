@@ -37,11 +37,7 @@ use rocket::{
 };
 use structopt::StructOpt;
 
-use std::{
-    net::IpAddr,
-    str::FromStr,
-    sync::{Arc, Mutex},
-};
+use std::{net::IpAddr, str::FromStr, sync::Arc};
 
 pub type ClientUri = Uri<ClientUriScheme>;
 
@@ -87,10 +83,6 @@ pub struct Config {
 struct State {
     query_manager: QueryManager,
     logger: Logger,
-}
-
-pub struct GrpcServerState {
-    pub grpc_server: Arc<grpcio::Server>,
 }
 
 /// Sets the status of the response to 400 (Bad Request).
@@ -247,57 +239,58 @@ fn rocket() -> Rocket<Build> {
 
     let query_manager = QueryManager::default();
 
-    let grpc_server = start_grpc_server(&config, &query_manager, &logger);
+    start_grpc_server(config.clone(), query_manager.clone(), logger.clone());
 
-    build_rocket(config, query_manager, logger).manage(grpc_server)
+    build_rocket(config, query_manager, logger)
 }
 
-/// Starts the GRPC server and the wraps it in a Mutex wrapped in an Arc, which
-/// allows us to share it safely between threads, and therefor be managed by the
-/// rocket server.
-fn start_grpc_server(
-    config: &Config,
-    query_manager: &QueryManager,
-    logger: &Logger,
-) -> Arc<Mutex<grpcio::Server>> {
-    log::info!(
+/// Starts the GRPC server in its own thread. This is necessary because the GRPC
+/// server does not implement Sync, which is a requirement to be managed by
+/// Rocket OR pass over an async await block.
+fn start_grpc_server(config: Config, query_manager: QueryManager, logger: Logger) {
+    rocket::tokio::spawn(async move {
+        log::info!(
             logger.clone(),
             "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
             config.mirror_listen_uri.addr(),
             config.client_listen_uri.addr(),
         );
 
-    // Start the mirror-facing GRPC server.
-    log::info!(logger.clone(), "Starting mirror GRPC server");
+        // Start the mirror-facing GRPC server.
+        log::info!(logger.clone(), "Starting mirror GRPC server");
 
-    let build_info_service = BuildInfoService::new(logger.clone()).into_service();
-    let health_service = HealthService::new(None, logger.clone()).into_service();
-    let mirror_service = MirrorService::new(query_manager.clone(), logger.clone()).into_service();
+        let build_info_service = BuildInfoService::new(logger.clone()).into_service();
+        let health_service = HealthService::new(None, logger.clone()).into_service();
+        let mirror_service =
+            MirrorService::new(query_manager.clone(), logger.clone()).into_service();
 
-    let env = Arc::new(
-        EnvBuilder::new()
-            .name_prefix("Mirror-RPC".to_string())
-            .build(),
-    );
+        let env = Arc::new(
+            EnvBuilder::new()
+                .name_prefix("Mirror-RPC".to_string())
+                .build(),
+        );
 
-    let ch_builder = ChannelBuilder::new(env.clone())
-        .max_receive_message_len(-1)
-        .max_send_message_len(-1);
+        let ch_builder = ChannelBuilder::new(env.clone())
+            .max_receive_message_len(-1)
+            .max_send_message_len(-1);
 
-    let server_builder = ServerBuilder::new(env)
-        .register_service(build_info_service)
-        .register_service(health_service)
-        .register_service(mirror_service)
-        .channel_args(ch_builder.build_args())
-        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
+        let server_builder = ServerBuilder::new(env)
+            .register_service(build_info_service)
+            .register_service(health_service)
+            .register_service(mirror_service)
+            .channel_args(ch_builder.build_args())
+            .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
-    let mut server = server_builder
-        .build()
-        .expect("Failed to build mirror GRPC server");
+        let mut server = server_builder
+            .build()
+            .expect("Failed to build mirror GRPC server");
 
-    server.start();
+        server.start();
 
-    Arc::new(Mutex::new(server))
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    });
 }
 
 /// Builds the rocket instance given the configuration.
