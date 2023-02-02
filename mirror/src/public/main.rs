@@ -29,11 +29,11 @@ use rocket::{
     config::{Config as RocketConfig, TlsConfig},
     data::ToByteUnit,
     http::Status,
-    launch, post,
+    post,
     response::Responder,
     routes,
     tokio::io::AsyncReadExt,
-    Data, Request, Response,
+    Build, Data, Request, Response, Rocket,
 };
 use structopt::StructOpt;
 
@@ -227,32 +227,55 @@ async fn encrypted_request(
     Ok(response.get_payload().to_vec())
 }
 
-#[launch]
-fn rocket() -> _ {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 
     let config = Config::from_args();
-    // if !config.allow_self_signed_tls
-    //     && utils::is_tls_self_signed(&config.mirror_listen_uri).expect("
-    // is_tls_self_signed failed") {
-    //     panic!("Refusing to start with self-signed TLS certificate. Use
-    // --allow-self-signed-tls to override this check."); }
 
-    let (logger, _global_logger_guard) = create_app_logger(o!());
+    let (logger, global_logger_guard) = create_app_logger(o!());
+
+    // This function is wrapped inside rocket::main which creates a tokio runtime
+    // and then calls us. Some random crates log stuff after this function
+    // returns as part of the shutdown process, and that results in a panic
+    // since there is no global logger (they use the `log` crate which calls
+    // `slog-scope`). The workaround we have here is to instruct `slog-scope` to not
+    // unset the global logger when returning. It will keep holding a reference
+    // to the `Logger` object, so the fact that we drop our own reference is not
+    // going to be an issue.
+    global_logger_guard.cancel_reset();
+
+    let query_manager = QueryManager::default();
+
     log::info!(
-        logger,
+        logger.clone(),
         "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
         config.mirror_listen_uri.addr(),
         config.client_listen_uri.addr(),
     );
 
-    // Common state.
-    let query_manager = QueryManager::default();
-
     // Start the mirror-facing GRPC server.
-    log::info!(logger, "Starting mirror GRPC server");
+    log::info!(logger.clone(), "Starting mirror GRPC server");
 
+    let mut server = build_grpc_server(&config, &query_manager, &logger);
+    server.start();
+
+    let rocket = build_rocket(config, query_manager, logger);
+
+    let _ = rocket.launch().await?;
+
+    Ok(())
+}
+
+/// Starts the GRPC server in its own thread. This is necessary because the GRPC
+/// server does not implement Sync, which is a requirement to be managed by
+/// Rocket OR pass over an async await block.
+fn build_grpc_server(
+    config: &Config,
+    query_manager: &QueryManager,
+    logger: &Logger,
+) -> grpcio::Server {
     let build_info_service = BuildInfoService::new(logger.clone()).into_service();
     let health_service = HealthService::new(None, logger.clone()).into_service();
     let mirror_service = MirrorService::new(query_manager.clone(), logger.clone()).into_service();
@@ -274,11 +297,13 @@ fn rocket() -> _ {
         .channel_args(ch_builder.build_args())
         .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
-    let mut server = server_builder
+    server_builder
         .build()
-        .expect("Failed to build mirror GRPC server");
-    server.start();
+        .expect("Failed to build mirror GRPC server")
+}
 
+/// Builds the rocket instance given the configuration.
+fn build_rocket(config: Config, query_manager: QueryManager, logger: Logger) -> Rocket<Build> {
     // Start the client-facing webserver.
     if config.client_listen_uri.use_tls() {
         panic!("Client-listening using TLS is currently not supported due to `ring` crate version compatibility issues.");
