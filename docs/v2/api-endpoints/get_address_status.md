@@ -25,7 +25,6 @@ description: Get the current balance for a given address. The response will have
     "address": "GJ3yis7S8ucUAYsmouuUbxMEm7q6CRsQ6fU3CjbJ9mSD8MrRMt839mr74n1y5UrzMqDxkfrjLkgu31u55koP15Aj1syHMzmu6cWp4pEPYh"
   },
   "jsonrpc": "2.0",
-  "api_version": "2",
   "id": 1
 }
 ```

@@ -26,8 +26,16 @@ use mc_fog_report_resolver::FogResolver;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_validator_connection::ValidatorConnection;
 use rocket::{
-    self, get, http::Status, outcome::Outcome, post, request::FromRequest, routes,
-    serde::json::Json, Request, State,
+    self,
+    fairing::{Fairing, Info, Kind},
+    get,
+    http::{Header, Status},
+    outcome::Outcome,
+    post,
+    request::FromRequest,
+    routes,
+    serde::json::Json,
+    Request, Response, State,
 };
 
 /// State managed by rocket.
@@ -86,6 +94,31 @@ impl<'r> FromRequest<'r> for ApiKeyGuard {
     }
 }
 
+/// Add CORS headers for a specific origin. Required for full-service to be used
+/// by a browser.
+pub struct CORS {
+    allowed_origin: String,
+}
+
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Cross-Origin-Resource-Sharing Fairing",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new(
+            "Access-Control-Allow-Origin",
+            self.allowed_origin.clone(),
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+    }
+}
+
 #[get("/health")]
 fn health() -> Result<(), ()> {
     Ok(())
@@ -138,13 +171,29 @@ async fn validator_backed_wallet_api_v2(
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse_v2>>, String> {
     generic_wallet_api_v2(_api_key_guard, state, command).await
 }
+/// Needed to preflight OPTIONS queries for CORS.
+/// Catches all OPTION requests in order to get the CORS related Fairing
+/// triggered.
+#[options("/<_..>")]
+fn all_options() {
+    /* Intentionally left empty */
+}
 
 /// Returns an instance of a Rocket server.
 pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
+    allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
+    let mut consensus_rocket = rocket::custom(rocket_config);
+
+    if let Some(origin) = allowed_origin {
+        consensus_rocket = consensus_rocket.attach(CORS {
+            allowed_origin: origin,
+        });
+    }
+
+    consensus_rocket
         .mount(
             "/",
             routes![
@@ -152,7 +201,8 @@ pub fn consensus_backed_rocket(
                 consensus_backed_wallet_api_v2,
                 wallet_help_v1,
                 wallet_help_v2,
-                health
+                health,
+                all_options
             ],
         )
         .manage(state)
@@ -161,8 +211,17 @@ pub fn consensus_backed_rocket(
 pub fn validator_backed_rocket(
     rocket_config: rocket::Config,
     state: WalletState<ValidatorConnection, FogResolver>,
+    allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
-    rocket::custom(rocket_config)
+    let mut validator_rocket = rocket::custom(rocket_config);
+
+    if let Some(origin) = allowed_origin {
+        validator_rocket = validator_rocket.attach(CORS {
+            allowed_origin: origin,
+        });
+    }
+
+    validator_rocket
         .mount(
             "/",
             routes![
@@ -170,7 +229,8 @@ pub fn validator_backed_rocket(
                 validator_backed_wallet_api_v2,
                 wallet_help_v1,
                 wallet_help_v2,
-                health
+                health,
+                all_options
             ],
         )
         .manage(state)

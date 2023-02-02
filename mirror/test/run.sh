@@ -30,7 +30,6 @@ response=$(node example-client.js 0.0.0.0 9091 mirror-client.pem "{
     \"method\": \"${method}\",
     \"params\": {},
     \"jsonrpc\": \"2.0\", 
-    \"api_version\": \"2\", 
     \"id\": 1
     }")
 if [ "$response" != 'Http error, status: 400: Unsupported request' ] 
