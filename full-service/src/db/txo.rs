@@ -957,29 +957,38 @@ impl TxoModel for Txo {
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
         /*
-            SELECT * FROM txos
-            LEFT JOIN transaction_txos
-            ON txos.id = transaction_txos.txo_id
+            SELECT 
+            	*
+            FROM txos
+            LEFT JOIN transaction_output_txos
+            ON txos.id = transaction_output_txos.txo_id
             LEFT JOIN transaction_logs
-            ON transaction_txos.transaction_log_id = transaction_logs.id
-            AND transaction_txos.used_as = "output"
-            AND ((transaction_logs.failed = 1) OR (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index = null AND  submitted_block_index = null)
-            AND txos.key_image IS NULL
+            ON transaction_output_txos.transaction_log_id = transaction_logs.id
+            WHERE
+             txos.key_image IS NULL
             AND txos.spent_block_index IS NULL
             AND txos.subaddress_index IS NULL
             AND txos.received_block_index IS NULL 
+            AND (
+              (transaction_logs.failed = 1) OR 
+              (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index isNULL AND  submitted_block_index ISNULL)
+              )
         */
         use crate::db::schema::{transaction_output_txos, transaction_logs, txos};
     
         let mut query = txos::table
             .into_boxed()
-            .inner_join(transaction_output_txos::table)
+            .left_join(transaction_output_txos::table).on(transaction_output_txos::id.eq(txos::id))
             .left_join(
                 transaction_logs::table
                     .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
             );
 
         query = query
+            .filter(txos::key_image.is_null())
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::subaddress_index.is_null())
+            .filter(txos::received_block_index.is_null())
             .filter(
                 transaction_logs::failed.eq(true)
                 .or( 
@@ -987,16 +996,11 @@ impl TxoModel for Txo {
                     .and(transaction_logs::finalized_block_index.is_null())
                     .and(transaction_logs::submitted_block_index.is_null())
                 )
-            )
-            .filter(txos::key_image.is_null())
-            .filter(txos::spent_block_index.is_null())
-            .filter(txos::subaddress_index.is_null())
-            .filter(txos::received_block_index.is_null());
+            );
 
         Ok(query
             .select(txos::all_columns)
             .distinct()
-            .order(txos::id.desc()) // TODO: arbitrary ordering, ask if it matters
             .load(conn)?)
     }
 
