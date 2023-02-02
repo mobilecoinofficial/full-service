@@ -593,7 +593,12 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
-                TxoStatus::Created | TxoStatus::Secreted => todo!()
+                TxoStatus::Created => {
+                    return Txo::list_created(conn);
+                }
+                TxoStatus::Secreted => {
+                    return Txo::list_secreted(conn);
+                }
             }
         }
 
@@ -691,7 +696,12 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
-                TxoStatus::Created | TxoStatus::Secreted => todo!()
+                TxoStatus::Created => {
+                    return Txo::list_created(conn);
+                }
+                TxoStatus::Secreted => {
+                    return Txo::list_secreted(conn);
+                }
             }
         }
 
@@ -978,7 +988,7 @@ impl TxoModel for Txo {
     
         let mut query = txos::table
             .into_boxed()
-            .left_join(transaction_output_txos::table).on(transaction_output_txos::id.eq(txos::id))
+            .left_join(transaction_output_txos::table)
             .left_join(
                 transaction_logs::table
                     .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
@@ -1026,7 +1036,7 @@ impl TxoModel for Txo {
     
         let mut query = txos::table
             .into_boxed()
-            .left_join(transaction_output_txos::table).on(transaction_output_txos::txo_id.eq(txos.id))
+            .left_join(transaction_output_txos::table)
             .left_join(
                 transaction_logs::table
                     .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
