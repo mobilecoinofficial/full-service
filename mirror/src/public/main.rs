@@ -227,8 +227,8 @@ async fn encrypted_request(
     Ok(response.get_payload().to_vec())
 }
 
-#[launch]
-fn rocket() -> Rocket<Build> {
+#[rocket::main]
+async fn main() -> Result<(), rocket::Error> {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
 
@@ -239,25 +239,34 @@ fn rocket() -> Rocket<Build> {
 
     let query_manager = QueryManager::default();
 
-    start_grpc_server(&config, &query_manager, &logger);
+    log::info!(
+        logger.clone(),
+        "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
+        config.mirror_listen_uri.addr(),
+        config.client_listen_uri.addr(),
+    );
 
-    build_rocket(config, query_manager, logger)
+    // Start the mirror-facing GRPC server.
+    log::info!(logger.clone(), "Starting mirror GRPC server");
+
+    let mut server = build_grpc_server(&config, &query_manager, &logger);
+    server.start();
+
+    let rocket = build_rocket(config, query_manager, logger);
+
+    let _ = rocket.launch().await?;
+
+    Ok(())
 }
 
 /// Starts the GRPC server in its own thread. This is necessary because the GRPC
 /// server does not implement Sync, which is a requirement to be managed by
 /// Rocket OR pass over an async await block.
-fn start_grpc_server(config: &Config, query_manager: &QueryManager, logger: &Logger) {
-    log::info!(
-            logger.clone(),
-            "Starting wallet service mirror public forwarder, listening for mirror requests on {} and client requests on {}",
-            config.mirror_listen_uri.addr(),
-            config.client_listen_uri.addr(),
-        );
-
-    // Start the mirror-facing GRPC server.
-    log::info!(logger.clone(), "Starting mirror GRPC server");
-
+fn build_grpc_server(
+    config: &Config,
+    query_manager: &QueryManager,
+    logger: &Logger,
+) -> grpcio::Server {
     let build_info_service = BuildInfoService::new(logger.clone()).into_service();
     let health_service = HealthService::new(None, logger.clone()).into_service();
     let mirror_service = MirrorService::new(query_manager.clone(), logger.clone()).into_service();
@@ -279,17 +288,11 @@ fn start_grpc_server(config: &Config, query_manager: &QueryManager, logger: &Log
         .channel_args(ch_builder.build_args())
         .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
-    let mut server = server_builder
+    let server = server_builder
         .build()
         .expect("Failed to build mirror GRPC server");
 
-    rocket::tokio::spawn(async move {
-        server.start();
-
-        loop {
-            std::thread::sleep(std::time::Duration::from_millis(10));
-        }
-    });
+    server
 }
 
 /// Builds the rocket instance given the configuration.
