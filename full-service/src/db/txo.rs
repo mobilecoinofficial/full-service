@@ -1003,38 +1003,38 @@ impl TxoModel for Txo {
     fn list_secreted(
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
+        // TODO: incorporate account id 
             /*
-            SELECT * FROM txos
-            INNER JOIN transaction_outputs_txos
-            ON txos.id = transaction_txos.txo_id
-            LEFT JOIN transaction_logs
-            ON transaction_output_txos.transaction_log_id = transaction_logs.id
-            AND (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index != null AND  submitted_block_index != null)
-            AND txos.key_image IS NULL
-            AND txos.spent_block_index IS NULL
-            AND txos.subaddress_index IS NULL
-            AND txos.received_block_index IS NULL 
+            SELECT * 
+            FROM 
+	            txos 
+                LEFT JOIN transaction_output_txos on txos.id = transaction_output_txos.txo_id
+ 		        LEFT JOIN transaction_logs ON transaction_output_txos.transaction_log_id = transaction_logs.id
+            WHERE  
+                transaction_output_txos.is_change = 0   AND 
+                transaction_logs.failed = 0             AND 
+                transaction_logs.submitted_block_index is not NULL AND 
+                transaction_logs.finalized_block_index is not NULL AND
+                transaction_logs.account_id = <INPUT PARAMETER ACCOUNT_ID>
         */
+
         use crate::db::schema::{transaction_output_txos, transaction_logs, txos};
     
         let mut query = txos::table
             .into_boxed()
-            .inner_join(transaction_output_txos::table)
+            .left_join(transaction_output_txos::table).on(transaction_output_txos::txo_id.eq(txos.id))
             .left_join(
                 transaction_logs::table
                     .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
             );
     
         query = query
-            .filter(
-                    transaction_logs::failed.eq(false)
-                    .and(transaction_logs::finalized_block_index.is_not_null())
-                    .and(transaction_logs::submitted_block_index.is_not_null())
-            )
-            .filter(txos::key_image.is_null())
-            .filter(txos::spent_block_index.is_null())
-            .filter(txos::subaddress_index.is_null())
-            .filter(txos::received_block_index.is_null());
+            .filter(transaction_output_txos::is_change.eq(false))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_not_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null());
+        // For get_account_status: If the account_id is is NOT the sender's account_id, include it
+        // For get_txo, Include the account_id that matches.
     
         Ok(query
             .select(txos::all_columns)
@@ -1043,6 +1043,7 @@ impl TxoModel for Txo {
             .load(conn)?)
     
     }
+
     fn list_unspent_or_pending_key_images(
         account_id_hex: &str,
         token_id: Option<u64>,
