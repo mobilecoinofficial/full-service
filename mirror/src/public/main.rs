@@ -235,6 +235,15 @@ async fn main() -> Result<(), rocket::Error> {
     let config = Config::from_args();
 
     let (logger, global_logger_guard) = create_app_logger(o!());
+
+    // This function is wrapped inside rocket::main which creates a tokio runtime
+    // and then calls us. Some random crates log stuff after this function
+    // returns as part of the shutdown process, and that results in a panic
+    // since there is no global logger (they use the `log` crate which calls
+    // `slog-scope`). The workaround we have here is to instruct `slog-scope` to not
+    // unset the global logger when returning. It will keep holding a reference
+    // to the `Logger` object, so the fact that we drop our own reference is not
+    // going to be an issue.
     global_logger_guard.cancel_reset();
 
     let query_manager = QueryManager::default();
