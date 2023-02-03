@@ -251,7 +251,7 @@ class CommandLineInterface:
     def rename(self, account_id, name):
         account = self._load_account_prefix(account_id)
         old_name = account['name']
-        account_id = account['account_id']
+        account_id = account['id']
         account = self.client.update_account_name(account_id, name)
         print('Renamed account from "{}" to "{}".'.format(
             old_name,
@@ -324,12 +324,12 @@ class CommandLineInterface:
 
     def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+        account_id = account['id']
+        status = self.client.get_account_status(account_id)
 
         print('You are about to export the secret entropy mnemonic for this account:')
         print()
-        _print_account(account, balance)
+        _print_account(status)
 
         print()
         if show:
@@ -356,7 +356,6 @@ class CommandLineInterface:
         else:
             filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
-                print(secrets)
                 _save_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
@@ -393,7 +392,7 @@ class CommandLineInterface:
 
     def history(self, account_id):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
         transactions = self.client.get_transaction_logs_for_account(account_id, limit=1000)
 
@@ -439,7 +438,7 @@ class CommandLineInterface:
 
     def send(self, account_id, amount, to_address, build_only=False, fee=None):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
         balance = self.client.get_balance_for_account(account_id)
         unspent = pmob2mob(balance['unspent_pmob'])
@@ -538,7 +537,7 @@ class CommandLineInterface:
     def submit(self, proposal, account_id=None, receipt=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
-            account_id = account['account_id']
+            account_id = account['id']
 
         with Path(proposal).open() as f:
             tx_proposal = json.load(f)
@@ -594,7 +593,7 @@ class CommandLineInterface:
             return
 
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
         mob_url = 'mob:///b58/{}'.format(account['main_address'])
         qr = segno.make(mob_url)
@@ -618,7 +617,7 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
 
-        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
+        addresses = self.client.get_addresses_for_account(account['id'], limit=1000)
         for address in addresses.values():
             balance = self.client.get_balance_for_address(address['public_address'])
             print(indent(
@@ -634,7 +633,7 @@ class CommandLineInterface:
 
     def address_create(self, account_id, metadata):
         account = self._load_account_prefix(account_id)
-        address = self.client.assign_address_for_account(account['account_id'], metadata)
+        address = self.client.assign_address_for_account(account['id'], metadata)
         print()
         print(_format_account_header(account))
         print(indent(
@@ -665,7 +664,7 @@ class CommandLineInterface:
     def gift_create(self, account_id, amount, memo=''):
         account = self._load_account_prefix(account_id)
         amount = Decimal(amount)
-        response = self.client.build_gift_code(account['account_id'], amount, memo)
+        response = self.client.build_gift_code(account['id'], amount, memo)
         gift_code_b58 = response['gift_code_b58']
         tx_proposal = response['tx_proposal']
 
@@ -680,7 +679,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        gift_code = self.client.submit_gift_code(gift_code_b58, tx_proposal, account['account_id'])
+        gift_code = self.client.submit_gift_code(gift_code_b58, tx_proposal, account['id'])
         print('Created gift code {}'.format(gift_code['gift_code_b58']))
 
     def gift_claim(self, account_id, gift_code):
@@ -705,7 +704,7 @@ class CommandLineInterface:
             return
 
         try:
-            self.client.claim_gift_code(account['account_id'], gift_code)
+            self.client.claim_gift_code(account['id'], gift_code)
         except WalletAPIError as e:
             if e.response['data']['server_error'] == 'GiftCodeClaimed':
                 print('This gift code has already been claimed.')
@@ -758,7 +757,7 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
 
-        account_id = account['account_id']
+        account_id = account['id']
         response = self.client.create_view_only_account_sync_request(account_id)
 
         network_status = self.client.get_network_status()
@@ -906,7 +905,7 @@ def _save_export(account, secrets, filename):
         export_data['root_entropy'] = legacy_root_entropy
 
     export_data.update({
-        'account_id': account['account_id'],
+        'account_id': account['id'],
         'name': account['name'],
         'account_key': secrets['account_key'],
         'first_block_index': account['first_block_index'],

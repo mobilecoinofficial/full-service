@@ -2,6 +2,7 @@ import asyncio
 import logging
 import aiohttp
 import json
+import time
 
 log = logging.getLogger('client_async')
 
@@ -118,11 +119,60 @@ class ClientAsync:
         })
         return r['account']
 
+    async def export_account_secrets(self, account_id):
+        r = await self._req({
+            "method": "export_account_secrets",
+            "params": {"account_id": account_id}
+        })
+        return r['account_secrets']
+
     async def remove_account(self, account_id):
         return await self._req({
             "method": "remove_account",
             "params": {"account_id": account_id}
         })
+
+    # Polling utility functions.
+
+    @staticmethod
+    async def poll(func, delay=1.0, timeout=10):
+        """
+        Repeatedly call the given function until it returns a result.
+        """
+        start = time.monotonic()
+        while True:
+            elapsed = time.monotonic() - start
+            if elapsed >= timeout:
+                raise TimeoutError('Polling timed out before succeeding.')
+            try:
+                result = await func()
+            except ConnectionError:
+                result = None
+            if result is not None:
+                return result
+            await asyncio.sleep(delay)
+
+    async def poll_account_status(self, account_id, min_block_height=None, **kwargs):
+        """
+        Poll the account status endpoint for this account, until it reports as synced.
+
+        If the `min_block_height` argument is given, don't return until it is
+        synced above the given block height. This is a way to wait for a
+        submitted transaction to complete.
+        """
+        async def func():
+            status = await self.get_account_status(account_id)
+            account_block = int(status['account']['next_block_index']) 
+            network_block = int(status['local_block_height'])
+            synced = (account_block >= network_block)
+            if synced:
+                if (
+                    min_block_height is None
+                    or account_block >= min_block_height
+                ):
+                    return status
+        await self.poll(func, **kwargs)
+
 
 class ClientSync:
     """
