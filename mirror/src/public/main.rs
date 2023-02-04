@@ -290,15 +290,12 @@ fn build_grpc_server(
         .max_receive_message_len(-1)
         .max_send_message_len(-1);
 
-    let server_builder = ServerBuilder::new(env)
+    let server = ServerBuilder::new(env)
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
         .channel_args(ch_builder.build_args())
-        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
-
-    let server = server_builder
-        .build()
+        .build_using_uri(&config.mirror_listen_uri, logger.clone())
         .expect("Failed to build mirror GRPC server");
 
     server
