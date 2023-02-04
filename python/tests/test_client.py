@@ -9,6 +9,7 @@ from mobilecoin.client import (
     WalletAPIError,
     log as client_log,
 )
+from mobilecoin.token import get_token, Amount
 
 # Enable debug logging during unittests.
 client_log.setLevel('DEBUG')
@@ -112,3 +113,39 @@ async def test_account_status(client, account_id):
         'recovery_mode',
         'view_only',
     ]
+
+
+async def test_send_transaction_self(client, account_id):
+    mob = get_token('MOB')
+
+    # Check balance.
+    status = await client.get_account_status(account_id)
+    initial_balance = Amount.from_storage_units(
+        status['balance_per_token'][str(mob.token_id)]['unspent'],
+        mob,
+    )
+    assert initial_balance > Amount.from_display_units(0.1, mob)
+
+    # Get the default fee amount.
+    network_status = await client.get_network_status()
+    fee = Amount.from_storage_units(
+        network_status['fees'][str(mob.token_id)],
+        mob,
+    )
+
+    # Send a transaction to my own account.
+    account = status['account']
+    transaction_log, _ = await client.build_and_submit_transaction(
+        account_id,
+        Amount.from_display_units(0.01, mob),
+        account['main_address'],
+    )
+    tx_index = int(transaction_log['submitted_block_index'])
+    status = await client.poll_account_status(account_id, tx_index + 1)
+
+    # Check that the balance has decreased by the fee amount.
+    final_balance = Amount.from_storage_units(
+        status['balance_per_token'][str(mob.token_id)]['unspent'],
+        mob,
+    )
+    assert final_balance == initial_balance - fee

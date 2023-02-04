@@ -3,6 +3,10 @@ import logging
 import aiohttp
 import json
 import time
+from typing import Optional
+
+from mobilecoin.token import get_token, Amount
+
 
 log = logging.getLogger('client_async')
 
@@ -132,6 +136,31 @@ class ClientAsync:
             "params": {"account_id": account_id}
         })
 
+    async def build_and_submit_transaction(
+        self,
+        account_id: str,
+        amount: Amount,
+        to_address: str,
+        fee: Optional[Amount] = None,
+    ):
+        params = {
+            "account_id": account_id,
+            "recipient_public_address": to_address,
+            "amount": {
+                "value": str(amount.value),
+                "token_id": str(amount.token.token_id)
+            }
+        }
+        if fee is not None:
+            params['fee_value'] = str(fee.value)
+            params['fee_token_id'] = str(fee.token.token_id)
+
+        r = await self._req({
+            "method": "build_and_submit_transaction",
+            "params": params,
+        })
+        return r['transaction_log'], r['tx_proposal']
+
     # Polling utility functions.
 
     @staticmethod
@@ -171,7 +200,7 @@ class ClientAsync:
                     or account_block >= min_block_height
                 ):
                     return status
-        await self.poll(func, **kwargs)
+        return await self.poll(func, **kwargs)
 
 
 class ClientSync:

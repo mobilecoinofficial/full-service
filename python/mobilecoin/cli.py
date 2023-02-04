@@ -9,7 +9,7 @@ from .client import (
     WalletAPIError,
     log as client_log,
 )
-from .tokens import get_token, TOKENS
+from .token import Amount, get_token, TOKENS
 
 
 class CommandLineInterface:
@@ -104,7 +104,8 @@ class CommandLineInterface:
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
-        self.send_args.add_argument('amount', help='Amount of MOB to send.')
+        self.send_args.add_argument('amount', help='Amount to send.')
+        self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
         self.send_args.add_argument('to_address', help='Address to send to.')
 
         # Submit transaction proposal.
@@ -436,29 +437,40 @@ class CommandLineInterface:
                 print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
         print()
 
-    def send(self, account_id, amount, to_address, build_only=False, fee=None):
+    def send(self, account_id, amount, token, to_address, build_only=False, fee=None):
+        token = get_token(token)
+
         account = self._load_account_prefix(account_id)
         account_id = account['id']
 
-        balance = self.client.get_balance_for_account(account_id)
-        unspent = pmob2mob(balance['unspent_pmob'])
-
-        network_status = self.client.get_network_status()
+        account_status = self.client.get_account_status(account_id)
+        unspent = Amount.from_storage_units(
+            account_status['balance_per_token'][str(token.token_id)]['unspent'],
+            token,
+        )
 
         if fee is None:
-            fee = pmob2mob(network_status['fee_pmob'])
+            network_status = self.client.get_network_status()
+            fee = Amount.from_storage_units(
+                network_status['fees'][str(token.token_id)],
+                token
+            )
         else:
-            fee = Decimal(fee)
+            fee = Amount.from_display_units(fee, token)
+        assert fee is not None
 
         if amount == "all":
             amount = unspent - fee
             total_amount = unspent
         else:
-            amount = Decimal(amount)
+            amount = Amount.from_display_units(amount, token)
             total_amount = amount + fee
 
         if unspent < total_amount:
-            print('There is not enough MOB in account {} to pay for this transaction.'.format(account_id[:6]))
+            print('There is not enough {} in account {} to pay for this transaction.'.format(
+                token.short_code,
+                account_id[:6],
+            ))
             return
 
         if account.get('view_only'):
@@ -474,28 +486,21 @@ class CommandLineInterface:
             '  from account {}',
             '  to address {}',
             'Fee is {}, for a total amount of {}.',
-            '',
         ]).format(
             verb,
-            _format_mob(amount),
+            amount.format(),
             _format_account_header(account),
             to_address,
-            _format_mob(fee),
-            _format_mob(total_amount),
+            fee.format(extra_precision=True),
+            total_amount.format(),
         ))
-
-        if total_amount > unspent:
-            print('\n'.join([
-                'Cannot send this transaction, because the account only',
-                'contains {}. Try sending all funds by entering amount as "all".',
-            ]).format(_format_mob(unspent)))
-            return
+        print()
 
         if account.get('view_only'):
             response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal_{}_{}_unsigned.json'.format(
                 account_id[:6],
-                balance['local_block_height'],
+                account_status['local_block_height'],
             ))
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -504,7 +509,7 @@ class CommandLineInterface:
                 print(f'Wrote {path}.')
                 print()
                 print('This account is view-only, so its spend key is in an offline signer.')
-                print('Run `mob-transaction-signer sign`, then submit the result with `mobcli submit`')
+                print('Run `mob-transaction-signer sign`, then submit the result with `mob submit`')
             return
 
         if build_only:
@@ -522,16 +527,24 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction(
             account_id,
             amount,
             to_address,
             fee=fee,
         )
 
+        sent_amounts = [
+            Amount.from_storage_units(value, token_id)
+            for token_id, value in transaction_log['value_map'].items()
+        ]
+        fee_amount = Amount.from_storage_units(
+            transaction_log['fee_amount']['value'],
+            transaction_log['fee_amount']['token_id'],
+        )
         print('Sent {}, with a transaction fee of {}'.format(
-            _format_mob(pmob2mob(transaction_log['value_pmob'])),
-            _format_mob(pmob2mob(transaction_log['fee_pmob'])),
+            ', '.join(a.format() for a in sent_amounts),
+            fee_amount.format(),
         ))
 
     def submit(self, proposal, account_id=None, receipt=False):
@@ -845,12 +858,12 @@ def _format_sync_state(status):
 
 def _format_balances(balances):
     if len(balances) == 0:
-        return '0 MOB'
+        return Amount.from_display_units(0, 'MOB').format()
 
     lines = []
     for token_id, balance in balances.items():
-        token = get_token(token_id)
-        lines.append(token.format(balance['unspent']))
+        unspent = Amount.from_storage_units(balance['unspent'], token_id)
+        lines.append(unspent.format())
     return '\n'.join(lines)
 
 
