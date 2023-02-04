@@ -180,58 +180,28 @@ fn all_options() {
 }
 
 /// Returns an instance of a Rocket server.
-pub fn consensus_backed_rocket(
-    rocket_config: rocket::Config,
-    state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
-    allowed_origin: Option<String>,
-) -> rocket::Rocket<rocket::Build> {
-    let mut consensus_rocket = rocket::custom(rocket_config);
-
-    if let Some(origin) = allowed_origin {
-        consensus_rocket = consensus_rocket.attach(CORS {
-            allowed_origin: origin,
-        });
-    }
-
-    consensus_rocket
-        .mount(
-            "/",
-            routes![
-                consensus_backed_wallet_api_v1,
-                consensus_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health,
-                all_options
-            ],
-        )
-        .manage(state)
+pub fn consensus_backed_rocket(rocket_config: rocket::Config) -> rocket::Rocket<rocket::Build> {
+    rocket::custom(rocket_config).mount(
+        "/",
+        routes![
+            consensus_backed_wallet_api_v1,
+            consensus_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health
+        ],
+    )
 }
 
-pub fn validator_backed_rocket(
-    rocket_config: rocket::Config,
-    state: WalletState<ValidatorConnection, FogResolver>,
-    allowed_origin: Option<String>,
-) -> rocket::Rocket<rocket::Build> {
-    let mut validator_rocket = rocket::custom(rocket_config);
-
-    if let Some(origin) = allowed_origin {
-        validator_rocket = validator_rocket.attach(CORS {
-            allowed_origin: origin,
-        });
-    }
-
-    validator_rocket
-        .mount(
-            "/",
-            routes![
-                validator_backed_wallet_api_v1,
-                validator_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health,
-                all_options
-            ],
-        )
-        .manage(state)
+pub fn validator_backed_rocket(rocket_config: rocket::Config) -> rocket::Rocket<rocket::Build> {
+    rocket::custom(rocket_config).mount(
+        "/",
+        routes![
+            validator_backed_wallet_api_v1,
+            validator_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health
+        ],
+    )
 }
