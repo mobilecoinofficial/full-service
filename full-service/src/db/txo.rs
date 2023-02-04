@@ -303,6 +303,7 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
     fn list_secreted(
+        account_id_hex: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -597,7 +598,7 @@ impl TxoModel for Txo {
                     return Txo::list_created(conn);
                 }
                 TxoStatus::Secreted => {
-                    return Txo::list_secreted(conn);
+                    return Txo::list_secreted(None, conn);
                 }
             }
         }
@@ -700,7 +701,7 @@ impl TxoModel for Txo {
                     return Txo::list_created(conn);
                 }
                 TxoStatus::Secreted => {
-                    return Txo::list_secreted(conn);
+                    return Txo::list_secreted(Some(account_id_hex), conn);
                 }
             }
         }
@@ -1015,6 +1016,7 @@ impl TxoModel for Txo {
     }
 
     fn list_secreted(
+        account_id_hex: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
         // TODO: incorporate account id 
@@ -1030,6 +1032,7 @@ impl TxoModel for Txo {
                 transaction_logs.submitted_block_index is not NULL AND 
                 transaction_logs.finalized_block_index is not NULL AND
                 transaction_logs.account_id = <INPUT PARAMETER ACCOUNT_ID>
+                transaction_log.account_id != txos.account_id
         */
 
         use crate::db::schema::{transaction_output_txos, transaction_logs, txos};
@@ -1047,8 +1050,11 @@ impl TxoModel for Txo {
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_not_null())
             .filter(transaction_logs::submitted_block_index.is_not_null());
-        // For get_account_status: If the account_id is is NOT the sender's account_id, include it
-        // For get_txo, Include the account_id that matches.
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+                .filter(not(transaction_logs::account_id.nullable().eq(txos::account_id)));
+        }
     
         Ok(query
             .select(txos::all_columns)
