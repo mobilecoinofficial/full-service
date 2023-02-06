@@ -146,6 +146,45 @@ class ClientAsync:
             "params": {"account_id": account_id}
         })
 
+    async def get_addresses(self, account_id, offset=0, limit=1000):
+        r = await self._req({
+            "method": "get_addresses",
+            "params": {
+                "account_id": account_id,
+                "offset": int(offset),
+                "limit": int(limit),
+            },
+        })
+        return r['address_map']
+
+    async def get_address_status(self, address):
+        return await self._req({
+            "method": "get_address_status",
+            "params": {
+                "address": address,
+            },
+        })
+
+    async def get_transaction_logs(
+        self,
+        account_id,
+        min_block_index=None,
+        max_block_index=None,
+        offset=None,
+        limit=None,
+    ):
+        r = await self._req({
+            "method": "get_transaction_logs",
+            "params": {
+                "account_id": account_id,
+                "min_block_index": min_block_index,
+                "max_block_index": max_block_index,
+                "offset": offset,
+                "limit": limit,
+            },
+        })
+        return r['transaction_log_map']
+
     async def build_and_submit_transaction(
         self,
         account_id: str,

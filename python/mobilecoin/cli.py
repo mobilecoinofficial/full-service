@@ -386,9 +386,12 @@ class CommandLineInterface:
         account = self._load_account_prefix(account_id)
         account_id = account['id']
 
-        transactions = self.client.get_transaction_logs_for_account(account_id, limit=1000)
+        own_addresses = self.client.get_addresses(account_id)
+        own_addresses = set( a['public_address_b58'] for a in own_addresses.values() )
 
-        def block_key(t):
+        transactions = self.client.get_transaction_logs(account_id, limit=1000)
+
+        def tx_block(t):
             submitted = t['submitted_block_index']
             finalized = t['finalized_block_index']
             if submitted is not None and finalized is not None:
@@ -400,33 +403,33 @@ class CommandLineInterface:
             else:
                 return None
 
-        transactions = sorted(transactions.values(), key=block_key)
-
+        transactions = sorted(transactions.values(), key=tx_block)
         for t in transactions:
+            fee = Amount.from_storage_units(
+                t['fee_amount']['value'],
+                t['fee_amount']['token_id'],
+            )
+
             print()
-            if t['direction'] == 'tx_direction_received':
-                amount = _format_mob(
-                    sum(
-                        pmob2mob(txo['value_pmob'])
-                        for txo in t['output_txos']
-                    )
+            print('Block #{}, {} output{}'.format(
+                tx_block(t),
+                len(t['output_txos']),
+                's' if len(t['output_txos']) != 1 else '',
+            ))
+            print('  Fee:', fee.format(extra_precision=True))
+
+            for i, txo in enumerate(t['output_txos']):
+                print('  Output #{}'.format(i+1))
+                amount = Amount.from_storage_units(
+                    txo['amount']['value'],
+                    txo['amount']['token_id'],
                 )
-                print('Received {}'.format(amount))
-                print('  at {}'.format(t['assigned_address_id']))
-            elif t['direction'] == 'tx_direction_sent':
-                for txo in t['output_txos']:
-                    amount = _format_mob(pmob2mob(txo['value_pmob']))
-                    print('Sent {}'.format(amount))
-                    if not txo['recipient_address_id']:
-                        print('  to an unknown address.')
-                    else:
-                        print('  to {}'.format(txo['recipient_address_id']))
-            print('  in block {}'.format(block_key(t)), end=', ')
-            if t['fee_pmob'] is None:
-                print('paying an unknown fee.')
-            else:
-                print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
-        print()
+                print(indent(amount.format(), '    '))
+                address = txo['recipient_public_address_b58'] 
+                if address in own_addresses:
+                    print('    Received at', address)
+                else:
+                    print('    Sent to', address)
 
     def send(self, account_id, amount, token, to_address, build_only=False, fee=None):
         token = get_token(token)
@@ -535,7 +538,7 @@ class CommandLineInterface:
         )
         print('Sent {}, with a transaction fee of {}'.format(
             ', '.join(a.format() for a in sent_amounts),
-            fee_amount.format(),
+            fee_amount.format(extra_precision=True),
         ))
 
     def submit(self, proposal, account_id=None, receipt=False):
@@ -621,17 +624,20 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
 
-        addresses = self.client.get_addresses_for_account(account['id'], limit=1000)
-        for address in addresses.values():
-            balance = self.client.get_balance_for_address(address['public_address'])
-            print(indent(
-                '{} {}'.format(address['public_address'], address['metadata']),
-                ' '*2,
+        addresses = self.client.get_addresses(account['id'], limit=1000)
+        addresses = list(addresses.values())
+        addresses.sort(key=lambda a: a['subaddress_index'])
+
+        for address in addresses:
+            address_status = self.client.get_address_status(address['public_address_b58'])
+
+            print()
+            print('#{} {}'.format(
+                address['subaddress_index'],
+                address['metadata'],
             ))
-            print(indent(
-                _format_balance(balance),
-                ' '*4,
-            ))
+            print(indent(address['public_address_b58'], '  '))
+            print(indent(_format_balances(address_status['balance_per_token']), '  '))
 
         print()
 
