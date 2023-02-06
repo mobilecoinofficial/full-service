@@ -130,6 +130,16 @@ class ClientAsync:
         })
         return r['account_secrets']
 
+    async def update_account_name(self, account_id, name):
+        r = await self._req({
+            "method": "update_account_name",
+            "params": {
+                "account_id": account_id,
+                "name": name,
+            }
+        })
+        return r['account']
+
     async def remove_account(self, account_id):
         return await self._req({
             "method": "remove_account",

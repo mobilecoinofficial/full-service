@@ -250,7 +250,7 @@ class CommandLineInterface:
             account['name'],
         ))
         print()
-        _print_account(account)
+        print(_format_account_header(account))
         print()
 
     def import_(self, backup, name=None, block=None, key_derivation_version=2):
