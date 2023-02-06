@@ -299,6 +299,7 @@ pub trait TxoModel {
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
     fn list_created(
+        account_id_hex: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -595,7 +596,7 @@ impl TxoModel for Txo {
                     )
                 }
                 TxoStatus::Created => {
-                    return Txo::list_created(conn);
+                    return Txo::list_created(None, conn);
                 }
                 TxoStatus::Secreted => {
                     return Txo::list_secreted(None, conn);
@@ -698,7 +699,7 @@ impl TxoModel for Txo {
                     )
                 }
                 TxoStatus::Created => {
-                    return Txo::list_created(conn);
+                    return Txo::list_created(Some(account_id_hex), conn);
                 }
                 TxoStatus::Secreted => {
                     return Txo::list_secreted(Some(account_id_hex), conn);
@@ -794,7 +795,12 @@ impl TxoModel for Txo {
                 TxoStatus::Orphaned => {
                     return Ok(vec![]);
                 }
-                TxoStatus::Created | TxoStatus::Secreted => todo!()
+                TxoStatus::Created => {
+                    return Ok(vec![]);
+                }
+                TxoStatus::Secreted => {
+                    return Ok(vec![]);
+                }
             }
         }
 
@@ -965,6 +971,7 @@ impl TxoModel for Txo {
     }
 
     fn list_created(
+        account_id_hex: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
         /*
@@ -1009,6 +1016,11 @@ impl TxoModel for Txo {
                 )
             );
 
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+                .filter(not(transaction_logs::account_id.nullable().eq(txos::account_id)));
+        }
+
         Ok(query
             .select(txos::all_columns)
             .distinct()
@@ -1019,8 +1031,7 @@ impl TxoModel for Txo {
         account_id_hex: Option<&str>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>{
-        // TODO: incorporate account id 
-            /*
+        /*
             SELECT * 
             FROM 
 	            txos 
@@ -1059,7 +1070,6 @@ impl TxoModel for Txo {
         Ok(query
             .select(txos::all_columns)
             .distinct()
-            .order(txos::id.desc()) // TODO: arbitrary ordering, ask if it matters
             .load(conn)?)
     
     }
