@@ -90,7 +90,7 @@ case ${net} in
         if test -f "${WORK_DIR}/consensus-enclave.css"; then
             CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
         else
-            CONSENSUS_ENCLAVE_CSS=`pwd`/mobilecoin/target/docker/release/consensus-enclave.css
+            CONSENSUS_ENCLAVE_CSS=`pwd`/target/docker/release/consensus-enclave.css
         fi
     ;;
     *)

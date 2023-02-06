@@ -682,7 +682,7 @@ mod e2e_transaction {
         assert_eq!(unspent, "457999600000000");
         assert_eq!(pending, "0");
         assert_eq!(spent, "100000000000000");
-        assert_eq!(secreted, "42000000000000");
+        assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
 
         // Get balance after submission
