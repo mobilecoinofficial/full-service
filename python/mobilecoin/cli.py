@@ -49,19 +49,6 @@ class CommandLineInterface:
 
         command_sp = self.parser.add_subparsers(dest='command', help='Commands')
 
-        # Start server.
-        self.start_args = command_sp.add_parser('start', help='Start the local MobileCoin wallet server.')
-        self.start_args.add_argument('--offline', action='store_true', help='Start in offline mode.')
-        self.start_args.add_argument('--bg', action='store_true',
-                                     help='Start server in the background, stop with "mobilecoin stop".')
-        self.start_args.add_argument('--unencrypted', action='store_true',
-                                     help='Do not encrypt the wallet database. Secret keys will be stored on the hard drive in plaintext.')
-        self.start_args.add_argument('--change-password', action='store_true',
-                                     help='Change the password for the database.')
-
-        # Stop server.
-        self.stop_args = command_sp.add_parser('stop', help='Stop the local MobileCoin wallet server.')
-
         # Network status.
         self.status_args = command_sp.add_parser('status', help='Check the status of the MobileCoin network.')
 
@@ -217,17 +204,21 @@ class CommandLineInterface:
         print()
         print('Total balance for all accounts:')
         for token in TOKENS:
-            value = wallet_status['balance_per_token'][str(token.token_id)]['unspent']
-            print(indent(token.format(value), '  '))
+            amount = Amount.from_storage_units(
+                wallet_status['balance_per_token'][str(token.token_id)]['unspent'],
+                token
+            )
+            print(indent(amount.format(), '  '))
 
         # Show transaction fees.
         print()
         print('Transaction Fees:')
         for token in TOKENS:
-            value = network_status['fees'][str(token.token_id)]
-            print(indent(token.format(value, extra_precision=True), '  '))
-
-
+            amount = Amount.from_storage_units(
+                network_status['fees'][str(token.token_id)],
+                token
+            )
+            print(indent(amount.format(extra_precision=True), '  '))
 
     def list(self):
         accounts = self.client.get_accounts()
