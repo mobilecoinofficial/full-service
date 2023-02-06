@@ -66,7 +66,6 @@ impl From<&db::txo::TxoStatus> for TxoStatus {
             db::txo::TxoStatus::Spent => TxoStatus::Spent,
             db::txo::TxoStatus::Unspent => TxoStatus::Unspent,
             db::txo::TxoStatus::Unverified => TxoStatus::Unspent,
-            db::txo::TxoStatus::Created | db::txo::TxoStatus::Secreted => todo!(),
         }
     }
 }
