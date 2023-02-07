@@ -1245,7 +1245,7 @@ impl TxoModel for Txo {
         )?;
 
         if spendable_txos.is_empty() {
-            return Err(WalletDbError::NoSpendableTxos);
+            return Err(WalletDbError::NoSpendableTxos(token_id.to_string()));
         }
 
         // If we're trying to spend more than we have in the wallet, we may need to
