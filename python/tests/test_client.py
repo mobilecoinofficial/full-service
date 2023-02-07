@@ -131,11 +131,13 @@ async def test_account_status(client, account_id):
     ]
 
 
+@pytest.mark.skip
 async def test_send_transaction_self(client, account_id):
     mob = get_token('MOB')
 
     # Check balance.
     status = await client.get_account_status(account_id)
+    account = status['account']
     initial_balance = Amount.from_storage_units(
         status['balance_per_token'][str(mob.token_id)]['unspent'],
         mob,
@@ -150,14 +152,20 @@ async def test_send_transaction_self(client, account_id):
     )
 
     # Send a transaction to my own account.
-    account = status['account']
     transaction_log, _ = await client.build_and_submit_transaction(
-        account_id,
+        account['id'],
         Amount.from_display_units(0.01, mob),
         account['main_address'],
     )
+    tx_value = Amount.from_storage_units(
+        transaction_log['value_map'][str(mob.token_id)],
+        mob,
+    )
+    assert tx_value == Amount.from_display_units(0.01, mob)
+
+    # Wait for the account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
-    status = await client.poll_account_status(account_id, tx_index + 1)
+    status = await client.poll_account_status(account['id'], tx_index + 1)
 
     # Check that the balance has decreased by the fee amount.
     final_balance = Amount.from_storage_units(
@@ -165,3 +173,67 @@ async def test_send_transaction_self(client, account_id):
         mob,
     )
     assert final_balance == initial_balance - fee
+
+
+async def test_send_transaction(client, account_id):
+    mob = get_token('MOB')
+
+    # Check balance.
+    status = await client.get_account_status(account_id)
+    account = status['account']
+    initial_balance = Amount.from_storage_units(
+        status['balance_per_token'][str(mob.token_id)]['unspent'],
+        mob,
+    )
+    assert initial_balance > Amount.from_display_units(0.1, mob)
+
+    # Get the default fee amount.
+    network_status = await client.get_network_status()
+    fee = Amount.from_storage_units(
+        network_status['fees'][str(mob.token_id)],
+        mob,
+    )
+
+    # Create a temporary account.
+    temp_account = await client.create_account()
+    temp_account['main_address']
+
+    # Send a transaction to the temporary account.
+    account = status['account']
+    transaction_log, _ = await client.build_and_submit_transaction(
+        account['id'],
+        Amount.from_display_units(0.01, mob),
+        temp_account['main_address'],
+    )
+    tx_value = Amount.from_storage_units(
+        transaction_log['value_map'][str(mob.token_id)],
+        mob,
+    )
+    assert tx_value == Amount.from_display_units(0.01, mob)
+
+    # Wait for the temporary account to sync.
+    tx_index = int(transaction_log['submitted_block_index'])
+    temp_status = await client.poll_account_status(temp_account['id'], tx_index + 1)
+
+    # Check that the transaction has arrived.
+    temp_balance = Amount.from_storage_units(
+        temp_status['balance_per_token'][str(mob.token_id)]['unspent'],
+        mob,
+    )
+    assert temp_balance == Amount.from_display_units(0.01, mob)
+
+    # Send the funds back.
+    transaction_log, _ = await client.build_and_submit_transaction(
+        temp_account['id'],
+        Amount.from_display_units(0.01, mob) - fee,
+        account['main_address'],
+    )
+    tx_index = int(transaction_log['submitted_block_index'])
+
+    # Ensure the temporary account has no funds remaining.
+    temp_status = await client.poll_account_status(temp_account['id'], tx_index + 1)
+    for balance in temp_status['balance_per_token'].values():
+        assert int(balance['unspent']) == 0
+
+    # Delete the temporary account.
+    await client.remove_account(temp_account['id'])

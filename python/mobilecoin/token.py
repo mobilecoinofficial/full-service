@@ -87,10 +87,18 @@ class Amount:
         assert self.token == other.token
         return Amount.from_storage_units(self.value - other.value, self.token)
 
+    def __neg__(self):
+        return Amount.from_storage_units(-self.value, self.token)
+
     def __lt__(self, other):
         assert isinstance(other, Amount)
         assert self.token == other.token
         return self.value < other.value
+
+    def __gt__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value > other.value
 
     def __eq__(self, other):
         assert isinstance(other, Amount)

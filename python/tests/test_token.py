@@ -1,11 +1,12 @@
-from mobilecoin.token import Token, get_token
+from mobilecoin.token import Token, get_token, Amount
 
 
 def test_format():
     mob = Token(0, 'MobileCoin', 'MOB', 12, 4)
 
     def f(x):
-        return str(mob.format(x, extra_precision=True))
+        amount = Amount.from_display_units(x, mob)
+        return str(amount.format(extra_precision=True))
 
     assert f('4200') == '4200.0000 MOB'
     assert f('42') == '42.0000 MOB'
