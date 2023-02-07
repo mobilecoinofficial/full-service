@@ -218,7 +218,7 @@ class CommandLineInterface:
                 network_status['fees'][str(token.token_id)],
                 token
             )
-            print(indent(amount.format(extra_precision=True), '  '))
+            print(indent(amount.format(), '  '))
 
     def list(self):
         accounts = self.client.get_accounts()
@@ -372,8 +372,8 @@ class CommandLineInterface:
             print()
             _print_account(status)
             print()
-            print('You will lose access to the funds in this account unless you')
-            print('restore it from the mnemonic phrase.')
+            print('You will lose access to this account unless you restore it')
+            print('from the mnemonic phrase.')
 
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
@@ -416,7 +416,7 @@ class CommandLineInterface:
                 len(t['output_txos']),
                 's' if len(t['output_txos']) != 1 else '',
             ))
-            print('  Fee:', fee.format(extra_precision=True))
+            print('  Fee:', fee.format())
 
             for i, txo in enumerate(t['output_txos']):
                 print('  Output #{}'.format(i+1))
@@ -485,7 +485,7 @@ class CommandLineInterface:
             amount.format(),
             _format_account_header(account),
             to_address,
-            fee.format(extra_precision=True),
+            fee.format(),
             total_amount.format(),
         ))
         print()
@@ -538,7 +538,7 @@ class CommandLineInterface:
         )
         print('Sent {}, with a transaction fee of {}'.format(
             ', '.join(a.format() for a in sent_amounts),
-            fee_amount.format(extra_precision=True),
+            fee_amount.format(),
         ))
 
     def submit(self, proposal, account_id=None, receipt=False):
@@ -851,16 +851,16 @@ def _format_sync_state(status):
     return '{}{}'.format(sync_state, offline_state)
 
 
-
-
 def _format_balances(balances):
-    if len(balances) == 0:
-        return Amount.from_display_units(0, 'MOB').format()
-
     lines = []
     for token_id, balance in balances.items():
         unspent = Amount.from_storage_units(balance['unspent'], token_id)
-        lines.append(unspent.format())
+        if unspent.value > 0:
+            lines.append(unspent.format())
+
+    if len(lines) == 0:
+        return 'Empty'
+
     return '\n'.join(lines)
 
 

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-@dataclass
+
+@dataclass(eq=True, frozen=True)
 class Token:
     token_id: int
     currency_name: str
@@ -77,38 +78,10 @@ class Amount:
             _inner_constructor=True,
         )
 
-    def __add__(self, other):
-        assert isinstance(other, Amount)
-        assert self.token == other.token
-        return Amount.from_storage_units(self.value + other.value, self.token)
-
-    def __sub__(self, other):
-        assert isinstance(other, Amount)
-        assert self.token == other.token
-        return Amount.from_storage_units(self.value - other.value, self.token)
-
-    def __neg__(self):
-        return Amount.from_storage_units(-self.value, self.token)
-
-    def __lt__(self, other):
-        assert isinstance(other, Amount)
-        assert self.token == other.token
-        return self.value < other.value
-
-    def __gt__(self, other):
-        assert isinstance(other, Amount)
-        assert self.token == other.token
-        return self.value > other.value
-
-    def __eq__(self, other):
-        assert isinstance(other, Amount)
-        assert self.token == other.token
-        return self.value == other.value
-
     def display_value(self):
         return self.token.convert(self.value)
 
-    def format(self, extra_precision=False):
+    def format(self, extra_precision=True):
         """
         Takes a display value representing an amount of a token and formats it
         with correct precision and short code suffix.
@@ -127,4 +100,41 @@ class Amount:
             self.token.short_code,
         )
 
+    def __add__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return Amount.from_storage_units(self.value + other.value, self.token)
+
+    def __sub__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return Amount.from_storage_units(self.value - other.value, self.token)
+
+    def __neg__(self):
+        return Amount.from_storage_units(-self.value, self.token)
+
+    def __eq__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value == other.value
+
+    def __lt__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value < other.value
+
+    def __le__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value <= other.value
+
+    def __gt__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value > other.value
+
+    def __ge__(self, other):
+        assert isinstance(other, Amount)
+        assert self.token == other.token
+        return self.value >= other.value
 
