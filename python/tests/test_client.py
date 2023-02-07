@@ -81,6 +81,23 @@ async def test_network_status(client):
     ]
 
 
+async def test_get_block(client):
+    network_status = await client.get_network_status()
+    last_block_index = int(network_status['network_block_height']) - 1
+    block, block_contents = await client.get_block(last_block_index)
+    assert int(block['index']) == last_block_index
+    assert sorted(block.keys()) == [
+        'contents_hash',
+        'cumulative_txo_count',
+        'id',
+        'index',
+        'parent_id',
+        'root_element',
+        'version',
+    ]
+    assert sorted(block_contents.keys()) == ['key_images', 'outputs']
+
+
 async def test_wallet_status(client):
     wallet_status = await client.get_wallet_status()
     assert sorted(wallet_status.keys()) == [

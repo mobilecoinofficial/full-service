@@ -64,6 +64,15 @@ class ClientAsync:
         r = await self._req({"method": "get_network_status"})
         return r['network_status']
 
+    async def get_block(self, block_index):
+        r = await self._req({
+            "method": "get_block",
+            "params": {
+                "block_index": str(block_index),
+            }
+        })
+        return r['block'], r['block_contents']
+
     async def get_wallet_status(self):
         r = await self._req({"method": "get_wallet_status"})
         return r['wallet_status']
