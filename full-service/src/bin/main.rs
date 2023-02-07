@@ -277,6 +277,7 @@ fn validator_backed_full_service(
         WalletService::new(
             wallet_db,
             ledger_db,
+            None,
             conn_manager,
             network_state,
             Arc::new(move |fog_uris| -> Result<FogResolver, String> {
