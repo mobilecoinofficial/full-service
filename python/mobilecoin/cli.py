@@ -438,10 +438,13 @@ class CommandLineInterface:
         account_id = account['id']
 
         account_status = self.client.get_account_status(account_id)
-        unspent = Amount.from_storage_units(
-            account_status['balance_per_token'][str(token.token_id)]['unspent'],
-            token,
-        )
+        try:
+            unspent = Amount.from_storage_units(
+                account_status['balance_per_token'][str(token.token_id)]['unspent'],
+                token,
+            )
+        except KeyError:
+            unspent = Amount.from_storage_units(0, token)
 
         if fee is None:
             network_status = self.client.get_network_status()
