@@ -17,12 +17,12 @@ use crate::{
             confirmation_number::Confirmation,
             ledger::LedgerSearchResult,
             network_status::NetworkStatus,
-            public_address::PublicAddress,
             receiver_receipt::ReceiverReceipt,
             transaction_log::TransactionLog,
             tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::Txo,
             wallet_status::WalletStatus,
+            watcher::WatcherBlockInfo,
         },
     },
     service::receipt::ReceiptTransactionStatus,
@@ -119,14 +119,17 @@ pub enum JsonCommandResponse {
     get_block {
         block: Block,
         block_contents: BlockContents,
+        watcher_info: Option<WatcherBlockInfo>,
     },
     get_blocks {
         blocks: Vec<Block>,
         block_contents: Vec<BlockContents>,
+        watcher_infos: Vec<Option<WatcherBlockInfo>>,
     },
     get_recent_blocks {
         blocks: Vec<Block>,
         block_contents: Vec<BlockContents>,
+        watcher_infos: Vec<Option<WatcherBlockInfo>>,
         network_status: NetworkStatus,
     },
     get_confirmations {
@@ -195,7 +198,7 @@ pub enum JsonCommandResponse {
         validated: bool,
     },
     verify_address {
-        details: PublicAddress,
+        verified: bool,
     },
     version {
         string: String,

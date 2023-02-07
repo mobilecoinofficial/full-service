@@ -3,7 +3,10 @@
 //! API definition for ledger-related objects.
 
 use crate::{
-    json_rpc::v2::models::block::{Block, BlockContents},
+    json_rpc::v2::models::{
+        block::{Block, BlockContents},
+        watcher::WatcherBlockInfo,
+    },
     service::models::ledger::LedgerSearchResult as ServiceLedgerSearchResult,
 };
 use serde_derive::{Deserialize, Serialize};
@@ -29,6 +32,7 @@ pub struct LedgerSearchResult {
     pub block_contents: BlockContents,
     pub tx_out: Option<LedgerTxOutSearchResult>,
     pub key_image: Option<LedgerKeyImageSearchResult>,
+    pub watcher_info: Option<WatcherBlockInfo>,
 }
 
 impl From<&ServiceLedgerSearchResult> for LedgerSearchResult {
@@ -39,6 +43,7 @@ impl From<&ServiceLedgerSearchResult> for LedgerSearchResult {
                 block_contents,
                 block_contents_tx_out_index,
                 tx_out_global_index,
+                watcher_info,
             } => Self {
                 result_type: "TxOut".to_string(),
                 block: block.into(),
@@ -47,12 +52,14 @@ impl From<&ServiceLedgerSearchResult> for LedgerSearchResult {
                     block_contents_tx_out_index: block_contents_tx_out_index.to_string(),
                     global_tx_out_index: tx_out_global_index.to_string(),
                 }),
+                watcher_info: watcher_info.as_ref().map(Into::into),
                 ..Default::default()
             },
             ServiceLedgerSearchResult::KeyImage {
                 block,
                 block_contents,
                 block_contents_key_image_index,
+                watcher_info,
             } => Self {
                 result_type: "KeyImage".to_string(),
                 block: block.into(),
@@ -60,6 +67,7 @@ impl From<&ServiceLedgerSearchResult> for LedgerSearchResult {
                 key_image: Some(LedgerKeyImageSearchResult {
                     block_contents_key_image_index: block_contents_key_image_index.to_string(),
                 }),
+                watcher_info: watcher_info.as_ref().map(Into::into),
                 ..Default::default()
             },
         }

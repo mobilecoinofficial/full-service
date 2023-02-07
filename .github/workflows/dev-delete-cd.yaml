@@ -14,23 +14,23 @@ jobs:
     outputs:
       namespace: ${{ steps.meta.outputs.namespace }}
     steps:
-    - name: Generate version metadata
-      uses: mobilecoinofficial/gha-k8s-toolbox@v1
-      id: meta
-      with:
-        action: generate-metadata
-        prefix: fs
+      - name: Generate version metadata
+        uses: mobilecoinofficial/gha-k8s-toolbox@v1
+        id: meta
+        with:
+          action: generate-metadata
+          prefix: fs
 
   delete:
     needs:
-    - metadata
+      - metadata
     runs-on: [self-hosted, Linux, small]
     steps:
-    - name: Delete namespace
-      uses: mobilecoinofficial/gha-k8s-toolbox@v1
-      with:
-        action: namespace-delete
-        namespace: ${{ needs.metadata.outputs.namespace }}
-        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+      - name: Delete namespace
+        uses: mobilecoinofficial/gha-k8s-toolbox@v1
+        with:
+          action: namespace-delete
+          namespace: ${{ needs.metadata.outputs.namespace }}
+          rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+          rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+          rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}

@@ -19,6 +19,7 @@ The Full-Service Node provides ledger syncing and validation, account management
 
 * [License](#license)
 * [Usage and Documentation](#usage-and-documentation)
+* [Build and Run](#build-and-run-mob)
 * [Build and Run](#build-and-run)
 * [Docker Build and Run](#docker-build-and-run)
 * [Parameters](#parameters)
@@ -38,6 +39,63 @@ information.
 For documentation, usage, and API specification, please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
 
 For database encryption features, see [DATABASE.md](DATABASE.md).
+
+### Build and Run Mob
+
+You can build Full Service using the the mobilecoin `mob` tool. 
+
+**Prerequisites**
+- git
+- docker
+- a secret passphrase
+- bash (to run outside the `mob` container)
+
+**Instructions**
+1. Clone the full-service repository using git
+1. From the full-service project root, pull the submodule.
+    ```sh
+    git submodule update --init --recursive
+    ```
+1. Now that the submodule is pulled, you can use the `mob` tool by running it from the full-service project root
+    ```sh
+    ./mob prompt
+    ```
+
+ If you are operating on main or test net, these steps are unecessary; the build script will grab the relevant sigstruct.
+ If you don't have the consensus or ingest enclaves, you may want to build the mobilecoin network to get them.
+1. Create your attestation verifier seed
+    ```sh
+    MC_SEED=($(echo "<your secret phrase>" | sha256sum))
+    ```
+1. Buid the mobilecoin network
+    ```sh
+    cd mobilecoin
+    cargo build --release
+    ```
+
+1. Run the build script using the relevant network type (substitute `main` with `test` or `local` if appropriate)
+    ```sh
+    ./tools/build-fs.sh main
+    ```
+
+You can run full-service from within `mob prompt`, or exit the container to run it.
+-  From within the `mob` container, replacing `main` with the appropriate network type.
+     ```sh
+    ./tools/run-fs.sh main
+    ```
+- From outside the `mob` container, there are potentially extra steps
+    - If running local network, copy the `ingest-enclave.css` file from the mobilecoin network build to where you want the runscript to pick it up from
+    ** IMPORTANT: make sure you local instance of the local network is running before running full-service against it **
+    ```sh
+    cp ./target/docker/release/ingest-enclave.css ~/.mobilecoin/local
+    ``` 
+    - For any network, you'll need to set an environment variable before running the `run-fs.sh` script,  replacing `main` with the appropriate network type.
+    ```sh
+    export CARGO_TARGET_DIR=./target/docker
+    ./tools/run-fs.sh main
+    ```
+
+
 
 ### Build and Run
 
@@ -288,6 +346,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
 | `fog-ingest-enclave-css` | Path to the Fog ingest enclave sigstruct CSS file. | Needed in order to enable sending transactions to fog addresses. |
+| `allowed-origin`         | URL of the client for CORS headers. '\*' to allow all origins                                            | If not provided, no CORS headers will be set                     |
 
 ### Parameters as Environment Variables
 All available parameters can be set as Environment Variables. Parameters names are converted to `SCREAMING_SNAKE_CASE` and are prefixed with `MC_`. See `full-service --help` for the full list. CLI arguments take precedence over Environment Variables.
