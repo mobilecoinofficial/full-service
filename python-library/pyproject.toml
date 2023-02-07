@@ -12,10 +12,10 @@ license = "MIT"
 python = "^3.10"
 asyncio = "^3.4.3"
 aiohttp = "^3.8.3"
-rich = "^12.6.0"
+rich = "^13.0.0"
 
 [tool.poetry.dev-dependencies]
-black = "^22.8.0"
+black = "^23.0.0"
 mypy = "^0.991"
 pytest = "^7.2.0"
 MonkeyType = "^22.2.0"

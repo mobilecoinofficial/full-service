@@ -15,6 +15,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
 use mc_util_uri::FogUri;
+use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
 /// Service for interacting with the wallet
@@ -31,6 +32,9 @@ pub struct WalletService<
 
     /// Ledger database.
     pub ledger_db: LedgerDB,
+
+    /// Watcher database.
+    pub watcher_db: Option<WatcherDB>,
 
     /// Peer manager for consensus validators to query for network height.
     pub peer_manager: McConnectionManager<T>,
@@ -65,6 +69,7 @@ impl<
     pub fn new(
         wallet_db: Option<WalletDb>,
         ledger_db: LedgerDB,
+        watcher_db: Option<WatcherDB>,
         peer_manager: McConnectionManager<T>,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
@@ -86,6 +91,7 @@ impl<
         WalletService {
             wallet_db,
             ledger_db,
+            watcher_db,
             peer_manager,
             network_state,
             fog_resolver_factory,

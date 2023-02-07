@@ -46,7 +46,7 @@ jobs:
   build:
     runs-on: [self-hosted, Linux, large-cd]
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.21
+      image: mobilecoin/rust-sgx-base:v0.0.22
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -180,7 +180,7 @@ jobs:
       - metadata
       - deploy
     container:
-      image: mobilecoin/builder-install:v0.0.21
+      image: mobilecoin/builder-install:v0.0.22
     env:
       POETRY_HOME: /opt/poetry
       URL: http://full-service.${{ needs.metadata.outputs.namespace }}:9090/wallet/v2

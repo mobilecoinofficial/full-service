@@ -113,7 +113,7 @@ After you have confirmed that the `transaction_log` indicates that you sent the 
 2. This will return a response that has an array of confirmations. In most cases, there will only be 1, but if you created a multi-output transaction there will be more.
 
 ```
-$ curl -s localhost:9090/wallet -d '{"method": "get_confirmations", "params": {"account_id": "09edc0d0392c8b4c5924187304f4dbc88729d3dd2a03832b4d30e5328bdb5fa9", "transaction_log_id": "c3e516eb1b9813041a621ee505e34ed206bae81b9553b32dbf2c94605a5cea34"}, "jsonrpc": "2.0", "api_version": "2", "id": 1}' | jq
+$ curl -s localhost:9090/wallet -d '{"method": "get_confirmations", "params": {"account_id": "09edc0d0392c8b4c5924187304f4dbc88729d3dd2a03832b4d30e5328bdb5fa9", "transaction_log_id": "c3e516eb1b9813041a621ee505e34ed206bae81b9553b32dbf2c94605a5cea34"}, "jsonrpc": "2.0", "id": 1}' | jq
 
 {
   "method": "get_confirmations",

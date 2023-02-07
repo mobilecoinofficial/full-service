@@ -26,7 +26,6 @@ class Client:
     def _req(self, request_data):
         default_params = {
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
         }
         request_data = {**request_data, **default_params}
@@ -408,8 +407,33 @@ class Client:
 
     # Utility methods.
 
-    def poll_balance(self, account_id, min_block_height=None, seconds=10, poll_delay=1.0):
-        for _ in range(seconds):
+    @staticmethod
+    def poll(func, delay=1.0, timeout=10):
+        """
+        Repeatedly call the given function until it returns a result.
+        """
+        start = time.monotonic()
+        while True:
+            elapsed = time.monotonic() - start
+            if elapsed >= timeout:
+                raise TimeoutError('Polling timed out before succeeding.')
+            try:
+                result = func()
+            except ConnectionError:
+                result = None
+            if result is not None:
+                return result
+            time.sleep(delay)
+
+    def poll_balance(self, account_id, min_block_height=None, **kwargs):
+        """
+        Poll the balance endpoint for this account, until it reports as synced.
+
+        If the `min_block_height` argument is given, don't return until it is
+        synced above the given block height. This is a way to wait for a
+        submitted transaction to complete.
+        """
+        def func():
             balance = self.get_balance_for_account(account_id)
             if balance['is_synced']:
                 if (
@@ -417,9 +441,7 @@ class Client:
                     or int(balance['account_block_height']) >= min_block_height
                 ):
                     return balance
-            time.sleep(poll_delay)
-        else:
-            raise Exception('Could not sync account {}'.format(account_id))
+        return self.poll(func, **kwargs)
 
     def poll_gift_code_status(self, gift_code_b58, target_status, seconds=10, poll_delay=1.0):
         for _ in range(seconds):

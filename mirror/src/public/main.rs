@@ -29,7 +29,7 @@ use rocket::{
     config::{Config as RocketConfig, TlsConfig},
     data::ToByteUnit,
     http::Status,
-    launch, post,
+    post,
     response::Responder,
     routes,
     tokio::io::AsyncReadExt,
@@ -297,11 +297,9 @@ fn build_grpc_server(
         .channel_args(ch_builder.build_args())
         .bind_using_uri(&config.mirror_listen_uri, logger.clone());
 
-    let server = server_builder
+    server_builder
         .build()
-        .expect("Failed to build mirror GRPC server");
-
-    server
+        .expect("Failed to build mirror GRPC server")
 }
 
 /// Builds the rocket instance given the configuration.

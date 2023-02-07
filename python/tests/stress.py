@@ -61,7 +61,6 @@ class StressClient:
     async def _req(self, request_data):
         default_params = {
             "jsonrpc": "2.0",
-            "api_version": "2",
             "id": 1,
         }
         request_data = {**request_data, **default_params}

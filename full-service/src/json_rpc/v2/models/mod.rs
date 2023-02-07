@@ -14,3 +14,4 @@ pub mod transaction_log;
 pub mod tx_proposal;
 pub mod txo;
 pub mod wallet_status;
+pub mod watcher;

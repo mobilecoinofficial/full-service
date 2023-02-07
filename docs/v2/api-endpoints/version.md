@@ -16,7 +16,6 @@ description: 'Get the version number of the software.'
 {
   "method": "version",
   "jsonrpc": "2.0",
-  "api_version": "2",
   "id": 1
 }
 ```
