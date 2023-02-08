@@ -95,13 +95,15 @@ class ClientAsync:
             },
         })
 
-    async def create_account(self, name=None):
-        r = await self._req({
-            "method": "create_account",
-            "params": {
-                "name": name,
+    async def create_account(self, name=None, fog_report_url=None, fog_authority_spki=None):
+        params = {"name": name}
+        if fog_report_url is not None and fog_authority_spki is not None:
+            params['fog_info'] = {
+                "report_url": fog_report_url,
+                "report_id": "",
+                "authority_spki": fog_authority_spki,
             }
-        })
+        r = await self._req({"method": "create_account", "params": params})
         return r['account']
 
     async def import_account(

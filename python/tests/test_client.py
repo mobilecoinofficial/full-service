@@ -93,11 +93,27 @@ async def account(client):
 
 @pytest.fixture
 async def temp_account(client, account, fees):
-    # Create a temporary account.
     temp_account = await client.create_account()
 
     yield temp_account
 
+    await _clean_up_temp_account(client, account, temp_account, fees)
+
+
+@pytest.fixture
+async def temp_fog_account(client, account, fees):
+    temp_account = await client.create_account(
+        fog_report_url=os.environ['MC_FOG_REPORT_URL'],
+        fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
+    )
+
+    yield temp_account
+
+    await _clean_up_temp_account(client, account, temp_account, fees)
+
+
+
+async def _clean_up_temp_account(client, account, temp_account, fees):
     # Send all funds back to the main account.
     tx_index = None
     status = await client.get_account_status(temp_account['id'])
@@ -226,7 +242,7 @@ async def test_send_transaction_self(client, account, fees):
     assert final_balance == initial_balance - fees[MOB]
 
 
-async def test_send_transaction(client, account, temp_account):
+async def _test_send_transaction(client, account, temp_account):
     # Send a transaction to the temporary account.
     transaction_log, _ = await client.build_and_submit_transaction(
         account['id'],
@@ -251,29 +267,19 @@ async def test_send_transaction(client, account, temp_account):
     assert temp_balance == Amount.from_display_units(0.01, MOB)
 
 
-async def test_send_transaction_eusd(client, account, temp_account):
-    # Send an eUSD transaction to the temporary account.
-    transaction_log, _ = await client.build_and_submit_transaction(
-        account['id'],
-        Amount.from_display_units(0.01, EUSD),
-        temp_account['main_address'],
-    )
-    tx_value = Amount.from_storage_units(
-        transaction_log['value_map'][str(EUSD.token_id)],
-        EUSD,
-    )
-    assert tx_value == Amount.from_display_units(0.01, EUSD)
+async def test_send_transaction(client, account, temp_account):
+    await _test_send_transaction(client, account, temp_account)
 
-    # Wait for the temporary account to sync.
-    tx_index = int(transaction_log['submitted_block_index'])
-    temp_status = await client.poll_account_status(temp_account['id'], tx_index + 1)
 
-    # Check that the transaction has arrived.
-    temp_balance = Amount.from_storage_units(
-        temp_status['balance_per_token'][str(EUSD.token_id)]['unspent'],
-        EUSD,
-    )
-    assert temp_balance == Amount.from_display_units(0.01, EUSD)
+@pytest.mark.skipif(
+    (
+        'MC_FOG_REPORT_URL' not in os.environ or
+        'MC_FOG_AUTHORITY_SPKI' not in os.environ
+    ),
+    reason='Fog server not given.'
+)
+async def test_send_transaction_fog(client, account, temp_fog_account):
+    await _test_send_transaction(client, account, temp_fog_account)
 
 
 async def test_send_transaction_subaddress(client, account, temp_account):

@@ -65,10 +65,20 @@ $ mv mobilecoin_secret_mnemonic_d7efc1.json /path/to/safe/location
 ```
 
 
-## Run unittests
+## Run unittests and integration tests.
 
-Set an environment variable to tell the unittests where your wallet export file is, then run the unittests.
+Set an environment variable to tell the unittests where your wallet export file is.
 ```
-$ export MC_WALLET_FILE=/path/to/safe/location/mobilecoin_secret_mnemonic_d7efc1.json.
-$ poetry run pytest
+$ export MC_WALLET_FILE='/path/to/safe/location/mobilecoin_secret_mnemonic_d7efc1.json'
+```
+
+Optionally set environment variables to run fog tests.
+```
+$ export MC_FOG_REPORT_URL='fog://fog.test.mobilecoin.com'
+$ export MC_FOG_AUTHORITY_SPKI='MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=='
+```
+
+With full-service running, start the integration tests.
+```
+$ poetry run pytest -v
 ```
