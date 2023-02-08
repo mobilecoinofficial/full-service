@@ -166,7 +166,7 @@ fn consensus_backed_full_service(
     };
 
     // Optionally instantiate the watcher sync thread and get the watcher_db handle.
-    let (watcher_db, _watcher_sync_thread) = match &config.watcher_db {
+    let (watcher_db, watcher_sync_thread) = match &config.watcher_db {
         Some(watcher_db_path) => {
             log::info!(logger, "Launching watcher.");
 
@@ -213,6 +213,7 @@ fn consensus_backed_full_service(
     consensus_backed_rocket(rocket_config, config.allowed_origin.clone())
         .manage(WalletState { service })
         .manage(ledger_sync_service_thread)
+        .manage(watcher_sync_thread)
 }
 
 fn validator_backed_full_service(
