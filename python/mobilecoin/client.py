@@ -95,7 +95,12 @@ class ClientAsync:
             },
         })
 
-    async def create_account(self, name=None, fog_report_url=None, fog_authority_spki=None):
+    async def create_account(
+        self,
+        name=None,
+        fog_report_url=None,
+        fog_authority_spki=None,
+    ):
         params = {"name": name}
         if fog_report_url is not None and fog_authority_spki is not None:
             params['fog_info'] = {
@@ -113,7 +118,8 @@ class ClientAsync:
         name=None,
         first_block_index=None,
         next_subaddress_index=None,
-        fog_keys=None,
+        fog_report_url=None,
+        fog_authority_spki=None,
     ):
         params = {
             'mnemonic': mnemonic,
@@ -125,8 +131,12 @@ class ClientAsync:
             params['first_block_index'] = str(int(first_block_index))
         if next_subaddress_index is not None:
             params['next_subaddress_index'] = str(int(next_subaddress_index))
-        if fog_keys is not None:
-            params.update(fog_keys)
+        if fog_report_url is not None and fog_authority_spki is not None:
+            params['fog_info'] = {
+                "report_url": fog_report_url,
+                "report_id": "",
+                "authority_spki": fog_authority_spki,
+            }
 
         r = await self._req({
             "method": "import_account",

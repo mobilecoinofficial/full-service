@@ -58,6 +58,9 @@ class CommandLineInterface:
         # Create account.
         self.create_args = command_sp.add_parser('create', help='Create a new account.')
         self.create_args.add_argument('-n', '--name', help='Account name.')
+        self.create_args.add_argument('--fog-report-url', help='Fog report server URL.')
+        self.create_args.add_argument('--fog-authority-spki',
+                                      help='Fog authority subject public key info')
 
         # Rename account.
         self.rename_args = command_sp.add_parser('rename', help='Change account name.')
@@ -264,9 +267,11 @@ class CommandLineInterface:
             else:
                 params = {}
 
+                if name is not None:
+                    params['name'] = name
+
                 for field in [
-                    'mnemonic',  # Key derivation version 2+.
-                    'entropy',  # Key derivation version 1.
+                    'mnemonic',
                     'name',
                     'first_block_index',
                     'next_subaddress_index',
@@ -276,18 +281,13 @@ class CommandLineInterface:
                         params[field] = value
 
                 if 'account_key' in data:
-                    params['fog_keys'] = {}
                     for field in [
                         'fog_report_url',
-                        'fog_report_id',
                         'fog_authority_spki',
                     ]:
                         value = data['account_key'].get(field)
                         if value is not None:
-                            params['fog_keys'][field] = value
-
-                if name is not None:
-                    params['name'] = name
+                            params[field] = value
 
                 account = self.client.import_account(**params)
 
