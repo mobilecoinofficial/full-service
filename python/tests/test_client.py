@@ -356,3 +356,60 @@ async def test_send_transaction_multiple_outputs(client, source_account, account
             MOB,
         )
         assert balance == Amount.from_display_units(0.01, MOB)
+
+
+async def test_build_transaction_multiple_outputs(client, source_account):
+    temp_account_1 = await account_factory.create()
+    temp_account_2 = await account_factory.create()
+
+    tx_proposal, _ = await client.build_transaction(
+        source_account['id'],
+        {
+            temp_account_1['main_address']: Amount.from_display_units(0.01, MOB),
+            temp_account_2['main_address']: Amount.from_display_units(0.01, MOB),
+        },
+    )
+    transaction_log = await client.submit_transaction(tx_proposal, source_account['id'])
+
+    # Wait for the temporary accounts to sync.
+    tx_index = int(transaction_log['submitted_block_index'])
+    statuses = await asyncio.gather(
+        client.poll_account_status(temp_account_1['id'], tx_index + 1),
+        client.poll_account_status(temp_account_2['id'], tx_index + 1),
+    )
+
+    # Check that the transactions have arrived.
+    for status in statuses:
+        balance = Amount.from_storage_units(
+            status['balance_per_token'][str(MOB.token_id)]['unspent'],
+            MOB,
+        )
+        assert balance == Amount.from_display_units(0.01, MOB)
+
+
+async def test_build_burn_transaction(client, source_account, fees):
+    # Check the initial balance.
+    status = await client.get_account_status(source_account['id'])
+    initial_balance = Amount.from_storage_units(
+        status['balance_per_token'][str(MOB.token_id)]['unspent'],
+        MOB,
+    )
+
+    # Build and submit a burn transaction.
+    burn_amount = Amount.from_display_units(0.0004, MOB)
+    tx_proposal, _ = await client.build_burn_transaction(
+        source_account['id'],
+        burn_amount
+    )
+    transaction_log = await client.submit_transaction(tx_proposal, source_account['id'])
+
+    # Wait for the account to sync.
+    tx_index = int(transaction_log['submitted_block_index'])
+    status = await client.poll_account_status(source_account['id'], tx_index + 1)
+
+    # Check that the funds are missing.
+    final_balance = Amount.from_storage_units(
+        status['balance_per_token'][str(MOB.token_id)]['unspent'],
+        MOB,
+    )
+    assert final_balance == initial_balance - burn_amount - fees[MOB]

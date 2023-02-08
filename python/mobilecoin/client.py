@@ -241,6 +241,20 @@ class ClientAsync:
         })
         return r['tx_proposal'], r['transaction_log_id']
 
+    async def build_burn_transaction(self, account_id, amount, redemption_memo_hex=None):
+        r = await self._req({
+            "method": "build_burn_transaction",
+            "params": {
+                "account_id": account_id,
+                "amount": {
+                    "value": str(amount.value),
+                    "token_id": str(amount.token.token_id)
+                },
+                "redemption_memo_hex": redemption_memo_hex,
+            }
+        })
+        return r['tx_proposal'], r['transaction_log_id']
+
     async def submit_transaction(self, tx_proposal, account_id=None):
         r = await self._req({
             "method": "submit_transaction",
@@ -253,10 +267,10 @@ class ClientAsync:
 
     async def build_and_submit_transaction(
         self,
-        account_id: str,
-        amount: Amount,
-        to_address: str,
-        fee: Optional[Amount] = None,
+        account_id,
+        amount,
+        to_address,
+        fee=None,
     ):
         params = {
             "account_id": account_id,
