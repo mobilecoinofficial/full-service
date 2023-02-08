@@ -5,7 +5,7 @@
 # RUSTFLAGS="-C instrument-coverage" \
 
 if ! [[ -f "$(pwd)/consensus-enclave.css" ]]; then
-  echo "Please copy the consensus enclave to $(pwd)"
+  echo "Please copy the consensus-enclave.css to $(pwd)"
   exit 1
 fi
 
