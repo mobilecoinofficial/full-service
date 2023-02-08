@@ -130,7 +130,7 @@ case "${net}" in
         if [[ -z "${offline}" ]]
         then
             MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
-            MC_TX_SOURCE_URL="file:///home/$USER/full-service/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-0,file:///home/$USER/full-service/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-1"
+            MC_TX_SOURCE_URL="file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-0,file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-1"
         fi
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
