@@ -629,7 +629,7 @@ class CommandLineInterface:
 
         addresses = self.client.get_addresses(account['id'], limit=1000)
         addresses = list(addresses.values())
-        addresses.sort(key=lambda a: a['subaddress_index'])
+        addresses.sort(key=lambda a: int(a['subaddress_index']))
 
         for address in addresses:
             address_status = self.client.get_address_status(address['public_address_b58'])

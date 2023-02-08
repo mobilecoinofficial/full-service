@@ -18,6 +18,7 @@ EUSD = get_token('EUSD')
 # Enable debug logging during unittests.
 client_log.setLevel('DEBUG')
 
+
 # In order to import just one wallet for the whole test session, we need to set the
 # asyncio-pytest event loop to session scope.
 @pytest.fixture(scope="session")
@@ -273,3 +274,36 @@ async def test_send_transaction_eusd(client, account, temp_account):
         EUSD,
     )
     assert temp_balance == Amount.from_display_units(0.01, EUSD)
+
+
+async def test_send_transaction_subaddress(client, account, temp_account):
+    # Create a new address for the temporary account.
+    address = await client.assign_address_for_account(temp_account['id'])
+    address = address['public_address_b58']
+
+    # Send a transaction to the temporary account.
+    transaction_log, _ = await client.build_and_submit_transaction(
+        account['id'],
+        Amount.from_display_units(0.01, MOB),
+        address,
+    )
+
+    # Wait for the temporary account to sync.
+    tx_index = int(transaction_log['submitted_block_index'])
+    temp_status = await client.poll_account_status(temp_account['id'], tx_index + 1)
+    print(temp_status)
+
+    # Check that the transaction has arrived.
+    temp_balance = Amount.from_storage_units(
+        temp_status['balance_per_token'][str(MOB.token_id)]['unspent'],
+        MOB,
+    )
+    assert temp_balance == Amount.from_display_units(0.01, MOB)
+
+    # The subaddress balance also shows the transaction.
+    subaddress_status = await client.get_address_status(address)
+    subaddress_balance = Amount.from_storage_units(
+        subaddress_status['balance_per_token'][str(MOB.token_id)]['unspent'],
+        MOB,
+    )
+    assert subaddress_balance == Amount.from_display_units(0.01, MOB)

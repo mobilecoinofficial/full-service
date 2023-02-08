@@ -174,6 +174,19 @@ class ClientAsync:
             },
         })
 
+    async def assign_address_for_account(self, account_id, metadata=None):
+        if metadata is None:
+            metadata = ''
+
+        r = await self._req({
+            "method": "assign_address_for_account",
+            "params": {
+                "account_id": account_id,
+                "metadata": metadata,
+            },
+        })
+        return r['address']
+
     async def get_transaction_logs(
         self,
         account_id,
