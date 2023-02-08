@@ -50,7 +50,7 @@ async def fees(client):
 
 
 @pytest.fixture(scope='session')
-async def account(client):
+async def source_account(client):
     """
     Import the account specified by the MC_WALLET_FILE environment variable,
     and return its account id.
@@ -92,28 +92,38 @@ async def account(client):
 
 
 @pytest.fixture
-async def temp_account(client, account, fees):
-    temp_account = await client.create_account()
+async def account_factory(client, source_account, fees):
+    class AccountFactory:
+        def __init__(self):
+            self.temp_accounts = []
 
-    yield temp_account
+        async def create(self):
+            temp_account = await client.create_account()
+            self.temp_accounts.append(temp_account)
+            return temp_account
 
-    await _clean_up_temp_account(client, account, temp_account, fees)
+        async def create_fog(self):
+            temp_fog_account = await client.create_account(
+                fog_report_url=os.environ['MC_FOG_REPORT_URL'],
+                fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
+            )
+            self.temp_accounts.append(temp_fog_account)
+            return temp_fog_account
+
+        async def cleanup(self):
+            await asyncio.gather(*(
+                _clean_up_temp_account(client, source_account, temp_account, fees)
+                for temp_account in self.temp_accounts
+            ))
+
+    account_factory = AccountFactory()
+
+    yield account_factory
+
+    await account_factory.cleanup()
 
 
-@pytest.fixture
-async def temp_fog_account(client, account, fees):
-    temp_account = await client.create_account(
-        fog_report_url=os.environ['MC_FOG_REPORT_URL'],
-        fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
-    )
-
-    yield temp_account
-
-    await _clean_up_temp_account(client, account, temp_account, fees)
-
-
-
-async def _clean_up_temp_account(client, account, temp_account, fees):
+async def _clean_up_temp_account(client, source_account, temp_account, fees):
     # Send all funds back to the main account.
     tx_index = None
     status = await client.get_account_status(temp_account['id'])
@@ -124,7 +134,7 @@ async def _clean_up_temp_account(client, account, temp_account, fees):
             transaction_log, _ = await client.build_and_submit_transaction(
                 temp_account['id'],
                 send_amount,
-                account['main_address'],
+                source_account['main_address'],
             )
             tx_index = int(transaction_log['submitted_block_index'])
 
@@ -188,8 +198,8 @@ async def test_wallet_status(client):
     ]
 
 
-async def test_account_status(client, account):
-    status = await client.get_account_status(account['id'])
+async def test_account_status(client, source_account):
+    status = await client.get_account_status(source_account['id'])
     assert sorted(status.keys()) == [
         'account',
         'balance_per_token',
@@ -210,9 +220,9 @@ async def test_account_status(client, account):
     ]
 
 
-async def test_send_transaction_self(client, account, fees):
+async def test_send_transaction_self(client, source_account, fees):
     # Check the initial balance.
-    status = await client.get_account_status(account['id'])
+    status = await client.get_account_status(source_account['id'])
     initial_balance = Amount.from_storage_units(
         status['balance_per_token'][str(MOB.token_id)]['unspent'],
         MOB,
@@ -220,9 +230,9 @@ async def test_send_transaction_self(client, account, fees):
 
     # Send a transaction from the account back to itself.
     transaction_log, _ = await client.build_and_submit_transaction(
-        account['id'],
+        source_account['id'],
         Amount.from_display_units(0.01, MOB),
-        account['main_address'],
+        source_account['main_address'],
     )
     tx_value = Amount.from_storage_units(
         transaction_log['value_map'][str(MOB.token_id)],
@@ -232,7 +242,7 @@ async def test_send_transaction_self(client, account, fees):
 
     # Wait for the account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
-    status = await client.poll_account_status(account['id'], tx_index + 1)
+    status = await client.poll_account_status(source_account['id'], tx_index + 1)
 
     # Check that the balance has decreased by the fee amount.
     final_balance = Amount.from_storage_units(
@@ -267,8 +277,9 @@ async def _test_send_transaction(client, account, temp_account):
     assert temp_balance == Amount.from_display_units(0.01, MOB)
 
 
-async def test_send_transaction(client, account, temp_account):
-    await _test_send_transaction(client, account, temp_account)
+async def test_send_transaction(client, source_account, account_factory):
+    temp_account = await account_factory.create()
+    await _test_send_transaction(client, source_account, temp_account)
 
 
 @pytest.mark.skipif(
@@ -278,18 +289,21 @@ async def test_send_transaction(client, account, temp_account):
     ),
     reason='Fog server not given.'
 )
-async def test_send_transaction_fog(client, account, temp_fog_account):
-    await _test_send_transaction(client, account, temp_fog_account)
+async def test_send_transaction_fog(client, source_account, account_factory):
+    temp_fog_account = await account_factory.create_fog()
+    await _test_send_transaction(client, source_account, temp_fog_account)
 
 
-async def test_send_transaction_subaddress(client, account, temp_account):
+async def test_send_transaction_subaddress(client, source_account, account_factory):
+    temp_account = await account_factory.create()
+
     # Create a new address for the temporary account.
     address = await client.assign_address_for_account(temp_account['id'])
     address = address['public_address_b58']
 
     # Send a transaction to the temporary account.
     transaction_log, _ = await client.build_and_submit_transaction(
-        account['id'],
+        source_account['id'],
         Amount.from_display_units(0.01, MOB),
         address,
     )
@@ -313,3 +327,32 @@ async def test_send_transaction_subaddress(client, account, temp_account):
         MOB,
     )
     assert subaddress_balance == Amount.from_display_units(0.01, MOB)
+
+
+async def test_send_transaction_multiple_outputs(client, source_account, account_factory):
+    temp_account_1 = await account_factory.create()
+    temp_account_2 = await account_factory.create()
+
+    tx_proposal, _ = await client.build_transaction(
+        source_account['id'],
+        {
+            temp_account_1['main_address']: Amount.from_display_units(0.01, MOB),
+            temp_account_2['main_address']: Amount.from_display_units(0.01, MOB),
+        },
+    )
+    transaction_log = await client.submit_transaction(tx_proposal, source_account['id'])
+
+    # Wait for the temporary accounts to sync.
+    tx_index = int(transaction_log['submitted_block_index'])
+    statuses = await asyncio.gather(
+        client.poll_account_status(temp_account_1['id'], tx_index + 1),
+        client.poll_account_status(temp_account_2['id'], tx_index + 1),
+    )
+
+    # Check that the transactions have arrived.
+    for status in statuses:
+        balance = Amount.from_storage_units(
+            status['balance_per_token'][str(MOB.token_id)]['unspent'],
+            MOB,
+        )
+        assert balance == Amount.from_display_units(0.01, MOB)

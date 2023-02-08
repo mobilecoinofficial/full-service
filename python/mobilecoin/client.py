@@ -219,6 +219,38 @@ class ClientAsync:
         })
         return r['transaction_log_map']
 
+    async def build_transaction(self, account_id, addresses_and_amounts, tombstone_block=None, fee=None):
+        params = {
+            "account_id": account_id,
+            "addresses_and_amounts": [],
+        }
+        for (address, amount) in addresses_and_amounts.items():
+            amount_json = {
+                "value": str(amount.value),
+                "token_id": str(amount.token.token_id),
+            }
+            params['addresses_and_amounts'].append((address, amount_json))
+        if fee is not None:
+            params['fee_value'] = str(fee.value)
+            params['fee_token_id'] = str(fee.token.token_id)
+        if tombstone_block is not None:
+            params['tombstone_block'] = str(int(tombstone_block))
+        r = await self._req({
+            "method": "build_transaction",
+            "params": params,
+        })
+        return r['tx_proposal'], r['transaction_log_id']
+
+    async def submit_transaction(self, tx_proposal, account_id=None):
+        r = await self._req({
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": account_id,
+            },
+        })
+        return r['transaction_log']
+
     async def build_and_submit_transaction(
         self,
         account_id: str,
