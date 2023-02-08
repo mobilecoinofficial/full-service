@@ -49,9 +49,7 @@ impl TryFrom<TxoStatus> for db::txo::TxoStatus {
         match status {
             TxoStatus::Orphaned => Ok(db::txo::TxoStatus::Orphaned),
             TxoStatus::Pending => Ok(db::txo::TxoStatus::Pending),
-            TxoStatus::Secreted => {
-                Err("TxoStatus::Secreted is not a valid db::txo::TxoStatus".to_string())
-            }
+            TxoStatus::Secreted => Ok(db::txo::TxoStatus::Secreted),
             TxoStatus::Spent => Ok(db::txo::TxoStatus::Spent),
             TxoStatus::Unspent => Ok(db::txo::TxoStatus::Unspent),
         }
@@ -66,7 +64,8 @@ impl From<&db::txo::TxoStatus> for TxoStatus {
             db::txo::TxoStatus::Spent => TxoStatus::Spent,
             db::txo::TxoStatus::Unspent => TxoStatus::Unspent,
             db::txo::TxoStatus::Unverified => TxoStatus::Unspent,
-            db::txo::TxoStatus::Created | db::txo::TxoStatus::Secreted => todo!(),
+            db::txo::TxoStatus::Secreted => TxoStatus::Secreted,
+            db::txo::TxoStatus::Created => TxoStatus::Unspent,
         }
     }
 }
