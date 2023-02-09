@@ -10,8 +10,10 @@ use crate::{
     },
     error::SyncError,
     service::{
-        models::tx_proposal::TxProposal, sync::sync_account_next_chunk,
-        transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder,
+        models::tx_proposal::{TxProposal, UnsignedTxProposal},
+        sync::sync_account_next_chunk,
+        transaction::TransactionMemo,
+        transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
 };
@@ -441,6 +443,42 @@ pub fn create_test_minted_and_change_txos(
         )
         .unwrap(),
         tx_proposal,
+    )
+}
+
+/// Creates an unsigned transaction proposal
+///
+/// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
+pub fn create_test_unsigned_txproposal_and_log(
+    src_account_key: AccountKey,
+    recipient: PublicAddress,
+    value: u64,
+    wallet_db: WalletDb,
+    ledger_db: LedgerDB,
+) -> (TransactionLog, UnsignedTxProposal) {
+    let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+    // Use the builder to create valid TxOuts for this account
+    let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
+        AccountID::from(&src_account_key).to_string(),
+        ledger_db,
+        get_resolver_factory(&mut rng).unwrap(),
+    );
+
+    let conn = wallet_db.get_conn().unwrap();
+    builder.add_recipient(recipient, value, Mob::ID).unwrap();
+    builder.select_txos(&conn, None).unwrap();
+    builder.set_tombstone(0).unwrap();
+    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+
+    (
+        TransactionLog::log_built(
+            &unsigned_tx_proposal,
+            &AccountID::from(&src_account_key),
+            &conn,
+        )
+        .unwrap(),
+        unsigned_tx_proposal,
     )
 }
 
