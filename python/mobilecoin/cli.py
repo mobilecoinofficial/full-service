@@ -12,6 +12,10 @@ from .client import (
 from .token import Amount, get_token, TOKENS
 
 
+def main():
+    CommandLineInterface().main()
+
+
 class CommandLineInterface:
 
     def main(self):
