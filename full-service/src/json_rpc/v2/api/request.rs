@@ -139,6 +139,9 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
+    get_address_details {
+        address: String,
+    },
     get_address_for_account {
         account_id: String,
         index: i64,
