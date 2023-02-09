@@ -1576,9 +1576,9 @@ mod tests {
         service::{transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
-            create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            create_test_received_txo, create_test_txo_for_recipient,
+            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1633,6 +1633,7 @@ mod tests {
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
+        let conn = wallet_db.get_conn().unwrap();
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
             None,
@@ -1641,7 +1642,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -1673,7 +1674,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
         assert_eq!(unspent.len(), 1);
@@ -1682,7 +1683,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
+        let (mut transaction_log, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1690,12 +1691,57 @@ mod tests {
             ledger_db.clone(),
         );
 
-        let associated_txos = transaction_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
-
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let input_txo = associated_txos.inputs.first().unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
+        assert_eq!(input_txo.status(&conn).unwrap(), TxoStatus::Unspent);
+        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Created);
+        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
+
+        let tx_proposal = unsigned_tx_proposal.sign(&alice_account_key, None).unwrap();
+        // There should be 2 outputs, one to dest and one change
+        assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
+        transaction_log = TransactionLog::log_signed(
+            tx_proposal.clone(),
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let input_txo = associated_txos.inputs.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
+        // assert_eq!(input_txo.status(&conn).unwrap(),TxoStatus::Unspent);
+        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Created);
+        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
+
+        transaction_log = TransactionLog::log_submitted(
+            &tx_proposal,
+            10,
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let input_txo = associated_txos.inputs.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
+        assert_eq!(input_txo.status(&conn).unwrap(), TxoStatus::Pending);
+        assert_eq!(minted_txo.status(&conn).unwrap(), TxoStatus::Pending);
+        assert_eq!(change_txo.status(&conn).unwrap(), TxoStatus::Pending);
+
+        // TODO: sync account????
+        // let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        // let input_txo = associated_txos.inputs.first().unwrap();
+        // let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        // let (change_txo, _) = associated_txos.change.first().unwrap();
+        // assert_eq!(input_txo.status(&conn).unwrap(),TxoStatus::Spent);
+        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Secreted);
+        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
 
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
