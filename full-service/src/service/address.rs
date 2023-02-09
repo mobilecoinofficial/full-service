@@ -8,8 +8,9 @@ use crate::{
         models::AssignedSubaddress, transaction, WalletDbError,
     },
     service::WalletService,
-    util::b58::b58_decode_public_address,
+    util::b58::{b58_decode_public_address, B58Error},
 };
+use mc_account_keys::PublicAddress;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 
@@ -24,6 +25,9 @@ pub enum AddressServiceError {
 
     /// Diesel Error: {0}
     Diesel(diesel::result::Error),
+
+    /// B58 Error
+    B58(B58Error),
 }
 
 impl From<WalletDbError> for AddressServiceError {
@@ -35,6 +39,12 @@ impl From<WalletDbError> for AddressServiceError {
 impl From<diesel::result::Error> for AddressServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+impl From<B58Error> for AddressServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
     }
 }
 
@@ -67,7 +77,7 @@ pub trait AddressService {
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
-    fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError>;
+    fn verify_address(&self, public_address: &str) -> Result<PublicAddress, AddressServiceError>;
 }
 
 impl<T, FPR> AddressService for WalletService<T, FPR>
@@ -123,11 +133,8 @@ where
         )?)
     }
 
-    fn verify_address(&self, public_address: &str) -> Result<bool, AddressServiceError> {
-        match b58_decode_public_address(public_address) {
-            Ok(_) => Ok(true),
-            Err(_) => Ok(false),
-        }
+    fn verify_address(&self, public_address: &str) -> Result<PublicAddress, AddressServiceError> {
+        Ok(b58_decode_public_address(public_address)?)
     }
 }
 
@@ -223,9 +230,7 @@ mod tests {
         let public_address_b58 =
             b58_encode_public_address(&public_address).expect("Could not encode public address");
 
-        assert!(service
-            .verify_address(&public_address_b58)
-            .expect("Could not verify address"));
+        assert!(service.verify_address(&public_address_b58).is_ok());
     }
 
     // An improperly encoded address should fail.
@@ -240,17 +245,13 @@ mod tests {
 
         // Empty string should fail
         let public_address_b58 = "";
-        assert!(!service
-            .verify_address(&public_address_b58)
-            .expect("Could not verify address"));
+        assert!(service.verify_address(public_address_b58).is_err());
 
         // Basic B58 encoding of public address should fail (should include a checksum)
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(rng.next_u64());
         let public_address_b58 =
             bs58::encode(mc_util_serial::encode(&public_address)).into_string();
-        assert!(!service
-            .verify_address(&public_address_b58)
-            .expect("Could not verify address"));
+        assert!(service.verify_address(&public_address_b58).is_err());
     }
 }
