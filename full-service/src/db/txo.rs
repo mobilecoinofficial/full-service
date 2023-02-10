@@ -1517,13 +1517,30 @@ impl TxoModel for Txo {
                     .or(transaction_output_txos::txo_id.eq(&self.id)),
             )
             .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null())
             .filter(transaction_logs::failed.eq(false))
             .select(count(transaction_logs::id))
             .first(conn)?;
 
-        let pending = num_pending_logs > 0;
+        if num_pending_logs > 0 {
+            return Ok(TxoStatus::Pending);
+        }
 
-        if pending {
+        let num_created_logs: i64 = transaction_logs::table
+            .inner_join(transaction_input_txos::table)
+            .inner_join(transaction_output_txos::table)
+            .filter(
+                transaction_input_txos::txo_id
+                    .eq(&self.id)
+                    .or(transaction_output_txos::txo_id.eq(&self.id)),
+            )
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_null())
+            .filter(transaction_logs::failed.eq(false))
+            .select(count(transaction_logs::id))
+            .first(conn)?;
+
+        if num_created_logs > 0 {
             return Ok(TxoStatus::Pending);
         }
 
