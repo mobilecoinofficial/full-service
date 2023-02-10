@@ -17,4 +17,5 @@ SGX_MODE=SW
 IAS_MODE=DEV
 CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")
 export SGX_MODE IAS_MODE CONSENSUS_ENCLAVE_CSS
+
 cargo test $1
