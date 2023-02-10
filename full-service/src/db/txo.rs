@@ -1007,8 +1007,7 @@ impl TxoModel for Txo {
             );
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query
-                .filter(transaction_logs::account_id.eq(account_id_hex))
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
         }
 
         Ok(query.select(txos::all_columns).distinct().load(conn)?)
@@ -1497,7 +1496,7 @@ impl TxoModel for Txo {
 
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError> {
         use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
+            txos, transaction_input_txos, transaction_logs, transaction_output_txos,
         };
 
         if self.spent_block_index.is_some() {
@@ -1522,22 +1521,22 @@ impl TxoModel for Txo {
             return Ok(TxoStatus::Pending);
         }
 
+        // TODO: this should probably be checked after other statuses
         let num_created_logs: i64 = transaction_logs::table
-            .inner_join(transaction_input_txos::table)
             .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::txo_id.eq(&self.id))
             .filter(
-                transaction_input_txos::txo_id
-                    .eq(&self.id)
-                    .or(transaction_output_txos::txo_id.eq(&self.id)),
+                transaction_logs::failed.eq(true)
+                    .or(transaction_logs::failed.eq(false)
+                            .and(transaction_logs::finalized_block_index.is_null())
+                            .and(transaction_logs::submitted_block_index.is_null())
+                    )
             )
-            .filter(transaction_logs::finalized_block_index.is_null())
-            .filter(transaction_logs::submitted_block_index.is_null())
-            .filter(transaction_logs::failed.eq(false))
             .select(count(transaction_logs::id))
             .first(conn)?;
 
         if num_created_logs > 0 {
-            return Ok(TxoStatus::Pending);
+            return Ok(TxoStatus::Created);
         }
 
         if self.subaddress_index.is_some() && self.key_image.is_some() {
