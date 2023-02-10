@@ -1496,7 +1496,7 @@ impl TxoModel for Txo {
 
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError> {
         use crate::db::schema::{
-            txos, transaction_input_txos, transaction_logs, transaction_output_txos,
+            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
         };
 
         if self.spent_block_index.is_some() {
@@ -1521,16 +1521,35 @@ impl TxoModel for Txo {
             return Ok(TxoStatus::Pending);
         }
 
+        let num_secreted_logs: i64 = transaction_logs::table
+            .left_join(transaction_output_txos::table)
+            .left_join(txos::table.on(transaction_output_txos::txo_id.eq(txos::id)))
+            .filter(transaction_output_txos::txo_id.eq(&self.id))
+            .filter(transaction_output_txos::is_change.eq(false))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_not_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null())
+            .filter(not(transaction_logs::account_id
+                .nullable()
+                .eq(txos::account_id)))
+            .select(count(transaction_logs::id))
+            .first(conn)?;
+
+        if num_secreted_logs > 0 {
+            return Ok(TxoStatus::Secreted);
+        }
+
         // TODO: this should probably be checked after other statuses
         let num_created_logs: i64 = transaction_logs::table
             .inner_join(transaction_output_txos::table)
             .filter(transaction_output_txos::txo_id.eq(&self.id))
             .filter(
-                transaction_logs::failed.eq(true)
-                    .or(transaction_logs::failed.eq(false)
-                            .and(transaction_logs::finalized_block_index.is_null())
-                            .and(transaction_logs::submitted_block_index.is_null())
-                    )
+                transaction_logs::failed
+                    .eq(true)
+                    .or(transaction_logs::failed
+                        .eq(false)
+                        .and(transaction_logs::finalized_block_index.is_null())
+                        .and(transaction_logs::submitted_block_index.is_null())),
             )
             .select(count(transaction_logs::id))
             .first(conn)?;
