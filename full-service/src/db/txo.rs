@@ -1009,9 +1009,6 @@ impl TxoModel for Txo {
         if let Some(account_id_hex) = account_id_hex {
             query = query
                 .filter(transaction_logs::account_id.eq(account_id_hex))
-                .filter(not(transaction_logs::account_id
-                    .nullable()
-                    .eq(txos::account_id)));
         }
 
         Ok(query.select(txos::all_columns).distinct().load(conn)?)
@@ -1048,11 +1045,13 @@ impl TxoModel for Txo {
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_not_null())
             .filter(transaction_logs::submitted_block_index.is_not_null())
-            .filter(not(transaction_logs::account_id.nullable().eq(txos::account_id)));
+            .filter(not(transaction_logs::account_id
+                .nullable()
+                .eq(txos::account_id)));
 
         if let Some(account_id_hex) = account_id_hex {
-            query = query
-                .filter(transaction_logs::account_id.eq(account_id_hex))}
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+        }
 
         Ok(query.select(txos::all_columns).distinct().load(conn)?)
     }
