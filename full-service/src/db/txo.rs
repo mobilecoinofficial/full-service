@@ -1516,7 +1516,6 @@ impl TxoModel for Txo {
                     .eq(&self.id)
                     .or(transaction_output_txos::txo_id.eq(&self.id)),
             )
-            .filter(transaction_logs::tombstone_block_index.is_not_null())
             .filter(transaction_logs::finalized_block_index.is_null())
             .filter(transaction_logs::failed.eq(false))
             .select(count(transaction_logs::id))
