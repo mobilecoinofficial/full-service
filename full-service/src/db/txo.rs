@@ -1723,7 +1723,7 @@ mod tests {
 
         check_associated_txos_status(
             &conn,
-            &mut transaction_log,
+            &transaction_log,
             TxoStatus::Unspent,
             TxoStatus::Created,
             TxoStatus::Created,
@@ -1740,7 +1740,13 @@ mod tests {
         )
         .unwrap();
 
-        // TODO: status check
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Unspent,
+            TxoStatus::Created,
+            TxoStatus::Created,
+        );
 
         transaction_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -1751,7 +1757,14 @@ mod tests {
         )
         .unwrap();
 
-        // TODO: status check
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+        );
+
         let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
@@ -1773,6 +1786,14 @@ mod tests {
         // Now we'll process these Txos and verify that the TXO was "spent."
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
+
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Spent,
+            TxoStatus::Unspent,
+            TxoStatus::Unverified,
+        );
 
         // We should now have 3 txos for this account - one spent, one change (minted),
         // and one minted (destined for alice).
@@ -1994,6 +2015,14 @@ mod tests {
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Spent,
+            TxoStatus::Secreted,
+            TxoStatus::Unverified,
+        );
+
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
@@ -2015,7 +2044,7 @@ mod tests {
 
     fn check_associated_txos_status(
         conn: &Conn,
-        transaction_log: &mut TransactionLog,
+        transaction_log: &TransactionLog,
         expected_input_status: TxoStatus,
         expected_output_status: TxoStatus,
         change_status: TxoStatus,
