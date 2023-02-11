@@ -1790,7 +1790,7 @@ mod tests {
             &conn,
             &transaction_log,
             TxoStatus::Spent,
-            TxoStatus::Unspent,
+            TxoStatus::Orphaned,
             TxoStatus::Unverified,
         );
 
