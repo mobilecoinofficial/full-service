@@ -1539,7 +1539,6 @@ impl TxoModel for Txo {
             return Ok(TxoStatus::Secreted);
         }
 
-        // TODO: this should probably be checked after other statuses
         let num_created_logs: i64 = transaction_logs::table
             .inner_join(transaction_output_txos::table)
             .filter(transaction_output_txos::txo_id.eq(&self.id))
