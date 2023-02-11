@@ -1791,7 +1791,7 @@ mod tests {
             &transaction_log,
             TxoStatus::Spent,
             TxoStatus::Orphaned,
-            TxoStatus::Unverified,
+            TxoStatus::Unspent,
         );
 
         // We should now have 3 txos for this account - one spent, one change (minted),
@@ -2019,7 +2019,7 @@ mod tests {
             &transaction_log,
             TxoStatus::Spent,
             TxoStatus::Secreted,
-            TxoStatus::Unverified,
+            TxoStatus::Unspent,
         );
 
         // We should now have 1 txo in Bob's account.
@@ -2046,7 +2046,7 @@ mod tests {
         transaction_log: &TransactionLog,
         expected_input_status: TxoStatus,
         expected_output_status: TxoStatus,
-        change_status: TxoStatus,
+        expected_change_status: TxoStatus,
     ) {
         let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         let input_txo = associated_txos.inputs.first().unwrap();
@@ -2054,7 +2054,7 @@ mod tests {
         let (change_txo, _) = associated_txos.change.first().unwrap();
         assert_eq!(input_txo.status(&conn).unwrap(), expected_input_status);
         assert_eq!(minted_txo.status(&conn).unwrap(), expected_output_status);
-        assert_eq!(change_txo.status(&conn).unwrap(), change_status);
+        assert_eq!(change_txo.status(&conn).unwrap(), expected_change_status);
     }
 
     #[test_with_logger]
