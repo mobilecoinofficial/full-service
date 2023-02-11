@@ -17,6 +17,7 @@ use crate::{
             confirmation_number::Confirmation,
             ledger::LedgerSearchResult,
             network_status::NetworkStatus,
+            public_address::PublicAddress,
             receiver_receipt::ReceiverReceipt,
             transaction_log::TransactionLog,
             tx_proposal::{TxProposal, UnsignedTxProposal},
@@ -98,6 +99,9 @@ pub enum JsonCommandResponse {
     get_accounts {
         account_ids: Vec<String>,
         account_map: AccountMap,
+    },
+    get_address_details {
+        details: PublicAddress,
     },
     get_address {
         address: Address,

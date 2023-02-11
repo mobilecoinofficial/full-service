@@ -240,11 +240,14 @@ where
                 let fee_map = FeeMap::try_from(fees)?;
                 (0, fee_map, *BlockVersion::MAX)
             }
-            false => (
-                self.get_network_block_height()?,
-                self.get_network_fees()?,
-                *self.get_network_block_version()?,
-            ),
+            false => {
+                let network_block_info = self.get_latest_block_info()?;
+                (
+                    network_block_info.block_index + 1,
+                    FeeMap::try_from(network_block_info.minimum_fees)?,
+                    network_block_info.network_block_version,
+                )
+            }
         };
 
         Ok(NetworkStatus {

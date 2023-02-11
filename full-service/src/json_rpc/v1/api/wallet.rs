@@ -1084,7 +1084,7 @@ where
             JsonCommandResponse::validate_confirmation { validated: result }
         }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).map_err(format_error)?,
+            verified: service.verify_address(&address).is_ok(),
         },
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
