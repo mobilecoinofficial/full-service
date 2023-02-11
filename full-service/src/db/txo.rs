@@ -1721,16 +1721,12 @@ mod tests {
             ledger_db.clone(),
         );
 
-        let input_status = TxoStatus::Unspent;
-        let output_status = TxoStatus::Created;
-        let change_status = TxoStatus::Created;
-
         check_associated_txos_status(
             &conn,
             &mut transaction_log,
-            input_status,
-            output_status,
-            change_status,
+            TxoStatus::Unspent,
+            TxoStatus::Created,
+            TxoStatus::Created,
         );
 
         let tx_proposal = unsigned_tx_proposal.sign(&alice_account_key, None).unwrap();
