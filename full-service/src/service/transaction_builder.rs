@@ -978,7 +978,11 @@ mod tests {
         // Test that selecting Txos with max_spendable < all our txo values fails
         match builder.select_txos(&conn, Some(10)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
-            Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos)) => {}
+            Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos(
+                token_id,
+            ))) => {
+                assert_eq!(token_id, Mob::ID.to_string());
+            }
             Err(e) => panic!("Unexpected error {:?}", e),
         }
 
