@@ -1721,13 +1721,17 @@ mod tests {
             ledger_db.clone(),
         );
 
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
-        let input_txo = associated_txos.inputs.first().unwrap();
-        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
-        let (change_txo, _) = associated_txos.change.first().unwrap();
-        assert_eq!(input_txo.status(&conn).unwrap(), TxoStatus::Unspent);
-        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Created);
-        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
+        let input_status = TxoStatus::Unspent;
+        let output_status = TxoStatus::Created;
+        let change_status = TxoStatus::Created;
+
+        check_associated_txos_status(
+            &conn,
+            &mut transaction_log,
+            input_status,
+            output_status,
+            change_status,
+        );
 
         let tx_proposal = unsigned_tx_proposal.sign(&alice_account_key, None).unwrap();
         // There should be 2 outputs, one to dest and one change
@@ -1740,13 +1744,7 @@ mod tests {
         )
         .unwrap();
 
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
-        let input_txo = associated_txos.inputs.first().unwrap();
-        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
-        let (change_txo, _) = associated_txos.change.first().unwrap();
-        // assert_eq!(input_txo.status(&conn).unwrap(),TxoStatus::Unspent);
-        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Created);
-        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
+        // TODO: status check
 
         transaction_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -1756,22 +1754,11 @@ mod tests {
             &conn,
         )
         .unwrap();
+
+        // TODO: status check
         let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
-        let input_txo = associated_txos.inputs.first().unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
-        assert_eq!(input_txo.status(&conn).unwrap(), TxoStatus::Pending);
-        assert_eq!(minted_txo.status(&conn).unwrap(), TxoStatus::Pending);
-        assert_eq!(change_txo.status(&conn).unwrap(), TxoStatus::Pending);
-
-        // TODO: sync account????
-        // let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
-        // let input_txo = associated_txos.inputs.first().unwrap();
-        // let (minted_txo, _) = associated_txos.outputs.first().unwrap();
-        // let (change_txo, _) = associated_txos.change.first().unwrap();
-        // assert_eq!(input_txo.status(&conn).unwrap(),TxoStatus::Spent);
-        // assert_eq!(minted_txo.status(&conn).unwrap(),TxoStatus::Secreted);
-        // assert_eq!(change_txo.status(&conn).unwrap(),TxoStatus::Created);
 
         assert_eq!(minted_txo.value as u64, 33 * MOB);
         assert_eq!(change_txo.value as u64, 967 * MOB - Mob::MINIMUM_FEE);
@@ -2028,6 +2015,22 @@ mod tests {
         let bob_txo = txos[0].clone();
         assert_eq!(bob_txo.subaddress_index.unwrap(), 0);
         assert!(bob_txo.key_image.is_some());
+    }
+
+    fn check_associated_txos_status(
+        conn: &Conn,
+        transaction_log: &mut TransactionLog,
+        expected_input_status: TxoStatus,
+        expected_output_status: TxoStatus,
+        change_status: TxoStatus,
+    ) {
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let input_txo = associated_txos.inputs.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
+        assert_eq!(input_txo.status(&conn).unwrap(), expected_input_status);
+        assert_eq!(minted_txo.status(&conn).unwrap(), expected_output_status);
+        assert_eq!(change_txo.status(&conn).unwrap(), change_status);
     }
 
     #[test_with_logger]
