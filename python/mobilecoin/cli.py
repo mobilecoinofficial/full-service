@@ -210,12 +210,10 @@ class CommandLineInterface:
         # Show balances.
         print()
         print('Total balance for all accounts:')
-        for token in TOKENS:
-            amount = Amount.from_storage_units(
-                wallet_status['balance_per_token'][str(token.token_id)]['unspent'],
-                token
-            )
-            print(indent(amount.format(), '  '))
+        print(indent(
+            _format_balances(wallet_status['balance_per_token']),
+            ' '*2,
+        ))
 
         # Show transaction fees.
         print()
