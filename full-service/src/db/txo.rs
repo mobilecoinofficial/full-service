@@ -2048,7 +2048,10 @@ mod tests {
         expected_output_status: TxoStatus,
         expected_change_status: TxoStatus,
     ) {
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let mut associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        associated_txos
+            .inputs
+            .sort_by(|a, b| (b.spent_block_index).cmp(&a.spent_block_index));
         let input_txo = associated_txos.inputs.first().unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
