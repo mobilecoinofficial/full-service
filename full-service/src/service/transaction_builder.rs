@@ -600,7 +600,8 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &[10_000_000 * MOB,
+            &[
+                10_000_000 * MOB,
                 9_000_000 * MOB,
                 8_000_000 * MOB,
                 7_000_000 * MOB,
@@ -609,7 +610,8 @@ mod tests {
                 4_000_000 * MOB,
                 3_000_000 * MOB,
                 2_000_000 * MOB,
-                1_000_000 * MOB],
+                1_000_000 * MOB,
+            ],
             &mut rng,
             &logger,
         );
@@ -638,9 +640,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         let value = u64::MAX;
-        builder
-            .add_recipient(recipient, value, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, value, Mob::ID).unwrap();
 
         builder.set_tombstone(50).unwrap();
 
@@ -810,9 +810,7 @@ mod tests {
             .add_recipient(recipient.clone(), u64::MAX, Mob::ID)
             .unwrap();
 
-        builder
-            .add_recipient(recipient, u64::MAX, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, u64::MAX, Mob::ID).unwrap();
 
         builder.set_tombstone(22).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE, Mob::ID).unwrap();
@@ -888,9 +886,11 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &[18000000000000000000,
+            &[
                 18000000000000000000,
-                18000000000000000000],
+                18000000000000000000,
+                18000000000000000000,
+            ],
             &mut rng,
             &logger,
         );
@@ -911,9 +911,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         // Adding a recipient that will cause the change to be > u64::MAX
-        builder
-            .add_recipient(recipient, 100, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 100, Mob::ID).unwrap();
 
         // Force setting this emulates a user manually setting the input txos. The
         // automatic txo selection may not necessarily select the same txos. This should
@@ -1031,9 +1029,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Sanity check that our ledger is the height we think it is
@@ -1049,9 +1045,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Set to default
@@ -1067,9 +1061,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
 
         // Set to default
@@ -1107,9 +1099,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
@@ -1122,9 +1112,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0, Mob::ID) {
@@ -1142,9 +1130,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0, Mob::ID) {
@@ -1157,9 +1143,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
         builder.select_txos(&conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
@@ -1297,9 +1281,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
-        builder
-            .add_recipient(recipient, 10 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
 
         // Create a new recipient
         let second_recipient = AccountKey::random(&mut rng).subaddress(0);

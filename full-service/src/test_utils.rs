@@ -165,7 +165,7 @@ pub fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
     let _ = std::fs::remove_file(format!("{path}/data.mdb"));
     LedgerDB::create(&PathBuf::from(path)).expect("Could not create ledger_db");
-    
+
     LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db")
 }
 
@@ -291,8 +291,7 @@ pub fn setup_peer_manager_and_network_state(
             0,
             fee_map.clone(),
         );
-        let peer2 =
-            MockBlockchainConnection::new(test_client_uri(2), ledger_db, 0, fee_map);
+        let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db, 0, fee_map);
 
         (
             vec![peer1.clone(), peer2.clone()],
@@ -485,7 +484,7 @@ pub fn create_test_unsigned_txproposal_and_log(
 // Seed a local account with some Txos in the ledger
 pub fn random_account_with_seed_values(
     wallet_db: &WalletDb,
-    mut ledger_db: &mut LedgerDB,
+    ledger_db: &mut LedgerDB,
     seed_values: &[u64],
     mut rng: &mut StdRng,
     logger: &Logger,
@@ -517,12 +516,7 @@ pub fn random_account_with_seed_values(
         );
     }
 
-    manually_sync_account(
-        ledger_db,
-        wallet_db,
-        &AccountID::from(&account_key),
-        logger,
-    );
+    manually_sync_account(ledger_db, wallet_db, &AccountID::from(&account_key), logger);
 
     // Make sure we have all our TXOs
     {
