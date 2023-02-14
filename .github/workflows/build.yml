@@ -11,8 +11,8 @@ env:
 on:
   push:
     tags:
-      - 'v*-pre.*'
-      - '*.dev-build.*'
+      - "v*-pre.*"
+      - "*.dev-build.*"
 
 jobs:
   build-and-pre-release:
@@ -20,12 +20,17 @@ jobs:
       contents: write
     strategy:
       matrix:
-        runner-tags: [[self-hosted, macOS, X64, cargo], [self-hosted, macOS, ARM64, cargo], [self-hosted, Linux, large]]
+        runner-tags:
+          [
+            [self-hosted, macOS, X64],
+            [self-hosted, macOS, ARM64],
+            [self-hosted, Linux],
+          ]
         namespace: [test, prod]
         include:
-          - runner-tags: [self-hosted, macOS, X64, cargo]
+          - runner-tags: [self-hosted, macOS, X64]
             container: ""
-          - runner-tags: [self-hosted, macOS, ARM64, cargo]
+          - runner-tags: [self-hosted, macOS, ARM64]
             container: ""
           - runner-tags: [self-hosted, Linux, large]
             container: mobilecoin/rust-sgx-base:latest
