@@ -865,11 +865,7 @@ mod tests {
         log::info!(logger, "Built gift code transaction");
 
         let _gift_code = service
-            .submit_gift_code(
-                &AccountID(alice.id.clone()),
-                &gift_code_b58,
-                &tx_proposal,
-            )
+            .submit_gift_code(&AccountID(alice.id.clone()), &gift_code_b58, &tx_proposal)
             .unwrap();
 
         // Check the status before the gift code hits the ledger
@@ -1051,11 +1047,7 @@ mod tests {
         log::info!(logger, "Built gift code transaction");
 
         let _gift_code = service
-            .submit_gift_code(
-                &AccountID(alice.id),
-                &gift_code_b58,
-                &tx_proposal,
-            )
+            .submit_gift_code(&AccountID(alice.id), &gift_code_b58, &tx_proposal)
             .unwrap();
 
         // Check the status before the gift code hits the ledger

@@ -1005,9 +1005,7 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
-        builder
-            .add_recipient(recipient, 50 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
@@ -1611,9 +1609,7 @@ mod tests {
         let conn = wallet_db.get_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
-        builder
-            .add_recipient(recipient, 50 * MOB, Mob::ID)
-            .unwrap();
+        builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
         let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();

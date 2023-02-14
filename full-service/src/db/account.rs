@@ -867,7 +867,7 @@ mod tests {
 
         let account = {
             let conn = wallet_db.get_conn().unwrap();
-            
+
             Account::import_view_only(
                 &view_private_key,
                 &spend_public_key,
