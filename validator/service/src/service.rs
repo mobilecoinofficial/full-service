@@ -56,7 +56,7 @@ impl Service {
             .register_service(health_service)
             .register_service(validator_service)
             .register_service(blockchain_service)
-            .build_using_uri(listen_uri, logger.clone())
+            .build_using_uri(listen_uri, logger)
             .expect("Failed to build grpc server");
 
         server.start();
