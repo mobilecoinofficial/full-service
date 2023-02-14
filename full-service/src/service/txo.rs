@@ -27,7 +27,7 @@ use mc_transaction_core::FeeMapError;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, clippy::result_large_err)]
 pub enum TxoServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
@@ -143,6 +143,7 @@ impl From<LedgerServiceError> for TxoServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// Txos.
+#[allow(clippy::result_large_err)]
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
     #[allow(clippy::too_many_arguments)]

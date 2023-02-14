@@ -40,6 +40,7 @@ impl From<diesel::result::Error> for TransactionLogServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transaction logs.
+#[allow(clippy::result_large_err)]
 pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     fn list_transaction_logs(

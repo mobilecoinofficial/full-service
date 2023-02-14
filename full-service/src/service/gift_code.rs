@@ -60,7 +60,7 @@ use serde_json::json;
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
 #[derive(Display, Debug)]
-#[allow(clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant, clippy::result_large_err)]
 pub enum GiftCodeServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
@@ -346,6 +346,7 @@ pub enum GiftCodeStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// gift codes.
+#[allow(clippy::result_large_err)]
 pub trait GiftCodeService {
     /// Builds a new gift code.
     ///
@@ -783,6 +784,7 @@ where
 }
 
 /// Decode the gift code from b58 to its component parts.
+#[allow(clippy::result_large_err)]
 pub fn decode_transfer_payload(
     gift_code_b58: &EncodedGiftCode,
 ) -> Result<DecodedTransferPayload, GiftCodeServiceError> {

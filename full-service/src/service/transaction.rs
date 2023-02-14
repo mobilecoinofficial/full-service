@@ -252,6 +252,7 @@ impl TransactionMemo {
         account_key: Option<AccountKey>,
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
+            #[allow(clippy::box_default)]
             Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
             Self::RTH(subaddress_index) => {
                 let mut memo_builder = RTHMemoBuilder::default();
