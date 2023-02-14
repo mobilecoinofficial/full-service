@@ -2160,8 +2160,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new((100 * MOB * i), Mob::ID), // 100.0 MOB * i
-                (144 + i),
+                Amount::new(100 * MOB * i, Mob::ID), // 100.0 MOB * i
+                144 + i,
                 &mut rng,
                 &wallet_db,
             );
@@ -2275,8 +2275,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new((100 * MOB * i), Mob::ID), // 100.0 MOB * i
-                (144 + i),
+                Amount::new(100 * MOB * i, Mob::ID), // 100.0 MOB * i
+                144 + i,
                 &mut rng,
                 &wallet_db,
             );
@@ -2341,8 +2341,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new((100 * MOB), Mob::ID),
-                (144 + i) as u64,
+                Amount::new(100 * MOB, Mob::ID),
+                144 + i as u64,
                 &mut rng,
                 &wallet_db,
             );
@@ -2684,7 +2684,7 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new((100 * MOB), Mob::ID), // 100.0 MOB * i
+                Amount::new(100 * MOB, Mob::ID), // 100.0 MOB * i
                 144_u64,
                 &mut rng,
                 &wallet_db,

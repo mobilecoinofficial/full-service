@@ -556,7 +556,7 @@ mod tests {
         create_test_received_txo(
             &account_key,
             0,
-            Amount::new((100 * MOB), Mob::ID),
+            Amount::new(100 * MOB, Mob::ID),
             13_u64,
             &mut rng,
             wallet_db,
@@ -576,7 +576,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
-        let account_id = AccountID(account.id);
+        let account_id = AccountID(account.id.clone());
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
