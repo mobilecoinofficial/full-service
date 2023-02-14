@@ -34,30 +34,45 @@ use crate::{
 
 #[derive(Debug, PartialEq)]
 pub enum TxoStatus {
-    // The txo has been received at a known subaddress index, but the key image cannot
-    // be derived (usually because this is a view only account)
-    Unverified,
-    // The txo has been received at a known subaddress index with a known key image, has not been
-    // spent, and is not part of a pending transaction
-    Unspent,
-    // The txo is part of a pending transaction
-    Pending,
-    // The txo has a known spent block index
-    Spent,
+    // The txo has been created as part of build-transaction, but its associated transaction is
+    // neither pending, or submitted successfully
+    Created,
+
     // The txo has been received but the subaddress index and key image cannot be determined. This
     // happens typically when an account is imported but all subaddresses it was using were not
     // recreated
     Orphaned,
+
+    // The txo is part of a pending transaction
+    Pending,
+
+    // The txo is created and released as part of a successful transaction, but we do not know
+    // what block it was received at, the subaddress, keyimage, nor spent block. For example,
+    // the txo going to a recipient's account is often secreted.
+    Secreted,
+
+    // The txo has a known spent block index
+    Spent,
+
+    // The txo has been received at a known subaddress index with a known key image, has not been
+    // spent, and is not part of a pending transaction
+    Unspent,
+
+    // The txo has been received at a known subaddress index, but the key image cannot
+    // be derived (usually because this is a view only account)
+    Unverified,
 }
 
 impl fmt::Display for TxoStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TxoStatus::Unverified => write!(f, "unverified"),
-            TxoStatus::Unspent => write!(f, "unspent"),
-            TxoStatus::Pending => write!(f, "pending"),
-            TxoStatus::Spent => write!(f, "spent"),
+            TxoStatus::Created => write!(f, "created"),
             TxoStatus::Orphaned => write!(f, "orphaned"),
+            TxoStatus::Pending => write!(f, "pending"),
+            TxoStatus::Secreted => write!(f, "secreted"),
+            TxoStatus::Spent => write!(f, "spent"),
+            TxoStatus::Unspent => write!(f, "unspent"),
+            TxoStatus::Unverified => write!(f, "unverified"),
         }
     }
 }
@@ -67,11 +82,13 @@ impl FromStr for TxoStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "unverified" => Ok(TxoStatus::Unverified),
-            "unspent" => Ok(TxoStatus::Unspent),
-            "pending" => Ok(TxoStatus::Pending),
-            "spent" => Ok(TxoStatus::Spent),
+            "created" => Ok(TxoStatus::Created),
             "orphaned" => Ok(TxoStatus::Orphaned),
+            "pending" => Ok(TxoStatus::Pending),
+            "secreted" => Ok(TxoStatus::Secreted),
+            "spent" => Ok(TxoStatus::Spent),
+            "unspent" => Ok(TxoStatus::Unspent),
+            "unverified" => Ok(TxoStatus::Unverified),
             _ => Err(WalletDbError::InvalidTxoStatus(s.to_string())),
         }
     }
@@ -279,6 +296,10 @@ pub trait TxoModel {
         default_token_fee: u64,
         conn: &Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
+
+    fn list_created(account_id_hex: Option<&str>, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
+
+    fn list_secreted(account_id_hex: Option<&str>, conn: &Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo.
     ///
@@ -567,6 +588,12 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
+                TxoStatus::Created => {
+                    return Txo::list_created(None, conn);
+                }
+                TxoStatus::Secreted => {
+                    return Txo::list_secreted(None, conn);
+                }
             }
         }
 
@@ -664,6 +691,12 @@ impl TxoModel for Txo {
                         conn,
                     )
                 }
+                TxoStatus::Created => {
+                    return Txo::list_created(Some(account_id_hex), conn);
+                }
+                TxoStatus::Secreted => {
+                    return Txo::list_secreted(Some(account_id_hex), conn);
+                }
             }
         }
 
@@ -753,6 +786,12 @@ impl TxoModel for Txo {
                     )
                 }
                 TxoStatus::Orphaned => {
+                    return Ok(vec![]);
+                }
+                TxoStatus::Created => {
+                    return Ok(vec![]);
+                }
+                TxoStatus::Secreted => {
                     return Ok(vec![]);
                 }
             }
@@ -922,6 +961,98 @@ impl TxoModel for Txo {
             .distinct()
             .order(txos::received_block_index.desc())
             .load(conn)?)
+    }
+
+    fn list_created(account_id_hex: Option<&str>, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
+        /*
+            SELECT
+                *
+            FROM txos
+            LEFT JOIN transaction_output_txos
+            ON txos.id = transaction_output_txos.txo_id
+            LEFT JOIN transaction_logs
+            ON transaction_output_txos.transaction_log_id = transaction_logs.id
+            WHERE
+             txos.key_image IS NULL
+            AND txos.spent_block_index IS NULL
+            AND txos.subaddress_index IS NULL
+            AND txos.received_block_index IS NULL
+            AND (
+              (transaction_logs.failed = 1) OR
+              (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index isNULL AND  submitted_block_index ISNULL)
+              )
+        */
+        use crate::db::schema::{transaction_logs, transaction_output_txos, txos};
+
+        let mut query = txos::table
+            .into_boxed()
+            .left_join(transaction_output_txos::table)
+            .left_join(
+                transaction_logs::table
+                    .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
+            );
+
+        query = query
+            .filter(txos::key_image.is_null())
+            .filter(txos::spent_block_index.is_null())
+            .filter(txos::subaddress_index.is_null())
+            .filter(txos::received_block_index.is_null())
+            .filter(
+                transaction_logs::failed
+                    .eq(true)
+                    .or(transaction_logs::failed
+                        .eq(false)
+                        .and(transaction_logs::finalized_block_index.is_null())
+                        .and(transaction_logs::submitted_block_index.is_null())),
+            );
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+        }
+
+        Ok(query.select(txos::all_columns).distinct().load(conn)?)
+    }
+
+    fn list_secreted(account_id_hex: Option<&str>, conn: &Conn) -> Result<Vec<Txo>, WalletDbError> {
+        /*
+            SELECT *
+            FROM
+                txos
+                LEFT JOIN transaction_output_txos on txos.id = transaction_output_txos.txo_id
+                 LEFT JOIN transaction_logs ON transaction_output_txos.transaction_log_id = transaction_logs.id
+            WHERE
+                transaction_output_txos.is_change = 0   AND
+                transaction_logs.failed = 0             AND
+                transaction_logs.submitted_block_index is not NULL AND
+                transaction_logs.finalized_block_index is not NULL AND
+                transaction_logs.account_id = <INPUT PARAMETER ACCOUNT_ID>
+                transaction_log.account_id != txos.account_id
+        */
+
+        use crate::db::schema::{transaction_logs, transaction_output_txos, txos};
+
+        let mut query = txos::table
+            .into_boxed()
+            .left_join(transaction_output_txos::table)
+            .left_join(
+                transaction_logs::table
+                    .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
+            );
+
+        query = query
+            .filter(transaction_output_txos::is_change.eq(false))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_not_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null())
+            .filter(not(transaction_logs::account_id
+                .nullable()
+                .eq(txos::account_id)));
+
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+        }
+
+        Ok(query.select(txos::all_columns).distinct().load(conn)?)
     }
 
     fn list_unspent_or_pending_key_images(
@@ -1365,7 +1496,7 @@ impl TxoModel for Txo {
 
     fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError> {
         use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
+            transaction_input_txos, transaction_logs, transaction_output_txos, txos,
         };
 
         if self.spent_block_index.is_some() {
@@ -1380,16 +1511,50 @@ impl TxoModel for Txo {
                     .eq(&self.id)
                     .or(transaction_output_txos::txo_id.eq(&self.id)),
             )
-            .filter(transaction_logs::tombstone_block_index.is_not_null())
             .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null())
             .filter(transaction_logs::failed.eq(false))
             .select(count(transaction_logs::id))
             .first(conn)?;
 
-        let pending = num_pending_logs > 0;
-
-        if pending {
+        if num_pending_logs > 0 {
             return Ok(TxoStatus::Pending);
+        }
+
+        let num_secreted_logs: i64 = transaction_logs::table
+            .left_join(transaction_output_txos::table)
+            .left_join(txos::table.on(transaction_output_txos::txo_id.eq(txos::id)))
+            .filter(transaction_output_txos::txo_id.eq(&self.id))
+            .filter(transaction_output_txos::is_change.eq(false))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_not_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null())
+            .filter(not(transaction_logs::account_id
+                .nullable()
+                .eq(txos::account_id)))
+            .select(count(transaction_logs::id))
+            .first(conn)?;
+
+        if num_secreted_logs > 0 {
+            return Ok(TxoStatus::Secreted);
+        }
+
+        let num_created_logs: i64 = transaction_logs::table
+            .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::txo_id.eq(&self.id))
+            .filter(
+                transaction_logs::failed
+                    .eq(true)
+                    .or(transaction_logs::failed
+                        .eq(false)
+                        .and(transaction_logs::finalized_block_index.is_null())
+                        .and(transaction_logs::submitted_block_index.is_null())),
+            )
+            .select(count(transaction_logs::id))
+            .first(conn)?;
+
+        if num_created_logs > 0 {
+            return Ok(TxoStatus::Created);
         }
 
         if self.subaddress_index.is_some() && self.key_image.is_some() {
@@ -1440,9 +1605,9 @@ mod tests {
         service::{transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
-            create_test_received_txo, create_test_txo_for_recipient, get_resolver_factory,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            create_test_received_txo, create_test_txo_for_recipient,
+            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -1497,6 +1662,7 @@ mod tests {
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
+        let conn = wallet_db.get_conn().unwrap();
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
             None,
@@ -1505,7 +1671,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -1537,7 +1703,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &conn,
         )
         .unwrap();
         assert_eq!(unspent.len(), 1);
@@ -1546,7 +1712,7 @@ mod tests {
         // have not yet assigned. At the DB layer, we accomplish this by
         // constructing the output txos, then logging sent and received for this
         // account.
-        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
+        let (mut transaction_log, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
             alice_account_key.clone(),
             alice_account_key.subaddress(4),
             33 * MOB,
@@ -1554,10 +1720,51 @@ mod tests {
             ledger_db.clone(),
         );
 
-        let associated_txos = transaction_log
-            .get_associated_txos(&wallet_db.get_conn().unwrap())
-            .unwrap();
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Unspent,
+            TxoStatus::Created,
+            TxoStatus::Created,
+        );
 
+        let tx_proposal = unsigned_tx_proposal.sign(&alice_account_key, None).unwrap();
+        // There should be 2 outputs, one to dest and one change
+        assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
+        transaction_log = TransactionLog::log_signed(
+            tx_proposal.clone(),
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Unspent,
+            TxoStatus::Created,
+            TxoStatus::Created,
+        );
+
+        transaction_log = TransactionLog::log_submitted(
+            &tx_proposal,
+            10,
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+        );
+
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
 
@@ -1578,6 +1785,14 @@ mod tests {
         // Now we'll process these Txos and verify that the TXO was "spent."
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
+
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Spent,
+            TxoStatus::Orphaned,
+            TxoStatus::Unspent,
+        );
 
         // We should now have 3 txos for this account - one spent, one change (minted),
         // and one minted (destined for alice).
@@ -1799,6 +2014,14 @@ mod tests {
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
+        check_associated_txos_status(
+            &conn,
+            &transaction_log,
+            TxoStatus::Spent,
+            TxoStatus::Secreted,
+            TxoStatus::Unspent,
+        );
+
         // We should now have 1 txo in Bob's account.
         let txos = Txo::list_for_account(
             &AccountID::from(&bob_account_key).to_string(),
@@ -1816,6 +2039,25 @@ mod tests {
         let bob_txo = txos[0].clone();
         assert_eq!(bob_txo.subaddress_index.unwrap(), 0);
         assert!(bob_txo.key_image.is_some());
+    }
+
+    fn check_associated_txos_status(
+        conn: &Conn,
+        transaction_log: &TransactionLog,
+        expected_input_status: TxoStatus,
+        expected_output_status: TxoStatus,
+        expected_change_status: TxoStatus,
+    ) {
+        let mut associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        associated_txos
+            .inputs
+            .sort_by(|a, b| (b.spent_block_index).cmp(&a.spent_block_index));
+        let input_txo = associated_txos.inputs.first().unwrap();
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
+        assert_eq!(input_txo.status(&conn).unwrap(), expected_input_status);
+        assert_eq!(minted_txo.status(&conn).unwrap(), expected_output_status);
+        assert_eq!(change_txo.status(&conn).unwrap(), expected_change_status);
     }
 
     #[test_with_logger]

@@ -214,7 +214,7 @@ where
         let txo = txos[0].clone();
         let txo_status = txo.status(conn)?;
 
-        if txo_status == TxoStatus::Pending {
+        if (txo_status == TxoStatus::Pending) || (txo_status == TxoStatus::Created) {
             return Ok((
                 ReceiptTransactionStatus::TransactionPending,
                 Some((txo, txo_status)),

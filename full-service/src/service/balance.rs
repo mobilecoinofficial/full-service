@@ -382,7 +382,7 @@ where
             conn,
         )?);
 
-        let secreted = 0;
+        let secreted = sum_query_result(Txo::list_secreted(account_id_hex, conn)?);
 
         let orphaned = if public_address_b58.is_some() {
             0
