@@ -52,6 +52,13 @@ jobs:
         run: |
           brew bundle
 
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2023-01-04
+          override: true
+          components: rustfmt, clippy
+
       - name: Consensus SigStruct
         run: |
           CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${{ matrix.namespace }}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
