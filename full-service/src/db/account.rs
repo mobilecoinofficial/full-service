@@ -867,7 +867,8 @@ mod tests {
 
         let account = {
             let conn = wallet_db.get_conn().unwrap();
-            let account = Account::import_view_only(
+            
+            Account::import_view_only(
                 &view_private_key,
                 &spend_public_key,
                 Some("View Only Account".to_string()),
@@ -876,8 +877,7 @@ mod tests {
                 None,
                 &conn,
             )
-            .unwrap();
-            account
+            .unwrap()
         };
 
         {

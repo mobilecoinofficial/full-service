@@ -65,7 +65,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -82,7 +82,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100_000_000_000_000, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -212,7 +212,7 @@ mod e2e_transaction {
         add_block_with_tx_outs(
             &mut ledger_db,
             &[txo],
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

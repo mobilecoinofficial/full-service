@@ -449,7 +449,7 @@ mod tests {
         let entropy = RootEntropy::from_random(&mut rng);
         let account_key = AccountKey::from(&RootIdentity::from(&entropy));
 
-        let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
+        let mut ledger_db = get_test_ledger(0, &[], 0, &mut rng);
 
         let origin_block_amount: u128 = 250_000_000 * MOB as u128;
         let origin_block_txo_amount = origin_block_amount / 16;
@@ -472,10 +472,10 @@ mod tests {
                 o.clone(),
                 o.clone(),
                 o.clone(),
-                o.clone(),
+                o,
             ],
             origin_block_txo_amount as u64,
-            &vec![],
+            &[],
             &mut rng,
         );
 
@@ -485,7 +485,7 @@ mod tests {
         // Import the account
         let _account = service
             .import_account_from_legacy_root_entropy(
-                hex::encode(&entropy.bytes),
+                hex::encode(entropy.bytes),
                 None,
                 None,
                 None,
@@ -497,7 +497,7 @@ mod tests {
 
         manually_sync_account(
             &ledger_db,
-            &wallet_db,
+            wallet_db,
             &AccountID::from(&account_key),
             &logger,
         );

@@ -350,15 +350,15 @@ mod tests {
         let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_public_address.clone()],
+            &vec![alice_public_address],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -399,7 +399,7 @@ mod tests {
         let tx_proposal = service
             .build_and_sign_transaction(
                 &alice.id,
-                &vec![(
+                &[(
                     b58_encode_public_address(&bob_account_key.default_subaddress()).unwrap(),
                     Amount::new(42 * MOB, Mob::ID),
                 )],

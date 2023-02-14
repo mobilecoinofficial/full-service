@@ -153,14 +153,14 @@ mod tests {
                 &mut ledger_db,
                 &vec![alice_public_address.clone()],
                 100 * MOB,
-                &vec![KeyImage::from(rng.next_u64())],
+                &[KeyImage::from(rng.next_u64())],
                 &mut rng,
             );
         }
 
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -192,7 +192,7 @@ mod tests {
                 let key_images: Vec<KeyImage> = tx_proposal
                     .input_txos
                     .iter()
-                    .map(|txo| txo.key_image.clone())
+                    .map(|txo| txo.key_image)
                     .collect();
 
                 // Note: This block doesn't contain the fee output.
@@ -209,7 +209,7 @@ mod tests {
 
             manually_sync_account(
                 &ledger_db,
-                &service.wallet_db.as_ref().unwrap(),
+                service.wallet_db.as_ref().unwrap(),
                 &alice_account_id,
                 &logger,
             );

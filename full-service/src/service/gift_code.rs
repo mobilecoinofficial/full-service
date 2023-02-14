@@ -832,13 +832,13 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            100 * MOB,
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -854,7 +854,7 @@ mod tests {
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
                 &AccountID(alice.id.clone()),
-                2 * MOB as u64,
+                2 * MOB,
                 Some("Gift code for Bob".to_string()),
                 None,
                 None,
@@ -867,8 +867,8 @@ mod tests {
         let _gift_code = service
             .submit_gift_code(
                 &AccountID(alice.id.clone()),
-                &gift_code_b58.clone(),
-                &tx_proposal.clone(),
+                &gift_code_b58,
+                &tx_proposal,
             )
             .unwrap();
 
@@ -882,7 +882,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -912,11 +912,11 @@ mod tests {
             .unwrap()
             .get_value(&shared_secret)
             .unwrap();
-        assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
+        assert_eq!(value, Amount::new(2 * MOB, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.id.clone()))
+            .get_balance_for_account(&AccountID(alice.id))
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(balance_pmob.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
@@ -945,7 +945,7 @@ mod tests {
             .unwrap();
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -970,7 +970,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -1018,13 +1018,13 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB as u64,
-            &vec![KeyImage::from(rng.next_u64())],
+            100 * MOB,
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -1040,7 +1040,7 @@ mod tests {
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
                 &AccountID(alice.id.clone()),
-                2 * MOB as u64,
+                2 * MOB,
                 Some("Gift code for Bob".to_string()),
                 None,
                 None,
@@ -1052,9 +1052,9 @@ mod tests {
 
         let _gift_code = service
             .submit_gift_code(
-                &AccountID(alice.id.clone()),
-                &gift_code_b58.clone(),
-                &tx_proposal.clone(),
+                &AccountID(alice.id),
+                &gift_code_b58,
+                &tx_proposal,
             )
             .unwrap();
 
@@ -1069,7 +1069,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );

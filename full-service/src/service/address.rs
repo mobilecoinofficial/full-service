@@ -164,7 +164,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db, logger);
         let conn = service.get_conn().unwrap();
 
         // Create an account.
@@ -190,7 +190,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db, logger);
         let conn = service.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -223,7 +223,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db, logger);
 
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(rng.next_u64());
@@ -241,7 +241,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db, logger);
 
         // Empty string should fail
         let public_address_b58 = "";

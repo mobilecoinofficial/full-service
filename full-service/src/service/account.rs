@@ -537,7 +537,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db, logger);
         let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Create an account.
@@ -556,10 +556,10 @@ mod tests {
         create_test_received_txo(
             &account_key,
             0,
-            Amount::new((100 * MOB) as u64, Mob::ID),
-            13 as u64,
+            Amount::new((100 * MOB), Mob::ID),
+            13_u64,
             &mut rng,
-            &wallet_db,
+            wallet_db,
         );
 
         let txos = Txo::list_for_account(
@@ -576,7 +576,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Delete the account. The transaction status referring to it is also cleared.
-        let account_id = AccountID(account.id.clone().to_string());
+        let account_id = AccountID(account.id);
         let result = service.remove_account(&account_id);
         assert!(result.is_ok());
 
@@ -623,7 +623,7 @@ mod tests {
         let account_id = AccountID(account.id);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &account_id,
             &logger,
         );
@@ -660,7 +660,7 @@ mod tests {
         let account_id = AccountID(account.id);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &account_id,
             &logger,
         );
@@ -689,15 +689,15 @@ mod tests {
 
         let view_only_account = service
             .import_view_only_account(
-                ristretto_to_hex(&view_account_key.view_private_key()),
-                ristretto_public_to_hex(&view_account_key.spend_public_key()),
+                ristretto_to_hex(view_account_key.view_private_key()),
+                ristretto_public_to_hex(view_account_key.spend_public_key()),
                 None,
                 None,
                 None,
             )
             .unwrap();
 
-        let account_id = AccountID(view_only_account.id.clone());
+        let account_id = AccountID(view_only_account.id);
 
         add_block_to_ledger_db(
             &mut ledger_db,
@@ -706,7 +706,7 @@ mod tests {
                 view_account_key.subaddress(2),
             ],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

@@ -383,14 +383,14 @@ mod tests {
         let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_public_address.clone()],
+            &vec![alice_public_address],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -412,7 +412,7 @@ mod tests {
         let tx_proposal = service
             .build_and_sign_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                &[(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -445,13 +445,13 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.to_string()),
             &logger,
         );
@@ -516,12 +516,12 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -543,7 +543,7 @@ mod tests {
         let tx_proposal = service
             .build_and_sign_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                &[(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -561,7 +561,7 @@ mod tests {
 
         // Bob checks the status of the receipts.
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
+            .check_receipt_status(bob_address, receipt)
             .expect("Could not check status of receipt");
 
         // Status should be pending until block lands and is scanned
@@ -580,7 +580,7 @@ mod tests {
         // Status for Bob should still be pending, even though the Txos will show up in
         // the wallet, but under Alice's account.
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
+            .check_receipt_status(bob_address, receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionPending);
 
@@ -588,20 +588,20 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
-            &AccountID(alice.id.to_string()),
+            service.wallet_db.as_ref().unwrap(),
+            &AccountID(alice.id),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
-            &AccountID(bob.id.to_string()),
+            service.wallet_db.as_ref().unwrap(),
+            &AccountID(bob.id),
             &logger,
         );
 
         // Status for Bob is succeeded.
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
+            .check_receipt_status(bob_address, receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::TransactionSuccess);
 
@@ -610,7 +610,7 @@ mod tests {
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode Alice address");
         let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt)
+            .check_receipt_status(alice_address, receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
@@ -639,12 +639,12 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -661,13 +661,13 @@ mod tests {
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].public_address_b58.clone();
-        let bob_account_id = AccountID(bob.id.to_string());
+        let bob_account_id = AccountID(bob.id);
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
             .build_and_sign_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                &[(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -695,13 +695,13 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
-            &AccountID(alice.id.to_string()),
+            service.wallet_db.as_ref().unwrap(),
+            &AccountID(alice.id),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &bob_account_id,
             &logger,
         );
@@ -715,7 +715,7 @@ mod tests {
         )
         .expect("Could not create Amount");
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt0)
+            .check_receipt_status(bob_address, &receipt0)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
 
@@ -737,7 +737,7 @@ mod tests {
         )
         .expect("Could not create Amount");
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt0)
+            .check_receipt_status(bob_address, &receipt0)
             .expect("Could not check status of receipt");
         assert_eq!(
             status,
@@ -751,7 +751,7 @@ mod tests {
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt0)
+            .check_receipt_status(alice_address, &receipt0)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
@@ -780,12 +780,12 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(alice.id.to_string()),
             &logger,
         );
@@ -802,13 +802,13 @@ mod tests {
             .get_addresses(Some(bob.id.clone()), None, None)
             .expect("Could not get addresses for Bob");
         let bob_address = &bob_addresses[0].public_address_b58.clone();
-        let bob_account_id = AccountID(bob.id.to_string());
+        let bob_account_id = AccountID(bob.id);
 
         // Create a TxProposal to Bob
         let tx_proposal0 = service
             .build_and_sign_transaction(
                 &alice.id,
-                &vec![(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
+                &[(bob_address.to_string(), AmountJSON::new(24 * MOB, Mob::ID))],
                 None,
                 None,
                 None,
@@ -836,13 +836,13 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
-            &AccountID(alice.id.to_string()),
+            service.wallet_db.as_ref().unwrap(),
+            &AccountID(alice.id),
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &bob_account_id,
             &logger,
         );
@@ -856,7 +856,7 @@ mod tests {
 
         // Bob checks the status, and is expecting an incorrect value
         let (status, _txo) = service
-            .check_receipt_status(&bob_address, &receipt)
+            .check_receipt_status(bob_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::InvalidConfirmation);
 
@@ -865,7 +865,7 @@ mod tests {
         let alice_address = &b58_encode_public_address(&alice_public_address)
             .expect("Could not encode alice address");
         let (status, _txo) = service
-            .check_receipt_status(&alice_address, &receipt)
+            .check_receipt_status(alice_address, &receipt)
             .expect("Could not check status of receipt");
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }

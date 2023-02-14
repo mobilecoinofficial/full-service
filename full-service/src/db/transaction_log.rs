@@ -739,7 +739,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB],
+            &[70 * MOB],
             &mut rng,
             &logger,
         );
@@ -788,7 +788,7 @@ mod tests {
         assert_eq!(tx_log.comment, "");
 
         // The tx in the log matches the tx in the proposal
-        let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx).unwrap();
+        let tx: Tx = mc_util_serial::decode(&tx_log.tx).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
         // Check the associated_txos for this transaction_log are as expected
@@ -848,7 +848,7 @@ mod tests {
         let key_images: Vec<KeyImage> = tx_proposal
             .input_txos
             .iter()
-            .map(|txo| txo.key_image.clone())
+            .map(|txo| txo.key_image)
             .collect();
 
         // Note: This block doesn't contain the fee output.
@@ -914,7 +914,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![100 * MOB, 200 * MOB],
+            &[100 * MOB, 200 * MOB],
             &mut rng,
             &logger,
         );
@@ -962,7 +962,7 @@ mod tests {
             ledger_db.num_blocks().unwrap()
         );
         assert_eq!(tx_log.comment, "");
-        let tx: Tx = mc_util_serial::decode(&tx_log.clone().tx).unwrap();
+        let tx: Tx = mc_util_serial::decode(&tx_log.tx).unwrap();
         assert_eq!(tx, tx_proposal.tx);
 
         // Get associated Txos
@@ -994,7 +994,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB],
+            &[70 * MOB],
             &mut rng,
             &logger,
         );
@@ -1006,7 +1006,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
-            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
+            .add_recipient(recipient, 50 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
@@ -1094,7 +1094,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![7_000_000 * MOB, 14_000_000 * MOB],
+            &[7_000_000 * MOB, 14_000_000 * MOB],
             &mut rng,
             &logger,
         );
@@ -1104,7 +1104,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
-            .add_recipient(recipient.clone(), 10_000_000 * MOB, Mob::ID)
+            .add_recipient(recipient, 10_000_000 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
@@ -1158,7 +1158,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![7 * MOB, 8 * MOB],
+            &[7 * MOB, 8 * MOB],
             &mut rng,
             &logger,
         );
@@ -1313,13 +1313,13 @@ mod tests {
             updated_input_details0.account_id,
             Some(tx_log.account_id.clone())
         );
-        assert_eq!(updated_input_details0.subaddress_index, Some(0 as i64));
+        assert_eq!(updated_input_details0.subaddress_index, Some(0_i64));
 
         assert_eq!(
             updated_input_details1.account_id,
             Some(tx_log.account_id.clone())
         );
-        assert_eq!(updated_input_details1.subaddress_index, Some(0 as i64));
+        assert_eq!(updated_input_details1.subaddress_index, Some(0_i64));
 
         // Get the output txo again
         let updated_output_details = Txo::get(
@@ -1342,7 +1342,7 @@ mod tests {
         );
 
         // Received to main subaddress
-        assert_eq!(updated_output_details.subaddress_index, Some(0 as i64));
+        assert_eq!(updated_output_details.subaddress_index, Some(0_i64));
 
         // Get the change txo again
         let updated_change_details = Txo::get(
@@ -1379,7 +1379,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB],
+            &[70 * MOB],
             &mut rng,
             &logger,
         );
@@ -1531,7 +1531,7 @@ mod tests {
         let key_images: Vec<KeyImage> = tx_proposal
             .input_txos
             .iter()
-            .map(|txo| txo.key_image.clone())
+            .map(|txo| txo.key_image)
             .collect();
 
         // Note: This block doesn't contain the fee output.
@@ -1602,7 +1602,7 @@ mod tests {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &vec![70 * MOB],
+            &[70 * MOB],
             &mut rng,
             &logger,
         );
@@ -1612,7 +1612,7 @@ mod tests {
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
-            .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
+            .add_recipient(recipient, 50 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
@@ -1690,7 +1690,7 @@ mod tests {
             tombstone_block_index: Some(tx_proposal.tx.prefix.tombstone_block as i64),
             finalized_block_index: None,
             comment: "second change".to_string(),
-            tx: tx_bytes.clone(),
+            tx: tx_bytes,
             failed: false,
         };
 
