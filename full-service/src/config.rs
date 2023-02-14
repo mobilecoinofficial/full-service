@@ -346,7 +346,7 @@ impl LedgerDbConfig {
                         .expect("Failed to download initial transactions");
                     let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
                     db.append_block_data(&block_data)
-                        .expect("Failed to appened initial transactions");
+                        .expect("Failed to append initial transactions");
                     log::info!(logger, "Bootstrapping completed!");
                 }
             }

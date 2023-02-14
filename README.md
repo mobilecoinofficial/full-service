@@ -38,11 +38,12 @@ information.
 
 For documentation, usage, and API specification, please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
 
-For database encryption features, see [DATABASE.md](DATABASE.md).
+Database encryption features are also described in the [Database Encryption](https://mobilecoin.gitbook.io/full-service-api/usage/database-usage#database-encryption)
+section of the full API docs.
 
 ### Build and Run Mob
 
-You can build Full Service using the the mobilecoin `mob` tool. 
+You can build Full Service using the mobilecoin `mob` tool. 
 
 **Prerequisites**
 - git
@@ -61,13 +62,13 @@ You can build Full Service using the the mobilecoin `mob` tool.
     ./mob prompt
     ```
 
- If you are operating on main or test net, these steps are unecessary; the build script will grab the relevant sigstruct.
+ If you are operating on main or test net, these steps are unnecessary; the build script will grab the relevant sigstruct.
  If you don't have the consensus or ingest enclaves, you may want to build the mobilecoin network to get them.
 1. Create your attestation verifier seed
     ```sh
     MC_SEED=($(echo "<your secret phrase>" | sha256sum))
     ```
-1. Buid the mobilecoin network
+1. Build the mobilecoin network
     ```sh
     cd mobilecoin
     cargo build --release
@@ -85,7 +86,7 @@ You can run full-service from within `mob prompt`, or exit the container to run 
     ```
 - From outside the `mob` container, there are potentially extra steps
     - If running local network, copy the `ingest-enclave.css` file from the mobilecoin network build to where you want the runscript to pick it up from
-    ** IMPORTANT: make sure you local instance of the local network is running before running full-service against it **
+    ** IMPORTANT: make sure your local instance of the local network is running before running full-service against it **
     ```sh
     cp ./target/docker/release/ingest-enclave.css ~/.mobilecoin/local
     ``` 
@@ -99,7 +100,7 @@ You can run full-service from within `mob prompt`, or exit the container to run 
 
 ### Build and Run
 
-Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
+Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from Apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
 
 Download the latest Xcode 12 and add it to your applications folder.
 
@@ -157,7 +158,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
     ```
 
-   Finally for both:
+   Finally, for both:
    ```sh
    rustup component add llvm-tools-preview
    ```
@@ -336,11 +337,11 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
 | `chain-id`       | The chain id of the network we expect to interact with | String |
 
-| Opional Param | Purpose                  | Requirements              |
-| :------------ | :----------------------- | :------------------------ |
-| `wallet-db`   | Path to wallet file. If not set, will disable any endpoints that require a wallet_db  | Created if does not exist |
-| `listen-host` | Host to listen on.      | Default: 127.0.0.1 |
-| `listen-port` | Port to start webserver on. | Default: 9090 |
+| Optional Param | Purpose                  | Requirements              |
+| :------------- | :----------------------- | :------------------------ |
+| `wallet-db`    | Path to wallet file. If not set, will disable any endpoints that require a wallet_db  | Created if does not exist |
+| `listen-host`  | Host to listen on.       | Default: 127.0.0.1 |
+| `listen-port`  | Port to start webserver on. | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
 | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
@@ -508,7 +509,7 @@ To add or edit tables:
 1. Run the migration with `diesel migration run --database-url $MIGRATION_TEST_DB`, and test the
    inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
 
-Make sure that the following is still present in `schema.rs` before commiting changes.
+Make sure that the following is still present in `schema.rs` before committing changes.
 ```
 table! {
     __diesel_schema_migrations(version) {
