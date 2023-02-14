@@ -53,8 +53,8 @@ pub enum WalletDbError {
     /// Subaddress on received transaction is null
     NullSubaddressOnReceived,
 
-    /// No unspent Txos in the wallet
-    NoSpendableTxos,
+    /// No unspent Txos of token id {0} in wallet
+    NoSpendableTxos(String),
 
     /** Txos are too fragmented to construct a transaction with MAX_INPUTS.
      * Please combine txos.

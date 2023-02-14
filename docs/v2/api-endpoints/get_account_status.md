@@ -50,7 +50,15 @@ description: >-
     "network_block_height":"1352685",
     "local_block_height":"1352685",
     "balance_per_token":{
-      
+      "0":{
+        "max_spendable":"8039600015840",
+        "unverified":"0",
+        "unspent":"8040000067868",
+        "pending":"0",
+        "spent":"8065834220882873",
+        "secreted":"0",
+        "orphaned":"0"
+      }
     }
   },
   "jsonrpc":"2.0",

@@ -1,7 +1,0 @@
-__pycache__
-.coverage
-.eggs
-.pytest_cache
-*.pyc
-*,cover
-*.egg-info

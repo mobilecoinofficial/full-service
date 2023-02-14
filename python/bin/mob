@@ -1,3 +1,3 @@
 #! /usr/bin/env python3
-from mobilecoin import CommandLineInterface
+from mobilecoin.cli import CommandLineInterface
 CommandLineInterface().main()

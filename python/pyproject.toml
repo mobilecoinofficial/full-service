@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "mobilecoin"
-version = "2.1.2"
+version = "2.2.0"
 description = ""
-authors = ["Christian Oudard <ChristianOudard@pm.me>"]
+authors = ["Christian Oudard"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -10,7 +10,14 @@ python = "^3.10"
 segno = "^1.5.2"
 base58 = "^2.1.1"
 protobuf = "^4.21.12"
+aiohttp = "^3.8.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest-asyncio = "^0.20.3"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+mob = 'mobilecoin.cli:main'

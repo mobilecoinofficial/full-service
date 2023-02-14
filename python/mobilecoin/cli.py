@@ -5,33 +5,35 @@ from pathlib import Path
 from textwrap import indent
 
 from .client import (
-    Client, WalletAPIError,
-    MAX_TOMBSTONE_BLOCKS,
-    pmob2mob,
+    ClientSync as Client,
+    WalletAPIError,
+    log as client_log,
 )
+from .token import Amount, get_token, TOKENS
+
+
+def main():
+    CommandLineInterface().main()
 
 
 class CommandLineInterface:
 
-    def __init__(self):
-        self.verbose = False
-
     def main(self):
-        self._create_parsers()
+        self.client = Client()
 
+        # Parse arguments.
+        self._create_parsers()
         args = self.parser.parse_args()
         args = vars(args)
+        self.auto_confirm = args.pop('yes')
+        if args.pop('verbose'):
+            client_log.setLevel('DEBUG')
+
+        # Dispatch command.
         command = args.pop('command')
         if command is None:
             self.parser.print_help()
             exit(1)
-
-        self.verbose = args.pop('verbose')
-        self.auto_confirm = args.pop('yes')
-
-        self.client = Client(verbose=self.verbose)
-
-        # Dispatch command.
         setattr(self, 'import', self.import_)  # Can't name a function "import".
         command = command.translate(str.maketrans('-', '_'))
         command_func = getattr(self, command)
@@ -51,19 +53,6 @@ class CommandLineInterface:
 
         command_sp = self.parser.add_subparsers(dest='command', help='Commands')
 
-        # Start server.
-        self.start_args = command_sp.add_parser('start', help='Start the local MobileCoin wallet server.')
-        self.start_args.add_argument('--offline', action='store_true', help='Start in offline mode.')
-        self.start_args.add_argument('--bg', action='store_true',
-                                     help='Start server in the background, stop with "mobilecoin stop".')
-        self.start_args.add_argument('--unencrypted', action='store_true',
-                                     help='Do not encrypt the wallet database. Secret keys will be stored on the hard drive in plaintext.')
-        self.start_args.add_argument('--change-password', action='store_true',
-                                     help='Change the password for the database.')
-
-        # Stop server.
-        self.stop_args = command_sp.add_parser('stop', help='Stop the local MobileCoin wallet server.')
-
         # Network status.
         self.status_args = command_sp.add_parser('status', help='Check the status of the MobileCoin network.')
 
@@ -73,6 +62,9 @@ class CommandLineInterface:
         # Create account.
         self.create_args = command_sp.add_parser('create', help='Create a new account.')
         self.create_args.add_argument('-n', '--name', help='Account name.')
+        self.create_args.add_argument('--fog-report-url', help='Fog report server URL.')
+        self.create_args.add_argument('--fog-authority-spki',
+                                      help='Fog authority subject public key info')
 
         # Rename account.
         self.rename_args = command_sp.add_parser('rename', help='Change account name.')
@@ -106,7 +98,8 @@ class CommandLineInterface:
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
-        self.send_args.add_argument('amount', help='Amount of MOB to send.')
+        self.send_args.add_argument('amount', help='Amount to send.')
+        self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
         self.send_args.add_argument('to_address', help='Address to send to.')
 
         # Submit transaction proposal.
@@ -171,7 +164,7 @@ class CommandLineInterface:
         self.version_args = command_sp.add_parser('version', help='Show version number.')
 
     def _load_account_prefix(self, prefix):
-        accounts = self.client.get_all_accounts()
+        accounts = self.client.get_accounts()
 
         matching_ids = [
             a_id for a_id in accounts.keys()
@@ -195,56 +188,76 @@ class CommandLineInterface:
         return confirmation.lower() in ['y', 'yes']
 
     def status(self):
+        wallet_status = self.client.get_wallet_status()
         network_status = self.client.get_network_status()
-        fee = pmob2mob(network_status['fee_pmob'])
 
-        if int(network_status['network_block_height']) == 0:
+        # Show sync state.
+        if int(wallet_status['network_block_height']) == 0:
             print('Offline.')
-            print('Local ledger has {} blocks.'.format(network_status['local_block_height']))
-            print('Expected fee is {}'.format(_format_mob(fee)))
+            print('Local ledger has {} blocks.'.format(
+                wallet_status['local_block_height']))
         else:
-            print('Connected to network.')
-            print('Local ledger has {}/{} blocks.'.format(
-                network_status['local_block_height'],
-                network_status['network_block_height'],
-            ))
-            print('Network fee is {}'.format(_format_mob(fee)))
+            print('Connected to MobileCoin network.')
+            if wallet_status['is_synced_all']:
+                print('All accounts synced, {} blocks.'.format(
+                    wallet_status['network_block_height']))
+            else:
+                print('Syncing, {}/{} blocks completed.'.format(
+                    wallet_status['min_synced_block_index'],
+                    wallet_status['network_block_height'],
+                ))
+
+        # Show balances.
+        print()
+        print('Total balance for all accounts:')
+        for token in TOKENS:
+            amount = Amount.from_storage_units(
+                wallet_status['balance_per_token'][str(token.token_id)]['unspent'],
+                token
+            )
+            print(indent(amount.format(), '  '))
+
+        # Show transaction fees.
+        print()
+        print('Transaction Fees:')
+        for token in TOKENS:
+            amount = Amount.from_storage_units(
+                network_status['fees'][str(token.token_id)],
+                token
+            )
+            print(indent(amount.format(), '  '))
 
     def list(self):
-        accounts = self.client.get_all_accounts()
+        accounts = self.client.get_accounts()
         if len(accounts) == 0:
             print('No accounts.')
             return
 
         account_list = []
-        for account_id, account in accounts.items():
-            balance = self.client.get_balance_for_account(account_id)
-            account_list.append((account_id, account, balance))
+        for account_id in accounts.keys():
+            status = self.client.get_account_status(account_id)
+            account_list.append(status)
 
-        for (account_id, account, balance) in account_list:
+        for status in account_list:
             print()
-            _print_account(account, balance)
-
-        print()
+            _print_account(status)
 
     def create(self, **args):
         account = self.client.create_account(**args)
         print('Created a new account.')
-        print()
-        _print_account(account)
-        print()
+        print(_format_account_header(account))
 
     def rename(self, account_id, name):
         account = self._load_account_prefix(account_id)
         old_name = account['name']
-        account_id = account['account_id']
+        account_id = account['id']
         account = self.client.update_account_name(account_id, name)
         print('Renamed account from "{}" to "{}".'.format(
             old_name,
             account['name'],
         ))
         print()
-        _print_account(account)
+        print(_format_account_header(account))
         print()
 
     def import_(self, backup, name=None, block=None, key_derivation_version=2):
@@ -258,9 +271,11 @@ class CommandLineInterface:
             else:
                 params = {}
 
+                if name is not None:
+                    params['name'] = name
+
                 for field in [
-                    'mnemonic',  # Key derivation version 2+.
-                    'entropy',  # Key derivation version 1.
+                    'mnemonic',
                     'name',
                     'first_block_index',
                     'next_subaddress_index',
@@ -270,18 +285,13 @@ class CommandLineInterface:
                         params[field] = value
 
                 if 'account_key' in data:
-                    params['fog_keys'] = {}
                     for field in [
                         'fog_report_url',
-                        'fog_report_id',
                         'fog_authority_spki',
                     ]:
                         value = data['account_key'].get(field)
                         if value is not None:
-                            params['fog_keys'][field] = value
-
-                if name is not None:
-                    params['name'] = name
+                            params[field] = value
 
                 account = self.client.import_account(**params)
 
@@ -305,18 +315,17 @@ class CommandLineInterface:
             return
 
         print('Imported account.')
-        print()
-        _print_account(account)
+        print(_format_account_header(account))
         print()
 
     def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+        account_id = account['id']
+        status = self.client.get_account_status(account_id)
 
         print('You are about to export the secret entropy mnemonic for this account:')
         print()
-        _print_account(account, balance)
+        _print_account(status)
 
         print()
         if show:
@@ -343,7 +352,6 @@ class CommandLineInterface:
         else:
             filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
-                print(secrets)
                 _save_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
@@ -353,23 +361,23 @@ class CommandLineInterface:
 
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
-        balance = self.client.get_balance_for_account(account_id)
+        account_id = account['id']
+        status = self.client.get_account_status(account_id)
 
         if account.get('view_only'):
             print('You are about to remove this view key:')
             print()
-            _print_account(account, balance)
+            _print_account(status)
             print()
             print('You will lose the ability to see related transactions unless you')
             print('restore it from backup.')
         else:
             print('You are about to remove this account:')
             print()
-            _print_account(account, balance)
+            _print_account(status)
             print()
-            print('You will lose access to the funds in this account unless you')
-            print('restore it from the mnemonic phrase.')
+            print('You will lose access to this account unless you restore it')
+            print('from the mnemonic phrase.')
 
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
@@ -380,11 +388,14 @@ class CommandLineInterface:
 
     def history(self, account_id):
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
-        transactions = self.client.get_transaction_logs_for_account(account_id, limit=1000)
+        own_addresses = self.client.get_addresses(account_id)
+        own_addresses = set( a['public_address_b58'] for a in own_addresses.values() )
 
-        def block_key(t):
+        transactions = self.client.get_transaction_logs(account_id, limit=1000)
+
+        def tx_block(t):
             submitted = t['submitted_block_index']
             finalized = t['finalized_block_index']
             if submitted is not None and finalized is not None:
@@ -396,57 +407,71 @@ class CommandLineInterface:
             else:
                 return None
 
-        transactions = sorted(transactions.values(), key=block_key)
-
+        transactions = sorted(transactions.values(), key=tx_block)
         for t in transactions:
+            fee = Amount.from_storage_units(
+                t['fee_amount']['value'],
+                t['fee_amount']['token_id'],
+            )
+
             print()
-            if t['direction'] == 'tx_direction_received':
-                amount = _format_mob(
-                    sum(
-                        pmob2mob(txo['value_pmob'])
-                        for txo in t['output_txos']
-                    )
+            print('Block #{}, {} output{}'.format(
+                tx_block(t),
+                len(t['output_txos']),
+                's' if len(t['output_txos']) != 1 else '',
+            ))
+            print('  Fee:', fee.format())
+
+            for i, txo in enumerate(t['output_txos']):
+                print('  Output #{}'.format(i+1))
+                amount = Amount.from_storage_units(
+                    txo['amount']['value'],
+                    txo['amount']['token_id'],
                 )
-                print('Received {}'.format(amount))
-                print('  at {}'.format(t['assigned_address_id']))
-            elif t['direction'] == 'tx_direction_sent':
-                for txo in t['output_txos']:
-                    amount = _format_mob(pmob2mob(txo['value_pmob']))
-                    print('Sent {}'.format(amount))
-                    if not txo['recipient_address_id']:
-                        print('  to an unknown address.')
-                    else:
-                        print('  to {}'.format(txo['recipient_address_id']))
-            print('  in block {}'.format(block_key(t)), end=', ')
-            if t['fee_pmob'] is None:
-                print('paying an unknown fee.')
-            else:
-                print('paying a fee of {}'.format(_format_mob(pmob2mob(t['fee_pmob']))))
-        print()
+                print(indent(amount.format(), '    '))
+                address = txo['recipient_public_address_b58'] 
+                if address in own_addresses:
+                    print('    Received at', address)
+                else:
+                    print('    Sent to', address)
 
-    def send(self, account_id, amount, to_address, build_only=False, fee=None):
+    def send(self, account_id, amount, token, to_address, build_only=False, fee=None):
+        token = get_token(token)
+
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
-        balance = self.client.get_balance_for_account(account_id)
-        unspent = pmob2mob(balance['unspent_pmob'])
-
-        network_status = self.client.get_network_status()
+        account_status = self.client.get_account_status(account_id)
+        try:
+            unspent = Amount.from_storage_units(
+                account_status['balance_per_token'][str(token.token_id)]['unspent'],
+                token,
+            )
+        except KeyError:
+            unspent = Amount.from_storage_units(0, token)
 
         if fee is None:
-            fee = pmob2mob(network_status['fee_pmob'])
+            network_status = self.client.get_network_status()
+            fee = Amount.from_storage_units(
+                network_status['fees'][str(token.token_id)],
+                token
+            )
         else:
-            fee = Decimal(fee)
+            fee = Amount.from_display_units(fee, token)
+        assert fee is not None
 
         if amount == "all":
             amount = unspent - fee
             total_amount = unspent
         else:
-            amount = Decimal(amount)
+            amount = Amount.from_display_units(amount, token)
             total_amount = amount + fee
 
         if unspent < total_amount:
-            print('There is not enough MOB in account {} to pay for this transaction.'.format(account_id[:6]))
+            print('There is not enough {} in account {} to pay for this transaction.'.format(
+                token.short_code,
+                account_id[:6],
+            ))
             return
 
         if account.get('view_only'):
@@ -462,28 +487,21 @@ class CommandLineInterface:
             '  from account {}',
             '  to address {}',
             'Fee is {}, for a total amount of {}.',
-            '',
         ]).format(
             verb,
-            _format_mob(amount),
+            amount.format(),
             _format_account_header(account),
             to_address,
-            _format_mob(fee),
-            _format_mob(total_amount),
+            fee.format(),
+            total_amount.format(),
         ))
-
-        if total_amount > unspent:
-            print('\n'.join([
-                'Cannot send this transaction, because the account only',
-                'contains {}. Try sending all funds by entering amount as "all".',
-            ]).format(_format_mob(unspent)))
-            return
+        print()
 
         if account.get('view_only'):
             response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
             path = Path('tx_proposal_{}_{}_unsigned.json'.format(
                 account_id[:6],
-                balance['local_block_height'],
+                account_status['local_block_height'],
             ))
             if path.exists():
                 print(f'The file {path} already exists. Please rename the existing file and retry.')
@@ -492,7 +510,7 @@ class CommandLineInterface:
                 print(f'Wrote {path}.')
                 print()
                 print('This account is view-only, so its spend key is in an offline signer.')
-                print('Run `mob-transaction-signer sign`, then submit the result with `mobcli submit`')
+                print('Run `mob-transaction-signer sign`, then submit the result with `mob submit`')
             return
 
         if build_only:
@@ -510,22 +528,30 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        transaction_log, tx_proposal = self.client.build_and_submit_transaction_with_proposal(
+        transaction_log, tx_proposal = self.client.build_and_submit_transaction(
             account_id,
             amount,
             to_address,
             fee=fee,
         )
 
+        sent_amounts = [
+            Amount.from_storage_units(value, token_id)
+            for token_id, value in transaction_log['value_map'].items()
+        ]
+        fee_amount = Amount.from_storage_units(
+            transaction_log['fee_amount']['value'],
+            transaction_log['fee_amount']['token_id'],
+        )
         print('Sent {}, with a transaction fee of {}'.format(
-            _format_mob(pmob2mob(transaction_log['value_pmob'])),
-            _format_mob(pmob2mob(transaction_log['fee_pmob'])),
+            ', '.join(a.format() for a in sent_amounts),
+            fee_amount.format(),
         ))
 
     def submit(self, proposal, account_id=None, receipt=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
-            account_id = account['account_id']
+            account_id = account['id']
 
         with Path(proposal).open() as f:
             tx_proposal = json.load(f)
@@ -581,7 +607,7 @@ class CommandLineInterface:
             return
 
         account = self._load_account_prefix(account_id)
-        account_id = account['account_id']
+        account_id = account['id']
 
         mob_url = 'mob:///b58/{}'.format(account['main_address'])
         qr = segno.make(mob_url)
@@ -605,23 +631,26 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
 
-        addresses = self.client.get_addresses_for_account(account['account_id'], limit=1000)
-        for address in addresses.values():
-            balance = self.client.get_balance_for_address(address['public_address'])
-            print(indent(
-                '{} {}'.format(address['public_address'], address['metadata']),
-                ' '*2,
+        addresses = self.client.get_addresses(account['id'], limit=1000)
+        addresses = list(addresses.values())
+        addresses.sort(key=lambda a: int(a['subaddress_index']))
+
+        for address in addresses:
+            address_status = self.client.get_address_status(address['public_address_b58'])
+
+            print()
+            print('#{} {}'.format(
+                address['subaddress_index'],
+                address['metadata'],
             ))
-            print(indent(
-                _format_balance(balance),
-                ' '*4,
-            ))
+            print(indent(address['public_address_b58'], '  '))
+            print(indent(_format_balances(address_status['balance_per_token']), '  '))
 
         print()
 
     def address_create(self, account_id, metadata):
         account = self._load_account_prefix(account_id)
-        address = self.client.assign_address_for_account(account['account_id'], metadata)
+        address = self.client.assign_address_for_account(account['id'], metadata)
         print()
         print(_format_account_header(account))
         print(indent(
@@ -652,7 +681,7 @@ class CommandLineInterface:
     def gift_create(self, account_id, amount, memo=''):
         account = self._load_account_prefix(account_id)
         amount = Decimal(amount)
-        response = self.client.build_gift_code(account['account_id'], amount, memo)
+        response = self.client.build_gift_code(account['id'], amount, memo)
         gift_code_b58 = response['gift_code_b58']
         tx_proposal = response['tx_proposal']
 
@@ -667,7 +696,7 @@ class CommandLineInterface:
             print('Cancelled.')
             return
 
-        gift_code = self.client.submit_gift_code(gift_code_b58, tx_proposal, account['account_id'])
+        gift_code = self.client.submit_gift_code(gift_code_b58, tx_proposal, account['id'])
         print('Created gift code {}'.format(gift_code['gift_code_b58']))
 
     def gift_claim(self, account_id, gift_code):
@@ -692,7 +721,7 @@ class CommandLineInterface:
             return
 
         try:
-            self.client.claim_gift_code(account['account_id'], gift_code)
+            self.client.claim_gift_code(account['id'], gift_code)
         except WalletAPIError as e:
             if e.response['data']['server_error'] == 'GiftCodeClaimed':
                 print('This gift code has already been claimed.')
@@ -745,7 +774,7 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
 
-        account_id = account['account_id']
+        account_id = account['id']
         response = self.client.create_view_only_account_sync_request(account_id)
 
         network_status = self.client.get_network_status()
@@ -781,21 +810,25 @@ class CommandLineInterface:
         print('commit', version['commit'][:6])
 
 
-def _format_mob(mob):
-    return '{} MOB'.format(_format_decimal(mob))
-
-
-def _format_decimal(d):
-    # Adapted from https://stackoverflow.com/questions/11227620/drop-trailing-zeros-from-decimal
-    d = Decimal(d)
-    normalized = d.normalize()
-    sign, digit, exponent = normalized.as_tuple()
-    result = normalized if exponent <= 0 else normalized.quantize(1)
-    return '{:f}'.format(result)
+def _print_account(status):
+    print(
+        '{} ({})'.format(
+            _format_account_header(status['account']),
+            _format_sync_state(status),
+        )
+    )
+    print(indent(
+        'address {}'.format(status['account']['main_address']),
+        ' '*2,
+    ))
+    print(indent(
+        _format_balances(status['balance_per_token']),
+        ' '*2,
+    ))
 
 
 def _format_account_header(account):
-    output = account['account_id'][:6]
+    output = account['id'][:6]
     if account['name']:
         output += ' ' + account['name']
     if account.get('view_only'):
@@ -803,42 +836,39 @@ def _format_account_header(account):
     return output
 
 
-def _format_balance(balance):
+def _format_sync_state(status):
+    account_block = int(status['account']['next_block_index'])
+
     offline = False
-    network_block = int(balance['network_block_height'])
+    network_block = int(status['network_block_height'])
     if network_block == 0:
         offline = True
-        network_block = int(balance['local_block_height'])
+        network_block = int(status['local_block_height'])
 
-    orphaned_status = ''
-    if 'orphaned_pmob' in balance:
-        orphaned = pmob2mob(balance['orphaned_pmob'])
-        if orphaned > 0:
-            orphaned_status = ', {} orphaned'.format(_format_mob(orphaned))
-
-    account_block = int(balance['account_block_height'])
     if account_block == network_block:
-        sync_status = 'synced'
+        sync_state = 'synced'
     else:
-        sync_status = 'syncing, {}/{}'.format(balance['account_block_height'], network_block)
+        sync_state = 'syncing, {}/{}'.format(account_block, network_block)
 
     if offline:
-        offline_status = ' [offline]'
+        offline_state = ' [offline]'
     else:
-        offline_status = ''
+        offline_state = ''
 
-    if 'unspent_pmob' in balance:
-        amount = balance['unspent_pmob']
-    elif 'balance' in balance:
-        amount = balance['balance']
+    return '{}{}'.format(sync_state, offline_state)
 
-    result = '{}{} ({}){}'.format(
-        _format_mob(pmob2mob(amount)),
-        orphaned_status,
-        sync_status,
-        offline_status,
-    )
-    return result
+
+def _format_balances(balances):
+    lines = []
+    for token_id, balance in balances.items():
+        unspent = Amount.from_storage_units(balance['unspent'], token_id)
+        if unspent.value > 0:
+            lines.append(unspent.format())
+
+    if len(lines) == 0:
+        return 'Empty'
+
+    return '\n'.join(lines)
 
 
 def _format_gift_code_status(status):
@@ -847,20 +877,6 @@ def _format_gift_code_status(status):
         'GiftCodeAvailable': 'available',
         'GiftCodeClaimed': 'claimed',
     }[status]
-
-
-def _print_account(account, balance=None):
-    print(_format_account_header(account))
-    if 'main_address' in account:
-        print(indent(
-            'address {}'.format(account['main_address']),
-            ' '*2,
-        ))
-    if balance is not None:
-        print(indent(
-            _format_balance(balance),
-            ' '*2,
-        ))
 
 
 def _print_gift_code(gift_code_b58, amount, memo='', status=None):
@@ -906,7 +922,7 @@ def _save_export(account, secrets, filename):
         export_data['root_entropy'] = legacy_root_entropy
 
     export_data.update({
-        'account_id': account['account_id'],
+        'account_id': account['id'],
         'name': account['name'],
         'account_key': secrets['account_key'],
         'first_block_index': account['first_block_index'],
