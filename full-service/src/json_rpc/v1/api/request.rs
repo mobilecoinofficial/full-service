@@ -16,7 +16,7 @@ use strum_macros::EnumIter;
 pub fn help_str() -> String {
     let mut help_str = "Please use json data to choose wallet commands. For example, \n\ncurl -s localhost:9090/wallet -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
     for e in JsonCommandRequest::iter() {
-        help_str.push_str(&format!("{:?}\n\n", e));
+        help_str.push_str(&format!("{e:?}\n\n"));
     }
     help_str
 }
@@ -31,7 +31,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
         let method = src_json.get_mut("method").ok_or("Missing method")?;
         *method = method_alias(method.as_str().ok_or("Method is not a string")?).into();
 
-        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {:?}", e))
+        serde_json::from_value(src_json).map_err(|e| format!("Could not get value {e:?}"))
     }
 }
 
