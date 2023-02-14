@@ -29,7 +29,7 @@ use rocket::{
     config::{Config as RocketConfig, TlsConfig},
     data::ToByteUnit,
     http::Status,
-    launch, post,
+    post,
     response::Responder,
     routes,
     tokio::io::AsyncReadExt,
