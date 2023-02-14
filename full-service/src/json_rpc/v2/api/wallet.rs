@@ -104,9 +104,11 @@ where
 
     match wallet_api_inner(&state.service, request).await {
         Ok(command_response) => {
+            global_log::info!("Command executed successfully");
             response.result = Some(command_response);
         }
         Err(rpc_error) => {
+            global_log::info!("Command failed with error: {:?}", rpc_error);
             response.error = Some(rpc_error);
         }
     };
@@ -128,7 +130,7 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    global_log::trace!("Running command {:?}", command);
+    global_log::info!("Running command {:?}", command);
 
     let response = match command {
         JsonCommandRequest::assign_address_for_account {

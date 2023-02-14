@@ -182,7 +182,6 @@ fn all_options() {
 /// Returns an instance of a Rocket server.
 pub fn consensus_backed_rocket(
     rocket_config: rocket::Config,
-    state: WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>,
     allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
     let mut consensus_rocket = rocket::custom(rocket_config);
@@ -193,24 +192,21 @@ pub fn consensus_backed_rocket(
         });
     }
 
-    consensus_rocket
-        .mount(
-            "/",
-            routes![
-                consensus_backed_wallet_api_v1,
-                consensus_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health,
-                all_options
-            ],
-        )
-        .manage(state)
+    consensus_rocket.mount(
+        "/",
+        routes![
+            consensus_backed_wallet_api_v1,
+            consensus_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health,
+            all_options
+        ],
+    )
 }
 
 pub fn validator_backed_rocket(
     rocket_config: rocket::Config,
-    state: WalletState<ValidatorConnection, FogResolver>,
     allowed_origin: Option<String>,
 ) -> rocket::Rocket<rocket::Build> {
     let mut validator_rocket = rocket::custom(rocket_config);
@@ -221,17 +217,15 @@ pub fn validator_backed_rocket(
         });
     }
 
-    validator_rocket
-        .mount(
-            "/",
-            routes![
-                validator_backed_wallet_api_v1,
-                validator_backed_wallet_api_v2,
-                wallet_help_v1,
-                wallet_help_v2,
-                health,
-                all_options
-            ],
-        )
-        .manage(state)
+    validator_rocket.mount(
+        "/",
+        routes![
+            validator_backed_wallet_api_v1,
+            validator_backed_wallet_api_v2,
+            wallet_help_v1,
+            wallet_help_v2,
+            health,
+            all_options
+        ],
+    )
 }
