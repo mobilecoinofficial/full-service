@@ -52,7 +52,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![main_account_address],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(

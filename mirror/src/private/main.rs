@@ -55,7 +55,7 @@ impl FromStr for MonitorId {
     type Err = String;
     fn from_str(src: &str) -> Result<Self, Self::Err> {
         let bytes =
-            hex::decode(src).map_err(|err| format!("Error decoding monitor id: {:?}", err))?;
+            hex::decode(src).map_err(|err| format!("Error decoding monitor id: {err:?}"))?;
         if bytes.len() != 32 {
             return Err("monitor id needs to be exactly 32 bytes".into());
         }
@@ -232,7 +232,7 @@ fn process_unencrypted_request(
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
             let mut err_query_response = QueryResponse::new();
-            err_query_response.set_error(format!("Error parsing JSON request: {}", err));
+            err_query_response.set_error(format!("Error parsing JSON request: {err}"));
             return Ok(err_query_response);
         }
     }
@@ -272,9 +272,9 @@ fn process_encrypted_request(
 
     // Decrypt the request.
     let json_request = match decrypt(mirror_key, &encrypted_request.payload)
-        .map_err(|err| format!("Error decrypting request: {}", err))
+        .map_err(|err| format!("Error decrypting request: {err}"))
         .and_then(|decrypted| {
-            String::from_utf8(decrypted).map_err(|err| format!("Error parsing utf8: {}", err))
+            String::from_utf8(decrypted).map_err(|err| format!("Error parsing utf8: {err}"))
         }) {
         Ok(json_request) => json_request,
         Err(err) => {
@@ -292,7 +292,7 @@ fn process_encrypted_request(
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
             let mut err_query_response = QueryResponse::new();
-            err_query_response.set_error(format!("Error parsing JSON request: {}", err));
+            err_query_response.set_error(format!("Error parsing JSON request: {err}"));
             return Ok(err_query_response);
         }
     }

@@ -44,7 +44,7 @@ mod e2e_account {
             &mut ledger_db,
             &vec![public_address],
             42 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -91,13 +91,13 @@ mod e2e_account {
         let account_id = res["result"]["account"]["id"].as_str().unwrap();
         let b58_public_address = res["result"]["account"]["main_address"].as_str().unwrap();
 
-        let alice_public_address = b58_decode_public_address(&b58_public_address)
+        let alice_public_address = b58_decode_public_address(b58_public_address)
             .expect("Could not b58_decode public address");
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address],
             42 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         //
@@ -158,7 +158,7 @@ mod e2e_account {
             &mut ledger_db,
             &vec![from_bob_public_address],
             64 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         //

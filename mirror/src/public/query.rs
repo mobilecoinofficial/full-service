@@ -156,7 +156,7 @@ impl QueryManager {
         let query = inner
             .pending_responses
             .remove(query_id)
-            .ok_or_else(|| format!("Unknown query id {}", query_id))?;
+            .ok_or_else(|| format!("Unknown query id {query_id}"))?;
         query.resolve(response.clone());
         Ok(())
     }

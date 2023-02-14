@@ -53,7 +53,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -70,7 +70,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100000000000000, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -107,7 +107,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             1, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -144,14 +144,14 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             1, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![public_address.clone()],
+            &vec![public_address],
             1, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
@@ -226,7 +226,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![alice_public_address],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
