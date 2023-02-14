@@ -252,7 +252,7 @@ where
                 Some(first_block_index),
                 Some(import_block_index),
                 None,
-                &name.unwrap_or_else(|| "".to_string()),
+                &name.unwrap_or_default(),
                 fog_report_url,
                 fog_report_id,
                 fog_authority_spki,

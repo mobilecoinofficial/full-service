@@ -49,7 +49,7 @@ impl From<&mc_transaction_core::MaskedAmount> for MaskedAmount {
         Self {
             commitment: hex::encode(src.commitment().to_bytes()),
             masked_value: src.get_masked_value().to_string(),
-            masked_token_id: hex::encode(&src.masked_token_id()),
+            masked_token_id: hex::encode(src.masked_token_id()),
             version,
         }
     }
@@ -62,16 +62,16 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
         let mut commitment_bytes = [0u8; 32];
         commitment_bytes[0..32].copy_from_slice(
             &hex::decode(&src.commitment)
-                .map_err(|err| format!("Could not decode hex for amount commitment: {:?}", err))?,
+                .map_err(|err| format!("Could not decode hex for amount commitment: {err:?}"))?,
         );
 
         let commitment = (&commitment_bytes).into();
         let masked_value = src
             .masked_value
             .parse::<u64>()
-            .map_err(|err| format!("Could not parse masked value u64: {:?}", err))?;
+            .map_err(|err| format!("Could not parse masked value u64: {err:?}"))?;
         let masked_token_id = hex::decode(&src.masked_token_id)
-            .map_err(|err| format!("Could not decode hex for masked token id: {:?}", err))?;
+            .map_err(|err| format!("Could not decode hex for masked token id: {err:?}"))?;
 
         match src.version {
             MaskedAmountVersion::V1 => {

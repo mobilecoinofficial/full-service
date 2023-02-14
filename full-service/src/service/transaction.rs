@@ -506,7 +506,7 @@ where
                     let transaction_log = TransactionLog::log_submitted(
                         tx_proposal,
                         block_index,
-                        comment.unwrap_or_else(|| "".to_string()),
+                        comment.unwrap_or_default(),
                         &account_id_hex,
                         &conn,
                     )?;
@@ -570,7 +570,7 @@ where
 fn validate_number_inputs(num_inputs: u64) -> Result<(), TransactionServiceError> {
     if num_inputs > MAX_INPUTS {
         return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-            format!("Invalid number of input txos. {:?} txo ids provided but maximum allowed number of inputs is {:?}", num_inputs, MAX_INPUTS)
+            format!("Invalid number of input txos. {num_inputs:?} txo ids provided but maximum allowed number of inputs is {MAX_INPUTS:?}")
         )));
     }
     Ok(())
@@ -581,7 +581,7 @@ fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceErr
     let max_outputs = MAX_OUTPUTS - 1;
     if num_outputs > max_outputs {
         return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-            format!("Invalid number of recipiants. {:?} recipiants provided but maximum allowed number of outputs is {:?}", num_outputs, max_outputs)
+            format!("Invalid number of recipiants. {num_outputs:?} recipiants provided but maximum allowed number of outputs is {max_outputs:?}")
         )));
     }
     Ok(())

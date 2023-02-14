@@ -111,7 +111,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let account_id = AccountID::from(account_key);
 
-        let subaddress = account_key.subaddress(subaddress_index as u64);
+        let subaddress = account_key.subaddress(subaddress_index);
 
         let subaddress_b58 = b58_encode_public_address(&subaddress)?;
         let subaddress_entry = NewAssignedSubaddress {
@@ -325,13 +325,11 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         if matches.is_empty() {
             Err(WalletDbError::AssignedSubaddressNotFound(format!(
-                "{:?}",
-                subaddress_spend_public_key
+                "{subaddress_spend_public_key:?}"
             )))
         } else if matches.len() > 1 {
             Err(WalletDbError::DuplicateEntries(format!(
-                "{:?}",
-                subaddress_spend_public_key
+                "{subaddress_spend_public_key:?}"
             )))
         } else {
             Ok(matches[0].clone())

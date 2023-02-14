@@ -155,8 +155,8 @@ pub fn sync_account_next_chunk(
         let start = account.next_block_index as u64;
         let end = start + BLOCKS_CHUNK_SIZE;
         for block_index in start..end {
-            let block_index = block_index as u64;
-            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
+            let block_index = block_index;
+            let block_contents = match ledger_db.get_block_contents(block_index) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
                     break;
@@ -236,7 +236,7 @@ pub fn sync_account_next_chunk(
             let num_spent_txos = spent_txos.len();
 
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
@@ -323,7 +323,7 @@ pub fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,

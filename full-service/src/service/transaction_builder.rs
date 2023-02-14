@@ -102,7 +102,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let unspent: Vec<Txo> = txos
             .iter()
-            .filter(|txo| txo.spent_block_index == None)
+            .filter(|txo| txo.spent_block_index.is_none())
             .cloned()
             .collect();
 

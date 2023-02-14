@@ -84,10 +84,10 @@ pub struct APIConfig {
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
     let quorum_set: QuorumSet<ResponderId> = serde_json::from_str(src)
-        .map_err(|err| format!("Error parsing quorum set {}: {:?}", src, err))?;
+        .map_err(|err| format!("Error parsing quorum set {src}: {err:?}"))?;
 
     if !quorum_set.is_valid() {
-        return Err(format!("Invalid quorum set: {:?}", quorum_set));
+        return Err(format!("Invalid quorum set: {quorum_set:?}"));
     }
 
     Ok(quorum_set)
@@ -95,9 +95,9 @@ fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, Strin
 
 fn load_css_file(filename: &str) -> Result<Signature, String> {
     let bytes =
-        fs::read(filename).map_err(|err| format!("Failed reading file '{}': {}", filename, err))?;
+        fs::read(filename).map_err(|err| format!("Failed reading file '{filename}': {err}"))?;
     let signature = Signature::try_from(&bytes[..])
-        .map_err(|err| format!("Failed parsing CSS file '{}': {}", filename, err))?;
+        .map_err(|err| format!("Failed parsing CSS file '{filename}': {err}"))?;
     Ok(signature)
 }
 
@@ -146,7 +146,7 @@ impl APIConfig {
             } else if let Some(verifier) = verifier.as_ref() {
                 let report_responses = conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
-                    .map_err(|err| format!("Failed fetching fog reports: {}", err))?;
+                    .map_err(|err| format!("Failed fetching fog reports: {err}"))?;
                 log::debug!(logger, "Got report responses {:?}", report_responses);
                 Ok(FogResolver::new(report_responses, verifier)
                     .expect("Could not construct fog resolver"))
@@ -323,7 +323,7 @@ impl LedgerDbConfig {
                     });
                 }
 
-                let src = format!("{}/data.mdb", ledger_db_bootstrap);
+                let src = format!("{ledger_db_bootstrap}/data.mdb");
                 std::fs::copy(src.clone(), ledger_db_file.clone()).unwrap_or_else(|_| {
                     panic!(
                         "Failed copying ledger from {} into directory {}",

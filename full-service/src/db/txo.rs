@@ -1392,8 +1392,7 @@ impl TxoModel for Txo {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
-                    "Max spendable value in wallet: {:?}, but target value: {:?}",
-                    max_spendable_in_wallet, target_value
+                    "Max spendable value in wallet: {max_spendable_in_wallet:?}, but target value: {target_value:?}"
                 )));
             }
         }
@@ -1415,8 +1414,7 @@ impl TxoModel for Txo {
             // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
             let next_utxo = spendable_txos.pop().ok_or_else(|| {
                 WalletDbError::InsufficientFunds(format!(
-                    "Not enough Txos to sum to target value: {:?}",
-                    target_value
+                    "Not enough Txos to sum to target value: {target_value:?}"
                 ))
             })?;
             selected_utxos.push(next_utxo.clone());
