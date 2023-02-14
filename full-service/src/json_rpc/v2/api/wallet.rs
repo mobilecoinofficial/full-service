@@ -530,7 +530,7 @@ where
 
             let unverified_txos_encoded: Vec<String> = unverified_tx_results
                 .iter()
-                .map(|txo_obj| hex::encode(&mc_util_serial::encode(txo_obj)))
+                .map(|txo_obj| hex::encode(mc_util_serial::encode(txo_obj)))
                 .collect();
 
             JsonCommandResponse::create_view_only_account_sync_request {
@@ -720,8 +720,7 @@ where
         } => {
             if limit > MAX_BLOCKS_PER_REQUEST {
                 return Err(format_error(format!(
-                    "Limit must be less than or equal to {}",
-                    MAX_BLOCKS_PER_REQUEST
+                    "Limit must be less than or equal to {MAX_BLOCKS_PER_REQUEST}"
                 )));
             }
 
@@ -760,8 +759,7 @@ where
             let limit = limit.unwrap_or(RECENT_BLOCKS_DEFAULT_LIMIT);
             if limit > MAX_BLOCKS_PER_REQUEST {
                 return Err(format_error(format!(
-                    "Limit must be less than or equal to {}",
-                    MAX_BLOCKS_PER_REQUEST
+                    "Limit must be less than or equal to {MAX_BLOCKS_PER_REQUEST}"
                 )));
             }
 
