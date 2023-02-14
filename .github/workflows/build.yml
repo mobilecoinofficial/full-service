@@ -24,7 +24,7 @@ jobs:
           [
             [self-hosted, macOS, X64],
             [self-hosted, macOS, ARM64],
-            [self-hosted, Linux],
+            [self-hosted, Linux, large],
           ]
         namespace: [test, prod]
         include:
