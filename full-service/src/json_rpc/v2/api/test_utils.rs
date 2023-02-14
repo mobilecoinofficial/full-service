@@ -75,7 +75,12 @@ async fn test_wallet_api(
         id: command.0.id,
     };
 
-    match wallet_api_inner(&state.service, JsonCommandRequest::try_from(&req)?).await {
+    match wallet_api_inner(
+        &state.service,
+        JsonCommandRequest::try_from(&req).map_err(|e| e)?,
+    )
+    .await
+    {
         Ok(command_response) => {
             response.result = Some(command_response);
         }
@@ -166,7 +171,7 @@ pub fn create_test_setup(
         watcher_db,
         peer_manager,
         network_state.clone(),
-        get_resolver_factory(rng).unwrap(),
+        get_resolver_factory(&mut rng).unwrap(),
         false,
         logger,
     );
@@ -368,7 +373,7 @@ pub fn wait_for_sync(
             "method": "get_wallet_status",
             "id": 1,
         });
-        let res = dispatch(client, body, logger);
+        let res = dispatch(&client, body, &logger);
         let status = res["result"]["wallet_status"].clone();
 
         let is_synced_all = status["is_synced_all"].as_bool().unwrap();

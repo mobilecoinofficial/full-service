@@ -14,7 +14,7 @@ fn main() {
         panic!("{} already exists", PUBLIC_KEY_FILENAME);
     }
     let priv_key = if Path::new(PRIVATE_KEY_FILENAME).exists() {
-        println!("Reading existing private key file {PRIVATE_KEY_FILENAME}");
+        println!("Reading existing private key file {}", PRIVATE_KEY_FILENAME);
         let key_str = std::fs::read_to_string(PRIVATE_KEY_FILENAME).unwrap_or_else(|err| {
             panic!(
                 "failed reading private key file {}: {}",
@@ -40,10 +40,11 @@ fn main() {
         .expect("Failed getting public key as PEM");
 
     fs::write(PRIVATE_KEY_FILENAME, priv_key_pem).expect("Failed writing private key to file");
-    println!("Wrote {PRIVATE_KEY_FILENAME} - use this file with the private side of the mirror. See README.md for more details'");
+    println!("Wrote {} - use this file with the private side of the mirror. See README.md for more details'", PRIVATE_KEY_FILENAME);
 
     fs::write(PUBLIC_KEY_FILENAME, pub_key_pem).expect("Failed writing public key to file");
     println!(
-        "Wrote {PUBLIC_KEY_FILENAME}  - use this file with client, see example-client.js for example"
+        "Wrote {}  - use this file with client, see example-client.js for example",
+        PUBLIC_KEY_FILENAME
     );
 }

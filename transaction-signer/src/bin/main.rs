@@ -94,7 +94,7 @@ fn main() {
 }
 
 fn create_account(name: &str, mnemonic: Option<&str>) {
-    println!("Creating account {name}");
+    println!("Creating account {}", name);
 
     let mnemonic = match mnemonic {
         Some(mnemonic) => Mnemonic::from_phrase(mnemonic, Language::English).unwrap(),
@@ -121,7 +121,7 @@ fn create_account(name: &str, mnemonic: Option<&str>) {
     );
     let output_json = serde_json::to_string_pretty(&secrets).unwrap();
     fs::write(&filename, output_json + "\n").expect("could not write output file");
-    println!("Wrote {filename}");
+    println!("Wrote {}", filename);
 
     generate_view_only_import_package(&filename);
 }
@@ -273,7 +273,7 @@ fn write_json_command_request_to_file(json_command_request: &JsonCommandRequest,
 
     let result_json = serde_json::to_string_pretty(&json_rpc_request).unwrap();
     fs::write(filename, result_json + "\n").expect("could not write output file");
-    println!("Wrote {filename}");
+    println!("Wrote {}", filename);
 }
 
 fn get_key_images_for_txos(

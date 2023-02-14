@@ -49,7 +49,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -66,7 +66,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address],
             100_000_000_000_000, // 100.0 MOB
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

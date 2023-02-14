@@ -69,13 +69,13 @@ fn rocket() -> Rocket<Build> {
             let wallet_db_path = wallet_db_path_buf.to_str().unwrap();
             // Connect to the database and run the migrations
             let conn = SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
-                eprintln!("Cannot open database {wallet_db_path:?}: {err:?}");
+                eprintln!("Cannot open database {:?}: {:?}", wallet_db_path, err);
                 exit(EXIT_NO_DATABASE_CONNECTION);
             });
             WalletDb::set_db_encryption_key_from_env(&conn);
             WalletDb::try_change_db_encryption_key_from_env(&conn);
             if !WalletDb::check_database_connectivity(&conn) {
-                eprintln!("Incorrect password for database {wallet_db_path:?}.");
+                eprintln!("Incorrect password for database {:?}.", wallet_db_path);
                 exit(EXIT_WRONG_PASSWORD);
             };
             WalletDb::run_migrations(&conn);
@@ -274,35 +274,37 @@ fn validator_backed_full_service(
 
     let fog_ingest_verifier = config.get_fog_ingest_verifier();
     let logger2 = logger.clone();
-    let service = WalletService::new(
-        wallet_db,
-        ledger_db,
-        None,
-        conn_manager,
-        network_state,
-        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
-            if fog_uris.is_empty() {
-                Ok(Default::default())
-            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
-                let report_responses = validator_conn
-                    .fetch_fog_reports(fog_uris.iter().cloned())
-                    .map_err(|err| {
-                    format!("Error fetching fog reports (via validator) for {fog_uris:?}: {err}")
-                })?;
+    let service =
+        WalletService::new(
+            wallet_db,
+            ledger_db,
+            None,
+            conn_manager,
+            network_state,
+            Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+                if fog_uris.is_empty() {
+                    Ok(Default::default())
+                } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+                    let report_responses = validator_conn
+                        .fetch_fog_reports(fog_uris.iter().cloned())
+                        .map_err(|err| {
+                            format!(
+                                "Error fetching fog reports (via validator) for {:?}: {}",
+                                fog_uris, err
+                            )
+                        })?;
 
-                log::debug!(logger2, "Got report responses {:?}", report_responses);
-                Ok(FogResolver::new(report_responses, verifier)
-                    .expect("Could not construct fog resolver"))
-            } else {
-                Err(
-                    "Some recipients have fog, but no fog ingest report verifier was configured"
-                        .to_string(),
-                )
-            }
-        }),
-        false,
-        logger,
-    );
+                    log::debug!(logger2, "Got report responses {:?}", report_responses);
+                    Ok(FogResolver::new(report_responses, verifier)
+                        .expect("Could not construct fog resolver"))
+                } else {
+                    Err("Some recipients have fog, but no fog ingest report verifier was configured"
+                    .to_string())
+                }
+            }),
+            false,
+            logger,
+        );
 
     validator_backed_rocket(rocket_config, config.allowed_origin.clone())
         .manage(WalletState { service })

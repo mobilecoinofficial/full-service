@@ -60,7 +60,7 @@ use serde_json::json;
 use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
 
 #[derive(Display, Debug)]
-#[allow(clippy::large_enum_variant, clippy::result_large_err)]
+#[allow(clippy::large_enum_variant)]
 pub enum GiftCodeServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
@@ -346,7 +346,6 @@ pub enum GiftCodeStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// gift codes.
-#[allow(clippy::result_large_err)]
 pub trait GiftCodeService {
     /// Builds a new gift code.
     ///
@@ -500,7 +499,7 @@ where
         let gift_code_b58 = b58_encode_transfer_payload(
             gift_code_bip39_entropy_bytes.to_vec(),
             proto_tx_pubkey,
-            memo.unwrap_or_default(),
+            memo.unwrap_or_else(|| "".to_string()),
         )?;
 
         Ok((tx_proposal, EncodedGiftCode(gift_code_b58)))
@@ -608,7 +607,7 @@ where
             let onetime_private_key = recover_onetime_private_key(
                 &RistrettoPublic::try_from(&transfer_payload.txo_public_key)?,
                 gift_account_key.view_private_key(),
-                &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX),
+                &gift_account_key.subaddress_spend_private(DEFAULT_SUBADDRESS_INDEX as u64),
             );
             KeyImage::from(&onetime_private_key)
         };
@@ -784,7 +783,6 @@ where
 }
 
 /// Decode the gift code from b58 to its component parts.
-#[allow(clippy::result_large_err)]
 pub fn decode_transfer_payload(
     gift_code_b58: &EncodedGiftCode,
 ) -> Result<DecodedTransferPayload, GiftCodeServiceError> {
@@ -834,13 +832,13 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -856,7 +854,7 @@ mod tests {
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
                 &AccountID(alice.id.clone()),
-                2 * MOB,
+                2 * MOB as u64,
                 Some("Gift code for Bob".to_string()),
                 None,
                 None,
@@ -867,7 +865,11 @@ mod tests {
         log::info!(logger, "Built gift code transaction");
 
         let _gift_code = service
-            .submit_gift_code(&AccountID(alice.id.clone()), &gift_code_b58, &tx_proposal)
+            .submit_gift_code(
+                &AccountID(alice.id.clone()),
+                &gift_code_b58.clone(),
+                &tx_proposal.clone(),
+            )
             .unwrap();
 
         // Check the status before the gift code hits the ledger
@@ -880,7 +882,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -910,11 +912,11 @@ mod tests {
             .unwrap()
             .get_value(&shared_secret)
             .unwrap();
-        assert_eq!(value, Amount::new(2 * MOB, Mob::ID));
+        assert_eq!(value, Amount::new(2 * MOB as u64, Mob::ID));
 
         // Verify balance for Alice = original balance - fee - gift_code_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.id))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(balance_pmob.unspent, (98 * MOB - Mob::MINIMUM_FEE) as u128);
@@ -943,7 +945,7 @@ mod tests {
             .unwrap();
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -968,7 +970,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &AccountID(bob.id.clone()),
             &logger,
         );
@@ -1016,13 +1018,13 @@ mod tests {
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![alice_public_address.clone()],
-            100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            100 * MOB as u64,
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -1038,7 +1040,7 @@ mod tests {
         let (tx_proposal, gift_code_b58) = service
             .build_gift_code(
                 &AccountID(alice.id.clone()),
-                2 * MOB,
+                2 * MOB as u64,
                 Some("Gift code for Bob".to_string()),
                 None,
                 None,
@@ -1049,7 +1051,11 @@ mod tests {
         log::info!(logger, "Built gift code transaction");
 
         let _gift_code = service
-            .submit_gift_code(&AccountID(alice.id), &gift_code_b58, &tx_proposal)
+            .submit_gift_code(
+                &AccountID(alice.id.clone()),
+                &gift_code_b58.clone(),
+                &tx_proposal.clone(),
+            )
             .unwrap();
 
         // Check the status before the gift code hits the ledger
@@ -1063,7 +1069,7 @@ mod tests {
         add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );

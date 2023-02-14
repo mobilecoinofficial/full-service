@@ -25,7 +25,7 @@ mod tests {
         let slip10_key = mnemonic.derive_slip10_key(0);
         let account_key = AccountKey::from(slip10_key);
 
-        (account_key, bip39_entropy_bytes)
+        return (account_key, bip39_entropy_bytes);
     }
 
     #[test]

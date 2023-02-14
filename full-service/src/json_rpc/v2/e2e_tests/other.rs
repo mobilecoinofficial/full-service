@@ -146,7 +146,7 @@ mod e2e_misc {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &[70 * MOB],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );
@@ -210,7 +210,7 @@ mod e2e_misc {
         let account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &[70 * MOB],
+            &vec![70 * MOB],
             &mut rng,
             &logger,
         );

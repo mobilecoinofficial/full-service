@@ -133,15 +133,15 @@ impl TryFrom<&TxProposal> for mc_mobilecoind::payments::TxProposal {
     fn try_from(src: &TxProposal) -> Result<mc_mobilecoind::payments::TxProposal, String> {
         // First, convert to the JsonTxProposal
         let json_tx_proposal = mc_mobilecoind_json::data_types::JsonTxProposal::try_from(src)
-            .map_err(|err| format!("Failed to parse tx_proposal from json_rpc type {err:?}"))?;
+            .map_err(|err| format!("Failed to parse tx_proposal from json_rpc type {:?}", err))?;
 
         // Then convert to the proto tx proposal
         let proto_tx_proposal = mc_mobilecoind_api::TxProposal::try_from(&json_tx_proposal)
-            .map_err(|err| format!("Failed to parse tx_proposal from json: {err:?}"))?;
+            .map_err(|err| format!("Failed to parse tx_proposal from json: {:?}", err))?;
 
         // Last, convert to the mobilecoind type
         let tx_proposal = mc_mobilecoind::payments::TxProposal::try_from(&proto_tx_proposal)
-            .map_err(|err| format!("Failed to parse tx_proposal from proto: {err:?}"))?;
+            .map_err(|err| format!("Failed to parse tx_proposal from proto: {:?}", err))?;
         Ok(tx_proposal)
     }
 }
@@ -160,7 +160,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             .map(|(key, val)| {
                 key.parse::<usize>()
                     .and_then(|k| val.parse::<usize>().and_then(|v| Ok((k, v))))
-                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {err}"))
+                    .map_err(|err| format!("Failed to parse u64 from outlay_map: {}", err))
             })
             .collect::<Result<Vec<(usize, usize)>, String>>()?;
         Ok(Self {
@@ -174,7 +174,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             fee: src
                 .fee
                 .parse::<u64>()
-                .map_err(|err| format!("Failed to parse u64 from fee: {err}"))?,
+                .map_err(|err| format!("Failed to parse u64 from fee: {}", err))?,
             outlay_index_to_tx_out_index: outlay_map,
             outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
         })

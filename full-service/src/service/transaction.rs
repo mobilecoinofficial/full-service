@@ -252,7 +252,6 @@ impl TransactionMemo {
         account_key: Option<AccountKey>,
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
-            #[allow(clippy::box_default)]
             Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
             Self::RTH(subaddress_index) => {
                 let mut memo_builder = RTHMemoBuilder::default();
@@ -507,7 +506,7 @@ where
                     let transaction_log = TransactionLog::log_submitted(
                         tx_proposal,
                         block_index,
-                        comment.unwrap_or_default(),
+                        comment.unwrap_or_else(|| "".to_string()),
                         &account_id_hex,
                         &conn,
                     )?;
@@ -571,7 +570,7 @@ where
 fn validate_number_inputs(num_inputs: u64) -> Result<(), TransactionServiceError> {
     if num_inputs > MAX_INPUTS {
         return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-            format!("Invalid number of input txos. {num_inputs:?} txo ids provided but maximum allowed number of inputs is {MAX_INPUTS:?}")
+            format!("Invalid number of input txos. {:?} txo ids provided but maximum allowed number of inputs is {:?}", num_inputs, MAX_INPUTS)
         )));
     }
     Ok(())
@@ -582,7 +581,7 @@ fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceErr
     let max_outputs = MAX_OUTPUTS - 1;
     if num_outputs > max_outputs {
         return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-            format!("Invalid number of recipiants. {num_outputs:?} recipiants provided but maximum allowed number of outputs is {max_outputs:?}")
+            format!("Invalid number of recipiants. {:?} recipiants provided but maximum allowed number of outputs is {:?}", num_outputs, max_outputs)
         )));
     }
     Ok(())
@@ -646,15 +645,15 @@ mod tests {
 
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_public_address],
+            &vec![alice_public_address.clone()],
             100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -745,14 +744,14 @@ mod tests {
 
         // Create an assigned subaddress for Bob
         let bob_address_from_alice_3 = service
-            .assign_address_for_account(&AccountID(bob.id), Some("From Alice"))
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
             .unwrap();
 
         let _tx_proposal = service
             .build_and_sign_transaction(
                 &alice.id,
                 &[(
-                    bob_address_from_alice_3.public_address_b58,
+                    bob_address_from_alice_3.clone().public_address_b58,
                     AmountJSON::new(42 * MOB, Mob::ID),
                 )],
                 None,
@@ -801,13 +800,13 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -865,7 +864,7 @@ mod tests {
             let key_images: Vec<KeyImage> = tx_proposal
                 .input_txos
                 .iter()
-                .map(|txo| txo.key_image)
+                .map(|txo| txo.key_image.clone())
                 .collect();
 
             // Note: This block doesn't contain the fee output.
@@ -882,13 +881,13 @@ mod tests {
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &bob_account_id,
             &logger,
         );
@@ -963,7 +962,7 @@ mod tests {
             let key_images: Vec<KeyImage> = tx_proposal
                 .input_txos
                 .iter()
-                .map(|txo| txo.key_image)
+                .map(|txo| txo.key_image.clone())
                 .collect();
 
             // Note: This block doesn't contain the fee output.
@@ -980,13 +979,13 @@ mod tests {
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &bob_account_id,
             &logger,
         );
@@ -1035,22 +1034,22 @@ mod tests {
         let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_public_address],
+            &vec![alice_public_address.clone()],
             100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
 
         match service.build_and_sign_transaction(
             &alice.id,
-            &[("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
+            &vec![("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
             None,
             None,
             None,
@@ -1094,13 +1093,13 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -1192,15 +1191,15 @@ mod tests {
         let alice_public_address = alice_account_key.default_subaddress();
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_public_address],
+            &vec![alice_public_address.clone()],
             100 * MOB,
-            &[KeyImage::from(rng.next_u64())],
+            &vec![KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -1264,7 +1263,7 @@ mod tests {
             let key_images: Vec<KeyImage> = tx_proposal
                 .input_txos
                 .iter()
-                .map(|txo| txo.key_image)
+                .map(|txo| txo.key_image.clone())
                 .collect();
 
             // Note: This block doesn't contain the fee output.
@@ -1281,13 +1280,13 @@ mod tests {
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &bob_account_id,
             &logger,
         );
@@ -1322,13 +1321,15 @@ mod tests {
 
         // Verify balance for Alice = original balance - fee - txo_value
         let balance = service
-            .get_balance_for_account(&AccountID(alice.id))
+            .get_balance_for_account(&AccountID(alice.id.clone()))
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
 
         // Bob's balance should be = output_txo_value
-        let bob_balance = service.get_balance_for_account(&AccountID(bob.id)).unwrap();
+        let bob_balance = service
+            .get_balance_for_account(&AccountID(bob.id.clone()))
+            .unwrap();
         let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
         assert_eq!(bob_balance_pmob.unspent, 42000000000000);
 

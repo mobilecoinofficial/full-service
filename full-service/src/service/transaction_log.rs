@@ -40,7 +40,6 @@ impl From<diesel::result::Error> for TransactionLogServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transaction logs.
-#[allow(clippy::result_large_err)]
 pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     fn list_transaction_logs(
@@ -154,14 +153,14 @@ mod tests {
                 &mut ledger_db,
                 &vec![alice_public_address.clone()],
                 100 * MOB,
-                &[KeyImage::from(rng.next_u64())],
+                &vec![KeyImage::from(rng.next_u64())],
                 &mut rng,
             );
         }
 
         manually_sync_account(
             &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
+            &service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );
@@ -193,7 +192,7 @@ mod tests {
                 let key_images: Vec<KeyImage> = tx_proposal
                     .input_txos
                     .iter()
-                    .map(|txo| txo.key_image)
+                    .map(|txo| txo.key_image.clone())
                     .collect();
 
                 // Note: This block doesn't contain the fee output.
@@ -210,7 +209,7 @@ mod tests {
 
             manually_sync_account(
                 &ledger_db,
-                service.wallet_db.as_ref().unwrap(),
+                &service.wallet_db.as_ref().unwrap(),
                 &alice_account_id,
                 &logger,
             );

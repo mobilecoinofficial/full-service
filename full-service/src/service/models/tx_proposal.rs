@@ -126,7 +126,7 @@ impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for U
 
         for txo in src.payload_txos.iter() {
             let confirmation_number_hex =
-                hex::decode(&txo.confirmation_number).map_err(|e| format!("{e}"))?;
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
             let confirmation_number_bytes: [u8; 32] =
                 confirmation_number_hex.as_slice().try_into().map_err(|_| {
                     "confirmation number is not the right number of bytes (expecting 32)"
@@ -156,7 +156,7 @@ impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for U
 
         for txo in src.change_txos.iter() {
             let confirmation_number_hex =
-                hex::decode(&txo.confirmation_number).map_err(|e| format!("{e}"))?;
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
             let confirmation_number_bytes: [u8; 32] =
                 confirmation_number_hex.as_slice().try_into().map_err(|_| {
                     "confirmation number is not the right number of bytes (expecting 32)"
@@ -310,7 +310,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
         for txo in src.payload_txos.iter() {
             let confirmation_number_hex =
-                hex::decode(&txo.confirmation_number).map_err(|e| format!("{e}"))?;
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
             let confirmation_number_bytes: [u8; 32] =
                 confirmation_number_hex.as_slice().try_into().map_err(|_| {
                     "confirmation number is not the right number of bytes (expecting 32)"
@@ -340,7 +340,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
         for txo in src.change_txos.iter() {
             let confirmation_number_hex =
-                hex::decode(&txo.confirmation_number).map_err(|e| format!("{e}"))?;
+                hex::decode(&txo.confirmation_number).map_err(|e| format!("{}", e))?;
             let confirmation_number_bytes: [u8; 32] =
                 confirmation_number_hex.as_slice().try_into().map_err(|_| {
                     "confirmation number is not the right number of bytes (expecting 32)"

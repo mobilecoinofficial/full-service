@@ -82,7 +82,7 @@ pub enum JsonRPCErrorCodes {
 /// Helper method to format displaydoc errors in JSON RPC 2.0 format.
 pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
     let data: serde_json::Value =
-        json!({"server_error": format!("{e:?}"), "details": e.to_string()});
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()});
     JsonRPCError::error {
         code: JsonRPCErrorCodes::InternalError as i32,
         message: JsonRPCErrorCodes::InternalError.to_string(),
@@ -94,7 +94,7 @@ pub fn format_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCErro
 /// format.
 pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
     let data: serde_json::Value =
-        json!({"server_error": format!("{e:?}"), "details": e.to_string()});
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()});
     JsonRPCError::error {
         code: JsonRPCErrorCodes::InvalidRequest as i32,
         message: JsonRPCErrorCodes::InvalidRequest.to_string(),
@@ -104,7 +104,7 @@ pub fn format_invalid_request_error<T: std::fmt::Display + std::fmt::Debug>(e: T
 
 pub fn format_invalid_params_error<T: std::fmt::Display + std::fmt::Debug>(e: T) -> JsonRPCError {
     let data: serde_json::Value =
-        json!({"server_error": format!("{e:?}"), "details": e.to_string()});
+        json!({"server_error": format!("{:?}", e), "details": e.to_string()});
     JsonRPCError::error {
         code: JsonRPCErrorCodes::InvalidParams as i32,
         message: JsonRPCErrorCodes::InvalidParams.to_string(),

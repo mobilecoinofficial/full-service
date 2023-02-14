@@ -1392,7 +1392,8 @@ impl TxoModel for Txo {
                 return Err(WalletDbError::InsufficientFundsFragmentedTxos);
             } else {
                 return Err(WalletDbError::InsufficientFundsUnderMaxSpendable(format!(
-                    "Max spendable value in wallet: {max_spendable_in_wallet:?}, but target value: {target_value:?}"
+                    "Max spendable value in wallet: {:?}, but target value: {:?}",
+                    max_spendable_in_wallet, target_value
                 )));
             }
         }
@@ -1414,7 +1415,8 @@ impl TxoModel for Txo {
             // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
             let next_utxo = spendable_txos.pop().ok_or_else(|| {
                 WalletDbError::InsufficientFunds(format!(
-                    "Not enough Txos to sum to target value: {target_value:?}"
+                    "Not enough Txos to sum to target value: {:?}",
+                    target_value
                 ))
             })?;
             selected_utxos.push(next_utxo.clone());
@@ -1775,7 +1777,7 @@ mod tests {
                 tx_proposal.change_txos[0].tx_out.clone(),
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
-            &[for_alice_key_image],
+            &[KeyImage::from(for_alice_key_image)],
             &mut rng,
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -1857,7 +1859,7 @@ mod tests {
             spent[0].key_image,
             Some(mc_util_serial::encode(&for_alice_key_image))
         );
-        assert_eq!(spent[0].spent_block_index.unwrap(), 13);
+        assert_eq!(spent[0].spent_block_index.clone().unwrap(), 13);
 
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
         // Orphaned]
@@ -1873,7 +1875,7 @@ mod tests {
         .unwrap();
         assert_eq!(orphaned.len(), 1);
         assert!(orphaned[0].key_image.is_none());
-        assert_eq!(orphaned[0].received_block_index.unwrap(), 13);
+        assert_eq!(orphaned[0].received_block_index.clone().unwrap(), 13);
         assert!(orphaned[0].account_id.is_some());
 
         // Check that we have one unspent (change) - went from [Minted, Secreted] ->
@@ -1890,7 +1892,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(unspent.len(), 1);
-        assert_eq!(unspent[0].received_block_index.unwrap(), 13);
+        assert_eq!(unspent[0].received_block_index.clone().unwrap(), 13);
         // Store the key image for when we spend this Txo below
         let for_bob_key_image: KeyImage =
             mc_util_serial::decode(&unspent[0].key_image.clone().unwrap()).unwrap();
@@ -1952,7 +1954,7 @@ mod tests {
         let change: Vec<&Txo> = updated_txos
             .iter()
             .filter(|f| {
-                if let Some(subaddress_index) = f.subaddress_index {
+                if let Some(subaddress_index) = f.subaddress_index.clone() {
                     subaddress_index as u64 == CHANGE_SUBADDRESS_INDEX
                 } else {
                     false
@@ -2002,7 +2004,7 @@ mod tests {
                 tx_proposal.change_txos[0].tx_out.clone(),
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
-            &[for_bob_key_image],
+            &[KeyImage::from(for_bob_key_image)],
             &mut rng,
         );
 
@@ -2046,16 +2048,16 @@ mod tests {
         expected_output_status: TxoStatus,
         expected_change_status: TxoStatus,
     ) {
-        let mut associated_txos = transaction_log.get_associated_txos(conn).unwrap();
+        let mut associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         associated_txos
             .inputs
             .sort_by(|a, b| (b.spent_block_index).cmp(&a.spent_block_index));
         let input_txo = associated_txos.inputs.first().unwrap();
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
-        assert_eq!(input_txo.status(conn).unwrap(), expected_input_status);
-        assert_eq!(minted_txo.status(conn).unwrap(), expected_output_status);
-        assert_eq!(change_txo.status(conn).unwrap(), expected_change_status);
+        assert_eq!(input_txo.status(&conn).unwrap(), expected_input_status);
+        assert_eq!(minted_txo.status(&conn).unwrap(), expected_output_status);
+        assert_eq!(change_txo.status(&conn).unwrap(), expected_change_status);
     }
 
     #[test_with_logger]
@@ -2160,8 +2162,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new(100 * MOB * i, Mob::ID), // 100.0 MOB * i
-                144 + i,
+                Amount::new((100 * MOB * i) as u64, Mob::ID), // 100.0 MOB * i
+                (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
             );
@@ -2275,8 +2277,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new(100 * MOB * i, Mob::ID), // 100.0 MOB * i
-                144 + i,
+                Amount::new((100 * MOB * i) as u64, Mob::ID), // 100.0 MOB * i
+                (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
             );
@@ -2341,8 +2343,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new(100 * MOB, Mob::ID),
-                144 + i as u64,
+                Amount::new((100 * MOB) as u64, Mob::ID),
+                (144 + i) as u64,
                 &mut rng,
                 &wallet_db,
             );
@@ -2419,9 +2421,9 @@ mod tests {
         assert_eq!(txos.len(), 12);
 
         let (transaction_log, _) = create_test_minted_and_change_txos(
-            src_account,
+            src_account.clone(),
             recipient,
-            MOB,
+            1 * MOB,
             wallet_db.clone(),
             ledger_db,
         );
@@ -2433,7 +2435,7 @@ mod tests {
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
         let (change_txo, _) = associated_txos.change.first().unwrap();
 
-        assert_eq!(minted_txo.value as u64, MOB);
+        assert_eq!(minted_txo.value as u64, 1 * MOB);
         assert!(minted_txo.account_id.is_none());
 
         assert_eq!(change_txo.value as u64, 4999 * MOB - Mob::MINIMUM_FEE);
@@ -2475,7 +2477,7 @@ mod tests {
         let sender_account_key = random_account_with_seed_values(
             &wallet_db,
             &mut ledger_db,
-            &[70 * MOB, 80 * MOB, 90 * MOB],
+            &vec![70 * MOB, 80 * MOB, 90 * MOB],
             &mut rng,
             &logger,
         );
@@ -2524,7 +2526,7 @@ mod tests {
         // Now we need to let this txo hit the ledger, which will update sender and
         // receiver
         log::info!(logger, "Adding block from submitted");
-        add_block_with_tx(&mut ledger_db, proposal.tx, &mut rng);
+        add_block_with_tx(&mut ledger_db, proposal.tx.clone(), &mut rng);
 
         // Now let our sync thread catch up for both sender and receiver
         log::info!(logger, "Manually syncing account");
@@ -2684,8 +2686,8 @@ mod tests {
             let (_txo_hex, _txo, _key_image) = create_test_received_txo(
                 &account_key,
                 0,
-                Amount::new(100 * MOB, Mob::ID), // 100.0 MOB * i
-                144_u64,
+                Amount::new((100 * MOB) as u64, Mob::ID), // 100.0 MOB * i
+                (144) as u64,
                 &mut rng,
                 &wallet_db,
             );
@@ -2959,14 +2961,15 @@ mod tests {
 
         let amount = Amount::new(28922973268924, Mob::ID);
 
-        let (txo, key_image) = create_test_txo_for_recipient(&account_key, 1, amount, &mut rng);
+        let (txo, key_image) =
+            create_test_txo_for_recipient(&account_key, 1, amount.clone(), &mut rng);
 
         // create 1 txo with no key image and no subaddress
         Txo::create_received(
             txo.clone(),
             None,
             None,
-            amount,
+            amount.clone(),
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
@@ -2991,7 +2994,7 @@ mod tests {
             txo.clone(),
             Some(1),
             None,
-            amount,
+            amount.clone(),
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
@@ -3013,10 +3016,10 @@ mod tests {
 
         // create 1 txo with key image and subaddress
         Txo::create_received(
-            txo,
+            txo.clone(),
             Some(1),
             Some(key_image),
-            amount,
+            amount.clone(),
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
@@ -3105,7 +3108,7 @@ mod tests {
                 let (_txo_id, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     i,
-                    Amount::new(i * MOB, Mob::ID),
+                    Amount::new(i as u64 * MOB, Mob::ID),
                     i,
                     &mut rng,
                     &wallet_db,
@@ -3116,7 +3119,7 @@ mod tests {
                 let (_txo_id, _txo, _key_image) = create_test_received_txo(
                     &account_key,
                     i,
-                    Amount::new(i * MOB, TokenId::from(1)),
+                    Amount::new(i as u64 * MOB, TokenId::from(1)),
                     i,
                     &mut rng,
                     &wallet_db,
@@ -3212,7 +3215,7 @@ mod tests {
         .unwrap();
         assert_eq!(result.len(), 16);
         let sum: i64 = result.iter().map(|x| x.value).sum();
-        assert_eq!(12400000000_i64, sum);
+        assert_eq!(12400000000 as i64, sum);
     }
 
     // FIXME: once we have create_minted, then select_txos test with no

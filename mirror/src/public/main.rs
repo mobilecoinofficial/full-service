@@ -176,7 +176,10 @@ async fn encrypted_request(
 ) -> Result<Vec<u8>, BadRequest> {
     let mut payload = Vec::new();
     if let Err(err) = data.open(2.mebibytes()).read_to_end(&mut payload).await {
-        let msg = format!("Could not read request data for unencrypted request: {err}");
+        let msg = format!(
+            "Could not read request data for unencrypted request: {}",
+            err
+        );
         log::error!(state.logger, "{}", msg);
         return Err(msg.into());
     }
@@ -287,12 +290,15 @@ fn build_grpc_server(
         .max_receive_message_len(-1)
         .max_send_message_len(-1);
 
-    ServerBuilder::new(env)
+    let server_builder = ServerBuilder::new(env)
         .register_service(build_info_service)
         .register_service(health_service)
         .register_service(mirror_service)
         .channel_args(ch_builder.build_args())
-        .build_using_uri(&config.mirror_listen_uri, logger.clone())
+        .bind_using_uri(&config.mirror_listen_uri, logger.clone());
+
+    server_builder
+        .build()
         .expect("Failed to build mirror GRPC server")
 }
 

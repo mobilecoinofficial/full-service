@@ -24,7 +24,7 @@ use mc_transaction_extra::TxOutConfirmationNumber;
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
-#[allow(clippy::large_enum_variant, clippy::result_large_err)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConfirmationServiceError {
     /// Error interacting with the database: {0}
     Database(WalletDbError),
@@ -102,7 +102,6 @@ pub struct Confirmation {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// tonfirmation numbers.
-#[allow(clippy::result_large_err)]
 pub trait ConfirmationService {
     /// Get the confirmations from the outputs in a transaction log.
     fn get_confirmations(

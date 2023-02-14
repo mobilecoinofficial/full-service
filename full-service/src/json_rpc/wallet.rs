@@ -174,7 +174,6 @@ async fn validator_backed_wallet_api_v2(
 /// Needed to preflight OPTIONS queries for CORS.
 /// Catches all OPTION requests in order to get the CORS related Fairing
 /// triggered.
-#[allow(clippy::let_unit_value)]
 #[options("/<_..>")]
 fn all_options() {
     /* Intentionally left empty */

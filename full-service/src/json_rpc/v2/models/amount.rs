@@ -39,11 +39,11 @@ impl TryFrom<&Amount> for mc_transaction_core::Amount {
             value: src
                 .value
                 .parse::<u64>()
-                .map_err(|err| format!("Could not parse value u64: {err:?}"))?,
+                .map_err(|err| format!("Could not parse value u64: {:?}", err))?,
             token_id: TokenId::from(
                 src.token_id
                     .parse::<u64>()
-                    .map_err(|err| format!("Could not parse token_id u64: {err:?}"))?,
+                    .map_err(|err| format!("Could not parse token_id u64: {:?}", err))?,
             ),
         })
     }
