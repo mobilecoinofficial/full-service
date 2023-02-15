@@ -18,7 +18,7 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
-use std::{fmt, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -369,6 +369,10 @@ impl TxoModel for Txo {
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+
+        let _tx_public_key = RistrettoPublic::try_from(&txo.public_key).ok();
+        let _tx_out_target_key = RistrettoPublic::try_from(&txo.target_key).ok();
+        let _e_fog_hint = &txo.e_fog_hint.to_bytes();
 
         let txo_id = TxoID::from(&txo);
         match Txo::get(&txo_id.to_string(), conn) {
