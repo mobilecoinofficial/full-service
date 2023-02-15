@@ -124,7 +124,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                 tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
                 amount: AmountJSON::from(&input_txo.amount),
                 subaddress_index: input_txo.subaddress_index.to_string(),
-                key_image: hex::encode(&input_txo.key_image.as_bytes()),
+                key_image: hex::encode(input_txo.key_image.as_bytes()),
             })
             .collect();
 

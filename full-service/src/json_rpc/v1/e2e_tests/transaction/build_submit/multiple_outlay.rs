@@ -75,7 +75,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![alice_public_address],
             100000000000000, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

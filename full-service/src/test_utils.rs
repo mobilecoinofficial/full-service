@@ -81,9 +81,9 @@ impl Default for WalletDbTestContext {
         // Note: This should be kept in sync wth how the migrations are run in main.rs
         // so as to have faithful tests.
         // Clear environment variables for db encryption.
-        env::set_var("MC_PASSWORD", "".to_string());
-        env::set_var("MC_CHANGE_PASSWORD", "".to_string());
-        let conn = SqliteConnection::establish(&format!("{}/{}", base_url, db_name))
+        env::set_var("MC_PASSWORD", "");
+        env::set_var("MC_CHANGE_PASSWORD", "");
+        let conn = SqliteConnection::establish(&format!("{base_url}/{db_name}"))
             .unwrap_or_else(|err| panic!("Cannot connect to {} database: {:?}", db_name, err));
         embedded_migrations::run(&conn).expect("failed running migrations");
 
@@ -153,7 +153,7 @@ pub fn get_empty_test_ledger() -> LedgerDB {
         .path()
         .to_str()
         .expect("Could not get path as string");
-    generate_ledger_db(&ledger_db_path)
+    generate_ledger_db(ledger_db_path)
 }
 
 /// Creates an empty LedgerDB.
@@ -163,10 +163,10 @@ pub fn get_empty_test_ledger() -> LedgerDB {
 ///   will be replaced.
 pub fn generate_ledger_db(path: &str) -> LedgerDB {
     // DELETE the old database if it already exists.
-    let _ = std::fs::remove_file(format!("{}/data.mdb", path));
+    let _ = std::fs::remove_file(format!("{path}/data.mdb"));
     LedgerDB::create(&PathBuf::from(path)).expect("Could not create ledger_db");
-    let db = LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db");
-    db
+
+    LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db")
 }
 
 fn append_test_block(
@@ -247,7 +247,7 @@ pub fn add_block_with_tx(
 ) -> u64 {
     let block_contents = BlockContents {
         key_images: tx.key_images(),
-        outputs: tx.prefix.outputs.clone(),
+        outputs: tx.prefix.outputs,
         validated_mint_config_txs: Vec::new(),
         mint_txs: Vec::new(),
     };
@@ -291,8 +291,7 @@ pub fn setup_peer_manager_and_network_state(
             0,
             fee_map.clone(),
         );
-        let peer2 =
-            MockBlockchainConnection::new(test_client_uri(2), ledger_db.clone(), 0, fee_map);
+        let peer2 = MockBlockchainConnection::new(test_client_uri(2), ledger_db, 0, fee_map);
 
         (
             vec![peer1.clone(), peer2.clone()],
@@ -309,7 +308,7 @@ pub fn setup_peer_manager_and_network_state(
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
         quorum_set,
         peer_manager.clone(),
-        logger.clone(),
+        logger,
     )));
 
     {
@@ -330,10 +329,10 @@ pub fn manually_sync_account(
     let mut account: Account;
     loop {
         match sync_account_next_chunk(
-            &ledger_db,
+            ledger_db,
             &wallet_db.get_conn().unwrap(),
             &account_id.to_string(),
-            &logger,
+            logger,
         ) {
             Ok(_) => {}
             Err(SyncError::Database(WalletDbError::Diesel(
@@ -344,7 +343,7 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        account = Account::get(account_id, &wallet_db.get_conn().unwrap()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -485,7 +484,7 @@ pub fn create_test_unsigned_txproposal_and_log(
 // Seed a local account with some Txos in the ledger
 pub fn random_account_with_seed_values(
     wallet_db: &WalletDb,
-    mut ledger_db: &mut LedgerDB,
+    ledger_db: &mut LedgerDB,
     seed_values: &[u64],
     mut rng: &mut StdRng,
     logger: &Logger,
@@ -509,20 +508,15 @@ pub fn random_account_with_seed_values(
 
     for value in seed_values.iter() {
         add_block_to_ledger_db(
-            &mut ledger_db,
+            ledger_db,
             &vec![account_key.subaddress(0)],
             *value,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
     }
 
-    manually_sync_account(
-        &ledger_db,
-        &wallet_db,
-        &AccountID::from(&account_key),
-        logger,
-    );
+    manually_sync_account(ledger_db, wallet_db, &AccountID::from(&account_key), logger);
 
     // Make sure we have all our TXOs
     {
@@ -558,7 +552,7 @@ pub fn builder_for_random_recipient(
     let builder: WalletTransactionBuilder<MockFogPubkeyResolver> = WalletTransactionBuilder::new(
         AccountID::from(account_key).to_string(),
         ledger_db.clone(),
-        get_resolver_factory(&mut rng).unwrap(),
+        get_resolver_factory(rng).unwrap(),
     );
 
     let recipient_account_key = AccountKey::random(&mut rng);

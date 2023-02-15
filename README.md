@@ -337,11 +337,12 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 | `tx-source-url`  | S3 location of archived ledger. Used to <br /> sync transactions to the local ledger. | S3 URI format |
 | `chain-id`       | The chain id of the network we expect to interact with | String |
 
-| Optional Param | Purpose                  | Requirements              |
-| :------------- | :----------------------- | :------------------------ |
+| Optional Param | Purpose                      | Requirements              |
+| :------------- | :--------------------------- | :------------------------ |
 | `wallet-db`    | Path to wallet file. If not set, will disable any endpoints that require a wallet_db  | Created if does not exist |
-| `listen-host`  | Host to listen on.       | Default: 127.0.0.1 |
-| `listen-port`  | Port to start webserver on. | Default: 9090 |
+| `watcher-db`   | Path to watcher directory    | Created if does not exist |
+| `listen-host`  | Host to listen on.           | Default: 127.0.0.1 |
+| `listen-port`  | Port to start webserver on.  | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
 | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |

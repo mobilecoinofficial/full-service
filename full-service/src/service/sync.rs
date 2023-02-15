@@ -155,8 +155,8 @@ pub fn sync_account_next_chunk(
         let start = account.next_block_index as u64;
         let end = start + BLOCKS_CHUNK_SIZE;
         for block_index in start..end {
-            let block_index = block_index as u64;
-            let block_contents = match ledger_db.get_block_contents(block_index as u64) {
+            let block_index = block_index;
+            let block_contents = match ledger_db.get_block_contents(block_index) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
                     break;
@@ -236,7 +236,7 @@ pub fn sync_account_next_chunk(
             let num_spent_txos = spent_txos.len();
 
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
@@ -323,7 +323,7 @@ pub fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index as u64, conn)?;
+                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
                     *block_index,
@@ -449,7 +449,7 @@ mod tests {
         let entropy = RootEntropy::from_random(&mut rng);
         let account_key = AccountKey::from(&RootIdentity::from(&entropy));
 
-        let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
+        let mut ledger_db = get_test_ledger(0, &[], 0, &mut rng);
 
         let origin_block_amount: u128 = 250_000_000 * MOB as u128;
         let origin_block_txo_amount = origin_block_amount / 16;
@@ -472,10 +472,10 @@ mod tests {
                 o.clone(),
                 o.clone(),
                 o.clone(),
-                o.clone(),
+                o,
             ],
             origin_block_txo_amount as u64,
-            &vec![],
+            &[],
             &mut rng,
         );
 
@@ -485,7 +485,7 @@ mod tests {
         // Import the account
         let _account = service
             .import_account_from_legacy_root_entropy(
-                hex::encode(&entropy.bytes),
+                hex::encode(entropy.bytes),
                 None,
                 None,
                 None,
@@ -497,7 +497,7 @@ mod tests {
 
         manually_sync_account(
             &ledger_db,
-            &wallet_db,
+            wallet_db,
             &AccountID::from(&account_key),
             &logger,
         );
