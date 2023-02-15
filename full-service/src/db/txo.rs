@@ -18,7 +18,7 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
-use std::{convert::TryFrom, fmt, str::FromStr};
+use std::{fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -374,10 +374,6 @@ impl TxoModel for Txo {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let _tx_public_key = RistrettoPublic::try_from(&txo.public_key).ok();
-        let _tx_out_target_key = RistrettoPublic::try_from(&txo.target_key).ok();
-        let _e_fog_hint = &txo.e_fog_hint.to_bytes();
-
         let txo_id = TxoID::from(&txo);
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
@@ -389,8 +385,8 @@ impl TxoModel for Txo {
                     received_block_index,
                     account_id_hex,
                     amount,
-                    &mc_util_serial::encode(&txo.target_key),
-                    &mc_util_serial::encode(&txo.public_key),
+                    &txo.target_key,
+                    &txo.public_key,
                     &mc_util_serial::encode(&txo.e_fog_hint),
                     conn,
                 )?;
@@ -496,8 +492,8 @@ impl TxoModel for Txo {
                 txos::account_id.eq(Some(account_id_hex)),
                 txos::value.eq(amount.value as i64),
                 txos::token_id.eq(*amount.token_id as i64),
-                // txos::target_key.eq(target_key),
-                // txos::public_key.eq(public_key),
+                txos::target_key.eq(target_key),
+                txos::public_key.eq(public_key),
                 txos::e_fog_hint.eq(e_fog_hint),
             ))
             .execute(conn)?;
