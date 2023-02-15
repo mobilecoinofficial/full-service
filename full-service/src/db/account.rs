@@ -11,7 +11,8 @@ use crate::{
         Conn, WalletDbError,
     },
     util::constants::{
-        DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX, LEGACY_CHANGE_SUBADDRESS_INDEX,
+        DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_FOG_SUBADDRESS_INDEX,
+        DEFAULT_NEXT_SUBADDRESS_INDEX, LEGACY_CHANGE_SUBADDRESS_INDEX,
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
@@ -185,6 +186,13 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    /// Update the next subaddress index for this account.
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError>;
+
     /// Delete an account.
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 
@@ -197,9 +205,7 @@ pub trait AccountModel {
     /// Get all of the token ids present for the account
     fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
 
-    /// Get the next sequentially unassigned subaddress index for the account
-    /// (reserved addresses are not included)
-    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+    fn next_subaddress(self) -> u64;
 
     fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
 
@@ -299,8 +305,11 @@ impl AccountModel for Account {
         let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX);
         let next_block_index = first_block_index;
 
-        let next_subaddress_index =
-            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64;
+        let next_subaddress_index = if fog_enabled {
+            DEFAULT_NEXT_FOG_SUBADDRESS_INDEX as i64
+        } else {
+            next_subaddress_index.unwrap_or(DEFAULT_NEXT_SUBADDRESS_INDEX) as i64
+        };
 
         let new_account = NewAccount {
             id: &account_id.to_string(),
@@ -310,6 +319,7 @@ impl AccountModel for Account {
             first_block_index: first_block_index as i64,
             next_block_index: next_block_index as i64,
             import_block_index: import_block_index.map(|i| i as i64),
+            next_subaddress_index,
             name,
             fog_enabled,
             view_only: false,
@@ -422,6 +432,7 @@ impl AccountModel for Account {
             first_block_index,
             next_block_index,
             import_block_index: Some(import_block_index as i64),
+            next_subaddress_index,
             name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
@@ -530,6 +541,18 @@ impl AccountModel for Account {
         Ok(())
     }
 
+    fn update_next_subaddress_index(
+        &self,
+        next_subaddress_index: u64,
+        conn: &Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts;
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::next_subaddress_index.eq(next_subaddress_index as i64))
+            .execute(conn)?;
+        Ok(())
+    }
+
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts;
 
@@ -577,17 +600,8 @@ impl AccountModel for Account {
         Ok(distinct_token_ids)
     }
 
-    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
-        use crate::db::schema::assigned_subaddresses;
-
-        let highest_subaddress_index: i64 = assigned_subaddresses::table
-            .filter(assigned_subaddresses::account_id.eq(&self.id))
-            .order_by(assigned_subaddresses::subaddress_index.desc())
-            .select(diesel::dsl::max(assigned_subaddresses::subaddress_index))
-            .select(assigned_subaddresses::subaddress_index)
-            .first(conn)?;
-
-        Ok(highest_subaddress_index as u64 + 1)
+    fn next_subaddress(self) -> u64 {
+        self.next_subaddress_index as u64
     }
 
     fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
@@ -665,6 +679,7 @@ mod tests {
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
+            next_subaddress_index: 2,
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
             view_only: false,
@@ -727,10 +742,12 @@ mod tests {
             first_block_index: 50,
             next_block_index: 50,
             import_block_index: Some(50),
+            next_subaddress_index: 2,
             name: "".to_string(),
             fog_enabled: false,
             view_only: false,
         };
+
         assert_eq!(expected_account_secondary, acc_secondary);
 
         // Update the name for the secondary account
@@ -844,10 +861,10 @@ mod tests {
             .to_vec(),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
             key_derivation_version: 1,
-
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: None,
+            next_subaddress_index: 1,
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
             view_only: false,
@@ -900,6 +917,7 @@ mod tests {
             first_block_index: 0,
             next_block_index: 0,
             import_block_index: Some(12),
+            next_subaddress_index: 2,
             name: "View Only Account".to_string(),
             fog_enabled: false,
             view_only: true,

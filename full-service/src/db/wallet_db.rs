@@ -1,6 +1,6 @@
 use crate::db::{
-    models::{AssignedSubaddress, Migration, NewMigration},
-    schema::{__diesel_schema_migrations, assigned_subaddresses},
+    models::{Account, AssignedSubaddress, Migration, NewMigration},
+    schema::{__diesel_schema_migrations, accounts, assigned_subaddresses},
     WalletDbError,
 };
 use diesel::{
@@ -245,6 +245,44 @@ impl WalletDb {
 
             global_log::info!("Assigned subaddress proto conversion done");
         }
+    }
+
+    pub fn update_account_next_subaddresses_if_necessary(conn: &SqliteConnection) {
+        global_log::info!("Checking for account next subaddress updates");
+
+        // Getting all accounts that have a next subaddress index of 0, indicating they
+        // need to be updated.
+        let accounts = accounts::table
+            .filter(accounts::next_subaddress_index.eq(0))
+            .load::<Account>(conn)
+            .expect("failed querying for accounts");
+
+        for account in accounts {
+            // Getting the highest subaddress index for this account. We are okay with
+            // grabbing the highest i64 even though it's a u64 space because anything above
+            // half of u64 is reserved and should not be considered a subaddress index that
+            // can be assigned (We only want the highest index that is valid to be
+            // assigned).
+            let max_subaddress_index: i64 = assigned_subaddresses::table
+                .filter(assigned_subaddresses::account_id.eq(&account.id))
+                .order_by(assigned_subaddresses::subaddress_index.desc())
+                .select(diesel::dsl::max(assigned_subaddresses::subaddress_index))
+                .select(assigned_subaddresses::subaddress_index)
+                .first(conn)
+                .expect("failed querying for max subaddress index");
+
+            diesel::update(accounts::table.filter(accounts::id.eq(&account.id)))
+                .set((accounts::next_subaddress_index.eq(max_subaddress_index + 1),))
+                .execute(conn)
+                .expect("failed updating account next subaddress index");
+
+            global_log::info!(
+                "Account next subaddress update applied for account {}",
+                account.id
+            );
+        }
+
+        global_log::info!("Account next subaddress updates done");
     }
 }
 

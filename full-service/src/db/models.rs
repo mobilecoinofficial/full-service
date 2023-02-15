@@ -30,6 +30,8 @@ pub struct Account {
     /// is derived from the public ledger, and does not reflect client-side
     /// user events.
     pub import_block_index: Option<i64>,
+    /// The next subaddress index to use for this account.
+    pub next_subaddress_index: i64,
     /// Name of this account.
     pub name: String, /* empty string for nullable */
     pub fog_enabled: bool,
@@ -48,6 +50,7 @@ pub struct NewAccount<'a> {
     pub first_block_index: i64,
     pub next_block_index: i64,
     pub import_block_index: Option<i64>,
+    pub next_subaddress_index: i64,
     pub name: &'a str,
     pub fog_enabled: bool,
     pub view_only: bool,

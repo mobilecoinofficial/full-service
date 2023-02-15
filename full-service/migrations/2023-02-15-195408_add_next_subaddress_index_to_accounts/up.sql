@@ -1,0 +1,1 @@
+ALTER TABLE accounts ADD COLUMN next_subaddress_index INTEGER NOT NULL DEFAULT 0;

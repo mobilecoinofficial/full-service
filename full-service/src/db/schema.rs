@@ -7,6 +7,7 @@ table! {
         first_block_index -> BigInt,
         next_block_index -> BigInt,
         import_block_index -> Nullable<BigInt>,
+        next_subaddress_index -> BigInt,
         name -> Text,
         fog_enabled -> Bool,
         view_only -> Bool,

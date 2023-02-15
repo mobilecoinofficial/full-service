@@ -80,6 +80,7 @@ fn rocket() -> Rocket<Build> {
             };
             WalletDb::run_migrations(&conn);
             WalletDb::run_proto_conversions_if_necessary(&conn);
+            WalletDb::update_account_next_subaddresses_if_necessary(&conn);
             log::info!(logger, "Connected to database.");
 
             Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))

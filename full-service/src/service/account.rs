@@ -2,6 +2,8 @@
 
 //! Service for managing accounts.
 
+use std::time::Instant;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -281,6 +283,8 @@ where
             first_block_index,
         );
 
+        let start_time = Instant::now();
+
         if key_derivation_version != MNEMONIC_KEY_DERIVATION_VERSION {
             return Err(AccountServiceError::UnknownKeyDerivation(
                 key_derivation_version,
@@ -303,7 +307,7 @@ where
 
         let conn = self.get_conn()?;
         transaction(&conn, || {
-            Ok(Account::import(
+            let account = Account::import(
                 &mnemonic,
                 name,
                 import_block,
@@ -313,7 +317,18 @@ where
                 fog_report_id,
                 fog_authority_spki,
                 &conn,
-            )?)
+            )?;
+
+            let duration = start_time.elapsed();
+
+            log::info!(
+                self.logger,
+                "Imported account in {:?}.{:03} seconds",
+                duration.as_secs(),
+                duration.subsec_millis()
+            );
+
+            Ok(account)
         })
     }
 
@@ -413,7 +428,7 @@ where
             spend_public_key: ristretto_public_to_hex(&spend_public_key),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index(&conn)?.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index.to_string()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -454,7 +469,7 @@ where
     ) -> Result<u64, AccountServiceError> {
         let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
-        Ok(account.next_subaddress_index(&conn)?)
+        Ok(account.next_subaddress())
     }
 
     fn update_account_name(
@@ -488,7 +503,7 @@ where
             Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
         }
 
-        for _ in account.next_subaddress_index(&conn)?..next_subaddress_index {
+        for _ in account.next_subaddress()..next_subaddress_index {
             AssignedSubaddress::create_next_for_account(
                 &account_id.to_string(),
                 "Recovered In Account Sync",
@@ -679,7 +694,6 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
-        let conn = wallet_db.get_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -744,7 +758,7 @@ mod tests {
         assert_eq!(orphaned_txos[0].key_image, None);
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(view_only_account.next_subaddress_index, 2);
 
         let key_image_1 = KeyImage::from(rng.next_u64());
         let key_image_2 = KeyImage::from(rng.next_u64());
@@ -767,7 +781,7 @@ mod tests {
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(view_only_account.next_subaddress_index, 3);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),

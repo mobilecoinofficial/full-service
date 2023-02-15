@@ -1911,12 +1911,7 @@ mod tests {
         let alice_account =
             Account::get(&alice_account_id, &wallet_db.get_conn().unwrap()).unwrap();
         assert_eq!(alice_account.next_block_index, 14);
-        assert_eq!(
-            alice_account
-                .next_subaddress_index(&wallet_db.get_conn().unwrap())
-                .unwrap(),
-            5
-        );
+        assert_eq!(alice_account.next_subaddress_index, 5);
 
         // Verify that there are two unspent txos - the one that was previously
         // orphaned, and change.

@@ -3,6 +3,8 @@
 //! A subaddress assigned to a particular contact for the purpose of tracking
 //! funds received from that contact.
 
+use std::time::Instant;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -14,6 +16,7 @@ use crate::{
 
 use crate::util::b58::b58_encode_public_address;
 
+use mc_common::logger::global_log;
 use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
@@ -109,6 +112,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
+        let start_time = Instant::now();
+
         let account_id = AccountID::from(account_key);
 
         let subaddress = account_key.subaddress(subaddress_index);
@@ -125,6 +130,13 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         diesel::insert_into(assigned_subaddresses::table)
             .values(&subaddress_entry)
             .execute(conn)?;
+
+        let duration = start_time.elapsed();
+        global_log::info!(
+            "AssignedSubaddress::create({subaddress_index}) took {:?}.{:03} seconds",
+            duration.as_secs(),
+            duration.subsec_millis()
+        );
 
         Ok(subaddress_b58)
     }
@@ -171,7 +183,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
         let (subaddress_b58, next_subaddress_index) = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
-            let next_subaddress_index = account.next_subaddress_index(conn)?;
+            let next_subaddress_index = account.next_subaddress_index as u64;
             let subaddress_b58 = AssignedSubaddress::create_for_view_only_account(
                 &view_account_key,
                 next_subaddress_index,
@@ -209,7 +221,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             (subaddress_b58, next_subaddress_index)
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-            let next_subaddress_index = account.next_subaddress_index(conn)?;
+            let next_subaddress_index = account.next_subaddress_index as u64;
             let subaddress_b58 =
                 AssignedSubaddress::create(&account_key, next_subaddress_index, comment, conn)?;
 
@@ -268,6 +280,8 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
             (subaddress_b58, next_subaddress_index)
         };
+
+        account.update_next_subaddress_index(next_subaddress_index + 1, conn)?;
 
         Ok((subaddress_b58, next_subaddress_index as i64))
     }
