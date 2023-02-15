@@ -168,7 +168,7 @@ pub trait TxoModel {
     fn update_as_received(
         &self,
         subaddress_index: Option<u64>,
-        key_image: Option<KeyImage>,
+        received_key_image: Option<KeyImage>,
         block_index: u64,
         account_id_hex: &str,
         amount: Amount,
@@ -471,7 +471,7 @@ impl TxoModel for Txo {
     fn update_as_received(
         &self,
         subaddress_index: Option<u64>,
-        key_image: Option<KeyImage>,
+        received_key_image: Option<KeyImage>,
         block_index: u64,
         account_id_hex: &str,
         amount: Amount,
@@ -482,7 +482,7 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let encoded_key_image = key_image.map(|k| mc_util_serial::encode(&k));
+        let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
 
         diesel::update(self)
             .set((
