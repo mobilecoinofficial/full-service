@@ -181,6 +181,10 @@ pub enum JsonCommandResponse {
     import_view_only_account {
         account: Account,
     },
+    reimport_account {
+        reimported: bool,
+        account: Account,
+    },
     remove_account {
         removed: bool,
     },
