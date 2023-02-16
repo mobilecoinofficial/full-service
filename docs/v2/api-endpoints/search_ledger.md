@@ -1,14 +1,14 @@
 ---
-description: Search the ledger for blocks based on a query string (that can be either a tx out public key or a key image)
+description: Search the ledger for blocks based on a query string (that can be either a block index, a tx out public key, or a key image)
 ---
 
 # Search Ledger
 
 ## [Request](../../../full-service/src/json_rpc/v2/api/request.rs#L40)
 
-| Param | Purpose | Requirements |
-| :--- | :--- | :--- |
-| `query` | Query string to search for. | Currently the supported queries are hex representations of a tx out public key or a key image. |
+| Param | Purpose | Requirements                                                                                                     |
+| :--- | :--- |:-----------------------------------------------------------------------------------------------------------------|
+| `query` | Query string to search for. | Currently the supported queries are a block index, or hex representations of a tx out public key or a key image. |
 
 ## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
