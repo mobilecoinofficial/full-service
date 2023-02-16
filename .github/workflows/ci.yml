@@ -11,13 +11,11 @@ env:
 on:
   pull_request:
     branches:
-      - develop
       - main
       - release/*
   push:
     branches:
       - main
-      - develop
       - release/*
 
 concurrency:
