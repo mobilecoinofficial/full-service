@@ -1124,10 +1124,7 @@ where
 
             let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
 
-            JsonCommandResponse::reimport_account {
-                reimported: false, // reimported: bool,
-                account,           //account: Account,
-            }
+            JsonCommandResponse::reimport_account {}
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
