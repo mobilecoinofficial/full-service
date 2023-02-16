@@ -170,6 +170,8 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
     ) -> Result<Account, AccountServiceError>;
 
+    fn reimport_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError>;
+
     fn get_view_only_account_import_request(
         &self,
         account_id: &AccountID,
@@ -391,6 +393,13 @@ where
                 &conn,
             )?)
         })
+    }
+
+    fn reimport_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
+        let conn = self.get_conn()?;
+        let account = Account::get(account_id, &conn)?;
+        account.update_next_block_index(account.first_block_index as u64, &conn)?;
+        Ok(())
     }
 
     fn get_view_only_account_import_request(
