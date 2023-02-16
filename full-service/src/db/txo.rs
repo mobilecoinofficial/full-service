@@ -378,15 +378,15 @@ impl TxoModel for Txo {
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
-            Ok(txo) => {
-                txo.update_as_received(
+            Ok(found_txo) => {
+                found_txo.update_as_received(
                     subaddress_index,
                     key_image,
                     received_block_index,
                     account_id_hex,
                     amount,
-                    &txo.target_key,
-                    &txo.public_key,
+                    &mc_util_serial::encode(&txo.target_key),
+                    &mc_util_serial::encode(&txo.public_key),
                     &mc_util_serial::encode(&txo.e_fog_hint),
                     conn,
                 )?;
