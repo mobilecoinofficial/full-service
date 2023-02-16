@@ -14,7 +14,7 @@ description: Import an existing account from the secret entropy.
 | Optional Param | Purpose | Requirements |
 | :--- | :--- | :--- |
 | `name` | A label for this account. | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |  |
+| `next_subaddress_index` | The next known unused subaddress index for the account.  All subaddresses below this index will be created.<br/>This can be used to create a large number of subaddresses as a batch request. |  |
 | `first_block_index` | The block from which to start scanning the ledger. |  |
 | `fog_report_url` |  |  |
 | `fog_report_id` |  |  |
