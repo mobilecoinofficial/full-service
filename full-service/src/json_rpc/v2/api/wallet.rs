@@ -1113,17 +1113,11 @@ where
             JsonCommandResponse::import_view_only_account { account }
         }
         JsonCommandRequest::reimport_account { account_id } => {
-            let account = service
-                .get_account(&AccountID(account_id.clone()))
+            service
+                .reimport_account(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
 
-            let next_subaddress_index = service
-                .get_next_subaddress_index_for_account(&AccountID(account_id.clone()))
-                .map_err(format_error)?;
-
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
-
-            JsonCommandResponse::reimport_account {}
+            JsonCommandResponse::reimport_account
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
