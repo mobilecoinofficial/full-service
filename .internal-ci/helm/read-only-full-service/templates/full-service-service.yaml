@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "chart.fsServiceName" . }}
+  labels:
+    app: full-service
+    {{- include "chart.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  publishNotReadyAddresses: true
+  ports:
+  - port: {{ .Values.fullService.listenPort }}
+    targetPort: full-service
+    protocol: TCP
+    name: full-service
+  selector:
+    {{- include "chart.selectorLabels" . | nindent 4 }}
+    app: full-service

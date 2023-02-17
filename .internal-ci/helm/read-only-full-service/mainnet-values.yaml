@@ -1,0 +1,37 @@
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets:
+  - name: docker-credentials
+
+# FullService
+fullService:
+  # environment = MobileCoin network.
+  # Valid values are 'mainnet' or 'testnet'
+  environment: "mainnet"
+  image:
+    repository: mobilecoin/full-service
+    tag: "2.3.0-pre.1"
+    #tag: "v2.0.0-pre.2"
+    pullPolicy: Always
+  replicaCount: 1
+  listenPort: 9090 # Full-Service default
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  args: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+      - 'ReadWriteOnce'
+      resources:
+        requests:
+          storage: 128Gi
+  ingress:
+    enabled: true
+    hostname: readonly-fs-mainnet.mobilecoin.com

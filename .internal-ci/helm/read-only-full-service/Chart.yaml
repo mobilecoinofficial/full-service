@@ -1,0 +1,6 @@
+apiVersion: v2
+name: read-only-full-service
+description: Helm chart for deploying read-only full-service
+type: application
+version: v2.0.0-pre.2
+appVersion: v2.0.0-pre.2
