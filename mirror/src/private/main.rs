@@ -42,6 +42,11 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "validate_confirmation",
     "verify_address",
     "get_txos",
+    "get_all_accounts",
+    "get_all_transaction_logs_for_block",
+    "get_balance_for_account",
+    "get_balance_for_address",
+    "get_transaction_logs_for_account",
 ];
 
 /// How long do we wait for full-service to reply?
