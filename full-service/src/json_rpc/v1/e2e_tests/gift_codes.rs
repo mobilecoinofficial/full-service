@@ -47,7 +47,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![alice_public_address],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -103,7 +103,7 @@ mod e2e_transaction {
 
         // Add the TxProposal for the gift code
         let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
-            serde_json::from_value(tx_proposal.clone()).unwrap();
+            serde_json::from_value(tx_proposal).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
 

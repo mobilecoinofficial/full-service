@@ -89,9 +89,11 @@ where
 
     match wallet_api_inner(&state.service, request) {
         Ok(command_response) => {
+            global_log::info!("Command executed successfully");
             response.result = Some(command_response);
         }
         Err(rpc_error) => {
+            global_log::info!("Command failed with error: {:?}", rpc_error);
             response.error = Some(rpc_error);
         }
     };
@@ -113,7 +115,7 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    global_log::trace!("Running command {:?}", command);
+    global_log::info!("Running command {:?}", command);
 
     let response = match command {
         JsonCommandRequest::assign_address_for_account {
@@ -470,7 +472,7 @@ where
                     .map(|a| {
                         (
                             a.public_address_b58.clone(),
-                            serde_json::to_value(&(Address::from(a)))
+                            serde_json::to_value(Address::from(a))
                                 .expect("Could not get json value"),
                         )
                     })
@@ -914,7 +916,7 @@ where
                     let account = Account::new(a, next_subaddress_index)?;
                     serde_json::to_value(account)
                         .map(|v| (i.to_string(), v))
-                        .map_err(|e| format!("Coult not convert account map:{:?}", e))
+                        .map_err(|e| format!("Coult not convert account map:{e:?}"))
                 })
                 .collect::<Result<Vec<(String, serde_json::Value)>, String>>()
                 .map_err(format_error)?;

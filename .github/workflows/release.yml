@@ -4,8 +4,8 @@ name: release
 on:
   push:
     tags:
-      - 'v*'
-      - '!v*-pre*'
+      - "v*"
+      - "!v*-pre*"
 
 jobs:
   release:

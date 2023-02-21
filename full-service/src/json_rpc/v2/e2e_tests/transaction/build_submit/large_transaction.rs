@@ -52,9 +52,9 @@ mod e2e_transaction {
         // Add a block with a large txo for this address.
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![public_address.clone()],
+            &vec![public_address],
             11_000_000_000_000_000_000, // Eleven million MOB.
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

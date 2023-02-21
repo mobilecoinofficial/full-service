@@ -66,7 +66,7 @@ pub fn check_host_is_allowed_country_and_region() -> Result<(), CheckHostError> 
 
     let err = Err(CheckHostError::InvalidCountry);
     match country {
-        "IR" | "SY" | "CU" | "KP" => err,
+        "IR" | "SY" | "CU" | "KP" | "RU" => err,
         "UA" => match region {
             "Crimea" => err,
             _ => Ok(()),

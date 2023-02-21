@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX idx_assigned_subaddresses__subaddress_index_account_id ON assigned_subaddresses (account_id, subaddress_index);

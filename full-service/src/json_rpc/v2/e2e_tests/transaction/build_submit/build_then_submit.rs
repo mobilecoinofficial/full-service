@@ -64,7 +64,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -112,7 +112,7 @@ mod e2e_transaction {
             &mut ledger_db,
             &vec![public_address.clone()],
             100000000000000, // 100.0 MOB
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -350,7 +350,7 @@ mod e2e_transaction {
         add_block_with_tx_outs(
             &mut ledger_db,
             &[txo],
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -574,10 +574,10 @@ mod e2e_transaction {
                 alice_public_address.clone(),
                 alice_public_address.clone(),
                 alice_public_address.clone(),
-                alice_public_address.clone(),
+                alice_public_address,
             ],
             100000000000000,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
@@ -682,7 +682,7 @@ mod e2e_transaction {
         assert_eq!(unspent, "457999600000000");
         assert_eq!(pending, "0");
         assert_eq!(spent, "100000000000000");
-        assert_eq!(secreted, "0");
+        assert_eq!(secreted, "42000000000000");
         assert_eq!(orphaned, "0");
 
         // Get balance after submission

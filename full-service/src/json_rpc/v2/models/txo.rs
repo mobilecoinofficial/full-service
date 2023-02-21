@@ -71,7 +71,7 @@ impl Txo {
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
         }
     }
@@ -126,7 +126,7 @@ mod tests {
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
         let status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
+        assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::new(&txo_details, &status);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");

@@ -382,7 +382,7 @@ where
             conn,
         )?);
 
-        let secreted = 0;
+        let secreted = sum_query_result(Txo::list_secreted(account_id_hex, conn)?);
 
         let orphaned = if public_address_b58.is_some() {
             0
@@ -459,7 +459,7 @@ mod tests {
 
         let account = service
             .import_account_from_legacy_root_entropy(
-                hex::encode(&entropy.bytes),
+                hex::encode(entropy.bytes),
                 None,
                 None,
                 None,
@@ -476,7 +476,7 @@ mod tests {
 
         let _account = manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &AccountID(account.id.to_string()),
             &logger,
         );

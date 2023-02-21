@@ -37,7 +37,7 @@ impl FromStr for TxoStatus {
             "txo_status_pending" => Ok(TxoStatus::Pending),
             "txo_status_spent" => Ok(TxoStatus::Spent),
             "txo_status_orphaned" => Ok(TxoStatus::Orphaned),
-            _ => Err(format!("Unknown TxoStatus: {}", s)),
+            _ => Err(format!("Unknown TxoStatus: {s}")),
         }
     }
 }
@@ -49,9 +49,7 @@ impl TryFrom<TxoStatus> for db::txo::TxoStatus {
         match status {
             TxoStatus::Orphaned => Ok(db::txo::TxoStatus::Orphaned),
             TxoStatus::Pending => Ok(db::txo::TxoStatus::Pending),
-            TxoStatus::Secreted => {
-                Err("TxoStatus::Secreted is not a valid db::txo::TxoStatus".to_string())
-            }
+            TxoStatus::Secreted => Ok(db::txo::TxoStatus::Secreted),
             TxoStatus::Spent => Ok(db::txo::TxoStatus::Spent),
             TxoStatus::Unspent => Ok(db::txo::TxoStatus::Unspent),
         }
@@ -66,6 +64,8 @@ impl From<&db::txo::TxoStatus> for TxoStatus {
             db::txo::TxoStatus::Spent => TxoStatus::Spent,
             db::txo::TxoStatus::Unspent => TxoStatus::Unspent,
             db::txo::TxoStatus::Unverified => TxoStatus::Unspent,
+            db::txo::TxoStatus::Secreted => TxoStatus::Secreted,
+            db::txo::TxoStatus::Created => TxoStatus::Unspent,
         }
     }
 }
@@ -200,7 +200,7 @@ impl Txo {
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|i| i.to_string()),
             assigned_address: None,
-            key_image: txo.key_image.as_ref().map(|k| hex::encode(&k)),
+            key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
         }
     }
@@ -255,7 +255,7 @@ mod tests {
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
             .expect("Could not get Txo");
         let txo_status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
-        assert_eq!(txo_details.value as u64, 15_625_000 * MOB as u64);
+        assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::new(&txo_details, &txo_status);
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }
