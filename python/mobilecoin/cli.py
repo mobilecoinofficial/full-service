@@ -883,8 +883,11 @@ def _format_balances(balances):
     lines = []
     for token_id, balance in balances.items():
         unspent = Amount.from_storage_units(balance['unspent'], token_id)
+        unverified = Amount.from_storage_units(balance['unverified'], token_id)
         if unspent.value > 0:
             lines.append(unspent.format())
+        if unverified.value > 0:
+            lines.append('{} unverified'.format(unverified.format()))
 
     if len(lines) == 0:
         return 'Empty'
