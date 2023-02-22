@@ -22,12 +22,12 @@ RUN  apt-get update \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
 ARG RUST_BIN_PATH=target/release
-COPY ${RUST_BIN_PATH}/full-service /usr/local/bin/full-service
-COPY ${RUST_BIN_PATH}/transaction-signer /usr/local/bin/full-service
-COPY ${RUST_BIN_PATH}/validator-service /usr/local/bin/full-service
-COPY ${RUST_BIN_PATH}/wallet-service-mirror-private /usr/local/bin/full-service
-COPY ${RUST_BIN_PATH}/wallet-service-mirror-public /usr/local/bin/full-service
-COPY ${RUST_BIN_PATH}/generate-rsa-keypair /usr/local/bin/full-service
+COPY ${RUST_BIN_PATH}/full-service /usr/local/bin/
+COPY ${RUST_BIN_PATH}/transaction-signer /usr/local/bin/
+COPY ${RUST_BIN_PATH}/validator-service /usr/local/bin/
+COPY ${RUST_BIN_PATH}/wallet-service-mirror-private /usr/local/bin/
+COPY ${RUST_BIN_PATH}/wallet-service-mirror-public /usr/local/bin/
+COPY ${RUST_BIN_PATH}/generate-rsa-keypair /usr/local/bin/
 COPY ${RUST_BIN_PATH}/*.css /usr/local/bin/
 COPY .internal-ci/docker/entrypoints/full-service.sh /usr/local/bin/entrypoint.sh
 
