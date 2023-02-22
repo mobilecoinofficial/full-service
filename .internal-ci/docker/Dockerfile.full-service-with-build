@@ -52,7 +52,7 @@ COPY . /app/
 ARG BUILD_OPTS
 ARG SGX_MODE=HW
 ARG IAS_MODE=PROD
-ARG RUSTFLAGS='-C target-cpu=penryn'
+ARG RUSTFLAGS
 
 # Build full-service
 RUN  --mount=type=cache,target=/opt/cargo/git \
