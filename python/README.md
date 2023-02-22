@@ -1,13 +1,14 @@
-# Full Service Python API and CLI
+# Python API and CLI for MobileCoin Full-Service Wallet
 
-## Setup
+## Installation
 
-`$ poetry install`
+`$ pip install mobilecoin`
 
 
 ## CLI usage
 
-First, you should have an instance of full-service running on your local machine.
+First, you should have an instance of the full-service wallet running on your local machine. Setup instructions are at https://github.com/mobilecoinofficial/full-service.
+
 ```
 $ cd full-service
 $ ./tools/run-fs.sh test
