@@ -59,8 +59,14 @@ RUN  --mount=type=cache,target=/opt/cargo/git \
      --mount=type=cache,target=/opt/cargo/registry/index \
      --mount=type=cache,target=/opt/cargo/registry/cache \
      --mount=type=cache,target=/app/target \
-     cargo build --locked --release -p mc-full-service ${BUILD_OPTS} \
-  && cp /app/target/release/full-service /usr/local/bin/full-service
+     cargo build --locked --release ${BUILD_OPTS}
+
+RUN cp /app/target/release/full-service /usr/local/bin/
+RUN cp /app/target/release/transaction-signer /usr/local/bin/
+RUN cp /app/target/release/validator-service /usr/local/bin/
+RUN cp /app/target/release/wallet-service-mirror-private /usr/local/bin/
+RUN cp /app/target/release/wallet-service-mirror-public /usr/local/bin/
+RUN cp /app/target/release/generate-rsa-keypair /usr/local/bin/
 
 # This is the runtime container.
 # Adding/updating OS will not affect the ability to verify the build environment.
@@ -80,7 +86,12 @@ RUN  apt-get update \
   && mkdir -p /usr/share/grpc \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
-COPY --from=builder /usr/local/bin/full-service /usr/local/bin/full-service
+COPY --from=builder /usr/local/bin/full-service /usr/local/bin/
+COPY --from=builder /usr/local/bin/transaction-signer /usr/local/bin/
+COPY --from=builder /usr/local/bin/validator-service /usr/local/bin/
+COPY --from=builder /usr/local/bin/wallet-service-mirror-private /usr/local/bin/
+COPY --from=builder /usr/local/bin/wallet-service-mirror-public /usr/local/bin/
+COPY --from=builder /usr/local/bin/generate-rsa-keypair /usr/local/bin/
 COPY --from=builder /app/*.css /usr/local/bin/
 COPY .internal-ci/docker/entrypoints/full-service.sh /usr/local/bin/entrypoint.sh
 
