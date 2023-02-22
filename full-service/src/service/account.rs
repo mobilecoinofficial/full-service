@@ -540,6 +540,30 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test_with_logger]
+    fn test_applesauce(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let src_account = AccountKey::from(&root_id);
+        let known_recipients = vec![src_account.subaddress(0)];
+        let ledger_db = get_test_ledger(5, &known_recipients, 100, &mut rng);
+
+        // Create an account.
+        let account = service
+            .import_account(
+                // mnemonic_phrase: String,
+                Some(2),               // key_derivation_version: u8,
+                Some("A".to_string()), // name: Option<String>,
+                0,                     // first_block_index: Option<u64>,
+                Some(1),               // next_subaddress_index: Option<u64>,
+                "".to_string(),        // fog_report_url: String,
+                "".to_string(),        // fog_report_id: String,
+                "".to_string(),        // fog_authority_spki: String,
+            )
+            .unwrap();
+
+        assert!(false);
+    }
+
+    #[test_with_logger]
     fn test_remove_account_from_txo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
