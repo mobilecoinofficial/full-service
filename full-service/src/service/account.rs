@@ -541,7 +541,7 @@ mod tests {
     use std::convert::TryInto;
 
     #[test_with_logger]
-    fn test_applesauce(logger: Logger) {
+    fn test_reimport_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let entropy = RootEntropy::from_random(&mut rng);
         let account_key = AccountKey::from(&RootIdentity::from(&entropy));
