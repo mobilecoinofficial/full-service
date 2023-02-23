@@ -1,3 +1,7 @@
 [submodule "mobilecoin"]
 	path = mobilecoin
 	url = https://github.com/mobilecoinfoundation/mobilecoin.git
+	
+[submodule "ledger-mob"]
+	path = ledger-mob
+	url = https://github.com/mobilecoinofficial/ledger-mob.git
