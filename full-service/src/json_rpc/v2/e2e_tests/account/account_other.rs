@@ -175,10 +175,4 @@ mod e2e_account {
         assert_eq!(unspent, (42 * MOB).to_string());
         let _account = result.get("account").unwrap();
     }
-
-    #[test_with_logger]
-    fn test_reimport_account(logger: Logger) {
-        // create an account and log some transactions (maybe like 20?)
-        // reimport the account
-    }
 }
