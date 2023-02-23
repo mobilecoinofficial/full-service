@@ -20,18 +20,9 @@ jobs:
       contents: write
     strategy:
       matrix:
-        runner-tags:
-          [
-            [self-hosted, macOS, X64],
-            [self-hosted, macOS, ARM64],
-            [self-hosted, Linux, large],
-          ]
+        runner-tags: [[self-hosted, Linux, large]]
         namespace: [test, prod]
         include:
-          - runner-tags: [self-hosted, macOS, X64]
-            container: ""
-          - runner-tags: [self-hosted, macOS, ARM64]
-            container: ""
           - runner-tags: [self-hosted, Linux, large]
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test
