@@ -526,41 +526,110 @@ mod tests {
     use crate::{
         db::{models::Txo, txo::TxoModel},
         test_utils::{
-            add_block_to_ledger_db, create_test_received_txo, get_empty_test_ledger,
-            get_test_ledger, manually_sync_account, setup_wallet_service,
+            add_block_to_ledger_db, create_test_received_txo, generate_n_blocks_on_ledger,
+            get_empty_test_ledger, get_test_ledger, manually_sync_account, setup_wallet_service,
             setup_wallet_service_offline, MOB,
         },
     };
-    use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_crypto_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::convert::TryInto;
 
     #[test_with_logger]
     fn test_applesauce(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let src_account = AccountKey::from(&root_id);
-        let known_recipients = vec![src_account.subaddress(0)];
-        let ledger_db = get_test_ledger(5, &known_recipients, 100, &mut rng);
+        let entropy = RootEntropy::from_random(&mut rng);
+        let account_key = AccountKey::from(&RootIdentity::from(&entropy));
 
-        // Create an account.
+        let block_count: i64 = 100;
+
+        let known_recipients = vec![account_key.subaddress(0)];
+        let mut ledger_db = get_test_ledger(
+            5,
+            &known_recipients,
+            block_count.try_into().unwrap(),
+            &mut rng,
+        );
+
+        let service = setup_wallet_service(ledger_db.clone(), logger);
+        let wallet_db = &service.wallet_db.as_ref().unwrap();
+
+        assert_eq!(ledger_db.num_blocks().unwrap(), block_count as u64);
+
+        // Create an account that exists from the beginning of the ledger
         let account = service
-            .import_account(
-                // mnemonic_phrase: String,
-                Some(2),               // key_derivation_version: u8,
-                Some("A".to_string()), // name: Option<String>,
-                0,                     // first_block_index: Option<u64>,
-                Some(1),               // next_subaddress_index: Option<u64>,
-                "".to_string(),        // fog_report_url: String,
-                "".to_string(),        // fog_report_id: String,
-                "".to_string(),        // fog_authority_spki: String,
+            .import_account_from_legacy_root_entropy(
+                hex::encode(entropy.bytes),
+                None,
+                None,
+                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
             )
             .unwrap();
+        let account_id = AccountID(account.id);
 
-        assert!(false);
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.first_block_index, 0);
+        assert_eq!(account.next_block_index, account.first_block_index);
+
+        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(
+            account.next_block_index as u64,
+            ledger_db.num_blocks().unwrap()
+        );
+
+        service.reimport_account(&account_id).unwrap();
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(account.next_block_index, account.first_block_index);
+        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        let account = service.get_account(&account_id).unwrap();
+        assert_eq!(
+            account.next_block_index as u64,
+            ledger_db.num_blocks().unwrap()
+        );
+
+        // create an account that has its first_block_index set to later in the ledger
+        let account2 = service
+            .create_account(None, "".to_string(), "".to_string(), "".to_string())
+            .unwrap();
+        assert_eq!(
+            account2.first_block_index as u64,
+            ledger_db.num_blocks().unwrap()
+        );
+        generate_n_blocks_on_ledger(
+            5,
+            &known_recipients,
+            block_count.try_into().unwrap(),
+            &mut rng,
+            &mut ledger_db,
+        );
+        assert_eq!(account2.next_block_index, account2.first_block_index);
+
+        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        let account2 = service.get_account(&account_id).unwrap();
+        assert_eq!(
+            account2.next_block_index as u64,
+            ledger_db.num_blocks().unwrap()
+        );
+
+        service.reimport_account(&account_id).unwrap();
+        let account2 = service.get_account(&account_id).unwrap();
+        assert_eq!(account2.next_block_index, account2.first_block_index);
+
+        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        let account2 = service.get_account(&account_id).unwrap();
+        assert_eq!(
+            account2.next_block_index as u64,
+            ledger_db.num_blocks().unwrap()
+        );
     }
 
     #[test_with_logger]
