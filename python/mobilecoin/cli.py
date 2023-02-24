@@ -128,6 +128,22 @@ class CommandLineInterface:
         self.address_create_args.add_argument('account_id', help='Account ID.')
         self.address_create_args.add_argument('metadata', nargs='?', help='Address label.')
 
+        # Payment request commands.
+        self.request_args = command_sp.add_parser('request', help='Commands for payment requests.')
+        request_action = self.request_args.add_subparsers(dest='action')
+
+        # Create payment request.
+        self.request_create_args = request_action.add_parser('create', help='Create a payment request.')
+        self.request_create_args.add_argument('account_id', help='Account ID which receives the funds.')
+        self.request_create_args.add_argument('amount', help='Amount to send.')
+        self.request_create_args.add_argument('token', help='Token to send (MOB, eUSD).')
+        self.request_create_args.add_argument('-m', '--memo', help='Payment request memo.')
+
+        # Fulfill payment request.
+        self.request_pay_args = request_action.add_parser('pay', help='Fulfill a payment request.')
+        self.request_pay_args.add_argument('account_id', help='Account ID to pay from.')
+        self.request_pay_args.add_argument('request', help='Payment request, encoded as b58.')
+
         # Gift code commands.
         self.gift_args = command_sp.add_parser('gift', help='Gift code commands.')
         gift_action = self.gift_args.add_subparsers(dest='action')
@@ -622,9 +638,11 @@ class CommandLineInterface:
 
     def address(self, action, **args):
         try:
-            getattr(self, 'address_' + action)(**args)
+            func = getattr(self, 'address_' + action)
         except TypeError:
             self.address_args.print_help()
+        else:
+            func(**args)
 
     def address_list(self, account_id):
         account = self._load_account_prefix(account_id)
@@ -658,6 +676,87 @@ class CommandLineInterface:
             ' '*2,
         ))
         print()
+
+    def request(self, action, **args):
+        try:
+            func = getattr(self, 'request_' + action)
+        except TypeError:
+            self.request_args.print_help()
+        else:
+            func(**args)
+
+    def request_create(self, account_id, amount, token, memo=''):
+        account = self._load_account_prefix(account_id)
+        desired_amount = Amount.from_display_units(amount, token)
+        payment_request_b58 = self.client.create_payment_request(
+            account['id'],
+            desired_amount,
+            memo=memo,
+        )
+
+        b58_type_data = self.client.check_b58_type(payment_request_b58)
+        assert b58_type_data['b58_type'] == 'PaymentRequest'
+        payment_request = b58_type_data['data']
+        address_b58 = payment_request['public_address_b58']
+        memo = payment_request['memo']
+        amount = Amount.from_storage_units(
+            payment_request['value'],
+            payment_request['token_id'],
+        )
+        assert desired_amount == amount
+
+        print('Created a payment request for account:')
+        print(indent(_format_account_header(account), '  '))
+        print('Amount:')
+        print(indent(amount.format(), '  '))
+        print('To be received at address:')
+        print(indent(address_b58, '  '))
+        if memo != '':
+            print('Memo:')
+            print(indent(memo, '  '))
+
+        print()
+        print('Encoded payment request:')
+        print()
+        print(payment_request_b58)
+
+    def request_pay(self, account_id, request):
+        b58_type_data = self.client.check_b58_type(request)
+        if b58_type_data['b58_type'] != 'PaymentRequest':
+            print('Invalid payment request.')
+            return
+        payment_request = b58_type_data['data']
+        address_b58 = payment_request['public_address_b58']
+        memo = payment_request['memo']
+        amount = Amount.from_storage_units(
+            payment_request['value'],
+            payment_request['token_id'],
+        )
+
+        print()
+        print('Received a payment request to send:')
+        print(indent(amount.format(), '  '))
+        print('To address:')
+        print(indent(address_b58, '  '))
+        if memo != '':
+            print('With memo:')
+            print(indent(memo, '  '))
+
+        account = self._load_account_prefix(account_id)
+        print()
+        print('Sending from account:')
+        print(indent(_format_account_header(account), '  '))
+        print()
+
+        if not self.confirm('Send this payment? (Y/N) '):
+            print('Cancelled.')
+            return
+
+        self.client.build_and_submit_transaction(
+            account['id'],
+            amount,
+            address_b58,
+        )
 
     def gift(self, action, **args):
         getattr(self, 'gift_' + action)(**args)
