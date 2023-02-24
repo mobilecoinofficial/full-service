@@ -39,6 +39,7 @@ mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
+mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
@@ -47,6 +48,9 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
+ledger-mob = { path = "../ledger-mob/lib" }
+
+async-trait = "0.1.59"
 base64 = "0.13.1"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.0", features = ["derive", "env"] }

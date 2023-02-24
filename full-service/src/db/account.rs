@@ -201,7 +201,7 @@ pub trait AccountModel {
     /// (reserved addresses are not included)
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
 
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+    fn account_key(&self) -> Result<AccountKey, WalletDbError>;
 
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
 
@@ -590,13 +590,13 @@ impl AccountModel for Account {
         Ok(highest_subaddress_index as u64 + 1)
     }
 
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+    fn account_key(&self) -> Result<AccountKey, WalletDbError> {
         if self.view_only {
-            return Ok(None);
+            return Err(WalletDbError::AccountKeyNotAvailableForViewOnlyAccount);
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        Ok(Some(account_key))
+        Ok(account_key)
     }
 
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {

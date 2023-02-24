@@ -189,6 +189,7 @@ where
                     TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_and_submit_transaction {
@@ -246,6 +247,7 @@ where
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_burn_transaction {
@@ -297,6 +299,7 @@ where
                     TransactionMemo::RTH(sender_memo_credential_subaddress_index),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_transaction {
