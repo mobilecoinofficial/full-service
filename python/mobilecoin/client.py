@@ -290,6 +290,12 @@ class ClientAsync:
         })
         return r['transaction_log'], r['tx_proposal']
 
+    async def check_b58_type(self, b58_code):
+        return await self._req({
+            "method": "check_b58_type",
+            "params": {"b58_code": b58_code},
+        })
+
     # Polling utility functions.
 
     @staticmethod
