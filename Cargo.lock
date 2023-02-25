@@ -3237,6 +3237,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-extra",
  "mc-transaction-signer",
+ "mc-transaction-summary",
  "mc-transaction-types",
  "mc-util-from-random",
  "mc-util-parse",

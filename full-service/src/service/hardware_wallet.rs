@@ -8,12 +8,14 @@ use ledger_mob::{
     transport::TransportNativeHID, tx::TxConfig, Connect, DeviceHandle, LedgerProvider,
 };
 
+use mc_account_keys::ViewAccountKey;
 use mc_common::logger::global_log;
 use mc_core::keys::TxOutPublic;
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_rand::rand_core::OsRng;
 use mc_transaction_core::{ring_ct::InputRing, tx::Tx};
 use mc_transaction_signer::types::TxoSynced;
+use mc_transaction_summary::verify_tx_summary;
 
 use strum::Display;
 
@@ -67,6 +69,7 @@ async fn get_device_handle() -> Result<DeviceHandle<TransportNativeHID>, Hardwar
 
 pub async fn sign_tx_proposal(
     unsigned_tx_proposal: UnsignedTxProposal,
+    view_account_key: &ViewAccountKey,
 ) -> Result<TxProposal, HardwareWalletServiceError> {
     let device_handle = get_device_handle().await?;
 
@@ -86,16 +89,49 @@ pub async fn sign_tx_proposal(
     // Build the digest for ring signing
     // TODO: this will move when TxSummary is complete
     global_log::info!("Building TX digest");
-    let (signing_data, _summary, _unblinding_data, digest) = unsigned_tx_proposal
+    let (signing_data, summary, unblinding_data, digest) = unsigned_tx_proposal
         .unsigned_tx
         .get_signing_data(&mut OsRng {})?;
 
-    // Set the message
-    global_log::info!("Setting tx message");
-    let _ = signer
-        .set_message(&digest.0)
+    // match unblinding_data {
+    //     None => {
+    //         debug!("Setting tx message");
+    //         signer
+    //             .set_message(&digest.0)
+    //             .await
+    //             .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+    //     }
+    //     Some(unblinding_data) => {
+    debug!("Loading tx summary");
+    signer
+        .set_tx_summary(
+            unsigned_tx_proposal.unsigned_tx.block_version,
+            &digest.0,
+            &summary,
+            &unblinding_data,
+        )
         .await
         .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+
+    // TODO: check signing_data matches computed mlsag_signing_digest
+    let mut m = [0u8; 32];
+    m.copy_from_slice(&digest.0[..]);
+
+    let (expected_digest, _report) = verify_tx_summary(
+        &m,
+        &summary,
+        &unblinding_data,
+        *view_account_key.view_private_key(),
+    )
+    .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+
+    assert_eq!(
+        &expected_digest[..],
+        &signing_data.mlsag_signing_digest[..],
+        "summary generated digest mismatch"
+    );
+    //     }
+    // }
 
     // Await user input
     global_log::info!("Awaiting user confirmation");

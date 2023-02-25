@@ -40,6 +40,7 @@ mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
 mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "../mobilecoin/transaction/summary"}
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
