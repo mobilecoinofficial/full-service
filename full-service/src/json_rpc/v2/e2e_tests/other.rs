@@ -749,7 +749,10 @@ mod e2e_misc {
         assert_eq!(b58_type, "PaymentRequest");
         assert_eq!(value, "42000000000000");
         assert_eq!(token_id, "0");
-        assert_eq!(public_address_b58, account_obj.get("main_address").unwrap().as_str().unwrap());
+        assert_eq!(
+            public_address_b58,
+            account_obj.get("main_address").unwrap().as_str().unwrap()
+        );
         assert_eq!(memo, "");
     }
 }
