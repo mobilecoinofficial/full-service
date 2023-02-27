@@ -172,7 +172,7 @@ async def test_network_status_fees(fees):
 
 async def test_get_block(client):
     network_status = await client.get_network_status()
-    last_block_index = int(network_status['network_block_height']) - 1
+    last_block_index = int(network_status['local_block_height']) - 1
     block, block_contents = await client.get_block(last_block_index)
     assert int(block['index']) == last_block_index
     assert sorted(block.keys()) == [

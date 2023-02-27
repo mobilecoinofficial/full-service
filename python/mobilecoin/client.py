@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import aiohttp
+import os
 import json
 import time
 from typing import Optional
@@ -22,7 +23,7 @@ class WalletAPIError(Exception):
 class ClientAsync:
     def __init__(self, url=None):
         if url is None:
-            url = DEFAULT_URL
+            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL)
         self.url = url
         self._query_count = 0
 
