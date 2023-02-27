@@ -694,4 +694,62 @@ mod e2e_misc {
             "TimestampFound"
         );
     }
+
+    #[test_with_logger]
+    fn test_payment_request(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+
+        // Create a payment request.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_payment_request",
+            "params": {
+                "account_id": account_id,
+                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let payment_request_b58 = result.get("payment_request_b58").unwrap().as_str().unwrap();
+
+        // Check that we get out the same parameters we put in.
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "check_b58_type",
+            "params": {
+                "b58_code": payment_request_b58,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let b58_type = result.get("b58_type").unwrap().as_str().unwrap();
+        let data = result.get("data").unwrap();
+        let value = data.get("value").unwrap().as_str().unwrap();
+        let token_id = data.get("token_id").unwrap().as_str().unwrap();
+        let public_address_b58 = data.get("public_address_b58").unwrap().as_str().unwrap();
+        let memo = data.get("memo").unwrap().as_str().unwrap();
+
+        assert_eq!(b58_type, "PaymentRequest");
+        assert_eq!(value, "42000000000000");
+        assert_eq!(token_id, "0");
+        assert_eq!(public_address_b58, account_obj.get("main_address").unwrap().as_str().unwrap());
+        assert_eq!(memo, "");
+    }
 }
