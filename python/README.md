@@ -4,6 +4,8 @@
 
 `$ pip install mobilecoin`
 
+This will install the Python package `mobilecoin`, and also put the `mob` command line tool at `~/.local/bin/mob`.
+
 
 ## CLI usage
 
@@ -66,6 +68,11 @@ $ mv mobilecoin_secret_mnemonic_d7efc1.json /path/to/safe/location
 ```
 
 
+## Install the Poetry tool.
+
+Follow the instructions at https://python-poetry.org/.
+
+
 ## Run unittests and integration tests.
 
 Set an environment variable to tell the unittests where your wallet export file is.
@@ -81,5 +88,6 @@ $ export MC_FOG_AUTHORITY_SPKI='MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9
 
 With full-service running, start the integration tests.
 ```
+$ poetry install
 $ poetry run pytest -v
 ```
