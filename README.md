@@ -36,14 +36,48 @@ information.
 
 ### Usage and Documentation
 
-For documentation, usage, and API specification, please see the full API documentation at: [High-Performance Wallet API](https://mobilecoin.gitbook.io/full-service-api/)
+For documentation, usage, and API specification, please see the full API documentation at: [Full Service API](https://mobilecoin.gitbook.io/full-service-api/)
 
 Database encryption features are also described in the [Database Encryption](https://mobilecoin.gitbook.io/full-service-api/usage/database-usage#database-encryption)
 section of the full API docs.
 
-### Build and Run Mob
+## Run the wallet service directly from the official docker image.
 
-You can build Full Service using the mobilecoin `mob` tool. 
+You can a pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
+
+Here is the command to run against test-net:
+```sh
+docker run -it -p 127.0.0.1:9090:9090 \
+   --volume ~/.mobilecoin/test:/data \
+   mobilecoin/full-service:v2.3.2-testnet \
+   --peer mc://node1.test.mobilecoin.com/ \
+   --peer mc://node2.test.mobilecoin.com/ \
+   --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+   --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+   --ledger-db /data/ledger-db \
+   --wallet-db /data/wallet-db/wallet.db \
+   --chain-id test
+```
+
+And here is the command for main-net:
+```sh
+docker run -it -p 127.0.0.1:9090:9090 \
+   --volume ~/.mobilecoin/main:/data \
+   mobilecoin/full-service:v2.3.2-mainnet \
+   --peer mc://node1.prod.mobilecoinww.com/ \
+   --peer mc://node2.prod.mobilecoinww.com/ \
+   --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
+   --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
+   --ledger-db /data/ledger-db \
+   --wallet-db /data/wallet-db/wallet.db \
+   --chain-id main
+```
+
+These commands expect that you have your ledger and wallet databases located at `~/.mobilecoin/test` or `~/.mobilecoin/main`.
+
+## Build with the Docker builder container.
+
+You can build the wallet service using the `mob` tool, which creates a docker container set up for correct compliation.
 
 **Prerequisites**
 - git
@@ -53,52 +87,23 @@ You can build Full Service using the mobilecoin `mob` tool.
 
 **Instructions**
 1. Clone the full-service repository using git
+    ```sh
+    git clone https://github.com/mobilecoinofficial/full-service.git
+    ```
 1. From the full-service project root, pull the submodule.
     ```sh
     git submodule update --init --recursive
     ```
 1. Now that the submodule is pulled, you can use the `mob` tool by running it from the full-service project root
     ```sh
-    ./mob prompt
+    ./mob prompt --tag=latest
     ```
-
- If you are operating on main or test net, these steps are unnecessary; the build script will grab the relevant sigstruct.
- If you don't have the consensus or ingest enclaves, you may want to build the mobilecoin network to get them.
-1. Create your attestation verifier seed
+1. Build the MobileCoin full-service wallet for testnet. Substitute `test` with `main` to build for mainnet.
     ```sh
-    MC_SEED=($(echo "<your secret phrase>" | sha256sum))
-    ```
-1. Build the mobilecoin network
-    ```sh
-    cd mobilecoin
-    cargo build --release
+    tools/build-fs.sh test
     ```
 
-1. Run the build script using the relevant network type (substitute `main` with `test` or `local` if appropriate)
-    ```sh
-    ./tools/build-fs.sh main
-    ```
-
-You can run full-service from within `mob prompt`, or exit the container to run it.
--  From within the `mob` container, replacing `main` with the appropriate network type.
-     ```sh
-    ./tools/run-fs.sh main
-    ```
-- From outside the `mob` container, there are potentially extra steps
-    - If running local network, copy the `ingest-enclave.css` file from the mobilecoin network build to where you want the runscript to pick it up from
-    ** IMPORTANT: make sure your local instance of the local network is running before running full-service against it **
-    ```sh
-    cp ./target/docker/release/ingest-enclave.css ~/.mobilecoin/local
-    ``` 
-    - For any network, you'll need to set an environment variable before running the `run-fs.sh` script,  replacing `main` with the appropriate network type.
-    ```sh
-    export CARGO_TARGET_DIR=./target/docker
-    ./tools/run-fs.sh main
-    ```
-
-
-
-### Build and Run
+## Build locally.
 
 Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from Apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
 
@@ -246,7 +251,8 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    See [Parameters](#parameters) for full list of available options.
 
-## Docker Build and Run
+
+## Building your own docker image.
 
 1. Pull submodule.
 
@@ -289,46 +295,9 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    If you want to save your databases outside the default volume you can use `-v path/to/volume:/data` but you
    must `chown 1000:1000 path/to/volume` so the app running as uid 1000 can access it.
 
-    ```sh
-    mkdir -p /opt/full-service/data
+   Then run your image as above.
 
-    chown 1000:1000 /opt/full-service/data
-
-    docker run -it -p 127.0.0.1:9090:9090 \
-        -v /opt/full-service/data:data \
-        --name full-service \
-        mobilecoin/full-service \
-        --peer mc://node1.test.mobilecoin.com/ \
-        --peer mc://node2.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --chain-id test
-    ```
-
-   **Listen and Port**
-
-   This image configures `full-service` to listen on the container `0.0.0.0:9090`
-
-   Use `-p 127.0.0.1:9090:9090` to expose the API to you localhost.
-
-   **Run**
-
-   Required parameters are added as command options to the container.
-
-   TestNet Example
-
-    ```sh
-    docker run -it -p 127.0.0.1:9090:9090 --name full-service mobilecoin/full-service \
-        --peer mc://node1.test.mobilecoin.com/ \
-        --peer mc://node2.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --chain-id test
-    ```
-
-   See [Parameters](#parameters) for full list of available options.
-
-### Parameters
+## Parameters to the full-service executable.
 
 | Param            | Purpose                  | Requirements              |
 | :--------------- | :----------------------- | :------------------------ |
@@ -384,111 +353,12 @@ The process exit code indicates why it exited:
 | 101  | Rust Panic.                          |
 
 
-## Usage and Documentation
-
-For documentation, usage, and API specification, see our gitbook page: [https://mobilecoin.gitbook.io/full-service-api/](https://mobilecoin.gitbook.io/full-service-api/)
-
-### Offline (Cold-Wallet) Transaction Flow
-
-Full Service supports offline transactions. This flow is recommended to keep an account key on an air-gapped machine
-which has never connected to the internet.
-
-The recommended flow to get balance and submit transaction is the following:
-
-1. *ONLINE MACHINE*: Sync ledger by running full service.
-
-    ```sh
-    ./target/release/mc-full-service \
-        --wallet-db /tmp/wallet-db/wallet.db \
-        --ledger-db /tmp/ledger-db/ \
-        --peer mc://node1.test.mobilecoin.com/ \
-        --peer mc://node2.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --chain-id test
-    ```
-
-1. *ONLINE MACHINE and USB*: Copy the ledger and the full-service binary to USB.
-
-    ```sh
-    cp -r /tmp/ledger-db /media/
-    cp ./target/release/mc-full-service /media/
-    ```
-
-1. *OFFLINE MACHINE*: Create a ramdisk to store sensitive material.
-
-    * Linux: The following will create a 512 MB ramdisk located at `/keyfs`.
-
-        ```sh
-        sudo swapoff -a
-        sudo mkdir /keyfs
-        sudo mount -t tmpfs -o size=512m tmpfs /keyfs
-        ```
-
-    * MacOS: The following will create a 512 MB ramdisk located at `/Volumes/KeyFS`.
-
-        ```sh
-        diskutil erasevolume HFS+ 'KeyFS' `hdiutil attach -nomount ram://1048576`
-        ```
-
-      For the remaining instructions, we will refer to `/keyfs` as the ramdisk location, so if on MacOS, know that this
-      maps to `/Volumes/KeyFS`.
-
-1. *OFFLINE MACHINE and USB*: Copy the ledger and the full-service binary to the Offline Machine.
-
-    ```sh
-    cp /media/ledger-db /keyfs/ledger-db
-    cp /media/mc-full-service /keyfs/mc-full-service
-    ```
-
-1. *OFFLINE MACHINE*: Run full service in offline mode.
-
-    ```sh
-    ./target/release/mc-full-service \
-        --wallet-db /keyfs/wallet.db \
-        --ledger-db /keyfs/ledger-db/ \
-        --offline \
-        --chain-id test
-    ```
-
-1. *OFFLINE MACHINE*: You can now [create](#create-account) or [import](#import-account) your
-   account, [check your balance](#get-balance-for-a-given-account)
-   , [create assigned subaddresses](#create-assigned-subaddress), and [construct transactions](#build-transaction), as
-   outlined in the docs above. Note that your entropy, account key, and wallet.db should always remain only on the
-   ramdisk.
-
-1. *OFFLINE MACHINE and USB*: To send a transaction, you will a Construct a TxProposal using
-   the [`build_transaction`](#build-transaction) endpoint. The output of this call can be written to a file, such as
-   tx_proposal.json, and then copied to the USB.
-
-    ```sh
-    curl -s localhost:9090/wallet \
-    -d '{
-    "method": "build_transaction",
-    "params": {
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde",
-    "recipient_public_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
-    "value": "42000000000000"
-    }
-    }' \
-    -X POST -H 'Content-type: application/json' | jq '.result' > /keyfs/tx_proposal.json
-
-    cp /keyfs/tx_proposal.json /media/
-    ```
-
-1. *ONLINE MACHINE and USB*: Copy the tx_proposal to the online machine.
-
-    ```sh
-    cp /media/tx_proposal.json ./
-    ```
-
-1. *ONLINE MACHINE*: Submit transaction to consensus, using the [`submit_transaction`](#submit-transaction) endpoint.
-
 ## Contributing
 
 See [CONTRIBUTING](./CONTRIBUTING.md).
 
-### Database Schema
+
+## Database Schema
 
 To add or edit tables:
 
@@ -520,10 +390,10 @@ table! {
 }
 ```
 
-
 Note that full-service/diesel.toml provides the path to the schema.rs which will be updated in a migration.
 
-### Running Tests
+
+## Running Tests
 
 The simple way:
 ```
@@ -545,7 +415,7 @@ Note: providing the `CONSENSUS_ENCLAVE_CSS` allows us to bypass the enclave buil
 
 Also note: On OSX there is sometimes weird behavior when first running the test suite where some tests will fail.  Opening a new terminal tab and running them again typically resolves this.
 
-### Linting
+## Linting
 
 ```
 RUST_LOG=info \
