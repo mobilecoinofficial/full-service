@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "mobilecoin"
-version = "2.2.0"
+version = "2.3.1"
 description = ""
 authors = ["Christian Oudard"]
 readme = "README.md"
+homepage = "https://mobilecoin.com/"
+repository = "https://github.com/mobilecoinofficial/full-service"
+
 
 [tool.poetry.dependencies]
 python = "^3.10"
