@@ -706,7 +706,7 @@ mod tests {
 
         manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
 
-        /* Send the transaction before corrupting the txo entry */
+        /* Send the transaction after corrupting the txo entry */
         // build and sign a transaction
         //  - this should build and store the txos in the db
         //  - should also create the transaction logs
@@ -726,21 +726,6 @@ mod tests {
         let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         let expected_txo_amount = associated_txos.outputs[0].0.value;
         let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
-
-        // manually overwrite the amount and target_key of the output txo to
-        // something bogus
-        let corrupted_txo_amount = expected_txo_amount << 4;
-        let mut corrupted_target_key = expected_target_key.clone();
-        corrupted_target_key.shuffle(&mut thread_rng());
-        assert_ne!(expected_txo_amount, corrupted_txo_amount);
-        assert_ne!(expected_target_key, corrupted_target_key);
-        diesel::update(&associated_txos.outputs[0].0)
-            .set((
-                txos::value.eq(corrupted_txo_amount as i64),
-                txos::target_key.eq(&corrupted_target_key),
-            ))
-            .execute(&conn)
-            .unwrap();
 
         let for_b_key_image: KeyImage =
             mc_util_serial::decode(&associated_txos.inputs[0].key_image.clone().unwrap()).unwrap();
@@ -764,13 +749,28 @@ mod tests {
         )
         .unwrap();
 
+        // manually overwrite the amount and target_key of the output txo to
+        // something bogus
+        let corrupted_txo_amount = expected_txo_amount << 4;
+        let mut corrupted_target_key = expected_target_key.clone();
+        corrupted_target_key.shuffle(&mut thread_rng());
+        assert_ne!(expected_txo_amount, corrupted_txo_amount);
+        assert_ne!(expected_target_key, corrupted_target_key);
+        diesel::update(&associated_txos.outputs[0].0)
+            .set((
+                txos::value.eq(corrupted_txo_amount as i64),
+                txos::target_key.eq(&corrupted_target_key),
+            ))
+            .execute(&conn)
+            .unwrap();
+
         // manually sync the account (should we see errors?)
         manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
         manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
 
-        // let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
-        // assert_ne!(expected_txo_amount, associated_txos.outputs[0].0.value);
-        // assert_ne!(expected_target_key, associated_txos.outputs[0].0.target_key);
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        assert_ne!(expected_txo_amount, associated_txos.outputs[0].0.value);
+        assert_ne!(expected_target_key, associated_txos.outputs[0].0.target_key);
 
         // resync the account
         service.resync_account(&account_a_id).unwrap();
