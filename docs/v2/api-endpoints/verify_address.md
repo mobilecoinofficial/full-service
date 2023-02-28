@@ -8,7 +8,7 @@ description: Verify whether an address is correctly b58-encoded.
 
 | Required Param | Purpose | Requirements |
 | :--- | :--- | :--- |
-| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+| `address` | The address on which to perform this action. |  |
 
 ## [Response](../../../full-service/src/json_rpc/v2/api/response.rs#L41)
 
