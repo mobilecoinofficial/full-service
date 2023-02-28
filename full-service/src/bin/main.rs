@@ -223,7 +223,7 @@ fn validator_backed_full_service(
     rocket_config: rocket::Config,
     logger: Logger,
 ) -> Rocket<Build> {
-    if config.wallet_db.is_some() {
+    if config.watcher_db.is_some() {
         panic!("Watcher syncing is not yet supported in a validator configuration");
     }
 
