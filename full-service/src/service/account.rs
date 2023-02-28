@@ -633,6 +633,166 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_reimport_account_badly_stored_txo(logger: Logger) {
+        use crate::{
+            db::{
+                account::AccountID,
+                models::TransactionLog,
+                schema::txos,
+                transaction_log::{TransactionId, TransactionLogModel},
+            },
+            json_rpc::v2::models::amount::Amount,
+            service::transaction::{TransactionMemo, TransactionService},
+            test_utils::{
+                add_block_with_tx_outs, create_test_minted_and_change_txos,
+                create_test_txo_for_recipient, get_test_ledger, manually_sync_account,
+                setup_wallet_service, MOB,
+            },
+            util::b58::b58_encode_public_address,
+        };
+        use diesel::{
+            dsl::{count, exists, not},
+            prelude::*,
+        };
+        use rand::{seq::SliceRandom, thread_rng};
+
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let entropy_a = RootEntropy::from_random(&mut rng);
+        let account_a_key = AccountKey::from(&RootIdentity::from(&entropy_a));
+        let entropy_b = RootEntropy::from_random(&mut rng);
+        let account_b_key = AccountKey::from(&RootIdentity::from(&entropy_a));
+
+        let initial_block_count = 12;
+        let mut ledger_db = get_test_ledger(5, &[], initial_block_count, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let wallet_db = service.wallet_db.as_ref().unwrap();
+
+        let account_a = service
+            .import_account_from_legacy_root_entropy(
+                hex::encode(entropy_a.bytes),
+                None,
+                None,
+                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+        let account_a_id = AccountID(account_a.id.clone());
+
+        let account_b = service
+            .import_account_from_legacy_root_entropy(
+                hex::encode(entropy_b.bytes),
+                None,
+                None,
+                None,
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+        let account_b_id = AccountID(account_b.id.clone());
+
+        // Create TXO for Alice
+        let (for_alice_txo, for_alice_key_image) = create_test_txo_for_recipient(
+            &account_a_key,
+            0,
+            mc_transaction_core::Amount::new(1000 * MOB, Mob::ID),
+            &mut rng,
+        );
+
+        // Let's add this txo to the ledger
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[for_alice_txo.clone()],
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        assert_eq!(ledger_db.num_blocks().unwrap(), 13);
+
+        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+
+        /* Send the transaction before corrupting the txo entry */
+        // build and sign a transaction
+        //  - this should build and store the txos in the db
+        //  - should also create the transaction logs
+
+        let wallet_db = service.wallet_db.as_ref().unwrap();
+        let unspent = Txo::list_unspent(
+            Some(&account_a_id.to_string()),
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert!(unspent.len() > 0);
+
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
+            account_a_key.clone(),
+            account_b_key.subaddress(0),
+            72 * MOB,
+            wallet_db.clone(),
+            ledger_db.clone(),
+        );
+
+        // Store the real values for the txo's amount and target_key (arbitrary fields
+        // we want to corrupt and sync back)
+        let conn = wallet_db.get_conn().unwrap();
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let expected_txo_amount = associated_txos.outputs[0].0.value;
+        let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
+
+        // manually overwrite the amount and target_key of the output txo to
+        // something bogus
+        let corrupted_txo_amount = expected_txo_amount << 4;
+        let mut corrupted_target_key = expected_target_key.clone();
+        corrupted_target_key.shuffle(&mut thread_rng());
+        assert_ne!(expected_txo_amount, corrupted_txo_amount);
+        assert_ne!(expected_target_key, corrupted_target_key);
+        diesel::update(&associated_txos.outputs[0].0)
+            .set((
+                txos::value.eq(corrupted_txo_amount as i64),
+                txos::target_key.eq(&corrupted_target_key),
+            ))
+            .execute(&conn)
+            .unwrap();
+
+        let for_b_key_image: KeyImage =
+            mc_util_serial::decode(&associated_txos.inputs[0].key_image.clone().unwrap()).unwrap();
+
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
+            &[for_b_key_image],
+            &mut rng,
+        );
+        // Submit the transaction
+        TransactionLog::log_submitted(
+            &tx_proposal,
+            100,
+            "".to_string(),
+            &AccountID::from(&account_a_key).to_string(),
+            &conn,
+        )
+        .unwrap();
+
+        // manually sync the account (should we see errors?)
+        // resync the account
+        //  - check the balance
+        //  - check that the txo we futzed with is now stored correctly
+        //  - check that the transaction log entries are exactly the same as
+        //    before
+    }
+
+    #[test_with_logger]
     fn test_remove_account_from_txo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
