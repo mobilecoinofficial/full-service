@@ -641,19 +641,12 @@ mod tests {
                 schema::txos,
                 transaction_log::{TransactionId, TransactionLogModel},
             },
-            json_rpc::v2::models::amount::Amount,
-            service::transaction::{TransactionMemo, TransactionService},
             test_utils::{
                 add_block_with_tx_outs, create_test_minted_and_change_txos,
-                create_test_txo_for_recipient, get_test_ledger, manually_sync_account,
-                setup_wallet_service, MOB,
+                create_test_txo_for_recipient,
             },
-            util::b58::b58_encode_public_address,
         };
-        use diesel::{
-            dsl::{count, exists, not},
-            prelude::*,
-        };
+        use diesel::prelude::*;
         use rand::{seq::SliceRandom, thread_rng};
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -695,7 +688,7 @@ mod tests {
         let account_b_id = AccountID(account_b.id.clone());
 
         // Create TXO for Alice
-        let (for_alice_txo, for_alice_key_image) = create_test_txo_for_recipient(
+        let (for_acc_a_txo, _) = create_test_txo_for_recipient(
             &account_a_key,
             0,
             mc_transaction_core::Amount::new(1000 * MOB, Mob::ID),
@@ -705,7 +698,7 @@ mod tests {
         // Let's add this txo to the ledger
         add_block_with_tx_outs(
             &mut ledger_db,
-            &[for_alice_txo.clone()],
+            &[for_acc_a_txo.clone()],
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -719,19 +712,6 @@ mod tests {
         //  - should also create the transaction logs
 
         let wallet_db = service.wallet_db.as_ref().unwrap();
-        let unspent = Txo::list_unspent(
-            Some(&account_a_id.to_string()),
-            None,
-            Some(0),
-            None,
-            None,
-            None,
-            None,
-            &wallet_db.get_conn().unwrap(),
-        )
-        .unwrap();
-        assert!(unspent.len() > 0);
-
         let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
             account_a_key.clone(),
             account_b_key.subaddress(0),
@@ -777,7 +757,7 @@ mod tests {
         // Submit the transaction
         TransactionLog::log_submitted(
             &tx_proposal,
-            100,
+            (initial_block_count + 1).try_into().unwrap(),
             "".to_string(),
             &AccountID::from(&account_a_key).to_string(),
             &conn,
@@ -785,11 +765,43 @@ mod tests {
         .unwrap();
 
         // manually sync the account (should we see errors?)
+        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+
+        // let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        // assert_ne!(expected_txo_amount, associated_txos.outputs[0].0.value);
+        // assert_ne!(expected_target_key, associated_txos.outputs[0].0.target_key);
+
         // resync the account
-        //  - check the balance
+        service.resync_account(&account_a_id).unwrap();
+
         //  - check that the txo we futzed with is now stored correctly
-        //  - check that the transaction log entries are exactly the same as
-        //    before
+        //  - check that the transaction log entries are exactly the same as before
+        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        assert_eq!(expected_txo_amount, associated_txos.outputs[0].0.value);
+        assert_eq!(expected_target_key, associated_txos.outputs[0].0.target_key);
+        let transaction_log_new =
+            TransactionLog::get(&TransactionId(transaction_log.id.clone()), &conn).unwrap();
+        // We check every field in the struct except for the finalized index field
+        // because we expect it to be different
+        assert_eq!(transaction_log_new.id, transaction_log.id);
+        assert_eq!(transaction_log_new.account_id, transaction_log.account_id);
+        assert_eq!(transaction_log_new.fee_value, transaction_log.fee_value);
+        assert_eq!(
+            transaction_log_new.fee_token_id,
+            transaction_log.fee_token_id
+        );
+        assert_eq!(
+            transaction_log_new.submitted_block_index,
+            transaction_log.submitted_block_index
+        );
+        assert_eq!(
+            transaction_log_new.tombstone_block_index,
+            transaction_log.tombstone_block_index
+        );
+        assert_eq!(transaction_log_new.comment, transaction_log.comment);
+        assert_eq!(transaction_log_new.tx, transaction_log.tx);
+        assert_eq!(transaction_log_new.failed, transaction_log.failed);
     }
 
     #[test_with_logger]

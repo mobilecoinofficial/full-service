@@ -419,7 +419,7 @@ pub fn create_test_minted_and_change_txos(
     // Use the builder to create valid TxOuts for this account
     let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
-        ledger_db,
+        ledger_db.clone(),
         get_resolver_factory(&mut rng).unwrap(),
     );
 
@@ -436,7 +436,7 @@ pub fn create_test_minted_and_change_txos(
     (
         TransactionLog::log_submitted(
             &tx_proposal,
-            10,
+            ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&src_account_key).to_string(),
             &conn,

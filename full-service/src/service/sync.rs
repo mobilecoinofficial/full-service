@@ -122,8 +122,9 @@ pub fn sync_all_accounts(
         { Account::list_all(conn, None, None).expect("Failed getting accounts from database") };
 
     for account in accounts {
-        // If there are no new blocks for this account, don't do anything.
-        if account.next_block_index as u64 > num_blocks - 1 {
+        // If there are no new blocks for this account, or we are in offline mode (so
+        // there are no blocks), don't do anything.
+        if num_blocks == 0 || account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
 
