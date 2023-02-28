@@ -541,7 +541,7 @@ mod tests {
     use std::convert::TryInto;
 
     #[test_with_logger]
-    fn test_reimport_account(logger: Logger) {
+    fn test_resync_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let entropy = RootEntropy::from_random(&mut rng);
         let account_key = AccountKey::from(&RootIdentity::from(&entropy));
@@ -633,7 +633,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_reimport_account_badly_stored_txo(logger: Logger) {
+    fn test_resync_account_badly_stored_txo(logger: Logger) {
         use crate::{
             db::{
                 account::AccountID,
@@ -774,6 +774,8 @@ mod tests {
 
         // resync the account
         service.resync_account(&account_a_id).unwrap();
+        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
 
         //  - check that the txo we futzed with is now stored correctly
         //  - check that the transaction log entries are exactly the same as before
