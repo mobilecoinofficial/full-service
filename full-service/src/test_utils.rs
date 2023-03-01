@@ -101,6 +101,35 @@ impl WalletDbTestContext {
     }
 }
 
+pub fn generate_n_blocks_on_ledger(
+    num_random_recipients: u32,
+    known_recipients: &[PublicAddress],
+    num_blocks: usize,
+    mut rng: &mut (impl CryptoRng + RngCore),
+    mut ledger_db: &mut LedgerDB,
+) {
+    let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
+        .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
+        .collect();
+
+    public_addresses.extend(known_recipients.iter().cloned());
+
+    for block_index in 0..num_blocks {
+        let key_images = if block_index == 0 {
+            vec![]
+        } else {
+            vec![KeyImage::from(rng.next_u64())]
+        };
+        let _new_block_index = add_block_to_ledger_db(
+            &mut ledger_db,
+            &public_addresses,
+            DEFAULT_PER_RECIPIENT_AMOUNT,
+            &key_images,
+            rng,
+        );
+    }
+}
+
 /// Sets up ledger_db. Each block contains one txo per recipient.
 ///
 /// # Arguments
@@ -118,29 +147,14 @@ pub fn get_test_ledger(
     num_blocks: usize,
     mut rng: &mut (impl CryptoRng + RngCore),
 ) -> LedgerDB {
-    let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
-        .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
-        .collect();
-
-    public_addresses.extend(known_recipients.iter().cloned());
-
     let mut ledger_db = get_empty_test_ledger();
-
-    for block_index in 0..num_blocks {
-        let key_images = if block_index == 0 {
-            vec![]
-        } else {
-            vec![KeyImage::from(rng.next_u64())]
-        };
-        let _new_block_index = add_block_to_ledger_db(
-            &mut ledger_db,
-            &public_addresses,
-            DEFAULT_PER_RECIPIENT_AMOUNT,
-            &key_images,
-            rng,
-        );
-    }
-
+    generate_n_blocks_on_ledger(
+        num_random_recipients,
+        known_recipients,
+        num_blocks,
+        &mut rng,
+        &mut ledger_db,
+    );
     ledger_db
 }
 

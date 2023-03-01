@@ -170,7 +170,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
     ) -> Result<Account, AccountServiceError>;
 
-    fn reimport_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError>;
+    fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError>;
 
     fn get_view_only_account_import_request(
         &self,
@@ -395,7 +395,7 @@ where
         })
     }
 
-    fn reimport_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
+    fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
         let conn = self.get_conn()?;
         let account = Account::get(account_id, &conn)?;
         account.update_next_block_index(account.first_block_index as u64, &conn)?;
@@ -586,7 +586,7 @@ mod tests {
             ledger_db.num_blocks().unwrap()
         );
 
-        service.reimport_account(&account_id).unwrap();
+        service.resync_account(&account_id).unwrap();
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.next_block_index, account.first_block_index);
         manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
@@ -620,7 +620,7 @@ mod tests {
             ledger_db.num_blocks().unwrap()
         );
 
-        service.reimport_account(&account_id).unwrap();
+        service.resync_account(&account_id).unwrap();
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(account2.next_block_index, account2.first_block_index);
 
@@ -774,6 +774,7 @@ mod tests {
 
         // resync the account
         service.resync_account(&account_a_id).unwrap();
+        service.resync_account(&account_b_id).unwrap();
         manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
         manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
 

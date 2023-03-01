@@ -181,7 +181,7 @@ pub enum JsonCommandResponse {
     import_view_only_account {
         account: Account,
     },
-    reimport_account,
+    resync_account,
     remove_account {
         removed: bool,
     },

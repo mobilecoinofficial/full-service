@@ -1113,12 +1113,12 @@ where
 
             JsonCommandResponse::import_view_only_account { account }
         }
-        JsonCommandRequest::reimport_account { account_id } => {
+        JsonCommandRequest::resync_account { account_id } => {
             service
-                .reimport_account(&AccountID(account_id.clone()))
+                .resync_account(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
 
-            JsonCommandResponse::reimport_account
+            JsonCommandResponse::resync_account
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
