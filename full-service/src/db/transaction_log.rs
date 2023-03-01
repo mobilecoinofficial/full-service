@@ -633,8 +633,9 @@ impl TransactionLogModel for TransactionLog {
         let transaction_log_ids: Vec<String> = transaction_logs::table
             .inner_join(transaction_input_txos::table)
             .filter(transaction_input_txos::txo_id.eq(txo_id_hex))
-            .filter(transaction_logs::failed.eq(false))
-            .filter(transaction_logs::finalized_block_index.is_null())
+            .filter(transaction_logs::submitted_block_index.is_not_null()) // we actually sent this transaction
+            .filter(transaction_logs::failed.eq(false)) // non-failed transactions
+            .filter(transaction_logs::finalized_block_index.is_null()) // non-completed transactions
             .select(transaction_logs::id)
             .load(conn)?;
 
