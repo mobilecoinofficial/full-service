@@ -5,12 +5,16 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::account::AccountID,
+        db::{
+            account::AccountID, models::TransactionLog as TransactionLogDB,
+            transaction_log::TransactionLogModel,
+        },
         json_rpc,
         json_rpc::v1::{
             api::test_utils::{dispatch, setup},
             models::transaction_log::{TransactionLog, TxoAbbrev},
         },
+        service::models::tx_proposal::TxProposal as TxProposalModel,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
@@ -526,9 +530,18 @@ mod e2e_transaction {
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
+        let service_tx_proposal = TxProposalModel::try_from(&json_tx_proposal).unwrap();
 
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
+        TransactionLogDB::log_submitted(
+            &service_tx_proposal,
+            10,
+            "".to_string(),
+            alice_account_id,
+            &db_ctx.get_db_instance(logger.clone()).get_conn().unwrap(),
+        )
+        .unwrap();
 
         manually_sync_account(
             &ledger_db,
