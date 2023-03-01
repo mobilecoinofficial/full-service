@@ -52,7 +52,7 @@ chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.0", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
 diesel = { version = "1.4.8", features = ["sqlcipher-bundled", "chrono"] }
-diesel-derive-enum = { version = "1", features = ["sqlite"] }
+diesel-derive-enum = { version = "2", features = ["sqlite"] }
 diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
