@@ -85,8 +85,8 @@ but can connect to a host running the LVN.
     Email Address []:test@test.com
     ```
 
-
     Note that the `Common Name` needs to match the hostname which you would be using to connect to the public side (that has the GRPC listening port).
+
 
 2. Now, you can run the LVN with TLS enabled:
 
@@ -103,6 +103,7 @@ but can connect to a host running the LVN.
 
     Notice that the `--listen-uri` argument has changed and points to the key and certificate you generated.
 
+
 3. Once the LVN is running, you will need to run `full-service`:
 
     ```sh
@@ -118,7 +119,7 @@ but can connect to a host running the LVN.
     The `--validator` argument has changed to point at the certificate file, and also specify the Common Name that is in the certficiate. Note that if the CN matches the hostname (as in the above example) then this is redundant.## TLS between full-service and LVN
 
 
-Once full-service is running and set up, start the Mirror Services
+Once full-service is running and set up, start the Public and Private Mirror Services:
 
 ## Mirror Service
 
@@ -132,7 +133,8 @@ In order to use this mode, follow the following steps.
 
 1) Ensure that you have NodeJS installed. **The minimum supported version is v12.9.0** (`node -v`)
 
-1) Generate a keypair: `./bin/generate-rsa-keypair`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
+
+2) Generate a keypair: `./bin/generate-rsa-keypair`. This will generate two files: `mirror-client.pem` and `mirror-private.pem`.
 
 ### TLS Connection
 
@@ -142,38 +144,48 @@ Note that the `Common Name` needs to match the hostname which you would be using
 
 ### Public Mirror
 
-If you would like to run this without end to end encryption use the following command
+If you would like to run this without end-to-end encryption use the following command
 
 ```sh
-./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "insecure-wallet-service-mirror://0.0.0.0/"
+./bin/wallet-service-mirror-public \
+  --client-listen-uri http://0.0.0.0:9091/ \
+  --mirror-listen-uri "insecure-wallet-service-mirror://0.0.0.0/"
 ```
 
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-public --client-listen-uri http://0.0.0.0:9091/ --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=server.crt&tls-key=server.key" --allow-self-signed-tls
+./bin/wallet-service-mirror-public \
+  --client-listen-uri http://0.0.0.0:9091/ \
+  --mirror-listen-uri "wallet-service-mirror://0.0.0.0/?tls-chain=server.crt&tls-key=server.key" \
+  --allow-self-signed-tls
 ```
 
 
 ### Private Mirror
 
-If you would like to run this without end to end encryption use the following command
+If you would like to run this without end-to-end encryption use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "insecure-wallet-service-mirror://localhost/" --wallet-service-uri http://localhost:9090/wallet/v2
+./bin/wallet-service-mirror-private \
+  --mirror-public-uri "insecure-wallet-service-mirror://localhost/" \
+  --wallet-service-uri http://localhost:9090/wallet/v2
 ```
 
 To run with encryption, use the following command
 
 ```sh
-./bin/wallet-service-mirror-private --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" --wallet-service-uri http://localhost:9090/wallet/v2 --mirror-key mirror-private.pem
+./bin/wallet-service-mirror-private \
+  --mirror-public-uri "wallet-service-mirror://localhost/?ca-bundle=server.crt&tls-hostname=localhost" \
+  --wallet-service-uri http://localhost:9090/wallet/v2 \
+  --mirror-key mirror-private.pem
 ```
 
 NOTE: Notice the --mirror-key flag with the mirror-private.pem file, generated with the generate-rsa-keypair binary.
 
-NOTE: Notice the --wallet-service-uri flag is targeting wallet/v2. If you would rather target v1 endpoints, remove /v2 from the end.
+NOTE: Notice the --wallet-service-uri flag is targeting wallet/v2. If you would rather target v1 endpoints, remove `/v2` from the end. ie: `http://localhost:9090/wallet`.
 
-Once launched, without end to end encryption, you can test it using curl:
+Once launched, without end-to-end encryption, you can test it using curl:
 
 Get block information (for block 0):
 
@@ -206,5 +218,6 @@ For the full API documentation, please see the [Full Service API](https://mobile
 To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service/blob/main/mirror/test/example-client.js).
 
 ```
-node example-client.js 127.0.0.1 9091 mirror-client.pem '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
+node example-client.js 127.0.0.1 9091 mirror-client.pem \
+'{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
 ```
