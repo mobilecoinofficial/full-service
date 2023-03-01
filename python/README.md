@@ -1,13 +1,16 @@
-# Full Service Python API and CLI
+# Python API and CLI for MobileCoin Full-Service Wallet
 
-## Setup
+## Installation
 
-`$ poetry install`
+`$ pip install mobilecoin`
+
+This will install the Python package `mobilecoin`, and also put the `mob` command line tool at `~/.local/bin/mob`.
 
 
 ## CLI usage
 
-First, you should have an instance of full-service running on your local machine.
+First, you should have an instance of the full-service wallet running on your local machine. Setup instructions are at https://github.com/mobilecoinofficial/full-service.
+
 ```
 $ cd full-service
 $ ./tools/run-fs.sh test
@@ -65,6 +68,11 @@ $ mv mobilecoin_secret_mnemonic_d7efc1.json /path/to/safe/location
 ```
 
 
+## Install the Poetry tool.
+
+Follow the instructions at https://python-poetry.org/.
+
+
 ## Run unittests and integration tests.
 
 Set an environment variable to tell the unittests where your wallet export file is.
@@ -80,5 +88,6 @@ $ export MC_FOG_AUTHORITY_SPKI='MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9
 
 With full-service running, start the integration tests.
 ```
+$ poetry install
 $ poetry run pytest -v
 ```
