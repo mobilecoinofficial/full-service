@@ -17,7 +17,7 @@ By using the **first_block_index** param, a user can specify the starting block 
 
 
 
-## How can I know FS is in able to properly parse blocks and send transactions?
+## How can I tell if FS is able to properly communicate with the Mobilecoin blockchain?
 Using the [get_network_status](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status) API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.
 For instance, if your version of FS can't decipher blocks after a mobilecoin-core update, you may see something like this:
 ```
