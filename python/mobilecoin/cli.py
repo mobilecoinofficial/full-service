@@ -7,6 +7,7 @@ from textwrap import indent
 from .client import (
     ClientSync as Client,
     WalletAPIError,
+    MAX_TOMBSTONE_BLOCKS,
     log as client_log,
 )
 from .token import Amount, get_token, TOKENS
@@ -210,12 +211,10 @@ class CommandLineInterface:
         # Show balances.
         print()
         print('Total balance for all accounts:')
-        for token in TOKENS:
-            amount = Amount.from_storage_units(
-                wallet_status['balance_per_token'][str(token.token_id)]['unspent'],
-                token
-            )
-            print(indent(amount.format(), '  '))
+        print(indent(
+            _format_balances(wallet_status['balance_per_token']),
+            ' '*2,
+        ))
 
         # Show transaction fees.
         print()
@@ -418,7 +417,7 @@ class CommandLineInterface:
             print('Block #{}, {} output{}'.format(
                 tx_block(t),
                 len(t['output_txos']),
-                's' if len(t['output_txos']) != 1 else '',
+                '' if len(t['output_txos']) == 1 else 's',
             ))
             print('  Fee:', fee.format())
 
@@ -497,8 +496,27 @@ class CommandLineInterface:
         ))
         print()
 
+        if build_only:
+            tx_proposal = self.client.build_transaction(
+                account_id,
+                {to_address, amount},
+                fee=fee,
+            )
+            path = Path('tx_proposal.json')
+            if path.exists():
+                print(f'The file {path} already exists. Please rename the existing file and retry.')
+            else:
+                with path.open('w') as f:
+                    json.dump(tx_proposal, f, indent=2)
+                print(f'Wrote {path}.')
+            return
+
         if account.get('view_only'):
-            response = self.client.build_unsigned_transaction(account_id, amount, to_address, fee=fee)
+            response = self.client.build_unsigned_transaction(
+                account_id, 
+                {to_address: amount},
+                fee=fee,
+            )
             path = Path('tx_proposal_{}_{}_unsigned.json'.format(
                 account_id[:6],
                 account_status['local_block_height'],
@@ -510,18 +528,7 @@ class CommandLineInterface:
                 print(f'Wrote {path}.')
                 print()
                 print('This account is view-only, so its spend key is in an offline signer.')
-                print('Run `mob-transaction-signer sign`, then submit the result with `mob submit`')
-            return
-
-        if build_only:
-            tx_proposal = self.client.build_transaction(account_id, amount, to_address, fee=fee)
-            path = Path('tx_proposal.json')
-            if path.exists():
-                print(f'The file {path} already exists. Please rename the existing file and retry.')
-            else:
-                with path.open('w') as f:
-                    json.dump(tx_proposal, f, indent=2)
-                print(f'Wrote {path}.')
+                print('Run `transaction-signer sign`, then submit the result with `mob submit`')
             return
 
         if not self.confirm('Confirm? (Y/N) '):
@@ -562,7 +569,7 @@ class CommandLineInterface:
             tx_proposal = tx_proposal['params']['tx_proposal']
 
         # Check that the tombstone block is within range.
-        tombstone_block = int(tx_proposal['tx']['prefix']['tombstone_block'])
+        tombstone_block = int(tx_proposal['tombstone_block_index'])
         network_status = self.client.get_network_status()
         lo = int(network_status['network_block_height']) + 1
         hi = lo + MAX_TOMBSTONE_BLOCKS - 1
@@ -588,9 +595,26 @@ class CommandLineInterface:
         # Confirm and submit.
         if account_id is None:
             print('This transaction will not be logged, because an account id was not provided.')
-        total_value = sum( pmob2mob(outlay['value']) for outlay in tx_proposal['outlay_list'] )
+
+        total_amounts = {
+            token: Amount.from_storage_units(0, token)
+            for token in TOKENS
+        }
+        for txo in tx_proposal['payload_txos']:
+            amount = Amount.from_storage_units(
+                txo['amount']['value'],
+                txo['amount']['token_id'],
+            )
+            total_amounts[amount.token] += amount
+
+        print('Submitting a transaction for')
+        for token in TOKENS:
+            amount = total_amounts[token]
+            if amount.value != 0:
+                print(indent(amount.format(), '  '))
+
         if not self.confirm(
-            'Submit this transaction proposal for {}? (Y/N) '.format(_format_mob(total_value))
+            'Send this transaction? (Y/N) '
         ):
             print('Cancelled.')
             return
@@ -789,20 +813,17 @@ class CommandLineInterface:
 
         self.client.sync_view_only_account(data['params'])
         account_id = data['params']['account_id']
-        account = self.client.get_account(account_id)
-        balance = self.client.get_balance_for_account(account_id)
+        num_synced = len(data['params']['completed_txos'])
+
+        status = self.client.get_account_status(account_id)
 
         print()
-        print('Synced {} transaction outputs.'.format(len(data['params']['completed_txos'])))
+        print('Synced {} transaction output{}.'.format(
+            num_synced,
+            '' if num_synced == 1 else '',
+        ))
         print()
-        _print_account(account, balance)
-
-    def get_account(self, account_id):
-        r = self._req({
-            "method": "get_account",
-            "params": {"account_id": account_id}
-        })
-        return r['account']
+        _print_account(status)
 
     def version(self):
         version = self.client.version()
@@ -862,8 +883,11 @@ def _format_balances(balances):
     lines = []
     for token_id, balance in balances.items():
         unspent = Amount.from_storage_units(balance['unspent'], token_id)
+        unverified = Amount.from_storage_units(balance['unverified'], token_id)
         if unspent.value > 0:
             lines.append(unspent.format())
+        if unverified.value > 0:
+            lines.append('{} unverified'.format(unverified.format()))
 
     if len(lines) == 0:
         return 'Empty'
