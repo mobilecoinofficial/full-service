@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import aiohttp
+import os
 import json
 import time
 from typing import Optional
@@ -22,7 +23,7 @@ class WalletAPIError(Exception):
 class ClientAsync:
     def __init__(self, url=None):
         if url is None:
-            url = DEFAULT_URL
+            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL)
         self.url = url
         self._query_count = 0
 
@@ -219,7 +220,13 @@ class ClientAsync:
         })
         return r['transaction_log_map']
 
-    async def build_transaction(self, account_id, addresses_and_amounts, tombstone_block=None, fee=None):
+    @staticmethod
+    def _build_transaction_params(
+        account_id,
+        addresses_and_amounts,
+        tombstone_block=None,
+        fee=None,
+    ):
         params = {
             "account_id": account_id,
             "addresses_and_amounts": [],
@@ -235,11 +242,21 @@ class ClientAsync:
             params['fee_token_id'] = str(fee.token.token_id)
         if tombstone_block is not None:
             params['tombstone_block'] = str(int(tombstone_block))
+        return params
+
+    async def build_transaction(self, *args, **kwargs):
         r = await self._req({
             "method": "build_transaction",
-            "params": params,
+            "params": self._build_transaction_params(*args, **kwargs),
         })
         return r['tx_proposal'], r['transaction_log_id']
+
+    async def build_unsigned_transaction(self, *args, **kwargs):
+        r = await self._req({
+            "method": "build_unsigned_transaction",
+            "params": self._build_transaction_params(*args, **kwargs),
+        })
+        return r
 
     async def build_burn_transaction(self, account_id, amount, redemption_memo_hex=None):
         r = await self._req({
@@ -289,6 +306,29 @@ class ClientAsync:
             "params": params,
         })
         return r['transaction_log'], r['tx_proposal']
+
+    async def import_view_only_account(self, params):
+        r = await self._req({
+            "method": "import_view_only_account",
+            "params": params,
+        })
+        return r['account']
+
+    async def create_view_only_account_sync_request(self, account_id):
+        r = await self._req({
+            "method": "create_view_only_account_sync_request",
+            "params": {
+                "account_id": account_id,
+            },
+        })
+        return r
+
+    async def sync_view_only_account(self, params):
+        r = await self._req({
+            "method": "sync_view_only_account",
+            "params": params,
+        })
+        return r
 
     # Polling utility functions.
 
