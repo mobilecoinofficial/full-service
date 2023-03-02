@@ -181,10 +181,10 @@ pub enum JsonCommandResponse {
     import_view_only_account {
         account: Account,
     },
-    resync_account,
     remove_account {
         removed: bool,
     },
+    resync_account,
     sample_mixins {
         mixins: Vec<JsonTxOut>,
         membership_proofs: Vec<JsonTxOutMembershipProof>,

@@ -230,10 +230,10 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
     },
-    resync_account {
+    remove_account {
         account_id: String,
     },
-    remove_account {
+    resync_account {
         account_id: String,
     },
     sample_mixins {

@@ -1113,6 +1113,11 @@ where
 
             JsonCommandResponse::import_view_only_account { account }
         }
+        JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
+            removed: service
+                .remove_account(&AccountID(account_id))
+                .map_err(format_error)?,
+        },
         JsonCommandRequest::resync_account { account_id } => {
             service
                 .resync_account(&AccountID(account_id.clone()))
@@ -1120,11 +1125,6 @@ where
 
             JsonCommandResponse::resync_account
         }
-        JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
-            removed: service
-                .remove_account(&AccountID(account_id))
-                .map_err(format_error)?,
-        },
         JsonCommandRequest::sample_mixins {
             num_mixins,
             excluded_outputs,
