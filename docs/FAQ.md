@@ -36,7 +36,7 @@ For instance, if your version of FS can't decipher blocks after a mobilecoin-cor
 
 
 ## Is there a list or mapping of Tokens?
-With [MCIP59](https://github.com/mobilecoinfoundation/mcips/blob/main/text/0059-token-metadata-document.md)) there will be a signed, hosted file that contains the mapping and attributes of the tokens present on the MC network. Below table is for reference only.
+With [MCIP59](https://github.com/mobilecoinfoundation/mcips/blob/main/text/0059-token-metadata-document.md) there will be a signed, hosted file that contains the mapping and attributes of the tokens present on the MC network. Below table is for reference only.
 
 Below table 
 | Token ID  |  Token Name  | Precision  | Approx Fee |
