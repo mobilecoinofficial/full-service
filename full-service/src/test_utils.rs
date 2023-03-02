@@ -114,8 +114,8 @@ pub fn generate_n_blocks_on_ledger(
 
     public_addresses.extend(known_recipients.iter().cloned());
 
-    for block_index in 0..num_blocks {
-        let key_images = if block_index == 0 {
+    for _block_index in 0..num_blocks {
+        let key_images = if ledger_db.num_blocks().unwrap() == 0 {
             vec![]
         } else {
             vec![KeyImage::from(rng.next_u64())]
