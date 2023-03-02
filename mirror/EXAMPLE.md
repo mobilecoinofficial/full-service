@@ -203,8 +203,9 @@ For supported requests, the response types are identical to the ones used by `fu
 
 For the full API documentation, please see the [Full Service API](https://mobilecoin.gitbook.io/full-service-api/).
 
-To test with encryption, please use the [example client](https://github.com/mobilecoinofficial/full-service/blob/main/mirror/test/example-client.js).
+To test with encryption, please use the [example mirror-client.js](https://github.com/mobilecoinofficial/full-service/blob/main/mirror/test/mirror-client.js).
+
 
 ```
-node example-client.js 127.0.0.1 9091 mirror-client.pem '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
+node mirror-client.js --mirror-public-url http://127.0.0.1:9091 --key-file mirror-client.pem --request '{"method": "get_block", "params": {"block_index": "0"}, "jsonrpc": "2.0", "id": 1}'
 ```
