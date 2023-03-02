@@ -749,6 +749,10 @@ mod tests {
         )
         .unwrap();
 
+        // manually sync the account
+        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+
         // manually overwrite the amount and target_key of the output txo to
         // something bogus
         let corrupted_txo_amount = expected_txo_amount << 4;
@@ -763,10 +767,6 @@ mod tests {
             ))
             .execute(&conn)
             .unwrap();
-
-        // manually sync the account (should we see errors?)
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
 
         let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
         assert_ne!(expected_txo_amount, associated_txos.outputs[0].0.value);
