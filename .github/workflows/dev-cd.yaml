@@ -46,7 +46,7 @@ jobs:
   build:
     runs-on: [self-hosted, Linux, large-cd]
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.22
+      image: mobilecoin/rust-sgx-base:v0.0.23
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -119,7 +119,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Publish to DockerHub
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: |
             RUST_BIN_PATH=rust_build_artifacts
@@ -180,7 +180,7 @@ jobs:
       - metadata
       - deploy
     container:
-      image: mobilecoin/builder-install:v0.0.22
+      image: mobilecoin/builder-install:v0.0.23
     env:
       POETRY_HOME: /opt/poetry
       URL: http://full-service.${{ needs.metadata.outputs.namespace }}:9090/wallet/v2
