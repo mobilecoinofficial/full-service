@@ -167,10 +167,14 @@ pub trait TxoModel {
     /// and optionally the key_image in the case of view only accounts.
     fn update_as_received(
         &self,
-        account_id_hex: &str,
         subaddress_index: Option<u64>,
-        key_image: Option<KeyImage>,
+        received_key_image: Option<KeyImage>,
         block_index: u64,
+        account_id_hex: &str,
+        amount: Amount,
+        target_key: &Vec<u8>,
+        public_key: &Vec<u8>,
+        e_fog_hint: &Vec<u8>,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -374,12 +378,16 @@ impl TxoModel for Txo {
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
-            Ok(txo) => {
-                txo.update_as_received(
-                    account_id_hex,
+            Ok(found_txo) => {
+                found_txo.update_as_received(
                     subaddress_index,
                     key_image,
                     received_block_index,
+                    account_id_hex,
+                    amount,
+                    &mc_util_serial::encode(&txo.target_key),
+                    &mc_util_serial::encode(&txo.public_key),
+                    &mc_util_serial::encode(&txo.e_fog_hint),
                     conn,
                 )?;
             }
@@ -462,10 +470,14 @@ impl TxoModel for Txo {
 
     fn update_as_received(
         &self,
-        received_account_id_hex: &str,
-        received_subaddress_index: Option<u64>,
+        subaddress_index: Option<u64>,
         received_key_image: Option<KeyImage>,
         block_index: u64,
+        account_id_hex: &str,
+        amount: Amount,
+        target_key: &Vec<u8>,
+        public_key: &Vec<u8>,
+        e_fog_hint: &Vec<u8>,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
@@ -474,10 +486,15 @@ impl TxoModel for Txo {
 
         diesel::update(self)
             .set((
-                txos::account_id.eq(Some(received_account_id_hex)),
-                txos::received_block_index.eq(Some(block_index as i64)),
-                txos::subaddress_index.eq(received_subaddress_index.map(|i| i as i64)),
+                txos::subaddress_index.eq(subaddress_index.map(|i| i as i64)),
                 txos::key_image.eq(encoded_key_image),
+                txos::received_block_index.eq(Some(block_index as i64)),
+                txos::account_id.eq(Some(account_id_hex)),
+                txos::value.eq(amount.value as i64),
+                txos::token_id.eq(*amount.token_id as i64),
+                txos::target_key.eq(target_key),
+                txos::public_key.eq(public_key),
+                txos::e_fog_hint.eq(e_fog_hint),
             ))
             .execute(conn)?;
         Ok(())
