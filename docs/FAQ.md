@@ -11,14 +11,14 @@ The atomic unit for MOB is picoMOB, which is 1e-12. You need u64 to represent MO
 
 
 ## How can I make importing of accounts faster?
-When [importing an account entropy](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/account/account/import_account), scanning generally starts at the Origin block (#1).
+When calling [`import_account`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/account/account/import_account), scanning generally starts at the Origin block (#1).
 By using the **first_block_index** param, a user can specify the starting block for that entropy if it is known. Newly created accounts are given a starting block index. 
 
 
 
 
 ## How can I tell if FS is able to properly communicate with the Mobilecoin blockchain?
-Using the [get_network_status](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status) API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.
+Using the [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status) API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.
 For instance, if your version of FS can't decipher blocks after a mobilecoin-core update, you may see something like this:
 ```
     "method": "get_network_status",
