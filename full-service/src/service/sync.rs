@@ -117,7 +117,7 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
     if num_blocks == 0 {
-        Ok(())
+        return Ok(());
     }
 
     // Go over our list of accounts and see which ones need to process more blocks.
