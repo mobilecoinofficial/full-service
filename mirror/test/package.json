@@ -1,0 +1,23 @@
+{
+  "name": "test-mirror",
+  "version": "1.0.0",
+  "description": "This directory contains a shell script + associated files for testing a full service mirror release.",
+  "main": "example-client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^10.0.0",
+    "pino": "^8.11.0",
+    "pino-pretty": "^9.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.35.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-n": "^15.6.1",
+    "eslint-plugin-promise": "^6.1.1"
+  }
+}

@@ -85,12 +85,12 @@ case ${net} in
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
-        
+
         INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
         if test -f "${WORK_DIR}/consensus-enclave.css"; then
             CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
         else
-            CONSENSUS_ENCLAVE_CSS=`pwd`/target/docker/release/consensus-enclave.css
+            CONSENSUS_ENCLAVE_CSS="$(pwd)/target/docker/release/consensus-enclave.css"
         fi
     ;;
     *)
@@ -112,3 +112,7 @@ cargo build --release ${BUILD_OPTIONS}
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
 echo "  binaries are available in ${target_dir}/release"
+
+echo "  copy css files to ${target_dir}/release for later packaging (docker, tar)"
+cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
+cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
