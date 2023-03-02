@@ -98,6 +98,7 @@ mod tests {
 
         assert_eq!(decoded.public_address, public_address);
         assert_eq!(decoded.value, 1_000_000_000_000);
+        assert_eq!(decoded.token_id, Mob::ID);
         assert_eq!(decoded.memo, "This is a memo".to_string());
     }
 
