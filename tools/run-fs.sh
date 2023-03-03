@@ -89,12 +89,10 @@ case "${net}" in
 
         ;;
     prod|main)
-        # CBB: we should replicate the "prod" css bucket to "main", then we can
-        #      get rid of this workaround.
-        if [[ "${net}" == "main" ]]
+        if [[ "${net}" == "prod" ]]
         then
-            echo "Detected \"main\" network, setting css urls to use \"prod\""
-            net="prod"
+            echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+            net=main
         fi
 
         domain_name="prod.mobilecoinww.com"
