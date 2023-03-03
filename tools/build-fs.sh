@@ -56,23 +56,21 @@ WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
 mkdir -p "${WORK_DIR}"
 
 case ${net} in
-    test|prod|main)
-        echo "Setting '${net}' SGX, IAS and enclave values"
-
+    prod|main)
         # CBB: we should replicate the "prod" css bucket to "main", then we can
         #      get rid of this workaround.
-        if [[ "${net}" == "main" ]]
+        if [[ "${net}" == "prod" ]]
         then
-            echo "Detected \"main\" network, setting css urls to use \"prod\""
-            net="prod"
+            echo "Detected \"prod\" network, setting chain_id to \"main\""
+            net="main"
         fi
-
+        echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=PROD
-        CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")
-        INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/ingest-enclave.css")
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/ingest-enclave.css")
     ;;
-    alpha)
+    test|alpha)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=DEV

@@ -59,6 +59,14 @@ fi
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
+# CBB: we should replicate the "prod" css bucket to "main", then we can
+#      get rid of this workaround.
+if [[ "${net}" == "prod" ]]
+then
+    echo "Detected \"prod\" network, setting chain_id to \"main\""
+    net="main"
+fi
+
 # Setup workdir
 WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
 mkdir -p "${WORK_DIR}"
@@ -72,14 +80,15 @@ mkdir -p "${LEDGER_DB_DIR}"
 # Set vars for all networks
 MC_WALLET_DB="${WALLET_DB_DIR}/wallet.db"
 MC_LEDGER_DB="${LEDGER_DB_DIR}"
+MC_CHAIN_ID="${net}"
 
 case "${net}" in
     test)
         domain_name="test.mobilecoin.com"
         tx_source_base="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
 
-        # Set chain id, peer and tx_sources for 2 nodes.
-        MC_CHAIN_ID="${net}"
+        # Set peer and tx_sources for 2 nodes.
+
         if [[ -z "${offline}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
@@ -88,20 +97,11 @@ case "${net}" in
         fi
 
         ;;
-    prod|main)
-        # CBB: we should replicate the "prod" css bucket to "main", then we can
-        #      get rid of this workaround.
-        if [[ "${net}" == "main" ]]
-        then
-            echo "Detected \"main\" network, setting css urls to use \"prod\""
-            net="prod"
-        fi
-
+    main)
         domain_name="prod.mobilecoinww.com"
         tx_source_base="https://ledger.mobilecoinww.com"
 
-        # Set chain id, peer and tx_sources for 2 nodes.
-        MC_CHAIN_ID="${net}"
+        # Set peer and tx_sources for 2 nodes.
         if [[ -z "${offline}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
@@ -115,8 +115,7 @@ case "${net}" in
         domain_name="alpha.development.mobilecoin.com"
         tx_source_base="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
 
-        # Set chain id, peer and tx_sources for 2 nodes.
-        MC_CHAIN_ID="${net}"
+        # Set peer and tx_sources for 2 nodes.
         if [[ -z "${offline}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
@@ -125,8 +124,7 @@ case "${net}" in
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
     ;;
     local)
-        # Set chain id, peer and tx_sources for 2 nodes.
-        MC_CHAIN_ID="${net}"
+        # Set peer and tx_sources for 2 nodes.
         if [[ -z "${offline}" ]]
         then
             MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
