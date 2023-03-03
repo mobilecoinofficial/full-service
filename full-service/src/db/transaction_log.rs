@@ -627,9 +627,8 @@ impl TransactionLogModel for TransactionLog {
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_logs};
-        // Find all transaction logs associated with this txo that have not
+        // Find all submitted transaction logs associated with this txo that have not
         // yet been finalized (there should only ever be one).
-        // TODO - WHY WON'T THIS WORK?!?!?
         let transaction_log_ids: Vec<String> = transaction_logs::table
             .inner_join(transaction_input_txos::table)
             .filter(transaction_input_txos::txo_id.eq(txo_id_hex))
