@@ -2,8 +2,6 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 # Set of shared functions for full-service build, test and run tools.
 
-
-
 # debug - echo a debug message
 #  1: message
 debug()
@@ -43,4 +41,19 @@ get_css_file()
 
     debug "  css file saved ${css_file}"
     echo "${css_file}"
+}
+
+# 1: pid file to check
+check_pid_file()
+{
+    if [[ -f "${1}" ]]
+    then
+        pid=$(cat "${1}")
+        if ps -p "${pid}" > /dev/null
+        then
+            echo "running"
+        else
+            echo "not running"
+        fi
+    fi
 }

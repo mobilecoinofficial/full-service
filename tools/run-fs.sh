@@ -17,11 +17,12 @@ set -e
 usage()
 {
     echo "Usage:"
-    echo "${0} [--build] <network>"
+    echo "${0} [--build] [--ledger-validator] <network>"
     echo "    --build - optional: build with build-fs.sh"
     echo "    <network> - main|prod|test|alpha|local or other"
     echo "                if other, set your own variables"
     echo "                MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS"
+    echo "    --validator - optional: run with a local validator-service setup. Will start the validator-service on port 10001."
 }
 
 while (( "$#" ))
@@ -36,7 +37,11 @@ do
             shift 1
             ;;
         --offline)
-            offline=1
+            export MC_OFFLINE=1
+            shift 1
+            ;;
+        --validator)
+            validator=1
             shift 1
             ;;
         *)
@@ -52,7 +57,6 @@ then
     usage
     exit 1
 fi
-
 
 # Grab current location and source the shared functions.
 # shellcheck source=.shared-functions.sh
@@ -157,7 +161,6 @@ echo "  MC_WALLET_DB: ${MC_WALLET_DB}"
 echo "  MC_LEDGER_DB: ${MC_LEDGER_DB}"
 
 
-
 # Optionally call build-fs.sh to build the current version.
 if [[ -n "${build}" ]]
 then
@@ -166,9 +169,32 @@ fi
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
 
-if [[ -z "${offline}" ]]
+# start validator and unset envs for full-service
+if [[ -n "${validator}" ]]
 then
-    "${target_dir}/release/full-service"
-else
-    "${target_dir}/release/full-service" --offline
+    if [[ "$(check_pid_file /tmp/.validator-service.pid)" == "running" ]]
+    then
+        echo "validator-service is already running"
+    else
+        echo "Starting validator-service"
+        validator_ledger_db="${WORK_DIR}/validator/ledger-db"
+        mkdir -p "${validator_ledger_db}"
+
+        # Override
+        "${target_dir}/release/validator-service" \
+            --ledger-db "${validator_ledger_db}" \
+            --listen-uri "insecure-validator://127.0.0.1:10001/" \
+            >/tmp/validator-service.log 2>&1 &
+
+        echo $! >/tmp/.validator-service.pid
+        echo "Pause 30 to wait for validator to come up."
+        sleep 30
+    fi
+
+    export MC_VALIDATOR="insecure-validator://127.0.0.1:10001/"
+    unset MC_TX_SOURCE_URL
+    unset MC_PEER
 fi
+
+echo "Starting Full-Service Wallet"
+"${target_dir}/release/full-service"
