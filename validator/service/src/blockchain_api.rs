@@ -82,36 +82,22 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
             )
         })?;
 
-        // Ensure that all nodes agree on the minimum fee map.
+        // Ensure that all nodes agree on the last block information.
         if last_block_infos
             .windows(2)
-            .any(|window| window[0].minimum_fees != window[1].minimum_fees)
+            .any(|window| window[0] != window[1])
         {
             return Err(rpc_precondition_error(
                 "minimum_fees",
-                "Some nodes do not agree on the minimum fees",
+                "Some nodes do not agree on the last block infos, please wait for them to sync",
                 logger,
             ));
         }
 
         let mut resp = LastBlockInfoResponse::new();
 
-        // It's possible the network is at a higher block index than we are, but until
-        // we have fully synced to that block index, there is no point in
-        // reporting it to full-service since we won't have block data for these blocks
-        // untill we have caught up.
-        resp.set_index(latest_local_block.index);
-
-        // In theory the network could be at a higher block version than we are, but
-        // this is an intermittent issue and will resolve itself once we are
-        // fully synced. The alternative would've been to try and get the block
-        // version from the last_block_infos array, but it is possible to run
-        // into an edgecase where not all nodes agree on the block version (which could
-        // happen at a very brief period when a new version is being enabled).
-        // Simply choosing the max block version will allow a malicious node to poison
-        // us, so we choose not to worry about any of that and instead use the
-        // local ledger as the source of truth.
-        resp.set_network_block_version(latest_local_block.version);
+        resp.set_index(latest_network_block.block_index);
+        resp.set_network_block_version(latest_network_block.network_block_version);
 
         // Use minimum fee information from the network (which we previously verified
         // all nodes agree on).
