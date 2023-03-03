@@ -52,7 +52,6 @@ check_pid_file()
     fi
 }
 
-
 test_dir=/tmp/mirror_test
 git_base=$(git rev-parse --show-toplevel)
 CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${git_base}/target/docker"}
@@ -89,8 +88,8 @@ then
     then
         echo "full-service is already running"
     else
-        echo "- Starting full-service"
-        exec "${git_base}"/tools/run-fs.sh "${network}" >./full-service.log 2>&1 &
+        echo "- Starting full-service with validator-service"
+        exec "${git_base}"/tools/run-fs.sh --validator "${network}" >./full-service.log 2>&1 &
         echo $! >.full-service.pid
     fi
 else
