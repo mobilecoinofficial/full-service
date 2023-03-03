@@ -233,6 +233,9 @@ pub enum JsonCommandRequest {
     remove_account {
         account_id: String,
     },
+    resync_account {
+        account_id: String,
+    },
     sample_mixins {
         num_mixins: u64,
         excluded_outputs: Vec<JsonTxOut>,

@@ -116,6 +116,9 @@ pub fn sync_all_accounts(
     let num_blocks = ledger_db
         .num_blocks()
         .expect("failed getting number of blocks");
+    if num_blocks == 0 {
+        return Ok(());
+    }
 
     // Go over our list of accounts and see which ones need to process more blocks.
     let accounts: Vec<Account> =
@@ -126,7 +129,6 @@ pub fn sync_all_accounts(
         if account.next_block_index as u64 > num_blocks - 1 {
             continue;
         }
-
         sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
     }
 

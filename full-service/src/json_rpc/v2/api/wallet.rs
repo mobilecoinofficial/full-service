@@ -1118,6 +1118,13 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
+        JsonCommandRequest::resync_account { account_id } => {
+            service
+                .resync_account(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
+
+            JsonCommandResponse::resync_account
+        }
         JsonCommandRequest::sample_mixins {
             num_mixins,
             excluded_outputs,

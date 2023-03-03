@@ -184,6 +184,7 @@ pub enum JsonCommandResponse {
     remove_account {
         removed: bool,
     },
+    resync_account,
     sample_mixins {
         mixins: Vec<JsonTxOut>,
         membership_proofs: Vec<JsonTxOutMembershipProof>,
