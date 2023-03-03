@@ -63,6 +63,13 @@ fi
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
+# use main instead of legacy prod
+if [[ "${net}" == "prod" ]]
+then
+    echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+    net=main
+fi
+
 # Setup workdir
 WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
 mkdir -p "${WORK_DIR}"
@@ -90,17 +97,8 @@ case "${net}" in
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
             MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${WORK_DIR}/ingest-enclave.css")
         fi
-
         ;;
-    prod|main)
-        # CBB: we should replicate the "prod" css bucket to "main", then we can
-        #      get rid of this workaround.
-        if [[ "${net}" == "main" ]]
-        then
-            echo "Detected \"main\" network, setting css urls to use \"prod\""
-            net="prod"
-        fi
-
+    main)
         domain_name="prod.mobilecoinww.com"
         tx_source_base="https://ledger.mobilecoinww.com"
 
@@ -112,7 +110,7 @@ case "${net}" in
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
             MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/ingest-enclave.css")
         fi
-    ;;
+        ;;
     alpha)
         echo "alpha network doesn't yet publish enclave css measurements, manually download or copy ${WORK_DIR}/ingest-enclave.css"
 
@@ -127,7 +125,7 @@ case "${net}" in
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
         fi
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
-    ;;
+        ;;
     local)
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
@@ -137,11 +135,11 @@ case "${net}" in
             MC_TX_SOURCE_URL="http://localhost:4566/node-0-ledger/,http://localhost:4566/node-1-ledger/"
         fi
         MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
-    ;;
+        ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
         echo "Set MC_CHAIN_ID, MC_PEER, MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS as appropriate"
-    ;;
+        ;;
 esac
 
 echo "Setting '${net}' environment values"
