@@ -57,11 +57,6 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
         &self,
         logger: &Logger,
     ) -> Result<LastBlockInfoResponse, RpcStatus> {
-        let latest_local_block = self
-            .ledger_db
-            .get_latest_block()
-            .map_err(|err| rpc_database_err(err, logger))?;
-
         // Get the last block information from all nodes we are aware of, in parallel.
         let last_block_infos = self
             .conn_manager
