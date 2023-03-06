@@ -8,9 +8,9 @@ use mc_connection::{
     BlockchainConnection, ConnectionManager, RetryableBlockchainConnection,
     _retry::delay::Fibonacci,
 };
-use mc_ledger_db::{Ledger, LedgerDB};
+use mc_ledger_db::LedgerDB;
 use mc_transaction_core::{tokens::Mob, Token};
-use mc_util_grpc::{rpc_database_err, rpc_logger, rpc_precondition_error, send_result};
+use mc_util_grpc::{rpc_logger, rpc_precondition_error, send_result};
 use mc_validator_api::{
     consensus_common::{BlocksRequest, BlocksResponse, LastBlockInfoResponse},
     consensus_common_grpc::{create_blockchain_api, BlockchainApi as GrpcBlockchainApi},
