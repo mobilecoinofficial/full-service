@@ -58,8 +58,7 @@ fi
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
-# Setup workdir
-WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
+# Setup workdir - set in .shared-functions.sh
 mkdir -p "${WORK_DIR}"
 
 case ${net} in

@@ -58,11 +58,6 @@ then
     exit 1
 fi
 
-# Grab current location and source the shared functions.
-# shellcheck source=.shared-functions.sh
-location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-source "${location}/.shared-functions.sh"
-
 # use main instead of legacy prod
 if [[ "${net}" == "prod" ]]
 then
@@ -70,8 +65,12 @@ then
     net=main
 fi
 
-# Setup workdir
-WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
+# Grab current location and source the shared functions.
+# shellcheck source=.shared-functions.sh
+location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${location}/.shared-functions.sh"
+
+# Setup workdir - set in .shared-functions.sh
 mkdir -p "${WORK_DIR}"
 
 # Set default database directories
@@ -83,6 +82,7 @@ mkdir -p "${LEDGER_DB_DIR}"
 # Set vars for all networks
 MC_WALLET_DB="${WALLET_DB_DIR}/wallet.db"
 MC_LEDGER_DB="${LEDGER_DB_DIR}"
+MC_LISTEN_HOST="${LISTEN_ADDR}"
 
 case "${net}" in
     test)
@@ -144,7 +144,7 @@ esac
 
 echo "Setting '${net}' environment values"
 
-export MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS MC_WALLET_DB MC_LEDGER_DB
+export MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS MC_WALLET_DB MC_LEDGER_DB MC_LISTEN_HOST
 
 echo "  MC_CHAIN_ID: ${MC_CHAIN_ID}"
 if [[ -z "${offline}" ]]
@@ -157,6 +157,7 @@ fi
 echo "  MC_FOG_INGEST_ENCLAVE_CSS: ${MC_FOG_INGEST_ENCLAVE_CSS}"
 echo "  MC_WALLET_DB: ${MC_WALLET_DB}"
 echo "  MC_LEDGER_DB: ${MC_LEDGER_DB}"
+echo "  MC_LISTEN_HOST: ${MC_LISTEN_HOST}"
 
 
 # Optionally call build-fs.sh to build the current version.
@@ -181,7 +182,7 @@ then
         # Override
         "${target_dir}/release/validator-service" \
             --ledger-db "${validator_ledger_db}" \
-            --listen-uri "insecure-validator://127.0.0.1:10001/" \
+            --listen-uri "insecure-validator://127.0.0.1:11000/" \
             >/tmp/validator-service.log 2>&1 &
 
         echo $! >/tmp/.validator-service.pid
@@ -189,7 +190,7 @@ then
         sleep 30
     fi
 
-    export MC_VALIDATOR="insecure-validator://127.0.0.1:10001/"
+    export MC_VALIDATOR="insecure-validator://127.0.0.1:11000/"
     unset MC_TX_SOURCE_URL
     unset MC_PEER
 fi

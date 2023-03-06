@@ -48,7 +48,7 @@ declare -a MethodList=("assign_address_for_account" "build_and_submit_transactio
 for method in "${MethodList[@]}"; do
     echo "${method}"
 
-    response=$(node mirror-client.js --public-mirror-url http://127.0.0.1:9091 --key-file /tmp/mirror_test/mirror-client.pem --request "{\"method\": \"${method}\", \"params\": {}, \"jsonrpc\": \"2.0\", \"id\": 1}" 2>/dev/null)
+    response=$(node mirror-client.js --public-mirror-url http://127.0.0.1:9092 --key-file /tmp/mirror_test/mirror-client.pem --request "{\"method\": \"${method}\", \"params\": {}, \"jsonrpc\": \"2.0\", \"id\": 1}" 2>/dev/null)
 
     if ! [[ "$response" =~ 'Http error, status: 400: Unsupported request' ]]
     then
@@ -61,15 +61,26 @@ done
 
 echo "Unsupported methods [ PASS ]"
 
-echo "Running mirror-test.sh - supported methods"
+echo "Running v2 mirror-test.js - supported methods"
 
-if node mirror-test.js --public-mirror-url http://127.0.0.1:9091 \
+if node mirror-test.js --public-mirror-url http://127.0.0.1:9092 \
     --full-service-url http://127.0.0.1:9090 \
     --key-file /tmp/mirror_test/mirror-client.pem \
     --mnemonic "${mnemonic}"
 then
-    echo "Supported methods [ PASS ]"
+    echo "v2 Supported methods [ PASS ]"
 else
-    echo "Supported methods [ FAIL ]"
+    echo "v2 Supported methods [ FAIL ]"
+    exit 1
+fi
+
+echo "Running v1 v1/test_suite/test_script.js"
+pushd ./v1/test_suite > /dev/null || exit 1
+
+if node test_script.js 127.0.0.1 9091 127.0.0.1 9090 /tmp/mirror_test/mirror-client.pem "${mnemonic}"
+then
+    echo "v1 Supported methods [ PASS ]"
+else
+    echo "v1 Supported methods [ FAIL ]"
     exit 1
 fi
