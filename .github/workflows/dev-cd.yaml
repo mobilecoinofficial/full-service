@@ -202,7 +202,7 @@ jobs:
 
           # Switch to testing directory and install dependencies.
           pushd python || exit 1
-          "${POETRY_HOME}/bin/poetry" install --without=dev
+          "${POETRY_HOME}/bin/poetry" install
 
           # Run tests.
           "${POETRY_HOME}/bin/poetry" run pytest
