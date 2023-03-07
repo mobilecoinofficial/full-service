@@ -6,10 +6,10 @@ if (NODE_MAJOR_VERSION < 12) {
 
 // Imports
 const client = require('../test_lib/send-request-encrypted');
-const full_service_path = "/wallet/v2";
+const full_service_path = "/wallet";
 const public_mirror_path = "/encrypted-request";
 const wait_time_ms = 10000;
-const fields = ["method", "params", "jsonrpc", "id", "block_index", "mnemonic", "key_derivation_version", "name", "account_id", "recipient_public_address", "value_pmob", "offset", "limit", "subaddress_index", "memo", "amount_pmob", "address", "transaction_log_id", "txo_id", "confirmation", "amount", "value", "token_id"];
+const fields = ["method", "params", "jsonrpc", "id", "block_index", "mnemonic", "key_derivation_version", "name", "account_id", "recipient_public_address", "value_pmob", "offset", "limit", "subaddress_index", "memo", "amount_pmob", "address", "transaction_log_id", "txo_id", "confirmation"];
 
 function getFuncName() {
     return getFuncName.caller.name
@@ -17,21 +17,22 @@ function getFuncName() {
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 async function runAllTests(public_mirror_host, public_mirror_port, full_service_host, full_service_port, key_file, mnemonic) {
     try {
-        let blockJSON = await testGetBlock(public_mirror_host, public_mirror_port, key_file);
-        let accountJSON = await testImportAccount(full_service_host, full_service_port, mnemonic);
+        await testGetBlock(public_mirror_host, public_mirror_port, key_file);
+        // let accountJSON = await testImportAccount(full_service_host, full_service_port, mnemonic);
+        const accountJSON = await getFirstAccount(public_mirror_host, public_mirror_port, key_file);
         let accountInfo = JSON.parse(accountJSON);
-        let accountId = accountInfo["result"]["account"]["id"];
+        let accountId = accountInfo["result"]["account"]["account_id"];
         let mainAddress = accountInfo["result"]["account"]["main_address"];
         console.log(`account_id: ${accountId}, main_address: ${mainAddress}`);
         let balanceJSON = await waitForBalanceToBeSynced(public_mirror_host, public_mirror_port, key_file, accountId);
         let balanceInfo = JSON.parse(balanceJSON);
-        localBlockHeight = balanceInfo["result"]["local_block_height"];
-        accountBlockHeight = balanceInfo["result"]["account_block_height"];
+        localBlockHeight = balanceInfo["result"]["balance"]["local_block_height"];
+        accountBlockHeight = balanceInfo["result"]["balance"]["account_block_height"];
         console.log(balanceJSON);
 
         let transactionJSON = await testBuildAndSubmitTransaction(full_service_host, full_service_port, accountId, mainAddress, "1");
         let transactionInfo = JSON.parse(transactionJSON);
-        let transactionLogId = transactionInfo["result"]["transaction_log"]["id"];
+        let transactionLogId = transactionInfo["result"]["transaction_log"]["transaction_log_id"];
         let transactionBlockIndex = transactionInfo["result"]["transaction_log"]["submitted_block_index"];
         let outputTxoHex = transactionInfo["result"]["transaction_log"]["output_txos"][0]["txo_id_hex"];
         console.log(`transactionLogId: ${transactionLogId}`);
@@ -40,7 +41,7 @@ async function runAllTests(public_mirror_host, public_mirror_port, full_service_
         let addresses = await testGetAddressesForAccount(public_mirror_host, public_mirror_port, key_file, accountId);
         let accountStatus = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, accountId);
         let paymentRequest = await testCreatePaymentRequest(public_mirror_host, public_mirror_port, key_file, accountId, 1, 1);
-        let balance = await testGetAddressStatus(public_mirror_host, public_mirror_port, key_file, mainAddress);
+        let balance = await testGetBalanceForAddress(public_mirror_host, public_mirror_port, key_file, mainAddress);
         let addressVerification = await testVerifyAddress(public_mirror_host, public_mirror_port, key_file, mainAddress);
         let walletStatus = await testWalletStatus(public_mirror_host, public_mirror_port, key_file);
         let networkStatus = await testNetworkStatus(public_mirror_host, public_mirror_port, key_file);
@@ -62,6 +63,36 @@ async function runAllTests(public_mirror_host, public_mirror_port, full_service_
 }
 
 
+async function getAccounts (public_mirror_host, public_mirror_port, key_file) {
+    const request = {
+      method: 'get_all_accounts',
+      jsonrpc: '2.0',
+      id: 1
+    }
+    const requestString = JSON.stringify(request, null)
+    console.log(JSON.stringify({ request }, null, 4))
+    return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString)
+  }
+
+async function getFirstAccount (public_mirror_host, public_mirror_port, key_file) {
+    const accountsJSON = await getAccounts(public_mirror_host, public_mirror_port, key_file)
+    // Get first account
+    const accounts = JSON.parse(accountsJSON)
+    const first = accounts.result.account_ids[0]
+    const accountMap = accounts.result.account_map
+
+    // fake an import_account response
+    return JSON.stringify({
+      method: 'import_account',
+      result: {
+        account: accountMap[first]
+      },
+      jsonrpc: '2.0',
+      id: 1
+    })
+  }
+
+
 async function testImportAccount(full_service_host, full_service_port, mnemonic) {
     try {
         let request = {
@@ -74,7 +105,7 @@ async function testImportAccount(full_service_host, full_service_port, mnemonic)
             jsonrpc: "2.0",
             id: 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequestUnencrypted(full_service_host, full_service_port, full_service_path, requestString);
     }
@@ -89,12 +120,12 @@ async function testBuildAndSubmitTransaction(full_service_host, full_service_por
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": recipient_address,
-                "amount": { "value": value_pmob, "token_id": "0" }
+                "value_pmob": value_pmob
             },
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequestUnencrypted(full_service_host, full_service_port, full_service_path, requestString);
     }
@@ -114,24 +145,24 @@ async function testGetBlock(public_mirror_host, public_mirror_port, key_file) {
             jsonrpc: "2.0",
             id: 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
     catch (error) {
         throw `Error in ${getFuncName()}: ${error}`;
     }
 }
-async function testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id) {
+async function testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id) {
     try {
         let request = {
-            "method": "get_account_status",
+            "method": "get_balance_for_account",
             "params": {
                 "account_id": account_id
             },
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -140,14 +171,14 @@ async function testGetAccountStatus(public_mirror_host, public_mirror_port, key_
     }
 }
 async function waitForBalanceToBeSynced(public_mirror_host, public_mirror_port, key_file, account_id) {
-    let balanceJSON = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id);
+    let balanceJSON = await testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id);
     let balanceInfo = JSON.parse(balanceJSON);
-    let balance_synced = balanceInfo["result"]["account"]["next_block_index"] >= balanceInfo["result"]["network_block_height"];
+    let balance_synced = balanceInfo["result"]["balance"]["is_synced"];
     while (!balance_synced) {
         await timer(wait_time_ms);
-        balanceJSON = await testGetAccountStatus(public_mirror_host, public_mirror_port, key_file, account_id);
+        balanceJSON = await testGetBalanceForAccount(public_mirror_host, public_mirror_port, key_file, account_id);
         balanceInfo = JSON.parse(balanceJSON);
-        balance_synced = balanceInfo["result"]["account"]["next_block_index"] >= balanceInfo["result"]["network_block_height"];
+        balance_synced = balanceInfo["result"]["balance"]["is_synced"];
     }
     return balanceJSON;
 }
@@ -163,7 +194,7 @@ async function testGetAddressesForAccount(public_mirror_host, public_mirror_port
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -181,7 +212,7 @@ async function testGetAccountStatus(public_mirror_host, public_mirror_port, key_
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -202,7 +233,7 @@ async function testCreatePaymentRequest(public_mirror_host, public_mirror_port, 
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -210,17 +241,18 @@ async function testCreatePaymentRequest(public_mirror_host, public_mirror_port, 
         throw `Error in ${getFuncName()}: ${error}`;
     }
 }
-async function testGetAddressStatus(public_mirror_host, public_mirror_port, key_file, address) {
+async function testGetBalanceForAddress(public_mirror_host, public_mirror_port, key_file, address) {
     try {
         let request = {
-            "method": "get_address_status",
+            "method": "get_balance_for_address",
             "params": {
                 "address": address
             },
             "jsonrpc": "2.0",
+            "api_version": "2",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -239,7 +271,7 @@ async function testVerifyAddress(public_mirror_host, public_mirror_port, key_fil
             "id": 1
         };
 
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -255,7 +287,7 @@ async function testWalletStatus(public_mirror_host, public_mirror_port, key_file
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -271,7 +303,7 @@ async function testNetworkStatus(public_mirror_host, public_mirror_port, key_fil
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -282,15 +314,14 @@ async function testNetworkStatus(public_mirror_host, public_mirror_port, key_fil
 async function testGetTransactionLogsForBlock(public_mirror_host, public_mirror_port, key_file, block_index) {
     try {
         let request = {
-            "method": "get_transaction_logs",
+            "method": "get_all_transaction_logs_for_block",
             "params": {
-                "min_block_index": block_index,
-                "max_block_index": block_index
+                "block_index": block_index
             },
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -302,7 +333,7 @@ async function testGetTransactionLogsForBlock(public_mirror_host, public_mirror_
 async function testGetTransactionLogsForAccount(public_mirror_host, public_mirror_port, key_file, account_id, offset, limit) {
     try {
         let request = {
-            "method": "get_transaction_logs",
+            "method": "get_transaction_logs_for_account",
             "params": {
                 "account_id": account_id,
                 "offset": offset,
@@ -311,7 +342,7 @@ async function testGetTransactionLogsForAccount(public_mirror_host, public_mirro
             "jsonrpc": "2.0",
             "id": 1
         };
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -331,7 +362,7 @@ async function testGetTransactionLogsById(public_mirror_host, public_mirror_port
             "id": 1
         };
 
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -343,7 +374,7 @@ async function waitForTransactionToBeSynced(public_mirror_host, public_mirror_po
     let transactionLogsJSON = await testGetTransactionLogsById(public_mirror_host, public_mirror_port, key_file, transaction_log_id);
     let transactionInfo = JSON.parse(transactionLogsJSON);
     let transaction_status = transactionInfo["result"]["transaction_log"]["status"];
-    while (transaction_status === "pending") {
+    while (transaction_status === "tx_status_pending") {
         await timer(wait_time_ms);
         transactionLogsJSON = await testGetTransactionLogsById(public_mirror_host, public_mirror_port, key_file, transaction_log_id);
         transactionInfo = JSON.parse(transactionLogsJSON);
@@ -362,7 +393,7 @@ async function testGetConfirmations(public_mirror_host, public_mirror_port, key_
             "id": 1
         };
 
-        let requestString = JSON.stringify(request, fields);
+        let requestString = JSON.stringify(request, fields, 4);
         console.log(requestString);
         return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
     }
@@ -383,7 +414,7 @@ async function testValidateConfirmations(public_mirror_host, public_mirror_port,
                 "jsonrpc": "2.0",
                 "id": 1
             };
-            let requestString = JSON.stringify(request, fields);
+            let requestString = JSON.stringify(request, fields, 4);
             console.log(requestString);
             return await client.sendRequest(public_mirror_host, public_mirror_port, key_file, requestString);
         }

@@ -46,32 +46,36 @@ then
     exit 1
 fi
 
+# use main instead of legacy prod
+if [[ "${net}" == "prod" ]]
+then
+    echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+    net=main
+fi
+
 # Grab current location and source the shared functions.
 # shellcheck source=.shared-functions.sh
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
-# Setup workdir
-WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
+# Setup workdir - set in .shared-functions.sh
 mkdir -p "${WORK_DIR}"
 
 case ${net} in
-    test|prod|main)
+    test)
         echo "Setting '${net}' SGX, IAS and enclave values"
-
-        # CBB: we should replicate the "prod" css bucket to "main", then we can
-        #      get rid of this workaround.
-        if [[ "${net}" == "main" ]]
-        then
-            echo "Detected \"main\" network, setting css urls to use \"prod\""
-            net="prod"
-        fi
-
         SGX_MODE=HW
         IAS_MODE=PROD
         CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")
         INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/ingest-enclave.css")
-    ;;
+        ;;
+    main)
+        echo "Setting '${net}' SGX, IAS and enclave values"
+        SGX_MODE=HW
+        IAS_MODE=PROD
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file prod "${WORK_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file prod "${WORK_DIR}/ingest-enclave.css")
+        ;;
     alpha)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
@@ -80,22 +84,22 @@ case ${net} in
         # alpha needs a css repository setup
         CONSENSUS_ENCLAVE_CSS="$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")"
         INGEST_ENCLAVE_CSS="$(get_css_file "${net}" "${WORK_DIR}/ingest-enclave.css")"
-    ;;
+        ;;
     local)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
-        
+
         INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
         if test -f "${WORK_DIR}/consensus-enclave.css"; then
             CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
         else
             CONSENSUS_ENCLAVE_CSS=`pwd`/mobilecoin/target/docker/release/consensus-enclave.css
         fi
-    ;;
+        ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
-    ;;
+        ;;
 esac
 
 export SGX_MODE IAS_MODE CONSENSUS_ENCLAVE_CSS INGEST_ENCLAVE_CSS
@@ -112,3 +116,7 @@ cargo build --release ${BUILD_OPTIONS}
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
 echo "  binaries are available in ${target_dir}/release"
+
+echo "  copy css files to ${target_dir}/release for later packaging (docker, tar)"
+cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
+cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
