@@ -2,6 +2,28 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 # Set of shared functions for full-service build, test and run tools.
 
+# shellcheck disable=SC2034  # Allow unused vars in this shared file.
+
+GIT_BASE=$(git rev-parse --show-toplevel)
+AM_I_IN_MOB_PROMPT="no"
+CARGO_TARGET_DIR="${GIT_BASE}/target/${net}"
+
+# Assume that if you're git directory is /tmp/mobilenode that we're in mob prompt
+if [[ "${GIT_BASE}" == "/tmp/mobilenode" ]]
+then
+    AM_I_IN_MOB_PROMPT="yes"
+fi
+
+if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
+then
+    echo "I'm in mob prompt!"
+    WORK_DIR="${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}"
+    LISTEN_ADDR="0.0.0.0"
+else
+    WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
+    LISTEN_ADDR="127.0.0.1"
+fi
+
 # debug - echo a debug message
 #  1: message
 debug()

@@ -20,7 +20,7 @@ do
             exit 0
             ;;
         --network)
-            network="${2}"
+            net="${2}"
             shift 2
             ;;
         *)
@@ -31,31 +31,21 @@ do
     esac
 done
 
-if [[ -z "${network}" ]]
+if [[ -z "${net}" ]]
 then
     echo "--network <main|test> is required"
     exit 1
 fi
 
-# 1: pid file to check
-check_pid_file()
-{
-    if [[ -f "${1}" ]]
-    then
-        pid=$(cat "${1}")
-        if ps -p "${pid}" > /dev/null
-        then
-            echo "running"
-        else
-            echo "not running"
-        fi
-    fi
-}
+# Grab current location and source the shared functions.
+# shellcheck source=.shared-functions.sh
+location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+source "${location}/../../tools/.shared-functions.sh"
 
 test_dir=/tmp/mirror_test
-git_base=$(git rev-parse --show-toplevel)
-CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${git_base}/target/docker"}
 bin_dir="${CARGO_TARGET_DIR}"/release
+
+echo "${GIT_BASE}"
 
 mkdir -p "${test_dir}"
 pushd "${test_dir}" >/dev/null
@@ -82,58 +72,86 @@ else
     exit 1
 fi
 
+popd >/dev/null
+
+pwd
+
+app="full-service"
+log="${test_dir}/${app}.log"
+pid="${test_dir}/${app}.pid"
 if [[ -f "${bin_dir}/full-service" ]]
 then
-    if [[ "$(check_pid_file .full-service.pid)" == "running" ]]
+
+    if [[ "$(check_pid_file ${pid})" == "running" ]]
     then
-        echo "full-service is already running"
+        echo "${app} is already running"
     else
         echo "- Starting full-service with validator-service"
-        exec "${git_base}"/tools/run-fs.sh --validator "${network}" >./full-service.log 2>&1 &
-        echo $! >.full-service.pid
+        exec "${GIT_BASE}"/tools/run-fs.sh --validator "${net}" > "${log}" 2>&1 &
+        echo $! > "${pid}"
     fi
 else
     echo "${bin_dir}/full-service not found, did you build with tools/build-fs.sh?"
     exit 1
 fi
 
-if [[ -f "${bin_dir}/wallet-service-mirror-private" ]]
-then
-    if [[ "$(check_pid_file .mirror-private.pid)" == "running" ]]
-    then
-        echo "wallet-service-mirror-private is already running"
-    else
-        echo "- Starting wallet-service-mirror-private"
-        exec "${bin_dir}"/wallet-service-mirror-private \
-            --mirror-public-uri "wallet-service-mirror://127.0.0.1:10000/?ca-bundle=server.crt&tls-hostname=localhost" \
-            --wallet-service-uri http://127.0.0.1:9090/wallet/v2 \
-            --mirror-key ./mirror-private.pem \
-            >./mirror-private.log 2>&1 &
-        echo $! >.mirror-private.pid
-    fi
-else
-    echo "${bin_dir}/wallet-service-mirror-private not found, did you build with tools/build-fs.sh?"
-    exit 1
-fi
 
-if [[ -f "${bin_dir}/wallet-service-mirror-public" ]]
-then
-    if [[ "$(check_pid_file .mirror-public.pid)" == "running" ]]
+for v in 1 2
+do
+    # Set wallet url
+    case "${v}" in
+        1)
+            wallet_service_uri="http://127.0.0.1:9090/wallet"
+            ;;
+        2)
+            wallet_service_uri="http://127.0.0.1:9090/wallet/v2"
+            ;;
+    esac
+
+    app="wallet-service-mirror-private"
+    log="${test_dir}/v${v}-${app}.log"
+    pid="${test_dir}/v${v}-${app}.pid"
+    if [[ -f "${bin_dir}/${app}" ]]
     then
-        echo "wallet-service-mirror-public is already running"
+        if [[ "$(check_pid_file ${pid})" == "running" ]]
+        then
+            echo "v${v}-${app} is already running"
+        else
+            echo "- Starting v${v} ${app}"
+            exec "${bin_dir}/${app}" \
+                --mirror-public-uri "wallet-service-mirror://127.0.0.1:1000${v}/?ca-bundle=${test_dir}/server.crt&tls-hostname=localhost" \
+                --wallet-service-uri "${wallet_service_uri}" \
+                --mirror-key "${test_dir}/mirror-private.pem" \
+                > "${log}" 2>&1 &
+            echo $! > "${pid}"
+        fi
     else
-        echo "- Starting wallet-service-mirror-public"
-        exec "${bin_dir}"/wallet-service-mirror-public \
-            --client-listen-uri "http://127.0.0.1:9091/" \
-            --mirror-listen-uri "wallet-service-mirror://127.0.0.1:10000/?tls-chain=server.crt&tls-key=server.key" \
-            --allow-self-signed-tls \
-            >./wallet-service-mirror-public.log 2>&1 &
-        echo $! >.mirror-public.pid
+        echo "${bin_dir}/${log} not found, did you build with tools/build-fs.sh?"
+        exit 1
     fi
-else
-    echo "${bin_dir}/wallet-service-mirror-private not found, did you build with tools/build-fs.sh?"
-    exit 1
-fi
+
+    app="wallet-service-mirror-public"
+    log="${test_dir}/v${v}-${app}.log"
+    pid="${test_dir}/v${v}-${app}.pid"
+    if [[ -f "${bin_dir}/${app}" ]]
+    then
+        if [[ "$(check_pid_file ${pid})" == "running" ]]
+        then
+            echo "v${v} ${app} is already running"
+        else
+            echo "- Starting v${v} ${app}"
+            exec "${bin_dir}/${app}" \
+                --client-listen-uri "http://${LISTEN_ADDR}:909${v}/" \
+                --mirror-listen-uri "wallet-service-mirror://127.0.0.1:1000${v}/?tls-chain=${test_dir}/server.crt&tls-key=${test_dir}/server.key" \
+                --allow-self-signed-tls \
+                > "${log}" 2>&1 &
+            echo $! > "${pid}"
+        fi
+    else
+        echo "${bin_dir}/${app} not found, did you build with tools/build-fs.sh?"
+        exit 1
+    fi
+done
 
 # wait for ready
 curl_post()
@@ -162,5 +180,3 @@ do
 done
 
 echo "- All services started. Use ./stop.sh to shutdown all services."
-
-popd 2>/dev/null
