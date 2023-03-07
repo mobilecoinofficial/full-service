@@ -27,4 +27,4 @@ mc-util-uri = { path = "../../mobilecoin/util/uri" }
 
 clap = { version = "4.0", features = ["derive", "env"] }
 grpcio = "0.12"
-rayon = "1.6"
+rayon = "1.7"
