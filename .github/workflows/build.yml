@@ -20,9 +20,18 @@ jobs:
       contents: write
     strategy:
       matrix:
-        runner-tags: [[self-hosted, Linux, large]]
+        runner-tags:
+          [
+            [self-hosted, macOS, X64, cargo],
+            [self-hosted, macOS, ARM64, cargo],
+            [self-hosted, Linux, large],
+          ]
         namespace: [test, prod]
         include:
+          - runner-tags: [self-hosted, macOS, X64, cargo]
+            container: ""
+          - runner-tags: [self-hosted, macOS, ARM64, cargo]
+            container: ""
           - runner-tags: [self-hosted, Linux, large]
             container: mobilecoin/rust-sgx-base:latest
           - namespace: test
@@ -46,7 +55,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-01-04
+          toolchain: nightly-2022-04-29
           override: true
           components: rustfmt, clippy
 
