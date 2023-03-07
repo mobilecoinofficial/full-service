@@ -88,3 +88,6 @@ __pycache__
 
 # Python/Poetry projects
 .venv/
+
+node_modules/
+*.pem
