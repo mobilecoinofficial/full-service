@@ -32,10 +32,6 @@ jobs:
           files: |
             ${{ steps.current_release.outputs.tag_name }}-Linux-X64-testnet.tar.gz
             ${{ steps.current_release.outputs.tag_name }}-Linux-X64-mainnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-X64-testnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-X64-mainnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-testnet.tar.gz
-            ${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-mainnet.tar.gz
           target: /var/tmp/
 
       - name: Extract Release
@@ -43,16 +39,8 @@ jobs:
           rm -rfv build_artifacts
           mkdir -pv build_artifacts/Linux-X64-testnet
           mkdir -pv build_artifacts/Linux-X64-mainnet
-          mkdir -pv build_artifacts/macOS-X64-testnet
-          mkdir -pv build_artifacts/macOS-X64-mainnet
-          mkdir -pv build_artifacts/macOS-ARM64-testnet
-          mkdir -pv build_artifacts/macOS-ARM64-mainnet
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-testnet.tar.gz -C build_artifacts/Linux-X64-testnet
           tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-mainnet.tar.gz -C build_artifacts/Linux-X64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-testnet.tar.gz -C build_artifacts/macOS-X64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-mainnet.tar.gz -C build_artifacts/macOS-X64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-testnet.tar.gz -C build_artifacts/macOS-ARM64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-mainnet.tar.gz -C build_artifacts/macOS-ARM64-mainnet
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
@@ -61,10 +49,6 @@ jobs:
           cd release
           tar -czvf ${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/Linux-X64-testnet/ .
           tar -czvf ${{ github.ref_name }}-Linux-X64-mainnet.tar.gz -C ../build_artifacts/Linux-X64-mainnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-X64-testnet.tar.gz -C ../build_artifacts/macOS-X64-testnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-X64-mainnet.tar.gz -C ../build_artifacts/macOS-X64-mainnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-ARM64-testnet.tar.gz -C ../build_artifacts/macOS-ARM64-testnet/ .
-          tar -czvf ${{ github.ref_name }}-macOS-ARM64-mainnet.tar.gz -C ../build_artifacts/macOS-ARM64-mainnet/ .
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
