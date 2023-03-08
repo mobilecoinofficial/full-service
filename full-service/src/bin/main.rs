@@ -204,7 +204,7 @@ fn consensus_backed_full_service(
         ledger_db,
         watcher_db,
         peer_manager,
-        Some(APIConfig.peers_config.clone()),
+        Some(config.peers_config.clone()),
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
@@ -280,7 +280,7 @@ fn validator_backed_full_service(
         ledger_db,
         None,
         conn_manager,
-        Some(APIConfig.peers_config.clone()),
+        Some(config.peers_config.clone()),
         network_state,
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
             if fog_uris.is_empty() {
