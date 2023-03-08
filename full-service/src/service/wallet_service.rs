@@ -3,6 +3,7 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
+    config::PeersConfig,
     db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
@@ -38,6 +39,9 @@ pub struct WalletService<
 
     /// Peer manager for consensus validators to query for network height.
     pub peer_manager: McConnectionManager<T>,
+
+    /// Peer network information
+    pub peer_config: PeersConfig,
 
     /// Representation of the current network state.
     pub network_state: Arc<RwLock<PollingNetworkState<T>>>,
