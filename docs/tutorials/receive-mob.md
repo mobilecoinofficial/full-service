@@ -1,5 +1,5 @@
 ---
-description: 'Direct your Full Service API calls to localhost:9090/wallet.'
+description: 'Direct your Full Service API calls to localhost:9090/wallet/v2.'
 ---
 
 # Run Full Service
