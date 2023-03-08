@@ -6,7 +6,7 @@ authors = ["Christian Oudard"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.8"
 segno = "^1.5.2"
 base58 = "^2.1.1"
 protobuf = "^4.21.12"

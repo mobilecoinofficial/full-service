@@ -42,12 +42,12 @@ jobs:
 
       - name: Consensus SigStruct
         run: |
-          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .consensus.sigstruct)
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Ingest SigStruct
         run: |
-          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
       - uses: actions-rs/toolchain@v1
@@ -86,12 +86,12 @@ jobs:
 
       - name: Consensus SigStruct
         run: |
-          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .consensus.sigstruct)
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Ingest SigStruct
         run: |
-          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .ingest.sigstruct)
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
       - uses: actions-rs/toolchain@v1
@@ -127,3 +127,47 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: 5be757b6-e923-40f2-80ea-5deac1e02b1e
+
+  docs:
+    runs-on: [self-hosted, Linux, large]
+    container:
+      image: mobilecoin/rust-sgx-base:latest
+
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: Restore core cache
+        uses: actions/cache/restore@v3
+        with:
+          key: core
+          path: |
+            ~/.cargo
+            ./target
+
+      - name: Consensus SigStruct
+        run: |
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
+          curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
+
+      - name: Build documentation
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --no-deps
+
+      - name: Deploy to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v3
+        if: github.ref_name == 'main'
+        with:
+          target_branch: gh-pages
+          build_dir: target/doc
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
