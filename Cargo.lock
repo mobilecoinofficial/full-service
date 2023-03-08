@@ -2081,7 +2081,7 @@ dependencies = [
 
 [[package]]
 name = "mc-account-keys"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "curve25519-dalek",
  "displaydoc",
@@ -2105,14 +2105,14 @@ dependencies = [
 
 [[package]]
 name = "mc-account-keys-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-crypto-keys",
 ]
 
 [[package]]
 name = "mc-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "bs58",
  "cargo-emit",
@@ -2139,7 +2139,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-ake"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aead",
  "cargo-emit",
@@ -2158,7 +2158,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aead",
  "cargo-emit",
@@ -2176,7 +2176,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-core"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "bitflags",
@@ -2205,7 +2205,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-enclave-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-attest-ake",
@@ -2218,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-verifier"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "cfg-if 1.0.0",
@@ -2243,7 +2243,7 @@ dependencies = [
 
 [[package]]
 name = "mc-attest-verifier-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "displaydoc",
@@ -2257,7 +2257,7 @@ dependencies = [
 
 [[package]]
 name = "mc-blockchain-test-utils"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-blockchain-types",
  "mc-common",
@@ -2271,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "mc-blockchain-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "hex_fmt",
@@ -2294,7 +2294,7 @@ dependencies = [
 
 [[package]]
 name = "mc-common"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "backtrace",
  "cfg-if 1.0.0",
@@ -2331,7 +2331,7 @@ dependencies = [
 
 [[package]]
 name = "mc-connection"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aes-gcm",
  "cookie",
@@ -2359,7 +2359,7 @@ dependencies = [
 
 [[package]]
 name = "mc-connection-test-utils"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-blockchain-types",
  "mc-connection",
@@ -2371,7 +2371,7 @@ dependencies = [
 
 [[package]]
 name = "mc-consensus-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -2387,7 +2387,7 @@ dependencies = [
 
 [[package]]
 name = "mc-consensus-enclave-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "hex",
@@ -2409,7 +2409,7 @@ dependencies = [
 
 [[package]]
 name = "mc-consensus-enclave-measurement"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "mc-attest-core",
@@ -2422,7 +2422,7 @@ dependencies = [
 
 [[package]]
 name = "mc-consensus-scp"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "maplit",
  "mc-common",
@@ -2441,7 +2441,7 @@ dependencies = [
 
 [[package]]
 name = "mc-consensus-scp-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-common",
  "mc-crypto-digestible",
@@ -2484,7 +2484,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-box"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aead",
  "digest",
@@ -2498,7 +2498,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-dalek"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
@@ -2523,7 +2523,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-digestible"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "curve25519-dalek",
@@ -2537,7 +2537,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-digestible-derive"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2546,7 +2546,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-digestible-signature"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-crypto-digestible",
  "schnorrkel-og",
@@ -2555,7 +2555,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-hashes"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "blake2",
  "digest",
@@ -2564,7 +2564,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-keys"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "curve25519-dalek",
@@ -2593,7 +2593,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-message-cipher"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aes-gcm",
  "displaydoc",
@@ -2606,7 +2606,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-multisig"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-crypto-digestible",
  "mc-crypto-keys",
@@ -2616,7 +2616,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-noise"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -2636,7 +2636,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-rand"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "rand 0.8.5",
@@ -2645,7 +2645,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-ring-signature"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "curve25519-dalek",
  "displaydoc",
@@ -2669,7 +2669,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-ring-signature-signer"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "curve25519-dalek",
  "displaydoc",
@@ -2690,7 +2690,7 @@ dependencies = [
 
 [[package]]
 name = "mc-crypto-x509-utils"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-crypto-keys",
@@ -2700,7 +2700,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-ingest-report"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-attest-core",
@@ -2712,7 +2712,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -2728,7 +2728,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-connection"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "grpcio",
@@ -2745,7 +2745,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-resolver"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-account-keys",
  "mc-attest-verifier",
@@ -2759,7 +2759,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-attest-core",
  "mc-crypto-digestible",
@@ -2769,7 +2769,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-validation"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-account-keys",
@@ -2782,7 +2782,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-report-validation-test-utils"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-account-keys",
  "mc-fog-report-validation",
@@ -2790,7 +2790,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-sig"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-account-keys",
@@ -2806,7 +2806,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-sig-authority"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-crypto-keys",
  "signature",
@@ -2814,7 +2814,7 @@ dependencies = [
 
 [[package]]
 name = "mc-fog-sig-report"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-attest-core",
@@ -2932,7 +2932,7 @@ dependencies = [
 
 [[package]]
 name = "mc-ledger-db"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "lazy_static",
@@ -2959,7 +2959,7 @@ dependencies = [
 
 [[package]]
 name = "mc-ledger-migration"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "clap 4.0.26",
  "lmdb-rkv",
@@ -2972,7 +2972,7 @@ dependencies = [
 
 [[package]]
 name = "mc-ledger-sync"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "crossbeam-channel",
  "displaydoc",
@@ -3003,7 +3003,7 @@ dependencies = [
 
 [[package]]
 name = "mc-mobilecoind"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aes-gcm",
  "clap 4.0.26",
@@ -3063,7 +3063,7 @@ dependencies = [
 
 [[package]]
 name = "mc-mobilecoind-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -3078,7 +3078,7 @@ dependencies = [
 
 [[package]]
 name = "mc-mobilecoind-json"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "clap 4.0.26",
  "grpcio",
@@ -3111,7 +3111,7 @@ dependencies = [
 
 [[package]]
 name = "mc-sgx-compat"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "mc-sgx-types",
@@ -3119,7 +3119,7 @@ dependencies = [
 
 [[package]]
 name = "mc-sgx-css"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "sha2",
@@ -3127,7 +3127,7 @@ dependencies = [
 
 [[package]]
 name = "mc-sgx-report-cache-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-attest-core",
@@ -3138,11 +3138,11 @@ dependencies = [
 
 [[package]]
 name = "mc-sgx-types"
-version = "4.0.1"
+version = "4.0.2"
 
 [[package]]
 name = "mc-transaction-builder"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "curve25519-dalek",
@@ -3170,7 +3170,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-core"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "aes",
  "bulletproofs-og",
@@ -3207,7 +3207,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-core-test-utils"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-account-keys",
  "mc-crypto-keys",
@@ -3222,7 +3222,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-extra"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "curve25519-dalek",
@@ -3276,7 +3276,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-types"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "mc-crypto-digestible",
@@ -3287,7 +3287,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-build-enclave"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "cargo_metadata 0.15.0",
@@ -3303,7 +3303,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-build-grpc"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "mc-util-build-script",
  "protoc-grpcio",
@@ -3311,14 +3311,14 @@ dependencies = [
 
 [[package]]
 name = "mc-util-build-info"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
 ]
 
 [[package]]
 name = "mc-util-build-script"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "displaydoc",
@@ -3329,7 +3329,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-build-sgx"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cargo-emit",
  "cc",
@@ -3340,7 +3340,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-encodings"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "displaydoc",
@@ -3351,14 +3351,14 @@ dependencies = [
 
 [[package]]
 name = "mc-util-from-random"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "rand_core 0.6.4",
 ]
 
 [[package]]
 name = "mc-util-grpc"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "clap 4.0.26",
@@ -3389,11 +3389,11 @@ dependencies = [
 
 [[package]]
 name = "mc-util-host-cert"
-version = "4.0.1"
+version = "4.0.2"
 
 [[package]]
 name = "mc-util-lmdb"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "lmdb-rkv",
@@ -3403,7 +3403,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-logger-macros"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3412,7 +3412,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-metrics"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "chrono",
  "grpcio",
@@ -3425,7 +3425,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-parse"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "hex",
  "itertools",
@@ -3434,7 +3434,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-repr-bytes"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "generic-array",
  "hex_fmt",
@@ -3444,7 +3444,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-serial"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "prost",
  "protobuf",
@@ -3455,7 +3455,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-telemetry"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "cfg-if 1.0.0",
  "displaydoc",
@@ -3466,7 +3466,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-test-helper"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "clap 4.0.26",
  "lazy_static",
@@ -3477,7 +3477,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-uri"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "base64 0.13.1",
  "displaydoc",
@@ -3492,7 +3492,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-vec-map"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "heapless",
@@ -3500,7 +3500,7 @@ dependencies = [
 
 [[package]]
 name = "mc-util-zip-exact"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "serde",
 ]
@@ -3564,7 +3564,7 @@ dependencies = [
 
 [[package]]
 name = "mc-watcher"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "clap 4.0.26",
  "displaydoc",
@@ -3601,7 +3601,7 @@ dependencies = [
 
 [[package]]
 name = "mc-watcher-api"
-version = "4.0.1"
+version = "4.0.2"
 dependencies = [
  "displaydoc",
  "serde",
