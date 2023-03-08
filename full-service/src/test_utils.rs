@@ -638,6 +638,7 @@ fn setup_wallet_service_impl(
         ledger_db,
         None,
         peer_manager,
+        None,
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,

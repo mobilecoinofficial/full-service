@@ -204,6 +204,7 @@ fn consensus_backed_full_service(
         ledger_db,
         watcher_db,
         peer_manager,
+        Some(APIConfig.peers_config.clone()),
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
@@ -274,37 +275,36 @@ fn validator_backed_full_service(
 
     let fog_ingest_verifier = config.get_fog_ingest_verifier();
     let logger2 = logger.clone();
-    let service =
-        WalletService::new(
-            wallet_db,
-            ledger_db,
-            None,
-            conn_manager,
-            network_state,
-            Arc::new(move |fog_uris| -> Result<FogResolver, String> {
-                if fog_uris.is_empty() {
-                    Ok(Default::default())
-                } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
-                    let report_responses = validator_conn
-                        .fetch_fog_reports(fog_uris.iter().cloned())
-                        .map_err(|err| {
-                            format!(
-                                "Error fetching fog reports (via validator) for {:?}: {}",
-                                fog_uris, err
-                            )
-                        })?;
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        None,
+        conn_manager,
+        Some(APIConfig.peers_config.clone()),
+        network_state,
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+                let report_responses = validator_conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| {
+                    format!("Error fetching fog reports (via validator) for {fog_uris:?}: {err}")
+                })?;
 
-                    log::debug!(logger2, "Got report responses {:?}", report_responses);
-                    Ok(FogResolver::new(report_responses, verifier)
-                        .expect("Could not construct fog resolver"))
-                } else {
-                    Err("Some recipients have fog, but no fog ingest report verifier was configured"
-                    .to_string())
-                }
-            }),
-            false,
-            logger,
-        );
+                log::debug!(logger2, "Got report responses {:?}", report_responses);
+                Ok(FogResolver::new(report_responses, verifier)
+                    .expect("Could not construct fog resolver"))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
+        }),
+        false,
+        logger,
+    );
 
     validator_backed_rocket(rocket_config, config.allowed_origin.clone())
         .manage(WalletState { service })

@@ -112,6 +112,7 @@ pub fn create_test_setup(
         ledger_db.clone(),
         None,
         peer_manager,
+        None,
         network_state.clone(),
         get_resolver_factory(&mut rng).unwrap(),
         false,
