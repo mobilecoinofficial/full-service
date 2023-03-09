@@ -24,6 +24,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{tokens::Mob, FeeMap, FeeMapError, Token, TokenId};
+use mc_util_uri::ConnectionUri;
 use serde::{Deserialize, Serialize};
 
 /// Errors for the Address Service.
@@ -122,9 +123,9 @@ impl Default for &Balance {
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
 pub struct NetworkSetupConfig {
     pub offline: bool,
-    //pub chainId : String,
-    //pub peers : Vec<String>,
-    //pub txSources: Vec<String>,
+    pub chain_id: String,
+    pub peers: Option<Vec<String>>,
+    pub tx_sources: Option<Vec<String>>,
 }
 
 /// The Network Status object.
@@ -262,8 +263,23 @@ where
             }
         };
 
+        let peers: Option<Vec<String>> = match &self.peers_config {
+            None => None,
+            Some(peers_config) => match &peers_config.peers {
+                None => None,
+                Some(peers) => Some(
+                    peers
+                        .iter()
+                        .map(|peer_uri| peer_uri.url().clone().into())
+                        .collect(),
+                ),
+            },
+        };
         let network_info = NetworkSetupConfig {
             offline: self.offline,
+            chain_id: self.peers_config.clone().unwrap().chain_id,
+            peers,
+            tx_sources: self.peers_config.clone().unwrap().tx_source_urls,
         };
 
         Ok(NetworkStatus {
