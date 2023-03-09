@@ -3,7 +3,7 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
-    config::PeersConfig,
+    config::{NetworkSetupConfig, PeersConfig},
     db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };

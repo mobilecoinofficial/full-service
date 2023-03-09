@@ -4,6 +4,7 @@
 use std::{collections::BTreeMap, convert::TryFrom};
 
 use crate::{
+    config::NetworkSetupConfig,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
@@ -25,7 +26,6 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{tokens::Mob, FeeMap, FeeMapError, Token, TokenId};
 use mc_util_uri::ConnectionUri;
-use serde::{Deserialize, Serialize};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -116,16 +116,6 @@ impl Default for &Balance {
             orphaned: 0,
         }
     }
-}
-
-/// The Network Setup object.
-/// This holds a copy of the network parameters used to start full-service
-#[derive(Default, Clone, Debug, Deserialize, Serialize)]
-pub struct NetworkSetupConfig {
-    pub offline: bool,
-    pub chain_id: String,
-    pub peers: Option<Vec<String>>,
-    pub tx_sources: Option<Vec<String>>,
 }
 
 /// The Network Status object.

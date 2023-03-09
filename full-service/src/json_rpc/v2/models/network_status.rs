@@ -2,9 +2,8 @@
 
 //! API definition for the Network Status object.
 
-use crate::service;
+use crate::{config::NetworkSetupConfig, service};
 
-use crate::service::balance::NetworkSetupConfig;
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom};
 
