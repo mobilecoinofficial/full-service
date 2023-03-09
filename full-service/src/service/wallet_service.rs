@@ -41,7 +41,6 @@ pub struct WalletService<
     pub peer_manager: McConnectionManager<T>,
 
     /// Peer network information
-    pub peers_config: Option<PeersConfig>,
     pub network_setup_config: NetworkSetupConfig,
 
     /// Representation of the current network state.
@@ -118,7 +117,6 @@ impl<
             ledger_db,
             watcher_db,
             peer_manager,
-            peers_config,
             network_setup_config,
             network_state,
             fog_resolver_factory,

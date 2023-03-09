@@ -25,7 +25,6 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{tokens::Mob, FeeMap, FeeMapError, Token, TokenId};
-use mc_util_uri::ConnectionUri;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -251,25 +250,6 @@ where
                     network_block_info.network_block_version,
                 )
             }
-        };
-
-        let peers: Option<Vec<String>> = match &self.peers_config {
-            None => None,
-            Some(peers_config) => match &peers_config.peers {
-                None => None,
-                Some(peers) => Some(
-                    peers
-                        .iter()
-                        .map(|peer_uri| peer_uri.url().clone().into())
-                        .collect(),
-                ),
-            },
-        };
-        let network_info = NetworkSetupConfig {
-            offline: self.offline,
-            chain_id: self.peers_config.clone().unwrap().chain_id,
-            peers,
-            tx_sources: self.peers_config.clone().unwrap().tx_source_urls,
         };
 
         Ok(NetworkStatus {
