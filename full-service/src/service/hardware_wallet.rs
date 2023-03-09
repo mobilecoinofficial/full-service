@@ -136,7 +136,7 @@ pub async fn sign_tx_proposal(
     // Await user input
     global_log::info!("Awaiting user confirmation");
     signer
-        .await_approval(20)
+        .await_approval(120)
         .await
         .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
 
