@@ -6,4 +6,4 @@ With view only accounts, it requires only the view private key which allows a us
 
 Currently, we have support for this through a program called the Transaction Signer which is a stateless program that can be run on an offline machine to generate account information and sign transactions.
 
-Support for hardware wallets such as the Ledger Nano X & S Plus is currently being worked on and will be coming soon!
+Support for hardware wallets such as the Ledger Nano X & S Plus is currently in development in the [ledger-mob](https://github.com/mobilecoinofficial/ledger-mob) repo and will be coming soon!
