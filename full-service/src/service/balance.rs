@@ -24,6 +24,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_core::{tokens::Mob, FeeMap, FeeMapError, Token, TokenId};
+use serde::{Deserialize, Serialize};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -116,6 +117,16 @@ impl Default for &Balance {
     }
 }
 
+/// The Network Setup object.
+/// This holds a copy of the network parameters used to start full-service
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
+pub struct NetworkSetupConfig {
+    pub offline: bool,
+    //pub chainId : String,
+    //pub peers : Vec<String>,
+    //pub txSources: Vec<String>,
+}
+
 /// The Network Status object.
 /// This holds the number of blocks in the ledger, on the network and locally.
 pub struct NetworkStatus {
@@ -124,6 +135,7 @@ pub struct NetworkStatus {
     pub local_num_txos: u64,
     pub fees: FeeMap,
     pub block_version: u32,
+    pub network_info: NetworkSetupConfig,
 }
 
 /// The Wallet Status object returned by balance services.
@@ -250,12 +262,17 @@ where
             }
         };
 
+        let network_info = NetworkSetupConfig {
+            offline: self.offline,
+        };
+
         Ok(NetworkStatus {
             network_block_height,
             local_block_height: self.ledger_db.num_blocks()?,
             local_num_txos: self.ledger_db.num_txos()?,
             fees: fee_map,
             block_version,
+            network_info,
         })
     }
 
