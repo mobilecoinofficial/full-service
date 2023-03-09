@@ -278,7 +278,7 @@ where
             local_num_txos: self.ledger_db.num_txos()?,
             fees: fee_map,
             block_version,
-            network_info,
+            network_info: self.network_setup_config.clone(),
         })
     }
 
