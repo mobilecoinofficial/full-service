@@ -13,11 +13,12 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
-    config::APIConfig,
+    config::{APIConfig, NetworkSetupConfig},
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
+use mc_util_uri::ConnectionUri;
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use mc_watcher::{watcher::WatcherSyncThread, watcher_db::create_or_open_rw_watcher_db};
@@ -199,12 +200,31 @@ fn consensus_backed_full_service(
         None => (None, None),
     };
 
+    let chain_id = config.peers_config.chain_id.clone();
+    let tx_sources: Option<Vec<String>> = config.peers_config.tx_source_urls.clone();
+    let peers: Option<Vec<String>> = match config.peers_config.peers.clone() {
+        None => None,
+        Some(peers) => Some(
+            peers
+                .iter()
+                .map(|peer_uri| peer_uri.url().clone().into())
+                .collect(),
+        ),
+    };
+
+    let network_setup_config = NetworkSetupConfig {
+        offline: config.offline.clone(),
+        chain_id,
+        peers,
+        tx_sources,
+    };
+
     let service = WalletService::new(
         wallet_db,
         ledger_db,
         watcher_db,
         peer_manager,
-        Some(config.peers_config.clone()),
+        network_setup_config,
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
@@ -275,12 +295,32 @@ fn validator_backed_full_service(
 
     let fog_ingest_verifier = config.get_fog_ingest_verifier();
     let logger2 = logger.clone();
+
+    let chain_id = config.peers_config.chain_id.clone();
+    let tx_sources: Option<Vec<String>> = config.peers_config.tx_source_urls.clone();
+    let peers: Option<Vec<String>> = match config.peers_config.peers.clone() {
+        None => None,
+        Some(peers) => Some(
+            peers
+                .iter()
+                .map(|peer_uri| peer_uri.url().clone().into())
+                .collect(),
+        ),
+    };
+
+    let network_setup_config = NetworkSetupConfig {
+        offline: config.offline.clone(),
+        chain_id,
+        peers,
+        tx_sources,
+    };
+
     let service = WalletService::new(
         wallet_db,
         ledger_db,
         None,
         conn_manager,
-        Some(config.peers_config.clone()),
+        network_setup_config,
         network_state,
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
             if fog_uris.is_empty() {

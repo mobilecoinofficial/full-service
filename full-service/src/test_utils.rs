@@ -1,6 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 #[cfg(test)]
 use crate::{
+    config::NetworkSetupConfig,
     db::{
         account::{AccountID, AccountModel},
         models::{Account, TransactionLog, Txo},
@@ -633,12 +634,19 @@ fn setup_wallet_service_impl(
     let (peer_manager, network_state) =
         setup_peer_manager_and_network_state(ledger_db.clone(), logger.clone(), offline);
 
+    let network_setup_config = NetworkSetupConfig {
+        offline,
+        chain_id: "rust_tests".to_string(),
+        peers: None,
+        tx_sources: None,
+    };
+
     WalletService::new(
         wallet_db,
         ledger_db,
         None,
         peer_manager,
-        None,
+        network_setup_config,
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,

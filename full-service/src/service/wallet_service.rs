@@ -3,7 +3,7 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
-    config::{NetworkSetupConfig, PeersConfig},
+    config::NetworkSetupConfig,
     db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
@@ -15,7 +15,7 @@ use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
-use mc_util_uri::{ConnectionUri, FogUri};
+use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
@@ -75,7 +75,7 @@ impl<
         ledger_db: LedgerDB,
         watcher_db: Option<WatcherDB>,
         peer_manager: McConnectionManager<T>,
-        peers_config: Option<PeersConfig>,
+        network_setup_config: NetworkSetupConfig,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
@@ -90,34 +90,6 @@ impl<
             ))
         } else {
             None
-        };
-
-        let mut chain_id = "".to_string();
-        let mut tx_sources: Option<Vec<String>> = None;
-        let mut peers: Option<Vec<String>> = None;
-
-        match peers_config {
-            None => (),
-            Some(peers_config) => {
-                chain_id = peers_config.chain_id;
-                tx_sources = peers_config.tx_source_urls;
-                peers = match peers_config.peers {
-                    None => None,
-                    Some(peers) => Some(
-                        peers
-                            .iter()
-                            .map(|peer_uri| peer_uri.url().clone().into())
-                            .collect(),
-                    ),
-                }
-            }
-        }
-
-        let network_setup_config = NetworkSetupConfig {
-            offline,
-            chain_id,
-            peers,
-            tx_sources,
         };
 
         let mut rng = rand::thread_rng();
