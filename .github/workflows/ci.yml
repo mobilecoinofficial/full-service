@@ -152,7 +152,7 @@ jobs:
 
       - name: Consensus SigStruct
         run: |
-          SIGSTRUCT_URI=$(curl -fsSL ${CSS_BASE_URL}/production.json | jq -r .consensus.sigstruct)
+          SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Build documentation
