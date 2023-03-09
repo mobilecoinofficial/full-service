@@ -154,7 +154,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        managed_by_hardware_wallet: Bool,
+        managed_by_hardware_wallet: bool,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -402,7 +402,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        managed_by_hardware_wallet: Bool,
+        managed_by_hardware_wallet: bool,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;

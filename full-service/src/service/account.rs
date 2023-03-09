@@ -214,7 +214,7 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        managed_by_hardware_wallet: Bool,
+        managed_by_hardware_wallet: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -486,7 +486,7 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        managed_by_hardware_wallet: Bool,
+        managed_by_hardware_wallet: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
