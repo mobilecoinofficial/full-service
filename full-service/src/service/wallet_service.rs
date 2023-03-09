@@ -92,23 +92,32 @@ impl<
             None
         };
 
-        let peers: Option<Vec<String>> = match &peers_config {
-            None => None,
-            Some(peers_config) => match &peers_config.peers {
-                None => None,
-                Some(peers) => Some(
-                    peers
-                        .iter()
-                        .map(|peer_uri| peer_uri.url().clone().into())
-                        .collect(),
-                ),
-            },
-        };
+        let mut chain_id = "".to_string();
+        let mut tx_sources: Option<Vec<String>> = None;
+        let mut peers: Option<Vec<String>> = None;
+
+        match peers_config {
+            None => (),
+            Some(peers_config) => {
+                chain_id = peers_config.chain_id;
+                tx_sources = peers_config.tx_source_urls;
+                peers = match peers_config.peers {
+                    None => None,
+                    Some(peers) => Some(
+                        peers
+                            .iter()
+                            .map(|peer_uri| peer_uri.url().clone().into())
+                            .collect(),
+                    ),
+                }
+            }
+        }
+
         let network_setup_config = NetworkSetupConfig {
             offline,
-            chain_id: peers_config.clone().unwrap().chain_id,
+            chain_id,
             peers,
-            tx_sources: peers_config.clone().unwrap().tx_source_urls,
+            tx_sources,
         };
 
         let mut rng = rand::thread_rng();
