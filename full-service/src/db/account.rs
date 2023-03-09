@@ -154,6 +154,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: Bool,
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -316,6 +317,7 @@ impl AccountModel for Account {
             name,
             fog_enabled,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
 
         diesel::insert_into(accounts::table)
@@ -400,6 +402,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: Bool,
         conn: &Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
@@ -429,6 +432,7 @@ impl AccountModel for Account {
             name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
+            managed_by_hardware_wallet,
         };
 
         diesel::insert_into(accounts::table)
@@ -672,6 +676,7 @@ mod tests {
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -734,6 +739,7 @@ mod tests {
             name: "".to_string(),
             fog_enabled: false,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -855,6 +861,7 @@ mod tests {
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, acc);
     }
@@ -907,6 +914,7 @@ mod tests {
             name: "View Only Account".to_string(),
             fog_enabled: false,
             view_only: true,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, account);
     }

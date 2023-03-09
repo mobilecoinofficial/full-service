@@ -248,7 +248,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .import_view_only_account(vpk_hex, spk_hex, None, None, None)
+            .import_view_only_account(vpk_hex, spk_hex, None, None, None, false)
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
 
