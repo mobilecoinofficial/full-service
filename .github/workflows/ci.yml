@@ -12,11 +12,6 @@ on:
   pull_request:
     branches:
       - main
-      - release/*
-  push:
-    branches:
-      - main
-      - release/*
 
 concurrency:
   group: full-service-ci-${{ github.head_ref || github.ref }}
