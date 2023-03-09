@@ -15,7 +15,7 @@ use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
-use mc_util_uri::FogUri;
+use mc_util_uri::{ConnectionUri, FogUri};
 use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
@@ -41,7 +41,8 @@ pub struct WalletService<
     pub peer_manager: McConnectionManager<T>,
 
     /// Peer network information
-    pub peer_config: Option<PeersConfig>,
+    pub peers_config: Option<PeersConfig>,
+    pub network_setup_config: NetworkSetupConfig,
 
     /// Representation of the current network state.
     pub network_state: Arc<RwLock<PollingNetworkState<T>>>,
@@ -92,12 +93,33 @@ impl<
             None
         };
 
+        let peers: Option<Vec<String>> = match &peers_config {
+            None => None,
+            Some(peers_config) => match &peers_config.peers {
+                None => None,
+                Some(peers) => Some(
+                    peers
+                        .iter()
+                        .map(|peer_uri| peer_uri.url().clone().into())
+                        .collect(),
+                ),
+            },
+        };
+        let network_setup_config = NetworkSetupConfig {
+            offline,
+            chain_id: peers_config.clone().unwrap().chain_id,
+            peers,
+            tx_sources: peers_config.clone().unwrap().tx_source_urls,
+        };
+
         let mut rng = rand::thread_rng();
         WalletService {
             wallet_db,
             ledger_db,
             watcher_db,
             peer_manager,
+            peers_config,
+            network_setup_config,
             network_state,
             fog_resolver_factory,
             _sync_thread: sync_thread,
