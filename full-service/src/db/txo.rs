@@ -1764,7 +1764,7 @@ mod tests {
 
         transaction_log = TransactionLog::log_submitted(
             &tx_proposal,
-            10,
+            ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&alice_account_key).to_string(),
             &conn,
