@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::{
-    config::NetworkSetupConfig,
+    config::NetworkConfig,
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::JsonRPCResponse,
@@ -166,7 +166,7 @@ pub fn create_test_setup(
         None
     };
 
-    let network_setup_config = NetworkSetupConfig {
+    let network_setup_config = NetworkConfig {
         offline: false,
         chain_id: "rust_tests".to_string(),
         peers: None,

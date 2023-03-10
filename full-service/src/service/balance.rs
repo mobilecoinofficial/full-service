@@ -4,7 +4,7 @@
 use std::{collections::BTreeMap, convert::TryFrom};
 
 use crate::{
-    config::NetworkSetupConfig,
+    config::NetworkConfig,
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
@@ -125,7 +125,7 @@ pub struct NetworkStatus {
     pub local_num_txos: u64,
     pub fees: FeeMap,
     pub block_version: u32,
-    pub network_info: NetworkSetupConfig,
+    pub network_info: NetworkConfig,
 }
 
 /// The Wallet Status object returned by balance services.

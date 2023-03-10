@@ -2,7 +2,7 @@
 
 //! API definition for the Network Status object.
 
-use crate::{config::NetworkSetupConfig, service};
+use crate::{config::NetworkConfig, service};
 
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom};
@@ -26,7 +26,7 @@ pub struct NetworkStatus {
     pub block_version: String,
 
     /// How we're connecting to the network
-    pub network_info: NetworkSetupConfig,
+    pub network_info: NetworkConfig,
 }
 
 impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {

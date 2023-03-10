@@ -13,7 +13,7 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
-    config::{APIConfig, NetworkSetupConfig},
+    config::{APIConfig, NetworkConfig},
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
@@ -212,7 +212,7 @@ fn consensus_backed_full_service(
         ),
     };
 
-    let network_setup_config = NetworkSetupConfig {
+    let network_setup_config = NetworkConfig {
         offline: config.offline.clone(),
         chain_id,
         peers,
@@ -308,7 +308,7 @@ fn validator_backed_full_service(
         ),
     };
 
-    let network_setup_config = NetworkSetupConfig {
+    let network_setup_config = NetworkConfig {
         offline: config.offline.clone(),
         chain_id,
         peers,

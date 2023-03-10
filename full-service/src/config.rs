@@ -190,7 +190,7 @@ pub struct PeersConfig {
 /// The Network Setup object.
 /// This holds a copy of the network parameters used to start full-service
 #[derive(Default, Clone, Debug, Deserialize, Serialize)]
-pub struct NetworkSetupConfig {
+pub struct NetworkConfig {
     pub offline: bool,
     pub chain_id: String,
     pub peers: Option<Vec<String>>,
