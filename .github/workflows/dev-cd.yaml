@@ -14,7 +14,7 @@ on:
   pull_request:
     branches:
       - main
-      - feature/*
+      - release/*
 
 concurrency:
   group: full-service-dev-cd-${{ github.head_ref || github.ref }}
