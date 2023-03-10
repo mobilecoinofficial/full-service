@@ -330,6 +330,26 @@ class ClientAsync:
         })
         return r
 
+    async def create_payment_request(self, account_id, amount, memo=None):
+        r = await self._req({
+            "method": "create_payment_request",
+            "params": {
+                "account_id": account_id,
+                "amount": {
+                    "value": str(amount.value),
+                    "token_id": str(amount.token.token_id)
+                },
+                "memo": memo,
+            }
+        })
+        return r['payment_request_b58']
+
+    async def check_b58_type(self, b58_code):
+        return await self._req({
+            "method": "check_b58_type",
+            "params": {"b58_code": b58_code},
+        })
+
     # Polling utility functions.
 
     @staticmethod

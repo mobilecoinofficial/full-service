@@ -714,4 +714,161 @@ mod e2e_transaction {
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
     }
+
+    #[test_with_logger]
+    fn test_reuse_input_txo_then_submit_transaction(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+        let moving_funds = 100000000000;
+        let starting_funds = 10 * moving_funds;
+
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            starting_funds,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // get the txo we're going to use for the two transaction proposals
+        let body = json!({
+          "method": "get_txos",
+          "params": {
+            "account_id": account_id,
+          },
+          "jsonrpc": "2.0",
+          "id": 1
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo_id = (result.get("txo_ids").unwrap())[0].as_str().unwrap();
+
+        // Create a tx proposal to ourselves
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "amount": { "value": moving_funds.to_string(), "token_id": "0"},
+                "input_txo_ids" : [txo_id.to_string()],
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let tx_proposal_a: TxProposalJSON =
+            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
+        let txlog_id_a = result.get("transaction_log_id").unwrap().as_str().unwrap();
+
+        // Create a 2nd tx proposal to ourselves
+        let moving_funds = moving_funds * 2;
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "amount": { "value": moving_funds.to_string(), "token_id": "0"},
+                "input_txo_ids" : [txo_id.to_string()],
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        // let tx_proposal_b: TxProposalJSON =
+        //    serde_json::from_value(result.get("tx_proposal").unwrap().clone()).
+        // unwrap();
+        let txlog_id_b = result.get("transaction_log_id").unwrap().as_str().unwrap();
+
+        assert_ne!(txlog_id_a, txlog_id_b);
+
+        // Submit the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal_a,
+                "account_id": account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let submitted_transaction_id = result
+            .get("transaction_log")
+            .unwrap()
+            .get("id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
+        assert_eq!(txlog_id_a, submitted_transaction_id);
+        let payments_tx_proposal_a = TxProposal::try_from(&tx_proposal_a).unwrap();
+
+        // The MockBlockchainConnection does not write to the ledger_db
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal_a.tx, &mut rng);
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Get the transaction_id and verify it contains what we expect
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_log",
+            "params": {
+                "transaction_log_id": submitted_transaction_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_log: TransactionLog =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+
+        assert_eq!(transaction_log.status, TxStatus::Succeeded.to_string());
+        assert_eq!(transaction_log.id, submitted_transaction_id);
+
+        // Get the transaction_id and verify it contains what we expect
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_transaction_log",
+            "params": {
+                "transaction_log_id": txlog_id_b,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_log: TransactionLog =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+        assert_eq!(transaction_log.id, txlog_id_b);
+        assert_eq!(transaction_log.status, TxStatus::Built.to_string());
+    }
 }

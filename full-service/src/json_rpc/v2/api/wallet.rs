@@ -421,6 +421,7 @@ where
                             .map_err(format_error)?;
                     b58_data.insert("public_address_b58".to_string(), public_address_b58);
                     b58_data.insert("value".to_string(), payment_request.value.to_string());
+                    b58_data.insert("token_id".to_string(), payment_request.token_id.to_string());
                     b58_data.insert("memo".to_string(), payment_request.memo);
                 }
             }
@@ -1115,6 +1116,13 @@ where
                 .remove_account(&AccountID(account_id))
                 .map_err(format_error)?,
         },
+        JsonCommandRequest::resync_account { account_id } => {
+            service
+                .resync_account(&AccountID(account_id.clone()))
+                .map_err(format_error)?;
+
+            JsonCommandResponse::resync_account
+        }
         JsonCommandRequest::sample_mixins {
             num_mixins,
             excluded_outputs,
