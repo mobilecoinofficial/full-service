@@ -71,6 +71,16 @@ jobs:
         with:
           cache_buster: ${{ secrets.CACHE_BUSTER }}
 
+      - name: Consensus SigStruct
+        run: |
+          CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O "https://enclave-distribution.test.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}")
+
+      - name: Ingest SigStruct
+        run: |
+          INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.test.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+          (cd /var/tmp && curl -O "https://enclave-distribution.test.mobilecoin.com/${INGEST_SIGSTRUCT_URI}")
+
       - name: Build all binaries
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
         run: |
