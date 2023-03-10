@@ -9,6 +9,11 @@ env:
   DOCKER_ORG: mobilecoin
   MOBILECOIN_ENCLAVE_VERSION: v3.0.0
   MOBILECOIN_NETWORK: test
+  SGX_MODE: HW
+  IAS_MODE: PROD
+  RUST_BACKTRACE: full
+  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
 on:
   pull_request:
@@ -46,7 +51,7 @@ jobs:
   build:
     runs-on: [self-hosted, Linux, large-cd]
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.23
+      image: mobilecoin/rust-sgx-base:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -68,12 +73,8 @@ jobs:
 
       - name: Build all binaries
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
-        env:
-          BUILD_OPTIONS: "--locked"
-          CSS_JSON_FILE: production-${{ env.MOBILECOIN_ENCLAVE_VERSION }}.json
-          WORK_DIR: ${{ github.workspace }}/target/release
         run: |
-          tools/build-fs.sh test
+          cargo build
 
       - name: Copy artifacts to cache
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
