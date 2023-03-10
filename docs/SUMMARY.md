@@ -143,3 +143,4 @@
   * [Example Usage](../mirror/EXAMPLE.md)
 
 ## Frequently Asked Questions
+* [What is the Precision of MOB?](FAQ.md#what-is-the-precision-of-mob)
