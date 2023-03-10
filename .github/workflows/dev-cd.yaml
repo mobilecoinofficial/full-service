@@ -84,7 +84,7 @@ jobs:
       - name: Build all binaries
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
         run: |
-          cargo build
+          cargo build --release
 
       - name: Copy artifacts to cache
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
