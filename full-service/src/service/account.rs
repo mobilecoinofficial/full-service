@@ -121,8 +121,7 @@ impl From<mc_util_serial::DecodeError> for AccountServiceError {
     }
 }
 
-/// [Debugger]()
-/// accounts.
+/// AccountService trait defining the ways in which the wallet can interact with and manage
 pub trait AccountService {
     /// Creates a new account with default values.
     ///
@@ -152,8 +151,8 @@ pub trait AccountService {
     ///| `mnemonic_phrase`        | The secret mnemonic to recover the account.                                                | A label can have duplicates, but it is not recommended.          |
     ///| `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. | The current version is 2.                                        |
     ///| `name`                   | A Optional label for this account.                                                         |                                                                  |
-    ///| `first_block_index`      | The next known unused subaddress index for the account.                                    | All subaddresses below this index will be created.               |
-    ///| `next_subaddress_index`  | The block from which to start scanning the ledger.                                         |                                                                  |
+    ///| `first_block_index`      | The block from which to start scanning the ledger.                                         | All subaddresses below this index will be created.               |
+    ///| `next_subaddress_index`  | The next known unused subaddress index for the account.                                    |                                                                  |
     ///| `fog_report_url`         | Fog Report server url.                                                                     | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`     | Fog Authority Subject Public Key Info.                                                     | Applicable only if user has Fog service, empty string otherwise. |
     ///
@@ -173,6 +172,16 @@ pub trait AccountService {
     /// Import an existing account to the wallet using the entropy.
     ///
     /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                 | Notes                                                            |
+    ///|-------------------------|---------------------------------------------------------|------------------------------------------------------------------|
+    ///| `entropy`               | The secret root entropy.                                | 32 bytes of randomness, hex-encoded.                             |
+    ///| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended.          |
+    ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.               |
+    ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
+    ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_report_id`         | Fog Report Key.                                         | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account_from_legacy_root_entropy(
