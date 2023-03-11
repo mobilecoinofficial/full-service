@@ -196,6 +196,17 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                 | Notes                                                   |
+    ///|-------------------------|---------------------------------------------------------|---------------------------------------------------------|
+    ///| `view_private_key`      | The view private key of this account                    |                                                         |
+    ///| `spend_public_key`      | The spend public key of this account                    |                                                         |
+    ///| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended. |
+    ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.      |
+    ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                         |
+    ///
     fn import_view_only_account(
         &self,
         view_private_key: String,
@@ -205,29 +216,82 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
     ) -> Result<Account, AccountServiceError>;
 
-    fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError>;
+    /// Re-create sync request for a view only account
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                                                    |
+    ///|--------------|----------------------------------------------|----------------------------------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
+    ///
+    fn resync_account(
+        &self, 
+        account_id: &AccountID
+    ) -> Result<(), AccountServiceError>;
 
+    /// Create an import request for a view only account
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///
     fn get_view_only_account_import_request(
         &self,
         account_id: &AccountID,
     ) -> Result<JsonRPCRequest, AccountServiceError>;
 
-    /// List accounts in the wallet.
+    /// List details of all accounts in a given wallet.
+    ///
+    /// # Arguments
+    ///
+    ///| Name     | Purpose                                                    | Notes                      |
+    ///|----------|------------------------------------------------------------|----------------------------|
+    ///| `offset` | The pagination offset. Results start at the offset index.  | Optional, defaults to 0.   |
+    ///| `limit`  | Limit for the number of results.                           | Optional, defaults to 100. |
+    ///
     fn list_accounts(
         &self,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, AccountServiceError>;
 
-    /// Get an account in the wallet.
-    fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError>;
+    /// Get the current status of a given account. The account status includes both the account object and the balance object.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///
+    fn get_account(
+        &self, 
+        account_id: &AccountID
+    ) -> Result<Account, AccountServiceError>;
 
+    /// Get the next subaddress index for an account
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///
     fn get_next_subaddress_index_for_account(
         &self,
         account_id: &AccountID,
     ) -> Result<u64, AccountServiceError>;
 
     /// Update the name for an account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///| `name`       | The new name for this account.               |                                   |
+    ///
     fn update_account_name(
         &self,
         account_id: &AccountID,
@@ -235,6 +299,15 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// complete a sync request for a view only account
+    ///
+    /// # Arguments
+    ///
+    ///| Name                     | Purpose                                                      | Notes                                                    |
+    ///|--------------------------|--------------------------------------------------------------|----------------------------------------------------------|
+    ///| `account_id`             | The account on which to perform this action.                 | Account must exist in the wallet as a view only account. |
+    ///| `txo_ids_and_key_images` | signed txos. A array of tuples (txoID, KeyImage)             |                                                          |
+    ///| `next_subaddress_index`  | The updated next subaddress index to assign for this account |                                                          |
+    ///
     fn sync_account(
         &self,
         account_id: &AccountID,
@@ -243,7 +316,18 @@ pub trait AccountService {
     ) -> Result<(), AccountServiceError>;
 
     /// Remove an account from the wallet.
-    fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError>;
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///| `name`       | The new name for this account.               |                                   |
+    ///
+    fn remove_account(
+        &self, 
+        account_id: &AccountID
+    ) -> Result<bool, AccountServiceError>;
 }
 
 impl<T, FPR> AccountService for WalletService<T, FPR>
