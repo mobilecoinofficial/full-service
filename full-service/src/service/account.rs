@@ -249,7 +249,7 @@ pub trait AccountService {
     ///| Name     | Purpose                                                    | Notes                      |
     ///|----------|------------------------------------------------------------|----------------------------|
     ///| `offset` | The pagination offset. Results start at the offset index.  | Optional, defaults to 0.   |
-    ///| `limit`  | Limit for the number of results.                           | Optional, defaults to 100. |
+    ///| `limit`  | Limit for the number of results.                           | Optional                   |
     ///
     fn list_accounts(
         &self,

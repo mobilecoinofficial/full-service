@@ -52,6 +52,14 @@ impl From<B58Error> for AddressServiceError {
 /// addresses.
 pub trait AddressService {
     /// Creates a new address with default values.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                                 |
+    ///|--------------|----------------------------------------------|---------------------------------------|
+    ///| `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
+    ///| `metadata`   | The metadata for this address.               | String; can contain stringified JSON. |
+    ///
     fn assign_address_for_account(
         &self,
         account_id: &AccountID,
@@ -60,8 +68,27 @@ pub trait AddressService {
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Get an assigned subaddress, if it exists.
-    fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError>;
+    ///
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                             | Notes |
+    ///|---------------|-----------------------------------------------------|-------|
+    ///| `address_b58` | The b58 subaddress on which to perform this action. |       |
+    ///
+    fn get_address(
+        &self, 
+        address_b58: &str
+    ) -> Result<AssignedSubaddress, AddressServiceError>;
 
+    /// Get an assigned address by index for an account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                                        |
+    ///|--------------|----------------------------------------------|----------------------------------------------|
+    ///| `account_id` | The account on which to perform this action. | The account must exist in the wallet.        |
+    ///| `index`      | The subaddress index to lookup               | The address must have already been assigned. |
+    ///
     fn get_address_for_account(
         &self,
         account_id: &AccountID,
@@ -69,6 +96,15 @@ pub trait AddressService {
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
     /// Gets all the addresses for an optionally given account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                                  | Notes                                 |
+    ///|--------------|----------------------------------------------------------|---------------------------------------|
+    ///| `account_id` | The account on which to perform this action.             | The account must exist in the wallet. |
+    ///| `offset`     | The pagination offset. Results start at the offset index | Optional, defaults to 0.              |
+    ///| `limit`      | Limit for the number of results                          | Optional                              |
+    ///
     fn get_addresses(
         &self,
         account_id: Option<String>,
@@ -77,7 +113,17 @@ pub trait AddressService {
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError>;
 
     /// Verifies whether an address can be decoded from b58.
-    fn verify_address(&self, public_address: &str) -> Result<PublicAddress, AddressServiceError>;
+    ///
+    /// # Arguments
+    ///
+    ///| Name             | Purpose                                      | Notes |
+    ///|------------------|----------------------------------------------|-------|
+    ///| `public_address` | The address on which to perform this action. |       |
+    /// 
+    fn verify_address(
+        &self, 
+        public_address: &str
+    ) -> Result<PublicAddress, AddressServiceError>;
 }
 
 impl<T, FPR> AddressService for WalletService<T, FPR>
