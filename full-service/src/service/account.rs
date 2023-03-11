@@ -121,10 +121,20 @@ impl From<mc_util_serial::DecodeError> for AccountServiceError {
     }
 }
 
-/// Trait defining the ways in which the wallet can interact with and manage
+/// [Debugger]()
 /// accounts.
 pub trait AccountService {
     /// Creates a new account with default values.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                 | Purpose                                | Notes                                                            |
+    ///|----------------------|----------------------------------------|------------------------------------------------------------------|
+    ///| `name`               | A label for this account.              | A label can have duplicates, but it is not recommended.          |
+    ///| `fog_report_url`     | Fog Report server url.                 | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_report_id`      | Fog Report Key.                        | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_authority_spki` | Fog Authority Subject Public Key Info. | Applicable only if user has Fog service, empty string otherwise. |
+    ///
     fn create_account(
         &self,
         name: Option<String>,
@@ -134,6 +144,19 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                     | Purpose                                                                                    | Notes                                                            |
+    ///|--------------------------|--------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+    ///| `mnemonic_phrase`        | The secret mnemonic to recover the account.                                                | A label can have duplicates, but it is not recommended.          |
+    ///| `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. | The current version is 2.                                        |
+    ///| `name`                   | A Optional label for this account.                                                         |                                                                  |
+    ///| `first_block_index`      | The next known unused subaddress index for the account.                                    | All subaddresses below this index will be created.               |
+    ///| `next_subaddress_index`  | The block from which to start scanning the ledger.                                         |                                                                  |
+    ///| `fog_report_url`         | Fog Report server url.                                                                     | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_authority_spki`     | Fog Authority Subject Public Key Info.                                                     | Applicable only if user has Fog service, empty string otherwise. |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn import_account(
         &self,
@@ -148,6 +171,9 @@ pub trait AccountService {
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
+    ///
+    /// # Arguments
+    ///
     #[allow(clippy::too_many_arguments)]
     fn import_account_from_legacy_root_entropy(
         &self,
