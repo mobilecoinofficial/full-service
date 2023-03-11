@@ -174,7 +174,7 @@ pub trait BalanceService {
     /// Get the current status of the network.
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
-    /// Get the current status of a wallet. Note that pmob calculations do not include view-only-accounts
+    /// Get the current status of a wallet. **Note that pmob calculations do not include view-only-accounts**
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError>;
 }
 
