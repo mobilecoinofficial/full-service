@@ -174,9 +174,15 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// receipts.
 pub trait ReceiptService {
-    /// Check the status of the Txos in the receipts.
+    /// Check the status of the Txos in the receipts and validates confirmation numbers once the Txos have landed.
     ///
-    /// Validates confirmation numbers once the Txos have landed.
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                    | Notes                            |
+    ///|--------------------|--------------------------------------------|----------------------------------|
+    ///| `address`          | The account's public address.              | Must be a valid account address. |
+    ///| `receiver_receipt` | The receipt whose status is being checked. |                                  |
+    ///
     fn check_receipt_status(
         &self,
         address: &str,
@@ -184,6 +190,13 @@ pub trait ReceiptService {
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
+    ///
+    /// # Arguments
+    /// 
+    ///| Name          | Purpose                         | Notes                           |
+    ///|---------------|---------------------------------|---------------------------------|
+    ///| `tx_proposal` | Transaction proposal to submit. | Created with build transaction. |
+    ///
     fn create_receiver_receipts(
         &self,
         tx_proposal: &TxProposal,

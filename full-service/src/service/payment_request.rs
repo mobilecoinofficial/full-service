@@ -78,7 +78,17 @@ impl From<LedgerServiceError> for PaymentRequestServiceError {
 }
 
 pub trait PaymentRequestService {
-    /// Creates a new payment request b58.
+    /// Create a payment request b58 code to give to someone else.
+    ///
+    /// # Arguments
+    ///
+    ///| Name               | Purpose                                                          | Notes                             |
+    ///|--------------------|------------------------------------------------------------------|-----------------------------------|
+    ///| `account_id`       | The account on which to perform this action.                     | Account must exist in the wallet. |
+    ///| `subaddress_index` | The subaddress index on the account to generate the request with |                                   |
+    ///| `amount`           | The Amount to send in this transaction                           | 64-bit signed integer             |
+    ///| `memo`             | Memo for the payment request                                     |                                   |
+    ///
     fn create_payment_request(
         &self,
         account_id: String,
