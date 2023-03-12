@@ -143,6 +143,7 @@ impl From<LedgerServiceError> for TxoServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// Txos.
+#[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.

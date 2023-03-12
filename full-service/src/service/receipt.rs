@@ -171,8 +171,8 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
     }
 }
 
-/// Trait defining the ways in which the wallet can interact with and manage
-/// receipts.
+#[rustfmt::skip]
+/// Trait defining the ways in which the wallet can interact with and manage receipts.
 pub trait ReceiptService {
     /// Check the status of the Txos in the receipts and validates confirmation numbers once the Txos have landed.
     ///

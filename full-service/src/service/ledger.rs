@@ -138,6 +138,7 @@ impl From<WatcherServiceError> for LedgerServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
+#[rustfmt::skip]
 pub trait LedgerService {
     /// Get the total number of blocks on the ledger.
     fn get_network_block_height(&self) -> Result<u64, LedgerServiceError>;

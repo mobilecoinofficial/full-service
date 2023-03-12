@@ -21,6 +21,7 @@ impl From<WatcherDBError> for WatcherServiceError {
 }
 
 /// Trait defining the ways in which the service can interact with the watcher.
+#[rustfmt::skip]
 pub trait WatcherService {
 
     /// Get watcher block by block index

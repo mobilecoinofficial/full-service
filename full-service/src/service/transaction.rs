@@ -282,6 +282,7 @@ impl TransactionMemo {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
+#[rustfmt::skip]
 pub trait TransactionService {
 
     /// Build a transaction to confirm its contents before submitting it to the network.

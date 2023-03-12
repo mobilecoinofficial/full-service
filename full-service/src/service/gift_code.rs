@@ -346,6 +346,7 @@ pub enum GiftCodeStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// gift codes.
+#[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait GiftCodeService {
     /// Builds a new gift code.

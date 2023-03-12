@@ -77,6 +77,7 @@ impl From<LedgerServiceError> for PaymentRequestServiceError {
     }
 }
 
+#[rustfmt::skip]
 pub trait PaymentRequestService {
     /// Create a payment request b58 code to give to someone else.
     ///

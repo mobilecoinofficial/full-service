@@ -122,6 +122,7 @@ impl From<mc_util_serial::DecodeError> for AccountServiceError {
 }
 
 /// AccountService trait defining the ways in which the wallet can interact with and manage
+#[rustfmt::skip]
 pub trait AccountService {
     /// Creates a new account with default values.
     ///

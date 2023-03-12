@@ -50,6 +50,7 @@ impl From<B58Error> for AddressServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// addresses.
+#[rustfmt::skip]
 pub trait AddressService {
     /// Creates a new address with default values.
     ///

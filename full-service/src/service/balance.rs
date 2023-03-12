@@ -144,6 +144,7 @@ pub struct WalletStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// balances.
+#[rustfmt::skip]
 pub trait BalanceService {
     /// Gets the balance for a given account. Balance consists of the sums of the various txo states in our wallet
     ///
