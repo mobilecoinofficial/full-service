@@ -10,7 +10,7 @@ description: Get TXOs for a given account with offset and limit parameters
 | :--- | :--- | :--- |
 | `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
 | `address` | The address b58 on which to perform this action. | Address must exist in the wallet. |
-| `status` | Txo status filer. Available status': "unverified", "unspent", "spent", "orphaned", "pending", "secreted", | |
+| `status` | Txo status filer. Available status: "unverified", "unspent", "spent", "orphaned", "pending", "secreted", | |
 | `min_received_block_index` | The minimum block index to query for received txos, inclusive | |
 | `max_received_block_index` | The maximum block index to query for received txos, inclusive | |
 | `offset` | The pagination offset. Results start at the offset index. | |

@@ -283,6 +283,23 @@ impl TransactionMemo {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 pub trait TransactionService {
+
+    /// Build a transaction to confirm its contents before submitting it to the network.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                           | Notes                                                                                             |
+    ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
+    ///| `addresses_and_amounts` | An array of public addresses and Amounts as a tuple               | addresses are b58-encoded public addresses                                                        |
+    ///| `input_txo_ids`         | Specific TXOs to use as inputs to this transaction                | TXO IDs (obtain from get_txos_for_account)                                                        |
+    ///| `fee_value`             | The fee value to submit with this transaction                     | If not provided, uses MINIMUM_FEE of the first outputs token_id, if available, or defaults to MOB |
+    ///| `fee_token_id`          | The fee token_id to submit with this transaction                  | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
+    ///| `tombstone_block`       | The block after which this transaction expires                    | If not provided, uses current height + 10                                                         |
+    ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
+    ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
+    ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
         &self,
@@ -297,6 +314,22 @@ pub trait TransactionService {
         block_version: Option<BlockVersion>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError>;
 
+    /// Build a transaction and sign it before submitting it to the network.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                           | Notes                                                                                             |
+    ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
+    ///| `addresses_and_amounts` | An array of public addresses and Amounts as a tuple               | addresses are b58-encoded public addresses                                                        |
+    ///| `input_txo_ids`         | Specific TXOs to use as inputs to this transaction                | TXO IDs (obtain from get_txos_for_account)                                                        |
+    ///| `fee_value`             | The fee value to submit with this transaction                     | If not provided, uses MINIMUM_FEE of the first outputs token_id, if available, or defaults to MOB |
+    ///| `fee_token_id`          | The fee token_id to submit with this transaction                  | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
+    ///| `tombstone_block`       | The block after which this transaction expires                    | If not provided, uses current height + 10                                                         |
+    ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
+    ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
+    ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn build_and_sign_transaction(
         &self,
@@ -312,6 +345,15 @@ pub trait TransactionService {
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
+    ///
+    /// # Arguments
+    ///
+    ///| Name             | Purpose                                                     | Notes                                                                                                                                                                                                     |
+    ///|------------------|-------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    ///| `tx_proposal`    | Transaction proposal to submit                              | Created with build_transaction                                                                                                                                                                            |
+    ///| `comment`        | Comment to annotate this transaction in the transaction log |                                                                                                                                                                                                           |
+    ///| `account_id_hex` | Account ID for which to log the transaction.                | If omitted, the transaction is not logged and therefor the txos used will not be set to pending, if they exist. This could inadvertently cause an attempt to spend the same txo in multiple transactions. |
+    ///
     fn submit_transaction(
         &self,
         tx_proposal: &TxProposal,
@@ -319,6 +361,22 @@ pub trait TransactionService {
         account_id_hex: Option<String>,
     ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
 
+    /// Build and sign a transaction and submit it to the network.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                           | Notes                                                                                             |
+    ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
+    ///| `addresses_and_amounts` | An array of public addresses and Amounts as a tuple               | addresses are b58-encoded public addresses                                                        |
+    ///| `input_txo_ids`         | Specific TXOs to use as inputs to this transaction                | TXO IDs (obtain from get_txos_for_account)                                                        |
+    ///| `fee_value`             | The fee value to submit with this transaction                     | If not provided, uses MINIMUM_FEE of the first outputs token_id, if available, or defaults to MOB |
+    ///| `fee_token_id`          | The fee token_id to submit with this transaction                  | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
+    ///| `tombstone_block`       | The block after which this transaction expires                    | If not provided, uses current height + 10                                                         |
+    ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
+    ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
+    ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn build_sign_and_submit_transaction(
         &self,

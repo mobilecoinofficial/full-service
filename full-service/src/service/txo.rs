@@ -146,6 +146,20 @@ impl From<LedgerServiceError> for TxoServiceError {
 #[allow(clippy::result_large_err)]
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                       | Purpose                                                                                                  | Notes                             |
+    ///|----------------------------|----------------------------------------------------------------------------------------------------------|-----------------------------------|
+    ///| `account_id`               | The account on which to perform this action.                                                             | Account must exist in the wallet. |
+    ///| `address`                  | The address b58 on which to perform this action.                                                         | Address must exist in the wallet. |
+    ///| `status`                   | Txo status filer. Available status: `unverified`, `unspent`, `spent`, `orphaned`, `pending`, `secreted` |                                   |
+    ///| `token_id`                 | The tokenId of this a txo                                                                                |                                   |
+    ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive                                            |                                   |
+    ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive                                            |                                   |
+    ///| `offset`                   | The pagination offset. Results start at the offset index.                                                | Optional, defaults to 0           |
+    ///| `limit`                    | Limit for the number of results.                                                                         | Optional                          |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn list_txos(
         &self,
@@ -160,9 +174,31 @@ pub trait TxoService {
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
-    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError>;
+    ///
+    /// # Arguments
+    ///
+    ///| Name     | Purpose                              | Notes |
+    ///|----------|--------------------------------------|-------|
+    ///| `txo_id` | The TXO ID for which to get details. |       |
+    ///
+    fn get_txo(
+        &self, 
+        txo_id: &TxoID
+    ) -> Result<(Txo, TxoStatus), TxoServiceError>;
 
-    /// Split a Txo
+    /// Build a transaction that will split a txo into multiple output txos to the origin account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name               | Purpose                                              | Notes                                                                                             |
+    ///|--------------------|------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `txo_id`           | The TXO on which to perform this action              | TXO must exist in the wallet                                                                      |
+    ///| `output_values`    | The output values of the generated TXOs              |                                                                                                   |
+    ///| `subaddress_index` | The subaddress index of the destination subaddress.  |                                                                                                   |
+    ///| `fee_value`        | The fee value to submit with this transaction        | If not provided, uses MINIMUM_FEE of the first outputs token_id, if available, or defaults to MOB |
+    ///| `fee_token_id`     | The fee token_id to submit with this transaction     | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
+    ///| `tombstone_block`  | The block after which this transaction expires       | If not provided, uses current height + 10                                                         |
+    ///
     fn split_txo(
         &self,
         txo_id: &TxoID,
