@@ -385,7 +385,7 @@ pub trait GiftCodeService {
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError>;
 
-    /// Submit a tx_proposal to the ledger that adds the gift code to the wallet_db once the tx_proposal has been appended to the ledger.
+    /// Submit a `tx_proposal` to the ledger that adds the gift code to the wallet_db once the `tx_proposal` has been appended to the ledger.
     ///
     /// # Arguments
     ///
@@ -445,9 +445,9 @@ pub trait GiftCodeService {
     ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError>;
 
     /// Execute a transaction from the gift code account to drain the account to
-    /// the destination specified by the account_id_hex and
-    /// public_address_b58. If no public_address_b58 is provided,
-    /// then a new AssignedSubaddress will be created to receive the funds.
+    /// the destination specified by the `account_id_hex` and
+    /// `public_address_b58`. If no `public_address_b58` is provided,
+    /// then a new `AssignedSubaddress` will be created to receive the funds.
     ///
     /// # Arguments
     ///
