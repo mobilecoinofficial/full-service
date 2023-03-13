@@ -529,7 +529,7 @@ where
 
             let mut unsynced_txos = vec![];
             for (txo, _) in unverified_txos {
-                let tx_out = service.get_txo_object(&txo.id).map_err(format_error)?;
+                service.get_txo_object(&txo.id).map_err(format_error)?;
                 let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
                     .try_into()
                     .map_err(format_error)?;

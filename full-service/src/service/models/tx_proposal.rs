@@ -65,7 +65,7 @@ impl UnsignedTxProposal {
     pub async fn sign(
         self,
         account: &Account,
-        fee_map: Option<&FeeMap>,
+        _fee_map: Option<&FeeMap>,
     ) -> Result<TxProposal, TransactionServiceError> {
         match account.view_only {
             true => {
