@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["WalletServiceMirrorScheme","Wallet Service Mirror Uri Scheme"]],"type":[["WalletServiceMirrorUri",""]]};

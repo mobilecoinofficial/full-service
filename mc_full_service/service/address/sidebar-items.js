@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["AddressServiceError","Errors for the Address Service."]],"trait":[["AddressService","Trait defining the ways in which the wallet can interact with and manage addresses."]]};

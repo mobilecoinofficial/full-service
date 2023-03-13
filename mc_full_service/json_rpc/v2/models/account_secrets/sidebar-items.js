@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["AccountSecrets","The AccountSecrets contains the entropy and the account key derived from that entropy."]]};

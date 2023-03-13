@@ -1,0 +1,1 @@
+window.ALL_CRATES = ["full_service","generate_rsa_keypair","mc_full_service","mc_full_service_mirror","mc_validator_api","mc_validator_connection","mc_validator_service","transaction_signer","validator_service","wallet_service_mirror_private","wallet_service_mirror_public"];

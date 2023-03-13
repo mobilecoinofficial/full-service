@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["BlockSignatureData","Information about a single block signature"],["WatcherBlockInfo","Information about a block provided by the Watcher."]]};

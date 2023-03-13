@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["AccountServiceError",""]],"trait":[["AccountService","Trait defining the ways in which the wallet can interact with and manage accounts."]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["request","The JSON RPC 2.0 Requests to the Wallet API for Full Service."],["response","JSON-RPC Responses from the Wallet API."],["wallet",""]]};

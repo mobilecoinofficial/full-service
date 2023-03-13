@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["ReceiptServiceError","Errors for the Address Service."],["ReceiptTransactionStatus",""]],"struct":[["ReceiverReceipt",""]],"trait":[["ReceiptService","Trait defining the ways in which the wallet can interact with and manage receipts."]]};

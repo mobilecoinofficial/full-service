@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Confirmation","A confirmation number for a Txo in the wallet."]]};

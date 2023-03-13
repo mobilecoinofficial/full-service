@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["ConfirmationServiceError","Errors for the Txo Service."]],"struct":[["Confirmation",""]],"trait":[["ConfirmationService","Trait defining the ways in which the wallet can interact with and manage tonfirmation numbers."]]};

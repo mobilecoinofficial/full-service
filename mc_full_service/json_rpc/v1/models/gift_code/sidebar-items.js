@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["GiftCode","An gift code created by this wallet to share."]]};

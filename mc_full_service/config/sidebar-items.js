@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["APIConfig","Command line config for the Wallet API"],["LedgerDbConfig",""],["PeersConfig",""]]};

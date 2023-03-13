@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["MaskedAmountVersion",""]],"struct":[["MaskedAmount","The encrypted amount of pMOB in a Txo."]]};

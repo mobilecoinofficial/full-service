@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":[["MAX_BLOCKS_PER_REQUEST","Maximal amount of blocks we can return in a single request"],["RECENT_BLOCKS_DEFAULT_LIMIT","Default amount of recent blocks to return"]],"fn":[["generic_wallet_api",""],["wallet_api_inner","The Wallet API inner method, which handles switching on the method enum."]]};

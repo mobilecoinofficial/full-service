@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TxoStatus",""],["TxoType",""]],"struct":[["Txo","An Txo in the wallet."]]};

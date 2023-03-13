@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["LedgerKeyImageSearchResult",""],["LedgerSearchResult","Information about a single search result"],["LedgerTxOutSearchResult",""]]};

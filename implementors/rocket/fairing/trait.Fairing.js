@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"mc_full_service":[["impl <a class=\"trait\" href=\"https://api.rocket.rs/v0.5-rc/rocket/fairing/trait.Fairing.html\" title=\"trait rocket::fairing::Fairing\">Fairing</a> for <a class=\"struct\" href=\"mc_full_service/json_rpc/wallet/struct.CORS.html\" title=\"struct mc_full_service::json_rpc::wallet::CORS\">CORS</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

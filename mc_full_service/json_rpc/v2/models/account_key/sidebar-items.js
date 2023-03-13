@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["AccountKey","The AccountKey contains a View keypair and a Spend keypair, used to construct and receive transactions."],["FogInfo","The Fog Info contains the information needed to construct a Fog Report."],["ViewAccountKey","The ViewAccountKey contains a View private key and a Spend public key"]]};

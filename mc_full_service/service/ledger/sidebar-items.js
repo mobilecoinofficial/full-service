@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["LedgerServiceError","Errors for the Address Service."]],"fn":[["get_tx_out_by_public_key",""]],"trait":[["LedgerService","Trait defining the ways in which the wallet can interact with and manage ledger objects and interfaces."]]};

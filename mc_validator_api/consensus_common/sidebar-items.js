@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["ProposeTxResult",""]],"fn":[["file_descriptor_proto",""]],"struct":[["BlocksRequest",""],["BlocksResponse",""],["LastBlockInfoResponse","Generated files are compatible only with the same version of protobuf runtime."],["ProposeTxResponse",""]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TxoServiceError","Errors for the Txo Service."]],"trait":[["TxoService","Trait defining the ways in which the wallet can interact with and manage Txos."]]};

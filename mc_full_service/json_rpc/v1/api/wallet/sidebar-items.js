@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":[["generic_wallet_api",""],["wallet_api_inner","The Wallet API inner method, which handles switching on the method enum."]]};

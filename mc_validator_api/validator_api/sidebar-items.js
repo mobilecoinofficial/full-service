@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["FetchFogReportResult",""]],"fn":[["file_descriptor_proto",""]],"struct":[["FetchFogReportRequest","Generated files are compatible only with the same version of protobuf runtime."],["FetchFogReportResponse",""]]};

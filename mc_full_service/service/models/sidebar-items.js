@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":[["ledger","API definition for LedgerService-related objects."],["tx_proposal",""],["watcher","API definition for watcher-related objects."]]};

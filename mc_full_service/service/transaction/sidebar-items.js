@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TransactionMemo","This represents the different types of Transaction Memos that can be used in a given transaction"],["TransactionServiceError","Errors for the Transaction Service."]],"trait":[["TransactionService","Trait defining the ways in which the wallet can interact with and manage transactions."]]};

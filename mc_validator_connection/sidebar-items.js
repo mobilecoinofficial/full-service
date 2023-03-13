@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["Error",""]],"fn":[["common_headers_call_option","Helper which creates a grpcio CallOption with “common” headers attached TODO copied from `mobilecoin/util/grpc/src/lib.rs`, should be removed once upreved."]],"struct":[["ValidatorConnection",""]]};

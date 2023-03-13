@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["CheckHostError","The Errors that may occur when checking if host is allowed"]],"fn":[["check_host_is_allowed_country_and_region","Ensure local IP address is valid."]]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TxDirection",""],["TxStatus",""]],"struct":[["TransactionLog","A log of a transaction that occurred on the MobileCoin network, constructed and/or submitted from an account in this wallet."],["TxoAbbrev",""]]};

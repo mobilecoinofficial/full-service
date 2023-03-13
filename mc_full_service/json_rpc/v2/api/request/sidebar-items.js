@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["JsonCommandRequest","Requests to the Full Service Wallet Service."]],"fn":[["help_str",""]],"struct":[["JsonCommandRequestIter","An iterator over the variants of [Self]"]]};

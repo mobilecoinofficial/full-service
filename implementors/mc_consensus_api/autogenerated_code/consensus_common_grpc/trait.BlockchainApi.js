@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"mc_validator_service":[["impl&lt;BC:&nbsp;BlockchainConnection + 'static&gt; BlockchainApi for <a class=\"struct\" href=\"mc_validator_service/struct.BlockchainApi.html\" title=\"struct mc_validator_service::BlockchainApi\">BlockchainApi</a>&lt;BC&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

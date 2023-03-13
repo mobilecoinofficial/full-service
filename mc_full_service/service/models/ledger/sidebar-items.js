@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["LedgerSearchResult","A single search result from the ledger."]]};

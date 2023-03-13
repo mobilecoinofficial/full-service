@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["ReceiverReceipt","An receipt provided from the sender of a transaction for the receiver to use in order to check the status of a transaction."]]};

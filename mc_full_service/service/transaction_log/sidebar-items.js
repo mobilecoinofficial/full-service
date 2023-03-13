@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TransactionLogServiceError","Errors for the Transaction Log Service."]],"trait":[["TransactionLogService","Trait defining the ways in which the wallet can interact with and manage transaction logs."]]};

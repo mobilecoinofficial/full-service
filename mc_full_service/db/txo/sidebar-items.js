@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":[["TxoStatus",""]],"struct":[["SpendableTxosResult",""],["TxoID","A unique ID derived from a TxOut in the ledger."]],"trait":[["TxoModel",""]]};

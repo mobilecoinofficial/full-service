@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Amount","The value and token_id of a txo."]]};

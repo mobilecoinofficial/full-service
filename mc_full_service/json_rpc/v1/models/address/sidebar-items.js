@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Address","An address for an account in the wallet."]]};
