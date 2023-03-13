@@ -24,6 +24,7 @@ rpath = false
 lto = false
 debug-assertions = false
 overflow-checks = false
+strip = "symbols"
 
 [patch.crates-io]
 # Fork and rename to use "OG" dalek-cryptography with latest dependencies.

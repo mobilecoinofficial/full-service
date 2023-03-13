@@ -168,6 +168,8 @@ fi
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
 
+echo "${CARGO_TARGET_DIR}"
+
 # start validator and unset envs for full-service
 if [[ -n "${validator}" ]]
 then

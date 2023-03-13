@@ -67,6 +67,8 @@ jobs:
           CSS_JSON_FILE: production-${{ env.MOBILECOIN_ENCLAVE_VERSION }}.json
           WORK_DIR: ${{ github.workspace }}/target/release
         run: |
+          # Set git permissions
+          git config --global --add safe.directory '*'
           tools/build-fs.sh test
 
       - name: Copy artifacts to cache

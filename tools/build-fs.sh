@@ -114,9 +114,9 @@ echo "building full service..."
 cargo build --release ${BUILD_OPTIONS}
 
 
-target_dir=${CARGO_TARGET_DIR:-"target"}
-echo "  binaries are available in ${target_dir}/release"
+# target_dir=${CARGO_TARGET_DIR:-"target"}
+# echo "  binaries are available in ${target_dir}/release"
 
-echo "  copy css files to ${target_dir}/release for later packaging (docker, tar)"
-cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
-cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
+# echo "  copy css files to ${target_dir}/release for later packaging (docker, tar)"
+# cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
+# cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
