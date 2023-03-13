@@ -14,13 +14,7 @@ on:
   pull_request:
     branches:
       - main
-  push:
-    branches:
-      - feature/*
-    paths-ignore:
-      - "**.md"
-      - ".gitbook/**"
-      - "docs/**"
+      - release/*
 
 concurrency:
   group: full-service-dev-cd-${{ github.head_ref || github.ref }}
