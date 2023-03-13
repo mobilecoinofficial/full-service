@@ -341,7 +341,7 @@ class ClientAsync:
         async def func():
             status = await self.get_account_status(account_id)
             account_block = int(status['account']['next_block_index']) 
-            network_block = int(status['local_block_height'])
+            network_block = int(status['network_block_height'])
             synced = (account_block >= network_block)
             if synced:
                 if (
