@@ -144,22 +144,38 @@ pub struct WalletStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// balances.
+#[rustfmt::skip]
 pub trait BalanceService {
-    /// Gets the balance for a given account.
+    /// Gets the balance for a given account. Balance consists of the sums of the various txo states in our wallet
     ///
-    /// Balance consists of the sums of the various txo states in our wallet
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///
     fn get_balance_for_account(
         &self,
         account_id: &AccountID,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
 
+    /// Get the current balance for a given address.
+    ///
+    /// # Arguments
+    ///
+    ///| Name      | Purpose                                      | Notes                                                  |
+    ///|-----------|----------------------------------------------|--------------------------------------------------------|
+    ///| `address` | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
+    ///
     fn get_balance_for_address(
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
 
+    /// Get the current status of the network.
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
+    /// Get the current status of a wallet. **Note that pmob calculations do not include view-only-accounts**
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError>;
 }
 

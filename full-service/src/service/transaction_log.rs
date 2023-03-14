@@ -40,9 +40,21 @@ impl From<diesel::result::Error> for TransactionLogServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transaction logs.
+#[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name              | Purpose                                                   | Notes                              |
+    ///|-------------------|-----------------------------------------------------------|------------------------------------|
+    ///| `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |
+    ///| `offset`          | The pagination offset. Results start at the offset index. | Optional, defaults to 0            |
+    ///| `limit`           | Limit for the number of results.                          | Optional                           |
+    ///| `min_block_index` | The minimum block index to find transaction logs from     |                                    |
+    ///| `max_block_index` | The maximum block index to find transaction logs from     |                                    |
+    ///
     fn list_transaction_logs(
         &self,
         account_id: Option<String>,
@@ -53,6 +65,13 @@ pub trait TransactionLogService {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError>;
 
     /// Get a specific transaction log.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                 | Purpose                        | Notes                                     |
+    ///|----------------------|--------------------------------|-------------------------------------------|
+    ///| `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+    ///
     fn get_transaction_log(
         &self,
         transaction_id_hex: &str,

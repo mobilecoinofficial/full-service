@@ -21,7 +21,17 @@ impl From<WatcherDBError> for WatcherServiceError {
 }
 
 /// Trait defining the ways in which the service can interact with the watcher.
+#[rustfmt::skip]
 pub trait WatcherService {
+
+    /// Get watcher block by block index
+    ///
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                    | Notes                           |
+    ///|---------------|--------------------------------------------|---------------------------------|
+    ///| `block_index` | The block on which to perform this action. | Block must exist in the ledger. |
+    ///
     fn get_watcher_block_info(
         &self,
         block_index: u64,
