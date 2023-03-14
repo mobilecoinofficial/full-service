@@ -138,60 +138,166 @@ impl From<WatcherServiceError> for LedgerServiceError {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// ledger objects and interfaces.
+#[rustfmt::skip]
 pub trait LedgerService {
     /// Get the total number of blocks on the ledger.
     fn get_network_block_height(&self) -> Result<u64, LedgerServiceError>;
 
-    fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError>;
+    /// Get the JSON representation of the TXO object in the transaction log
+    ///
+    /// # Arguments
+    ///
+    ///| Name                 | Purpose                        | Notes                                     |
+    ///|----------------------|--------------------------------|-------------------------------------------|
+    ///| `transaction_id_hex` | The transaction log ID to get. | Transaction log must exist in the wallet. |
+    ///
+    fn get_transaction_object(
+        &self, 
+        transaction_id_hex: &str
+    ) -> Result<Tx, LedgerServiceError>;
+    
+    /// Get details of a given TXO.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                              | Notes |
+    ///|--------------|--------------------------------------|-------|
+    ///| `txo_id_hex` | The TXO ID for which to get details. |       |
+    ///
+    fn get_txo_object(
+        &self, 
+        txo_id_hex: &str
+    ) -> Result<TxOut, LedgerServiceError>;
 
-    fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError>;
-
+    /// Get block contents for a given block.
+    ///
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                    | Notes                           |
+    ///|---------------|--------------------------------------------|---------------------------------|
+    ///| `block_index` | The block on which to perform this action. | Block must exist in the wallet. |
+    ///
     fn get_block_object(
         &self,
         block_index: u64,
     ) -> Result<(Block, BlockContents), LedgerServiceError>;
 
+    /// Get block contents for a list of blocks starting from a given block.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                | Purpose                                            | Notes |
+    ///|---------------------|----------------------------------------------------|-------|
+    ///| `first_block_index` | The block from which to start scanning the ledger. |       |
+    ///| `limit`             | Limit for the number of results.                   |       |
+    ///
     fn get_block_objects(
         &self,
         first_block_index: u64,
         limit: usize,
     ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
 
+    /// Get block contents for a list of blocks starting from the most recent block.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                | Purpose                          | Notes |
+    ///|---------------------|----------------------------------|-------|
+    ///| `limit`             | Limit for the number of results. |       |
+    ///
     fn get_recent_block_objects(
         &self,
         limit: usize,
     ) -> Result<Vec<(Block, BlockContents)>, LedgerServiceError>;
 
-    fn contains_key_image(&self, key_image: &KeyImage) -> Result<bool, LedgerServiceError>;
-
+    /// Returns true if the Ledger contains the given key image.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                | Purpose | Notes |
+    ///|---------------------|---------|-------|
+    ///| `key_image`         |         |       |
+    ///
+    fn contains_key_image(
+        &self, 
+        key_image: &KeyImage
+    ) -> Result<bool, LedgerServiceError>;
+    
+    /// Get the last block information cross all nodes
     fn get_latest_block_info(&self) -> Result<BlockInfo, LedgerServiceError>;
 
+    /// Get an object for fees in each of the configured token types
     fn get_network_fees(&self) -> Result<FeeMap, LedgerServiceError>;
 
+    /// Get block version info from the latest block
     fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError>;
 
+    /// Get a proof of memberships for TxOuts with indexes `indices`.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                | Purpose                             | Notes |
+    ///|---------------------|-------------------------------------|-------|
+    ///| `indices`           | The index of the TXO in the ledger. |       |
+    ///
     fn get_tx_out_proof_of_memberships(
         &self,
         indices: &[u64],
     ) -> Result<Vec<TxOutMembershipProof>, LedgerServiceError>;
 
+    /// Get a list of indices of TXO in the ledger from TxOut publc keys.
+    ///
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                   | Notes |
+    ///|---------------|-------------------------------------------|-------|
+    ///| `public_keys` | The public keys of the TXO in the ledger. |       |
+    ///
     fn get_indices_from_txo_public_keys(
         &self,
         public_keys: &[CompressedRistrettoPublic],
     ) -> Result<Vec<u64>, LedgerServiceError>;
 
+    /// Get a list of indices of TXO in the ledger from TxOut publc keys.
+    ///
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                   | Notes |
+    ///|---------------|-------------------------------------------|-------|
+    ///| `public_keys` | The public keys of the TXO in the ledger. |       |
+    ///
+    fn get_block_index_from_txo_public_key(
+        &self,
+        public_key: &CompressedRistrettoPublic,
+    ) -> Result<u64, LedgerServiceError>;
+
+    /// Sample a desired number of mixins from the ledger, excluding a list of tx outs
+    ///
+    /// # Arguments
+    ///
+    ///| Name               | Purpose                                  | Notes                                                                               |
+    ///|--------------------|------------------------------------------|-------------------------------------------------------------------------------------|
+    ///| `num_mixins`       | The number of mixins to sample           | Must be less than the number of txos in the ledger minus number of excluded outputs |
+    ///| `excluded_indices` | Indices of Txos to exclude from sampling | Txo must exist in the ledger                                                        |
+    ///
     fn sample_mixins(
         &self,
         num_mixins: usize,
         excluded_indices: &[u64],
     ) -> Result<(Vec<TxOut>, Vec<TxOutMembershipProof>), LedgerServiceError>;
 
-    fn get_block_index_from_txo_public_key(
-        &self,
-        public_key: &CompressedRistrettoPublic,
-    ) -> Result<u64, LedgerServiceError>;
-
-    fn search_ledger(&self, query: &str) -> Result<Vec<LedgerSearchResult>, LedgerServiceError>;
+    /// Search the ledger for blocks based on a query string (that can be either a block index, a tx out public key, or a key image)
+    ///
+    /// # Arguments
+    ///
+    ///| Name    | Purpose                     | Notes                                                                                                            |
+    ///|---------|-----------------------------|------------------------------------------------------------------------------------------------------------------|
+    ///| `query` | Query string to search for. | Currently the supported queries are a block index, or hex representations of a tx out public key or a key image. |
+    ///
+    fn search_ledger(
+        &self, 
+        query: &str
+    ) -> Result<Vec<LedgerSearchResult>, LedgerServiceError>;
 }
 
 impl<T, FPR> LedgerService for WalletService<T, FPR>

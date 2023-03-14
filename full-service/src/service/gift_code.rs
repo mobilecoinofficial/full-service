@@ -346,32 +346,56 @@ pub enum GiftCodeStatus {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// gift codes.
+#[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait GiftCodeService {
     /// Builds a new gift code.
     ///
-    /// Building a gift code requires the following steps:
+    /// # Steps:
     ///  1. Create a new account to receive the funds
     ///  2. Send a transaction to the new account
     ///  3. Wait for the transaction to land
     ///  4. Package the required information into a b58-encoded string
     ///
-    /// Returns:
+    /// # Returns:
     /// * JsonSubmitResponse from submitting the gift code transaction to the
     ///   network
     /// * Entropy of the gift code account, hex encoded
+    ///
+    /// # Arguments
+    ///
+    ///| Name                  | Purpose                                                            | Notes                                        |
+    ///|-----------------------|--------------------------------------------------------------------|----------------------------------------------|
+    ///| `from_account_id`     | The account on which to perform this action.                       | Account must exist in the wallet.            |
+    ///| `value`               | The amount of MOB to send in this transaction.                     |                                              |
+    ///| `memo`                | Memo for whoever claims the gift code.                             |                                              |
+    ///| `input_txo_ids`       | The specific TXOs to use as inputs to this transaction.            | TXO IDs (obtain from get_txos_for_account)   |
+    ///| `fee`                 | The fee amount to submit with this transaction.                    | If not provided, uses MINIMUM_FEE = .01 MOB. |
+    ///| `tombstone_block`     | The block after which this transaction expires.                    | If not provided, uses current height + 10.   |
+    ///| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |                                              |
+    ///
     #[allow(clippy::too_many_arguments)]
     fn build_gift_code(
         &self,
         from_account_id: &AccountID,
         value: u64,
-        name: Option<String>,
+        memo: Option<String>,
         input_txo_ids: Option<&Vec<String>>,
         fee: Option<u64>,
         tombstone_block: Option<u64>,
         max_spendable_value: Option<u64>,
     ) -> Result<(TxProposal, EncodedGiftCode), GiftCodeServiceError>;
 
+    /// Submit a `tx_proposal` to the ledger that adds the gift code to the wallet_db once the `tx_proposal` has been appended to the ledger.
+    ///
+    /// # Arguments
+    ///
+    ///| Name              | Purpose                                      | Notes                                  |
+    ///|-------------------|----------------------------------------------|----------------------------------------|
+    ///| `from_account_id` | The account on which to perform this action. | Account must exist in the wallet.      |
+    ///| `gift_code_b58`   | The base58-encoded gift code contents.       | Must be a valid b58-encoded gift code. |
+    ///| `tx_proposal`     | Transaction proposal to submit.              | Created with build_gift_code.          |
+    ///
     fn submit_gift_code(
         &self,
         from_account_id: &AccountID,
@@ -380,12 +404,27 @@ pub trait GiftCodeService {
     ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// Get the details for a specific gift code.
+    ///
+    /// # Arguments
+    ///
+    ///| Name            | Purpose                                | Notes                                  |
+    ///|-----------------|----------------------------------------|----------------------------------------|
+    ///| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+    ///
     fn get_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError>;
 
     /// List all gift codes in the wallet.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                                  | Notes                    |
+    ///|--------------|----------------------------------------------------------|--------------------------|
+    ///| `offset`     | The pagination offset. Results start at the offset index | Optional, defaults to 0. |
+    ///| `limit`      | Limit for the number of results                          | Optional                 |
+    ///
     fn list_gift_codes(
         &self,
         offset: Option<u64>,
@@ -394,15 +433,31 @@ pub trait GiftCodeService {
 
     /// Check the status of a gift code currently in your wallet. If the gift
     /// code is not yet in the wallet, add it.
+    ///
+    /// # Arguments
+    ///
+    ///| Name            | Purpose                                | Notes                                  |
+    ///|-----------------|----------------------------------------|----------------------------------------|
+    ///| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+    ///
     fn check_gift_code_status(
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError>;
 
     /// Execute a transaction from the gift code account to drain the account to
-    /// the destination specified by the account_id_hex and
-    /// public_address_b58. If no public_address_b58 is provided,
-    /// then a new AssignedSubaddress will be created to receive the funds.
+    /// the destination specified by the `account_id_hex` and
+    /// `public_address_b58`. If no `public_address_b58` is provided,
+    /// then a new `AssignedSubaddress` will be created to receive the funds.
+    ///
+    /// # Arguments
+    ///
+    ///| Name            | Purpose                                      | Notes                                  |
+    ///|-----------------|----------------------------------------------|----------------------------------------|
+    ///| `gift_code_b58` | The base58-encoded gift code contents.       | Must be a valid b58-encoded gift code. |
+    ///| `account_id`    | The account on which to perform this action. | Account must exist in the wallet.      |
+    ///| `address`       | The public address of the account.           |                                        |
+    ///
     fn claim_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,
@@ -410,6 +465,14 @@ pub trait GiftCodeService {
         public_address_b58: Option<String>,
     ) -> Result<Tx, GiftCodeServiceError>;
 
+    ///Remove a gift code from the database.
+    ///
+    /// # Arguments
+    ///
+    ///| Name            | Purpose                                | Notes                                  |
+    ///|-----------------|----------------------------------------|----------------------------------------|
+    ///| `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
+    ///
     fn remove_gift_code(
         &self,
         gift_code_b58: &EncodedGiftCode,

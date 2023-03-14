@@ -102,15 +102,32 @@ pub struct Confirmation {
 
 /// Trait defining the ways in which the wallet can interact with and manage
 /// tonfirmation numbers.
+#[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait ConfirmationService {
     /// Get the confirmations from the outputs in a transaction log.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                 | Purpose                                                       | Notes                                         |
+    ///|----------------------|---------------------------------------------------------------|-----------------------------------------------|
+    ///| `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
+    ///
     fn get_confirmations(
         &self,
         transaction_log_id: &str,
     ) -> Result<Vec<Confirmation>, ConfirmationServiceError>;
 
     /// Validate the confirmation number with a given Txo.
+    ///
+    /// # Arguments
+    ///
+    ///| Name               | Purpose                                                          | Notes                                                                             |
+    ///|--------------------|------------------------------------------------------------------|-----------------------------------------------------------------------------------|
+    ///| `account_id`       | The account on which to perform this action.                     | Account must exist in the wallet.                                                 |
+    ///| `txo_id`           | The ID of the TXO for which to validate the confirmation number. | TXO must be a received TXO.                                                       |
+    ///| `confirmation_hex` | The confirmation number to validate.                             | The confirmation number should be delivered by the sender of the Txo in question. |
+    ///
     fn validate_confirmation(
         &self,
         account_id: &AccountID,
