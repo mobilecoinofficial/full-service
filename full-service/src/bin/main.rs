@@ -100,7 +100,7 @@ fn rocket() -> Rocket<Build> {
     };
 
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
-    rocket.manage(APIKeyState(api_key))
+    rocket.manage(APIKeyState(api_key));
 
     log::debug!(logger, "hello world");
 }
