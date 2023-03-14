@@ -170,7 +170,7 @@ jobs:
           rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
   # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
-  test:
+  integration-test:
     runs-on: [self-hosted, Linux, small]
     needs:
       - metadata
@@ -217,7 +217,7 @@ jobs:
     runs-on: [self-hosted, Linux, small]
     needs:
       - metadata
-      - test
+      - integration-test
     steps:
       - name: Delete namespace
         uses: mobilecoinofficial/gha-k8s-toolbox@v1
