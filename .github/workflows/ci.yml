@@ -14,11 +14,6 @@ on:
       - develop
       - main
       - release/*
-  push:
-    branches:
-      - main
-      - develop
-      - release/*
 
 concurrency:
   group: full-service-ci-${{ github.head_ref || github.ref }}
