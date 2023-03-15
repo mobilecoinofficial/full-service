@@ -25,6 +25,8 @@ pub struct NetworkStatus {
     /// The current block version
     pub block_version: String,
 
+    /// Maximum number of blocks in the future a transaction's tombstone block
+    /// can be set to compared to the network height.
     pub max_tombstone_blocks: String,
 
     /// How we're connecting to the network
