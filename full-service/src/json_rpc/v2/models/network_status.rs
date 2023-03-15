@@ -2,7 +2,7 @@
 
 //! API definition for the Network Status object.
 
-use crate::service;
+use crate::{config::NetworkConfig, service};
 
 use serde_derive::{Deserialize, Serialize};
 use std::{collections::BTreeMap, convert::TryFrom};
@@ -24,6 +24,9 @@ pub struct NetworkStatus {
 
     /// The current block version
     pub block_version: String,
+
+    /// How we're connecting to the network
+    pub network_info: NetworkConfig,
 }
 
 impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
@@ -40,6 +43,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
                 .map(|(token_id, fee)| (token_id.to_string(), fee.to_string()))
                 .collect(),
             block_version: src.block_version.to_string(),
+            network_info: src.network_info.clone(),
         })
     }
 }

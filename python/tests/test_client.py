@@ -162,6 +162,7 @@ async def test_network_status(client):
         'local_block_height',
         'local_num_txos',
         'network_block_height',
+        'network_info'
     ]
 
 

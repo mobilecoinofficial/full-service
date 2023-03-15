@@ -19,6 +19,7 @@ use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
 use clap::Parser;
+use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
     fs,
@@ -184,6 +185,16 @@ pub struct PeersConfig {
     /// Chain Id
     #[clap(default_value = "", long, env = "MC_CHAIN_ID")]
     pub chain_id: String,
+}
+
+/// The Network Setup object.
+/// This holds a copy of the network parameters used to start full-service
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
+pub struct NetworkConfig {
+    pub offline: bool,
+    pub chain_id: String,
+    pub peers: Option<Vec<String>>,
+    pub tx_sources: Option<Vec<String>>,
 }
 
 impl PeersConfig {

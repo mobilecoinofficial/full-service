@@ -13,11 +13,12 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
-    config::APIConfig,
+    config::{APIConfig, NetworkConfig},
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
+use mc_util_uri::ConnectionUri;
 use mc_validator_api::ValidatorUri;
 use mc_validator_connection::ValidatorConnection;
 use mc_watcher::{watcher::WatcherSyncThread, watcher_db::create_or_open_rw_watcher_db};
@@ -93,10 +94,36 @@ fn rocket() -> Rocket<Build> {
         ..rocket::Config::default()
     };
 
+    let chain_id = config.peers_config.chain_id.clone();
+    let tx_sources: Option<Vec<String>> = config.peers_config.tx_source_urls.clone();
+    let peers: Option<Vec<String>> = match config.peers_config.peers.clone() {
+        None => None,
+        Some(peers) => Some(
+            peers
+                .iter()
+                .map(|peer_uri| peer_uri.url().clone().into())
+                .collect(),
+        ),
+    };
+
+    let network_config = NetworkConfig {
+        offline: config.offline.clone(),
+        chain_id,
+        peers,
+        tx_sources,
+    };
+
     let rocket = if let Some(validator_uri) = config.validator.as_ref() {
-        validator_backed_full_service(validator_uri, &config, wallet_db, rocket_config, logger)
+        validator_backed_full_service(
+            validator_uri,
+            &config,
+            network_config,
+            wallet_db,
+            rocket_config,
+            logger,
+        )
     } else {
-        consensus_backed_full_service(&config, wallet_db, rocket_config, logger)
+        consensus_backed_full_service(&config, network_config, wallet_db, rocket_config, logger)
     };
 
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
@@ -105,6 +132,7 @@ fn rocket() -> Rocket<Build> {
 
 fn consensus_backed_full_service(
     config: &APIConfig,
+    network_config: NetworkConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
@@ -204,6 +232,7 @@ fn consensus_backed_full_service(
         ledger_db,
         watcher_db,
         peer_manager,
+        network_config,
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
@@ -219,6 +248,7 @@ fn consensus_backed_full_service(
 fn validator_backed_full_service(
     validator_uri: &ValidatorUri,
     config: &APIConfig,
+    network_config: NetworkConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
     logger: Logger,
@@ -274,37 +304,37 @@ fn validator_backed_full_service(
 
     let fog_ingest_verifier = config.get_fog_ingest_verifier();
     let logger2 = logger.clone();
-    let service =
-        WalletService::new(
-            wallet_db,
-            ledger_db,
-            None,
-            conn_manager,
-            network_state,
-            Arc::new(move |fog_uris| -> Result<FogResolver, String> {
-                if fog_uris.is_empty() {
-                    Ok(Default::default())
-                } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
-                    let report_responses = validator_conn
-                        .fetch_fog_reports(fog_uris.iter().cloned())
-                        .map_err(|err| {
-                            format!(
-                                "Error fetching fog reports (via validator) for {:?}: {}",
-                                fog_uris, err
-                            )
-                        })?;
 
-                    log::debug!(logger2, "Got report responses {:?}", report_responses);
-                    Ok(FogResolver::new(report_responses, verifier)
-                        .expect("Could not construct fog resolver"))
-                } else {
-                    Err("Some recipients have fog, but no fog ingest report verifier was configured"
-                    .to_string())
-                }
-            }),
-            false,
-            logger,
-        );
+    let service = WalletService::new(
+        wallet_db,
+        ledger_db,
+        None,
+        conn_manager,
+        network_config,
+        network_state,
+        Arc::new(move |fog_uris| -> Result<FogResolver, String> {
+            if fog_uris.is_empty() {
+                Ok(Default::default())
+            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+                let report_responses = validator_conn
+                    .fetch_fog_reports(fog_uris.iter().cloned())
+                    .map_err(|err| {
+                    format!("Error fetching fog reports (via validator) for {fog_uris:?}: {err}")
+                })?;
+
+                log::debug!(logger2, "Got report responses {:?}", report_responses);
+                Ok(FogResolver::new(report_responses, verifier)
+                    .expect("Could not construct fog resolver"))
+            } else {
+                Err(
+                    "Some recipients have fog, but no fog ingest report verifier was configured"
+                        .to_string(),
+                )
+            }
+        }),
+        false,
+        logger,
+    );
 
     validator_backed_rocket(rocket_config, config.allowed_origin.clone())
         .manage(WalletState { service })
