@@ -165,6 +165,7 @@ pub trait TxoModel {
 
     /// Update an existing Txo to spendable by including its subaddress_index
     /// and optionally the key_image in the case of view only accounts.
+    #[allow(clippy::too_many_arguments)]
     fn update_as_received(
         &self,
         subaddress_index: Option<u64>,
@@ -172,9 +173,9 @@ pub trait TxoModel {
         block_index: u64,
         account_id_hex: &str,
         amount: Amount,
-        target_key: &Vec<u8>,
-        public_key: &Vec<u8>,
-        e_fog_hint: &Vec<u8>,
+        target_key: &[u8],
+        public_key: &[u8],
+        e_fog_hint: &[u8],
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -475,9 +476,9 @@ impl TxoModel for Txo {
         block_index: u64,
         account_id_hex: &str,
         amount: Amount,
-        target_key: &Vec<u8>,
-        public_key: &Vec<u8>,
-        e_fog_hint: &Vec<u8>,
+        target_key: &[u8],
+        public_key: &[u8],
+        e_fog_hint: &[u8],
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
