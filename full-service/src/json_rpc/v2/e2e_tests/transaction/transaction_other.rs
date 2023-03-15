@@ -5,10 +5,7 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::{
-            account::AccountID, models::TransactionLog as TransactionLogDB,
-            transaction_log::TransactionLogModel,
-        },
+        db::account::AccountID,
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
             models::tx_proposal::TxProposal as TxProposalJSON,
@@ -308,16 +305,28 @@ mod e2e_transaction {
         let json_tx_proposal: TxProposalJSON = serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal = TxProposal::try_from(&json_tx_proposal).unwrap();
 
+        // Submit the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let _ = result
+            .get("transaction_log")
+            .unwrap()
+            .get("id")
+            .unwrap()
+            .as_str()
+            .unwrap();
+
         // The MockBlockchainConnection does not write to the ledger_db
         add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx.clone(), &mut rng);
-        TransactionLogDB::log_submitted(
-            &payments_tx_proposal,
-            10,
-            "".to_string(),
-            alice_account_id,
-            &db_ctx.get_db_instance(logger.clone()).get_conn().unwrap(),
-        )
-        .unwrap();
 
         manually_sync_account(
             &ledger_db,

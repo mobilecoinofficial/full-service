@@ -5,16 +5,12 @@
 #[cfg(test)]
 mod e2e_transaction {
     use crate::{
-        db::{
-            account::AccountID, models::TransactionLog as TransactionLogDB,
-            transaction_log::TransactionLogModel,
-        },
+        db::account::AccountID,
         json_rpc,
         json_rpc::v1::{
             api::test_utils::{dispatch, setup},
             models::transaction_log::{TransactionLog, TxoAbbrev},
         },
-        service::models::tx_proposal::TxProposal as TxProposalModel,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
         util::b58::b58_decode_public_address,
     };
@@ -530,18 +526,28 @@ mod e2e_transaction {
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =
             mc_mobilecoind::payments::TxProposal::try_from(&json_tx_proposal).unwrap();
-        let service_tx_proposal = TxProposalModel::try_from(&json_tx_proposal).unwrap();
 
+        // Submit the tx_proposal
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "submit_transaction",
+            "params": {
+                "tx_proposal": tx_proposal,
+                "account_id": alice_account_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let _ = result
+            .get("transaction_log")
+            .unwrap()
+            .get("transaction_log_id")
+            .unwrap()
+            .as_str()
+            .unwrap();
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
-        TransactionLogDB::log_submitted(
-            &service_tx_proposal,
-            10,
-            "".to_string(),
-            alice_account_id,
-            &db_ctx.get_db_instance(logger.clone()).get_conn().unwrap(),
-        )
-        .unwrap();
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx.clone(), &mut rng);
 
         manually_sync_account(
             &ledger_db,

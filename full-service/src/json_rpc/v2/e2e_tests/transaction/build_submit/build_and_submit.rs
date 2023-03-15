@@ -311,8 +311,6 @@ mod e2e_transaction {
 
         let payments_tx_proposal = TxProposal::try_from(&tx_proposal).unwrap();
 
-        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
-
         // Get balance after submission
         let body = json!({
             "jsonrpc": "2.0",
@@ -351,6 +349,8 @@ mod e2e_transaction {
         assert_eq!(spent, "0");
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
+
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,
