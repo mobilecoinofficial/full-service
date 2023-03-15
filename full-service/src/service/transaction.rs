@@ -237,8 +237,9 @@ pub enum TransactionMemo {
     Empty,
 
     /// Recoverable Transaction History memo with an optional u64 specifying the
-    /// subaddress index to generate the sender memo credential from.
-    RTH(Option<u64>),
+    /// subaddress index to generate the sender memo credential from, and an
+    /// optional u64 to set the payment request id.
+    RTH(Option<u64>, Option<u64>),
 
     /// Burn Redemption memo, with an optional 64 byte redemption memo hex
     /// string.
@@ -253,7 +254,7 @@ impl TransactionMemo {
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
             Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
-            Self::RTH(subaddress_index) => {
+            Self::RTH(subaddress_index, payment_request_id) => {
                 let mut memo_builder = RTHMemoBuilder::default();
                 let account_key = account_key
                     .ok_or(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts)?;
@@ -268,6 +269,9 @@ impl TransactionMemo {
                 };
                 memo_builder.set_sender_credential(sender_memo_credential);
                 memo_builder.enable_destination_memo();
+                if let Some(payment_request_id) = payment_request_id {
+                    memo_builder.set_payment_request_id(payment_request_id);
+                }
                 Ok(Box::new(memo_builder))
             }
             Self::BurnRedemption(memo_data) => {
