@@ -2886,7 +2886,7 @@ name = "mc-full-service"
 version = "2.5.0"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
+ "base64 0.21.0",
  "bs58",
  "chrono",
  "clap 4.0.26",
@@ -3313,7 +3313,7 @@ dependencies = [
 name = "mc-transaction-signer"
 version = "2.5.0"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.21.0",
  "hex",
  "mc-account-keys",
  "mc-common",
