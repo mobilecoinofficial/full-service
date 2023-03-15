@@ -3,6 +3,7 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
+    config::NetworkConfig,
     db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
@@ -39,6 +40,9 @@ pub struct WalletService<
     /// Peer manager for consensus validators to query for network height.
     pub peer_manager: McConnectionManager<T>,
 
+    /// Peer network information
+    pub network_setup_config: NetworkConfig,
+
     /// Representation of the current network state.
     pub network_state: Arc<RwLock<PollingNetworkState<T>>>,
 
@@ -72,6 +76,7 @@ impl<
         ledger_db: LedgerDB,
         watcher_db: Option<WatcherDB>,
         peer_manager: McConnectionManager<T>,
+        network_setup_config: NetworkConfig,
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
@@ -94,6 +99,7 @@ impl<
             ledger_db,
             watcher_db,
             peer_manager,
+            network_setup_config,
             network_state,
             fog_resolver_factory,
             _sync_thread: sync_thread,

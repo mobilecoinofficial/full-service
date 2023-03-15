@@ -1,6 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::{
+    config::NetworkConfig,
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
         json_rpc_response::JsonRPCResponse,
@@ -160,11 +161,19 @@ pub fn create_test_setup(
         None
     };
 
+    let network_setup_config = NetworkConfig {
+        offline: false,
+        chain_id: "rust_tests".to_string(),
+        peers: None,
+        tx_sources: None,
+    };
+
     let service = WalletService::new(
         wallet_db,
         ledger_db.clone(),
         watcher_db,
         peer_manager,
+        network_setup_config,
         network_state.clone(),
         get_resolver_factory(rng).unwrap(),
         false,
