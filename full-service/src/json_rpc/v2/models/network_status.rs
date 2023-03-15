@@ -45,7 +45,7 @@ impl TryFrom<&service::balance::NetworkStatus> for NetworkStatus {
                 .map(|(token_id, fee)| (token_id.to_string(), fee.to_string()))
                 .collect(),
             block_version: src.block_version.to_string(),
-            MAX_TOMBSTONE_BLOCKS: constants::MAX_TOMBSTONE_BLOCKS.to_string(),
+            max_tombstone_blocks: constants::MAX_TOMBSTONE_BLOCKS.to_string(),
             network_info: src.network_info.clone(),
         })
     }
