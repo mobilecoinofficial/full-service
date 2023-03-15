@@ -270,7 +270,7 @@ impl TransactionMemo {
                 memo_builder.set_sender_credential(sender_memo_credential);
                 memo_builder.enable_destination_memo();
                 if let Some(payment_request_id) = payment_request_id {
-                    memo_builder.set_payment_request_id(payment_request_id);
+                    memo_builder.set_payment_request_id(*payment_request_id);
                 }
                 Ok(Box::new(memo_builder))
             }

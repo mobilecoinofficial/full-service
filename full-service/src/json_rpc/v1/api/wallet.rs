@@ -169,7 +169,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(None),
+                    TransactionMemo::RTH(None, None),
                     None,
                 )
                 .map_err(format_error)?;
@@ -280,7 +280,7 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(None),
+                    TransactionMemo::RTH(None, None),
                     None,
                 )
                 .map_err(format_error)?;
