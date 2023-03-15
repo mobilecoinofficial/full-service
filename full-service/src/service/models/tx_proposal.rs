@@ -70,7 +70,7 @@ impl UnsignedTxProposal {
         match account.view_only {
             true => {
                 global_log::debug!("signing tx proposal with hardware wallet");
-                Ok(hardware_wallet::sign_tx_proposal(self, &account.view_account_key()?).await?)
+                Ok(hardware_wallet::sign_tx_proposal(self).await?)
             }
             false => {
                 global_log::debug!("signing tx proposal with local signer");

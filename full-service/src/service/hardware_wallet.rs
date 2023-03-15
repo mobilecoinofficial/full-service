@@ -2,23 +2,18 @@
 
 //! Service for managing ledger materials and MobileCoin protocol objects.
 
-use std::convert::{TryFrom, TryInto};
+use std::convert::{TryInto, TryFrom};
 
 use ledger_mob::{
-    transport::TransportNativeHID, tx::TxConfig, Connect, DeviceHandle, LedgerProvider,
+    Connect, DeviceHandle, Filter, LedgerProvider,
+    transport::{GenericTransport},
 };
 
-use mc_account_keys::ViewAccountKey;
 use mc_common::logger::global_log;
 use mc_core::{account::ViewAccount, keys::TxOutPublic};
 use mc_crypto_keys::RistrettoPublic;
-use mc_crypto_rand::rand_core::OsRng;
-use mc_transaction_core::{
-    ring_ct::InputRing,
-    tx::{Tx, TxOut},
-};
+use mc_transaction_core::tx::TxOut;
 use mc_transaction_signer::types::TxoSynced;
-use mc_transaction_summary::verify_tx_summary;
 
 use strum::Display;
 
@@ -29,7 +24,7 @@ use crate::service::models::tx_proposal::{InputTxo, TxProposal, UnsignedTxPropos
 #[allow(clippy::large_enum_variant)]
 pub enum HardwareWalletServiceError {
     NoHardwareWalletsFound,
-    LedgerHID,
+    Ledger(ledger_mob::Error),
     PresignedRingsNotSupported,
     KeyImageNotFoundForSignedInput,
     RingCT(mc_transaction_core::ring_ct::Error),
@@ -48,10 +43,10 @@ impl From<mc_crypto_keys::KeyError> for HardwareWalletServiceError {
     }
 }
 
-async fn get_device_handle() -> Result<DeviceHandle<TransportNativeHID>, HardwareWalletServiceError>
+async fn get_device_handle() -> Result<DeviceHandle<GenericTransport>, HardwareWalletServiceError>
 {
     let ledger_provider = LedgerProvider::new().unwrap();
-    let devices: Vec<_> = ledger_provider.list_devices().collect();
+    let devices: Vec<_> = ledger_provider.list_devices(Filter::Any).await;
 
     if devices.len() == 0 {
         return Err(HardwareWalletServiceError::NoHardwareWalletsFound);
@@ -64,9 +59,9 @@ async fn get_device_handle() -> Result<DeviceHandle<TransportNativeHID>, Hardwar
     // This CBB - we should iterate through each device if signing fails on the
     // current one and more are available
     Ok(
-        Connect::<TransportNativeHID>::connect(&ledger_provider, &devices[0])
+        Connect::<GenericTransport>::connect(&ledger_provider, &devices[0])
             .await
-            .map_err(|_| HardwareWalletServiceError::LedgerHID)?,
+            .map_err(HardwareWalletServiceError::Ledger)?
     )
 }
 
@@ -81,7 +76,7 @@ pub async fn sync_txos(
         let key_image = device_handle
             .key_image(0, unsynced_txo.1, tx_public_key)
             .await
-            .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+            .map_err(HardwareWalletServiceError::Ledger)?;
 
         synced_txos.push(TxoSynced {
             tx_out_public_key: tx_public_key.into(),
@@ -97,121 +92,29 @@ pub async fn get_view_only_account_keys() -> Result<ViewAccount, HardwareWalletS
     Ok(device_handle
         .account_keys(0)
         .await
-        .map_err(|_| HardwareWalletServiceError::LedgerHID)?)
+        .map_err(HardwareWalletServiceError::Ledger)?)
 }
 
 pub async fn sign_tx_proposal(
     unsigned_tx_proposal: UnsignedTxProposal,
-    view_account_key: &ViewAccountKey,
 ) -> Result<TxProposal, HardwareWalletServiceError> {
     let device_handle = get_device_handle().await?;
 
     // Start device transaction
     global_log::info!("Starting transaction signing");
-    let signer = device_handle
-        .transaction(TxConfig {
-            account_index: 0,
-            num_memos: 0,
-            num_rings: unsigned_tx_proposal.unsigned_tx.rings.len(),
-        })
+    let (tx, tx_outs) = device_handle
+        .transaction(0, 90, unsigned_tx_proposal.unsigned_tx)
         .await
-        .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-
-    // TODO: sign any memos
-
-    // Build the digest for ring signing
-    // TODO: this will move when TxSummary is complete
-    global_log::info!("Building TX digest");
-    let (signing_data, summary, unblinding_data, digest) = unsigned_tx_proposal
-        .unsigned_tx
-        .get_signing_data(&mut OsRng {})?;
-
-    // match unblinding_data {
-    //     None => {
-    //         debug!("Setting tx message");
-    //         signer
-    //             .set_message(&digest.0)
-    //             .await
-    //             .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-    //     }
-    //     Some(unblinding_data) => {
-    debug!("Loading tx summary");
-    signer
-        .set_tx_summary(
-            unsigned_tx_proposal.unsigned_tx.block_version,
-            &digest.0,
-            &summary,
-            &unblinding_data,
-        )
-        .await
-        .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-
-    // TODO: check signing_data matches computed mlsag_signing_digest
-    let mut m = [0u8; 32];
-    m.copy_from_slice(&digest.0[..]);
-
-    let (expected_digest, _report) = verify_tx_summary(
-        &m,
-        &summary,
-        &unblinding_data,
-        *view_account_key.view_private_key(),
-    )
-    .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-
-    assert_eq!(
-        &expected_digest[..],
-        &signing_data.mlsag_signing_digest[..],
-        "summary generated digest mismatch"
-    );
-    //     }
-    // }
-
-    // Await user input
-    global_log::info!("Awaiting user confirmation");
-    signer
-        .await_approval(120)
-        .await
-        .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-
-    // Execute signing (signs rings etc.)
-    global_log::info!("Executing signing operation");
-    let signature = signing_data.sign(
-        &unsigned_tx_proposal.unsigned_tx.rings,
-        &signer,
-        &mut OsRng {},
-    )?;
-
-    signer
-        .complete()
-        .await
-        .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
-
-    // Map key images to real inputs via public key
-    let mut txos = vec![];
-    for (i, r) in unsigned_tx_proposal.unsigned_tx.rings.iter().enumerate() {
-        let tx_out_public_key = match r {
-            InputRing::Signable(r) => r.members[r.real_input_index].public_key,
-            InputRing::Presigned(_) => {
-                return Err(HardwareWalletServiceError::PresignedRingsNotSupported)
-            }
-        };
-
-        txos.push(TxoSynced {
-            tx_out_public_key: TxOutPublic::from(RistrettoPublic::try_from(&tx_out_public_key)?),
-            key_image: signature.ring_signatures[i].key_image,
-        });
-    }
+        .map_err(HardwareWalletServiceError::Ledger)?;
 
     let mut input_txos = vec![];
-
     for txo in unsigned_tx_proposal.unsigned_input_txos {
         let tx_out_public_key = RistrettoPublic::try_from(&txo.tx_out.public_key)?;
-        let key_image = txos
+        let key_image = tx_outs
             .iter()
             .find(|txo| txo.tx_out_public_key == TxOutPublic::from(tx_out_public_key))
             .ok_or(HardwareWalletServiceError::KeyImageNotFoundForSignedInput)?
             .key_image;
-
         input_txos.push(InputTxo {
             tx_out: txo.tx_out,
             subaddress_index: txo.subaddress_index,
@@ -221,11 +124,7 @@ pub async fn sign_tx_proposal(
     }
 
     Ok(TxProposal {
-        tx: Tx {
-            prefix: unsigned_tx_proposal.unsigned_tx.tx_prefix.clone(),
-            signature,
-            fee_map_digest: vec![],
-        },
+        tx,
         input_txos,
         payload_txos: unsigned_tx_proposal.payload_txos,
         change_txos: unsigned_tx_proposal.change_txos,
