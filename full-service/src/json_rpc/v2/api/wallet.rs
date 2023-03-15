@@ -1118,7 +1118,7 @@ where
         },
         JsonCommandRequest::resync_account { account_id } => {
             service
-                .resync_account(&AccountID(account_id.clone()))
+                .resync_account(&AccountID(account_id))
                 .map_err(format_error)?;
 
             JsonCommandResponse::resync_account

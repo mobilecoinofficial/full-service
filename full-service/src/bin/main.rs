@@ -96,18 +96,15 @@ fn rocket() -> Rocket<Build> {
 
     let chain_id = config.peers_config.chain_id.clone();
     let tx_sources: Option<Vec<String>> = config.peers_config.tx_source_urls.clone();
-    let peers: Option<Vec<String>> = match config.peers_config.peers.clone() {
-        None => None,
-        Some(peers) => Some(
-            peers
-                .iter()
-                .map(|peer_uri| peer_uri.url().clone().into())
-                .collect(),
-        ),
-    };
+    let peers: Option<Vec<String>> = config.peers_config.peers.clone().map(|peers| {
+        peers
+            .iter()
+            .map(|peer_uri| peer_uri.url().clone().into())
+            .collect()
+    });
 
     let network_config = NetworkConfig {
-        offline: config.offline.clone(),
+        offline: config.offline,
         chain_id,
         peers,
         tx_sources,
@@ -309,6 +306,7 @@ fn validator_backed_full_service(
         ledger_db,
         None,
         conn_manager,
+        network_config,
         network_state,
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
             if fog_uris.is_empty() {
@@ -319,20 +317,6 @@ fn validator_backed_full_service(
                     .map_err(|err| {
                     format!("Error fetching fog reports (via validator) for {fog_uris:?}: {err}")
                 })?;
-
-                log::debug!(logger2, "Got report responses {:?}", report_responses);
-                Ok(FogResolver::new(report_responses, verifier)
-                    .expect("Could not construct fog resolver"))
-            } else {
-                Err(
-                    "Some recipients have fog, but no fog ingest report verifier was configured"
-                        .to_string(),
-                )
-            }
-        }),
-        false,
-        logger,
-    );
 
                 log::debug!(logger2, "Got report responses {:?}", report_responses);
                 Ok(FogResolver::new(report_responses, verifier)
