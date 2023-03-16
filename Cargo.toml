@@ -11,6 +11,7 @@ members = [
 ]
 exclude = [
     "mobilecoin",
+    "ledger-mob",
 ]
 
 [profile.dev]
