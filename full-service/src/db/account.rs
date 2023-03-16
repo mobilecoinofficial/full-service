@@ -64,9 +64,22 @@ impl fmt::Display for AccountID {
 }
 
 pub trait AccountModel {
-    /// Create an account.
+    /// Create an account from mnemonic.
     ///
-    /// Returns:
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `mnemonic`              | A BIP39-encoded mnemonic phrase used to generate the account key.       |                                                                       |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///
+    /// # Returns:
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
     fn create_from_mnemonic(
@@ -81,9 +94,23 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
-    /// Create an account.
+    /// Create an account from root entropy.
     ///
-    /// Returns:
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `entropy`               | The secret root entropy.                                                | 32 bytes of randomness, hex-encoded.                                  |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
+    ///
+    /// # Returns:
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
     fn create_from_root_entropy(
