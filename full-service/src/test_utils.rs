@@ -441,7 +441,9 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+    let unsigned_tx_proposal = builder
+        .build(TransactionMemo::RTH(None, None), &conn)
+        .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
 
     // There should be 2 outputs, one to dest and one change
@@ -483,7 +485,9 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
-    let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+    let unsigned_tx_proposal = builder
+        .build(TransactionMemo::RTH(None, None), &conn)
+        .unwrap();
 
     (
         TransactionLog::log_built(

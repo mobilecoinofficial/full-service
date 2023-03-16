@@ -540,7 +540,7 @@ where
             None,
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
-            TransactionMemo::RTH(None),
+            TransactionMemo::RTH(None, None),
             None,
         )?;
 

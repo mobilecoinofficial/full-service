@@ -327,7 +327,7 @@ where
             fee_token_id,
             tombstone_block,
             None,
-            TransactionMemo::RTH(None),
+            TransactionMemo::RTH(None, None),
             None,
         )?;
 
@@ -446,7 +446,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None),
+                TransactionMemo::RTH(None, None),
                 None,
             )
             .unwrap();

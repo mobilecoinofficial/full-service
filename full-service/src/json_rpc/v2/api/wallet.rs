@@ -156,6 +156,7 @@ where
             comment,
             block_version,
             sender_memo_credential_subaddress_index,
+            payment_request_id,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -176,6 +177,10 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let payment_request_id = payment_request_id
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -186,7 +191,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
+                    TransactionMemo::RTH(
+                        sender_memo_credential_subaddress_index,
+                        payment_request_id,
+                    ),
                     block_version,
                 )
                 .map_err(format_error)?;
@@ -265,6 +273,7 @@ where
             max_spendable_value,
             block_version,
             sender_memo_credential_subaddress_index,
+            payment_request_id,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -285,6 +294,10 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let payment_request_id = payment_request_id
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -294,7 +307,10 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(sender_memo_credential_subaddress_index),
+                    TransactionMemo::RTH(
+                        sender_memo_credential_subaddress_index,
+                        payment_request_id,
+                    ),
                     block_version,
                 )
                 .map_err(format_error)?;

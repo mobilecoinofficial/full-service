@@ -753,7 +753,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
         let tx_proposal = unsigned_tx_proposal
             .clone()
             .sign(&account_key, None)
@@ -931,7 +933,9 @@ mod tests {
 
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         let tx_log = TransactionLog::log_submitted(
@@ -1008,7 +1012,9 @@ mod tests {
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -1106,7 +1112,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         assert_eq!(
@@ -1173,7 +1181,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
         // Log submitted transaction from tx_proposal
@@ -1391,7 +1401,9 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
 
         let tx_log =
             TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
@@ -1612,7 +1624,9 @@ mod tests {
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(&conn, None).unwrap();
-        let unsigned_tx_proposal = builder.build(TransactionMemo::RTH(None), &conn).unwrap();
+        let unsigned_tx_proposal = builder
+            .build(TransactionMemo::RTH(None, None), &conn)
+            .unwrap();
 
         let tx_log =
             TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
