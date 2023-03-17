@@ -161,8 +161,8 @@ async def test_network_status(client):
         'fees',
         'local_block_height',
         'local_num_txos',
-        'network_block_height',
         'max_tombstone_blocks',
+        'network_block_height',
         'network_info'
     ]
 
