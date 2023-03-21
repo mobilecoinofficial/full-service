@@ -63,6 +63,7 @@ impl fmt::Display for AccountID {
     }
 }
 
+#[rustfmt::skip]
 pub trait AccountModel {
     /// Create an account from mnemonic.
     ///
