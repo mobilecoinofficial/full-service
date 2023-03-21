@@ -166,10 +166,6 @@ then
     "${location}/build-fs.sh" "${net}"
 fi
 
-target_dir=${CARGO_TARGET_DIR:-"target"}
-
-echo "${CARGO_TARGET_DIR}"
-
 # start validator and unset envs for full-service
 if [[ -n "${validator}" ]]
 then
@@ -182,14 +178,14 @@ then
         mkdir -p "${validator_ledger_db}"
 
         # Override
-        "${target_dir}/release/validator-service" \
+        "${WORK_DIR}/validator-service" \
             --ledger-db "${validator_ledger_db}" \
             --listen-uri "insecure-validator://127.0.0.1:11000/" \
             >/tmp/validator-service.log 2>&1 &
 
         echo $! >/tmp/.validator-service.pid
-        echo "Pause 30 to wait for validator to come up."
-        sleep 30
+        echo "Pause 10 to wait for validator to come up."
+        sleep 10
     fi
 
     export MC_VALIDATOR="insecure-validator://127.0.0.1:11000/"
@@ -198,5 +194,4 @@ then
 fi
 
 echo "Starting Full-Service Wallet"
-# "${target_dir}/release/full-service"
-"$HOME/.mobilecoin/test/full-service"
+"${WORK_DIR}/full-service"
