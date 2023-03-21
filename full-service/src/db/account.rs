@@ -100,7 +100,7 @@ pub trait AccountModel {
     ///
     ///| Name                    | Purpose                                                                 | Notes                                                                 |
     ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
-    ///| `entropy`               | The secret root entropy.                                                | 32 bytes of randomness, hex-encoded.                                  |
+    ///| `entropy`               | The secret root entropy used to generate the account key.               | 32 bytes of randomness, hex-encoded.                                  |
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
@@ -125,9 +125,23 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
-    /// Create an account.
+    /// Create an account from either mnemonic phrase (v2) or root entropy (v1).
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name                     | Purpose                                                                                           | Notes                                                                 |
+    ///|--------------------------|---------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `entropy`                | Either a BIP39-encoded mnemonic phrase or a secret root entropy used to generate the account key. | Depends on the `key_derivation_version` parameter                     |
+    ///| `key_derivation_version` | The version number of the key derivation path used to create a account key.                       | "2" for mnemonic phrase and "1" for root entropy                      |
+    ///| `account_key`            | Contains a View keypair and a Spend keypair, used to construct and receive transactions.          | Also may contain keys to connect to the Fog ledger scanning service.  |
+    ///| `first_block_index`      | Index of the first block when this account may have received funds.                               | Defaults to 0 if not provided                                         |
+    ///| `import_block_index`     | Index of the last block in local ledger database.                                                 |                                                                       |
+    ///| `next_subaddress_index`  | This index represents the next subaddress to be assigned as an address.                           | This is useful information in case the account is imported elsewhere. |
+    ///| `name`                   | The display name for the account.                                                                 | A label can have duplicates, but it is not recommended.               |
+    ///| `fog_enabled`            | Indicate if fog server is enabled or disabled                                                     |                                                                       |
+    ///| `conn`                   | An reference to the pool connection of wallet database                                            |                                                                       |
     ///
-    /// Returns:
+    /// # Returns:
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
     fn create(
@@ -142,7 +156,24 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
-    /// Import account.
+    /// Import account from a mnemonic phrase (v2).
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `mnemonic`              | A BIP39-encoded mnemonic phrase used to generate the account key.       |                                                                       |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
+    ///
+    /// # Returns:
+    /// * Account
     #[allow(clippy::too_many_arguments)]
     fn import(
         mnemonic: &Mnemonic,
@@ -156,7 +187,24 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
-    /// Import account.
+    /// Import account from a root entropy (v1).
+    /// 
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `entropy`               | The secret root entropy used to generate the account key.               | 32 bytes of randomness, hex-encoded.                                  |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
+    ///
+    /// # Returns:
+    /// * Account
     #[allow(clippy::too_many_arguments)]
     fn import_legacy(
         entropy: &RootEntropy,
@@ -171,6 +219,21 @@ pub trait AccountModel {
     ) -> Result<Account, WalletDbError>;
 
     /// Import a view only account.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `view_private_key`      | The view private key of this import candidate.                          | Grant view only permission                                            |
+    ///| `spend_public_key`      | The spend public key of this import candidate.                          | Used to get the sending transaction details from the blockchain       |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
+    ///
+    /// # Returns:
+    /// * Account
     fn import_view_only(
         view_private_key: &RistrettoPrivate,
         spend_public_key: &RistrettoPublic,
@@ -181,9 +244,17 @@ pub trait AccountModel {
         conn: &Conn,
     ) -> Result<Account, WalletDbError>;
 
-    /// List all accounts.
+    /// List all accounts from wallet DB.
     ///
-    /// Returns:
+    /// # Arguments
+    /// 
+    ///| Name     | Purpose                                                   | Notes                    |
+    ///|----------|-----------------------------------------------------------|--------------------------|
+    ///| `conn`   | An reference to the pool connection of wallet database    |                          |
+    ///| `offset` | The pagination offset. Results start at the offset index. | Optional, defaults to 0. |
+    ///| `limit`  | Limit for the number of results.                          | Optional                 |
+    ///
+    /// # Returns:
     /// * Vector of all Accounts in the DB
     fn list_all(
         conn: &Conn,
@@ -193,45 +264,157 @@ pub trait AccountModel {
 
     /// Get a specific account.
     ///
-    /// Returns:
+    /// # Arguments
+    /// 
+    ///| Name         | Purpose                                                | Notes                             |
+    ///|--------------|--------------------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account ID used to perform this GET action.        | Account must exist in the wallet. |
+    ///| `conn`       | An reference to the pool connection of wallet database |                                   |
+    /// 
+    /// # Returns:
     /// * Account
-    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError>;
+    fn get(
+        account_id: &AccountID, 
+        conn: &Conn
+    ) -> Result<Account, WalletDbError>;
 
     /// Get the accounts associated with the given Txo.
-    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError>;
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                                              | Notes |
+    ///|--------------|----------------------------------------------------------------------|-------|
+    ///| `txo_id_hex` | The txo ID for which to get all accounts associate with this txo ID. |       |
+    ///| `conn`       | An reference to the pool connection of wallet database               |       |
+    /// 
+    /// # Returns:
+    /// *  Vector of all Accounts associated with the given Txo
+    fn get_by_txo_id(
+        txo_id_hex: &str, 
+        conn: &Conn
+    ) -> Result<Vec<Account>, WalletDbError>;
 
-    /// Update an account.
-    /// The only updatable field is the name. Any other desired update requires
-    /// adding a new account, and deleting the existing if desired.
-    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError>;
+    /// Update the account name for current account.
+    /// * The only updatable field is the name. Any other desired update requires adding a new account, and deleting the existing if desired.
+    /// 
+    /// # Arguments
+    ///| Name       | Purpose                                                  | Notes |
+    ///|------------|----------------------------------------------------------|-------|
+    ///| `new_name` | The new account name used to perform this update action. |       |
+    ///| `conn`     | An reference to the pool connection of wallet database   |       |
+    ///
+    /// # Returns:
+    /// * unit
+    fn update_name(
+        &self, 
+        new_name: String, 
+        conn: &Conn
+    ) -> Result<(), WalletDbError>;
 
-    /// Update the next block index this account will need to sync.
+    /// Update the next block index in current account that needs to sync.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `next_block_index` | The next block index in current account that needs to sync. |       |
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * unit
     fn update_next_block_index(
         &self,
         next_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    /// Delete an account.
+    /// Delete the current account.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * unit
     fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
 
-    /// Get change public address
+    /// Get subaddress for the current account where funds are returned when the input txos exceed the amount spent.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * AssignedSubaddress
     fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
-    /// Get main public address
+    /// Get main public address for the current account
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * AssignedSubaddress
     fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
-    /// Get all of the token ids present for the account
+    /// Get all of the token ids present for the current account.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * Vector of all TokenIds 
     fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
 
     /// Get the next sequentially unassigned subaddress index for the account
-    /// (reserved addresses are not included)
+    /// * reserved addresses are not included
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `conn`             | An reference to the pool connection of wallet database      |       |
+    ///
+    /// # Returns:
+    /// * Vector of all TokenIds 
     fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
 
+    /// Get the account key for the current account.
+    /// 
+    /// # Arguments
+    /// * None
+    ///
+    /// # Returns:
+    /// * Either an AccountKey or None 
     fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
 
+    /// Get the view only account key for the current account.
+    /// 
+    /// # Arguments
+    /// * None
+    ///
+    /// # Returns:
+    /// * ViewAccountKey
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError>;
 
+    /// Get the view private account key for the current account.
+    /// * A wrapper function to get view_private_key from a ViewAccountKey instance for current
+    /// 
+    /// # Arguments
+    /// * None
+    ///
+    /// # Returns:
+    /// * RistrettoPrivate
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
 }
 
