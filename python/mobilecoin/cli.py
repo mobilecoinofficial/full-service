@@ -3,6 +3,7 @@ from decimal import Decimal
 import json
 from pathlib import Path
 from textwrap import indent
+from contextlib import contextmanager
 
 from .client import (
     ClientSync as Client,
@@ -41,7 +42,7 @@ class CommandLineInterface:
             command_func(**args)
         except ConnectionError as e:
             print(e)
-            exit(1)
+            exit(2)
 
     def _create_parsers(self):
         self.parser = argparse.ArgumentParser(
@@ -184,13 +185,13 @@ class CommandLineInterface:
 
         if len(matching_ids) == 0:
             print('Could not find account starting with', prefix)
-            exit(1)
+            exit(3)
         elif len(matching_ids) == 1:
             account_id = matching_ids[0]
             return accounts[account_id]
         else:
             print('Multiple matching matching ids: {}'.format(', '.join(matching_ids)))
-            exit(1)
+            exit(4)
 
     def confirm(self, message):
         if self.auto_confirm:
@@ -327,18 +328,10 @@ class CommandLineInterface:
     def import_hardware(self, name=None):
         print('Importing view keys from hardware wallet, please approve on device.')
         print()
-        try:
+        with handle_ledger_error():
             account = self.client.import_view_only_account({'name': name})
-        except WalletAPIError as e:
-            if e.response['error']['data']['server_error'] in ['NoHardwareWalletsFound', 'LedgerHID']:
-                print('Could not communicate with hardware wallet.')
-                print('Please make sure your device is plugged in, unlocked,')
-                print('and showing the MobileCoin app.')
-            else:
-                raise
-        else:
-            print('Imported account.')
-            print(_format_account_header(account))
+        print('Imported account.')
+        print(_format_account_header(account))
 
     def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
@@ -377,7 +370,7 @@ class CommandLineInterface:
                 _save_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
-                exit(1)
+                exit(5)
             else:
                 print(f'Wrote {filename}.')
 
@@ -457,12 +450,12 @@ class CommandLineInterface:
 
         account_status = self.client.get_account_status(account_id)
         try:
-            unspent = Amount.from_storage_units(
-                account_status['balance_per_token'][str(token.token_id)]['unspent'],
-                token,
-            )
+            balance = account_status['balance_per_token'][str(token.token_id)]
+            unspent = Amount.from_storage_units(balance['unspent'], token)
+            unverified = Amount.from_storage_units(balance['unverified'], token)
+            available = unspent + unverified
         except KeyError:
-            unspent = Amount.from_storage_units(0, token)
+            available = Amount.from_storage_units(0, token)
 
         if fee is None:
             network_status = self.client.get_network_status()
@@ -475,13 +468,15 @@ class CommandLineInterface:
         assert fee is not None
 
         if amount == "all":
-            amount = unspent - fee
-            total_amount = unspent
+            amount = available - fee
+            total_amount = available
+            assert amount.value >= 0
+            assert total_amount.value >= 0
         else:
             amount = Amount.from_display_units(amount, token)
             total_amount = amount + fee
 
-        if unspent < total_amount:
+        if available < total_amount:
             print('There is not enough {} in account {} to pay for this transaction.'.format(
                 token.short_code,
                 account_id[:6],
@@ -524,16 +519,22 @@ class CommandLineInterface:
                 print(f'Wrote {path}.')
             return
 
-        if not self.confirm('Confirm? (Y/N) '):
-            print('Cancelled.')
-            return
+        if account['managed_by_hardware_wallet']:
+            print('Please confirm on device.')
+            with handle_ledger_error():
+                self.client.sync_view_only_account({'account_id': account['id']})
+        else:
+            if not self.confirm('Confirm? (Y/N) '):
+                print('Cancelled.')
+                return
 
-        transaction_log, tx_proposal = self.client.build_and_submit_transaction(
-            account_id,
-            amount,
-            to_address,
-            fee=fee,
-        )
+        with handle_ledger_error():
+            transaction_log, tx_proposal = self.client.build_and_submit_transaction(
+                account_id,
+                amount,
+                to_address,
+                fee=fee,
+            )
 
         sent_amounts = [
             Amount.from_storage_units(value, token_id)
@@ -543,7 +544,12 @@ class CommandLineInterface:
             transaction_log['fee_amount']['value'],
             transaction_log['fee_amount']['token_id'],
         )
-        print('Sent {}, with a transaction fee of {}'.format(
+        if account['managed_by_hardware_wallet']:
+            send_verb = 'Sending'
+        else:
+            send_verb = 'Sent'
+        print('{} {}, with a transaction fee of {}'.format(
+            send_verb,
             ', '.join(a.format() for a in sent_amounts),
             fee_amount.format(),
         ))
@@ -861,23 +867,6 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
-    def sync(self, account_id):
-        account = self._load_account_prefix(account_id)
-        print('Syncing, please see device.')
-        try:
-            self.client.sync_view_only_account({'account_id': account['id']})
-        except WalletAPIError as e:
-            if e.response['error']['data']['server_error'] in ['NoHardwareWalletsFound', 'LedgerHID']:
-                print('Could not communicate with hardware wallet.')
-                print('Please make sure your device is plugged in, unlocked,')
-                print('and showing the MobileCoin app.')
-        print('Done')
-
-    def version(self):
-        version = self.client.version()
-        print('MobileCoin full-service', version['string'])
-        print('commit', version['commit'][:6])
-
 
 def _print_account(status):
     print(
@@ -991,3 +980,18 @@ def _save_json_file(filename, data):
     with path.open('w') as f:
         json.dump(data, f, indent=2)
         f.write('\n')
+
+
+@contextmanager
+def handle_ledger_error():
+    try:
+        yield
+    except WalletAPIError as e:
+        if 'Ledger' in e.response['error']['data']['server_error']:
+            print()
+            print('Could not communicate with hardware wallet.')
+            print('Please make sure your device is plugged in, unlocked,')
+            print('and showing the MobileCoin app.')
+            exit(6)
+        else:
+            raise
