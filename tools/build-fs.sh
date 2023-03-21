@@ -80,10 +80,9 @@ case ${net} in
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=DEV
-        # CBB: same pattern as run - prompt user to provide their own css files.
-        # alpha needs a css repository setup
-        CONSENSUS_ENCLAVE_CSS="$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")"
-        INGEST_ENCLAVE_CSS="$(get_css_file "${net}" "${WORK_DIR}/ingest-enclave.css")"
+        # User must provide their own .css files
+        CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
+        INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
         ;;
     local)
         echo "Setting '${net}' SGX, IAS and enclave values"
@@ -113,10 +112,11 @@ echo "building full service..."
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options
 cargo build --release ${BUILD_OPTIONS}
 
+target_dir=${CARGO_TARGET_DIR:-"target"}
 
-# target_dir=${CARGO_TARGET_DIR:-"target"}
-# echo "  binaries are available in ${target_dir}/release"
-
-# echo "  copy css files to ${target_dir}/release for later packaging (docker, tar)"
-# cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
-# cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
+if [[ "${target_dir}/release" != "${WORK_DIR}" ]]
+then
+    echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
+    cp "${target_dir}/release/full-service" "${WORK_DIR}"
+    cp "${target_dir}/release/validator-service" "${WORK_DIR}"
+fi
