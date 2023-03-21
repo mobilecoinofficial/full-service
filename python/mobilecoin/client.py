@@ -353,7 +353,7 @@ class ClientAsync:
     # Polling utility functions.
 
     @staticmethod
-    async def poll(func, delay=1.0, timeout=10):
+    async def poll(func, delay=1.0, timeout=30):
         """
         Repeatedly call the given function until it returns a result.
         """

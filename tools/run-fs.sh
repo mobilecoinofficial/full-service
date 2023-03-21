@@ -198,4 +198,5 @@ then
 fi
 
 echo "Starting Full-Service Wallet"
-"${target_dir}/release/full-service"
+# "${target_dir}/release/full-service"
+"$HOME/.mobilecoin/test/full-service"
