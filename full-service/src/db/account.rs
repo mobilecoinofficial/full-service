@@ -226,7 +226,7 @@ pub trait AccountModel {
     ///| Name                    | Purpose                                                                 | Notes                                                                 |
     ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
     ///| `view_private_key`      | The view private key of this import candidate.                          | Grant view only permission                                            |
-    ///| `spend_public_key`      | The spend public key of this import candidate.                          | Used to get the sending transaction details from the blockchain       |
+    ///| `spend_public_key`      | The spend public key of this import candidate.                          | Used to generate new subaddresses                                     |
     ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
     ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
