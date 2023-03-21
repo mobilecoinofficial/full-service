@@ -80,8 +80,7 @@ case ${net} in
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=DEV
-        # CBB: same pattern as run - prompt user to provide their own css files.
-        # alpha needs a css repository setup
+        # User must provide their own .css files
         CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
         INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
         ;;
@@ -114,6 +113,10 @@ echo "building full service..."
 cargo build --release ${BUILD_OPTIONS}
 
 target_dir=${CARGO_TARGET_DIR:-"target"}
-echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
-cp "${target_dir}/release/full-service" "${WORK_DIR}"
-cp "${target_dir}/release/validator-service" "${WORK_DIR}"
+
+if [[ "${target_dir}/release" != "${WORK_DIR}" ]]
+then
+    echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
+    cp "${target_dir}/release/full-service" "${WORK_DIR}"
+    cp "${target_dir}/release/validator-service" "${WORK_DIR}"
+fi
