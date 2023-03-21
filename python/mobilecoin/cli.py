@@ -419,7 +419,7 @@ class CommandLineInterface:
             elif submitted is None and finalized is not None:
                 return finalized
             else:
-                return None
+                return t['tombstone_block_index']
 
         transactions = sorted(transactions.values(), key=tx_block)
         for t in transactions:

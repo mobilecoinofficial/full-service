@@ -2093,6 +2093,7 @@ dependencies = [
  "base64 0.21.0",
  "clap 4.1.6",
  "ed25519-dalek",
+ "encdec 0.6.2",
  "futures",
  "hex",
  "hidapi",
