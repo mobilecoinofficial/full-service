@@ -13,12 +13,13 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
+    get_tx_out_shared_secret,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
-use std::{fmt, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -125,6 +126,19 @@ pub struct SpendableTxosResult {
 impl Txo {
     pub fn amount(&self) -> Amount {
         Amount::new(self.value as u64, TokenId::from(self.token_id as u64))
+    }
+
+    fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
+        match RistrettoPublic::try_from(&tx_out.public_key) {
+            Err(_) => None,
+            Ok(k) => {
+                let view_private_key = mc_util_serial::decode(&account.account_key);
+                match view_private_key {
+                    Err(_) => None,
+                    Some(vpk) => Some(get_tx_out_shared_secret(&vpk, &k)),
+                }
+            }
+        }
     }
 }
 
@@ -373,7 +387,7 @@ impl TxoModel for Txo {
         conn: &Conn,
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
-        Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         let txo_id = TxoID::from(&txo);
         match Txo::get(&txo_id.to_string(), conn) {
@@ -396,6 +410,7 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+                let shared_secret = Self::get_shared_secret_if_possible(&account, &txo);
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -409,6 +424,7 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
+                    shared_secret: shared_secret.as_bytes(),
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -432,7 +448,7 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&output_txo.tx_out);
         let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
-
+        let shared_secret = Self::get_shared_secret_if_possible(&account, &output_txo.tx_out);
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
@@ -446,6 +462,7 @@ impl TxoModel for Txo {
             received_block_index: None,
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
+            shared_secret: shared_secret.as_bytes(),
         };
 
         diesel::insert_into(txos::table)
