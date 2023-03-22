@@ -867,6 +867,11 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
+    def version(self):
+        version = self.client.version()
+        print('MobileCoin full-service', version['string'])
+        print('commit', version['commit'][:6])
+
 
 def _print_account(status):
     print(
