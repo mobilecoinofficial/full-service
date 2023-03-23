@@ -145,4 +145,5 @@
 
 ## Frequently Asked Questions
 * [What is the Precision of MOB?](FAQ.md#what-is-the-precision-of-mob)
-* [How can I speed up importing of accounts](FAQ.md#how-can-i-make-importing-of-accounts-faster)
+* [How to speed up importing of accounts](FAQ.md#How-can-i-make-importing-of-accounts-faster)
+* [How to tell if FullService is connected](FAQ.md#How-to-tell-if-full-service-is-communicating-with-the-blockchain)
