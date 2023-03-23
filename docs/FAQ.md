@@ -35,7 +35,7 @@ For instance, if Full Service is unable to decipher blocks after a mobilecoin-co
 
 
 ## Is there a list or mapping of Tokens?
-With integration of [MCIP59](https://github.com/mobilecoinfoundation/mcips/blob/main/text/0059-token-metadata-document.md) there is now a signed, hosted file located [here](https://config.mobilecoin.foundation/token_metadata.json) that contains the mapping and attributes of the tokens present on the MC network. Below table is for reference only.
+With integration of [MCIP59](https://github.com/mobilecoinfoundation/mcips/blob/main/text/0059-token-metadata-document.md) there is now a signed metadata file hosted [here](https://config.mobilecoin.foundation/token_metadata.json) that contains the mapping and attributes of the approved tokens currently supported on the Mobilecoin network. Below table is for reference only.
 
 Below table 
 | Token ID  |  Token Name  | Precision  | Approx Fee |
