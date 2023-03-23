@@ -147,3 +147,4 @@
 * [What is the Precision of MOB?](FAQ.md#what-is-the-precision-of-mob))
 * [How to speed up importing of accounts](FAQ.md#How-to-speed-up-account-import)
 * [How to tell if FullService is connected](FAQ.md#How-to-tell-if-full-service-is-communicating-with-the-blockchain)
+* [Is there a list of Supported Tokens?](FAQ.md#is-there-a-list-or-mapping-of-tokens)
