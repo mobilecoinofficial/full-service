@@ -10,7 +10,7 @@ The atomic unit for MOB is picoMOB, which is 1e-12. You need u64 to represent MO
 
 
 
-## How can I make importing of accounts faster?
+## How-to-speed-up-account-import?
 When calling [`import_account`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/account/account/import_account), scanning starts at the Origin block (#1). 
 By using the **first_block_index** param, a user can specify the starting block for that account if it is known. Newly created accounts are given a starting block index. Any transactions that occurred before the first_block_index will not be scanned, potentially leading to invalid balances or denied transactions.
 
