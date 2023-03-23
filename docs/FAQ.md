@@ -16,7 +16,7 @@ By using the **first_block_index** param, a user can specify the starting block 
 
 
 
-## How can I tell if Full Service is able to properly communicate with the Mobilecoin blockchain?
+## How-to-tell-if-full-service-is-communicating-with-the-blockchain?
 Using the [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status) API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.
 For instance, if Full Service is unable to decipher blocks after a mobilecoin-core update, the reponse will look like this:
 ```
