@@ -145,4 +145,4 @@
 
 ## Frequently Asked Questions
 * [What is the Precision of MOB?](FAQ.md#what-is-the-precision-of-mob)
-* [How can I speed up importing of accounts)(FAQ.md#how-can-i-make-importing-of-accounts-faster)
+* [How can I speed up importing of accounts](FAQ.md#how-can-i-make-importing-of-accounts-faster)
