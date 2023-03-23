@@ -141,6 +141,7 @@
 * [No Wallet Mode](usage/no-wallet-db/no-wallet-db.md)
 * [Mirror Service](../mirror/README.md)
   * [Example Usage](../mirror/EXAMPLE.md)
+* [Receiving Mob](tutorials/receive-mob.md)
 
 ## Frequently Asked Questions
 * [What is the Precision of MOB?](FAQ.md#what-is-the-precision-of-mob)
