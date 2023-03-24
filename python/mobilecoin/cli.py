@@ -42,7 +42,7 @@ class CommandLineInterface:
             command_func(**args)
         except ConnectionError as e:
             print(e)
-            exit(2)
+            exit(1)
 
     def _create_parsers(self):
         self.parser = argparse.ArgumentParser(
@@ -181,22 +181,31 @@ class CommandLineInterface:
         self.version_args = command_sp.add_parser('version', help='Show version number.')
 
     def _load_account_prefix(self, prefix):
-        accounts = self.client.get_accounts()
+        """Find all accounts whose id or name starts with the given prefix."""
 
-        matching_ids = [
-            a_id for a_id in accounts.keys()
-            if a_id.startswith(prefix)
-        ]
+        if len(prefix) < 2:
+            print('Account prefix must be at least 2 characters.')
+            exit(1)
+        prefix = prefix.lower()
+        matching_ids = []
+        accounts = self.client.get_accounts()
+        for a_id, account in accounts.items():
+            a_id = a_id.lower()
+            a_name = account['name'].lower()
+            if a_id.startswith(prefix):
+                matching_ids.append(a_id)
+            elif a_name.startswith(prefix):
+                matching_ids.append(a_id)
 
         if len(matching_ids) == 0:
-            print('Could not find account starting with', prefix)
-            exit(3)
+            print('Could not find an account starting with', prefix)
+            exit(1)
         elif len(matching_ids) == 1:
             account_id = matching_ids[0]
             return accounts[account_id]
         else:
-            print('Multiple matching matching ids: {}'.format(', '.join(matching_ids)))
-            exit(4)
+            print('Multiple accounts match the prefix: {}'.format(', '.join(matching_ids)))
+            exit(1)
 
     def confirm(self, message):
         if self.auto_confirm:
@@ -375,7 +384,7 @@ class CommandLineInterface:
                 _save_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
-                exit(5)
+                exit(1)
             else:
                 print(f'Wrote {filename}.')
 
@@ -644,8 +653,9 @@ class CommandLineInterface:
         except TypeError:
             qr.terminal()
 
+        status = self.client.get_account_status(account_id)
         print()
-        _print_account(account)
+        _print_account(status)
         print()
 
     def address(self, action, **args):
@@ -874,9 +884,19 @@ class CommandLineInterface:
 
     def verify(self, account_id):
         account = self._load_account_prefix(account_id)
+        account_id = account['id']
+        if not account['managed_by_hardware_wallet']:
+            print('This account is not on a hardware wallet, so it cannot be verified.')
+            exit(1)
+
         with handle_ledger_error():
             self.client.sync_view_only_account({'account_id': account['id']})
         print('Verified transactions for account {}.'.format(account['id'][0:6]))
+
+        status = self.client.get_account_status(account_id)
+        print()
+        _print_account(status)
+        print()
 
     def version(self):
         version = self.client.version()
@@ -1008,6 +1028,6 @@ def handle_ledger_error():
             print('Could not communicate with hardware wallet.')
             print('Please make sure your device is plugged in, unlocked,')
             print('and showing the MobileCoin app.')
-            exit(6)
+            exit(1)
         else:
             raise
