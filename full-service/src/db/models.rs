@@ -82,6 +82,7 @@ pub struct Txo {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
+    pub shared_secret: Option<Vec<u8>>,
 }
 
 impl Txo {
