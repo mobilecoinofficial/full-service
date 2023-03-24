@@ -19,6 +19,7 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
+use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
@@ -411,7 +412,8 @@ impl TxoModel for Txo {
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
                 let shared_secret = Self::get_shared_secret_if_possible(&account, &txo)
-                    .map(|secret| secret.to_bytes());
+                    .map(|secret| secret.encode_to_vec());
+                let secret2 = shared_secret.as_deref();
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -425,7 +427,7 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
-                    shared_secret: None, //shared_secret.map(|secret| &secret),
+                    shared_secret: secret2,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
