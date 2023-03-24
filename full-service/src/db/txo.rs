@@ -132,10 +132,10 @@ impl Txo {
         match RistrettoPublic::try_from(&tx_out.public_key) {
             Err(_) => None,
             Ok(k) => {
-                let view_private_key = mc_util_serial::decode(&account.account_key);
+                let view_private_key = mc_util_serial::decode(&(account.account_key));
                 match view_private_key {
                     Err(_) => None,
-                    Some(vpk) => Some(get_tx_out_shared_secret(&vpk, &k)),
+                    Ok(vpk) => Some(get_tx_out_shared_secret(&vpk, &k)),
                 }
             }
         }
@@ -410,7 +410,8 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
-                let shared_secret = Self::get_shared_secret_if_possible(&account, &txo);
+                let shared_secret = Self::get_shared_secret_if_possible(&account, &txo)
+                    .map(|secret| secret.to_bytes());
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -424,7 +425,7 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
-                    shared_secret: shared_secret.as_bytes(),
+                    shared_secret: None, //shared_secret.map(|secret| &secret),
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -448,7 +449,6 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&output_txo.tx_out);
         let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
-        let shared_secret = Self::get_shared_secret_if_possible(&account, &output_txo.tx_out);
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
@@ -462,7 +462,7 @@ impl TxoModel for Txo {
             received_block_index: None,
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
-            shared_secret: shared_secret.as_bytes(),
+            shared_secret: None, // no account id so we don't
         };
 
         diesel::insert_into(txos::table)
@@ -1723,6 +1723,7 @@ mod tests {
             spent_block_index: None,
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
+            shared_secret: None,
         };
 
         assert_eq!(expected_txo, txos[0]);
