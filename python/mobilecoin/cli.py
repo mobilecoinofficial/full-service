@@ -85,6 +85,11 @@ class CommandLineInterface:
         self.import_hardware_args = command_sp.add_parser('import-hardware', help='Import an account from a hardware wallet.')
         self.import_hardware_args.add_argument('-n', '--name', help='Account name.')
 
+
+        # Verify transactions for hardware wallet account.
+        self.verify_args = command_sp.add_parser('verify', help='Verify unverified transactions on hardware wallet.')
+        self.verify_args.add_argument('account_id', help='ID of the account to verify.')
+
         # Export account.
         self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
         self.export_args.add_argument('account_id', help='ID of the account to export.')
@@ -866,6 +871,12 @@ class CommandLineInterface:
             if 'GiftCodeNotFound' in e.response['data']['server_error']:
                 print('Gift code not found; nothing to remove.')
                 return
+
+    def verify(self, account_id):
+        account = self._load_account_prefix(account_id)
+        with handle_ledger_error():
+            self.client.sync_view_only_account({'account_id': account['id']})
+        print('Verified transactions for account {}.'.format(account['id'][0:6]))
 
     def version(self):
         version = self.client.version()
