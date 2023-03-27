@@ -11,7 +11,7 @@ from mobilecoin.token import get_token, Amount
 
 log = logging.getLogger('client_async')
 
-DEFAULT_URL = 'http://127.0.0.1:9090/wallet/v2'
+DEFAULT_URL = 'http://127.0.0.1:9090'
 MAX_TOMBSTONE_BLOCKS = 100
 
 
@@ -23,7 +23,7 @@ class WalletAPIError(Exception):
 class ClientAsync:
     def __init__(self, url=None):
         if url is None:
-            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL)
+            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL) + "/wallet/v2"
         self.url = url
         self._query_count = 0
 
@@ -353,7 +353,7 @@ class ClientAsync:
     # Polling utility functions.
 
     @staticmethod
-    async def poll(func, delay=1.0, timeout=10):
+    async def poll(func, delay=1.0, timeout=30):
         """
         Repeatedly call the given function until it returns a result.
         """
