@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir -pv release
           cd release
-          tar -czvf ${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/ Linux-X64-testnet
+          tar -czvf ${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/ Linux-X64-testnet/
           tar -czvf ${{ github.ref_name }}-Linux-X64-mainnet.tar.gz -C ../build_artifacts/ Linux-X64-mainnet/
           tar -czvf ${{ github.ref_name }}-macOS-X64-testnet.tar.gz -C ../build_artifacts/ macOS-X64-testnet/
           tar -czvf ${{ github.ref_name }}-macOS-X64-mainnet.tar.gz -C ../build_artifacts/ macOS-X64-mainnet/
