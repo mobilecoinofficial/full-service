@@ -1,6 +1,7 @@
 from decimal import Decimal
 import http.client
 import json
+import os
 import time
 from urllib.parse import urlparse
 
@@ -8,7 +9,7 @@ from mobilecoin.token import get_token
 
 MOB = get_token('MOB')
 
-DEFAULT_URL = 'http://127.0.0.1:9090/wallet'
+DEFAULT_URL = 'http://127.0.0.1:9090'
 
 MAX_TOMBSTONE_BLOCKS = 100
 
@@ -28,7 +29,7 @@ class Client:
     """
     def __init__(self, url=None, verbose=False):
         if url is None:
-            url = DEFAULT_URL
+            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL) + "/wallet"
         self.url = url
         self.verbose = verbose
         self._query_count = 0
