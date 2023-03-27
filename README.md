@@ -19,31 +19,35 @@ The Full-Service Node provides ledger syncing and validation, account management
 
 * [License](#license)
 * [Usage and Documentation](#usage-and-documentation)
-* [Build and Run](#build-and-run-mob)
-* [Build and Run](#build-and-run)
-* [Docker Build and Run](#docker-build-and-run)
+* [Run the wallet service](#run-the-wallet-service)
+* [Build with Docker](#build-with-docker)
+* [Build locally](#build-locally)
+* [Build your own docker image](#build-your-own-docker-image)
 * [Parameters](#parameters)
-* [Offline (Cold Wallet) Transaction Flow](#offline-cold-wallet-transaction-flow)
+* [API Key](#api-key)
+* [Exit Codes](#exit-codes)
 * [Contributing](#contributing)
 * [Database Schema](#database-schema)
 * [Running Tests](#running-tests)
 * [Linting](#linting)
 
-### License
+## License
 
 MobileCoin Full Service is available under open-source licenses. Look for the [LICENSE](./LICENSE) file for more
 information.
 
-### Usage and Documentation
+## Usage and Documentation
 
 For documentation, usage, and API specification, please see the full API documentation at: [Full Service API](https://mobilecoin.gitbook.io/full-service-api/)
 
 Database encryption features are also described in the [Database Encryption](https://mobilecoin.gitbook.io/full-service-api/usage/database-usage#database-encryption)
 section of the full API docs.
 
-## Run the wallet service directly from the official docker image.
 
-You can a pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
+## Run the wallet service
+
+You can run the wallet service directly from the official docker image.
+Get the pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
 
 Here is the command to run against test-net:
 ```sh
@@ -75,9 +79,9 @@ docker run -it -p 127.0.0.1:9090:9090 \
 
 These commands expect that you have your ledger and wallet databases located at `~/.mobilecoin/test` or `~/.mobilecoin/main`.
 
-## Build with the Docker builder container.
+## Build with Docker
 
-You can build the wallet service using the `mob` tool, which creates a docker container set up for correct compliation.
+You can build the wallet service using the `mob` tool, which creates a docker container set up for correct compliation. This is called the "builder image".
 
 **Prerequisites**
 - git
@@ -103,7 +107,7 @@ You can build the wallet service using the `mob` tool, which creates a docker co
     tools/build-fs.sh test
     ```
 
-## Build locally.
+## Build locally
 
 Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from Apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
 
@@ -252,7 +256,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
    See [Parameters](#parameters) for full list of available options.
 
 
-## Building your own docker image.
+## Build your own docker image
 
 1. Pull submodule.
 
@@ -297,7 +301,9 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    Then run your image as above.
 
-## Parameters to the full-service executable.
+## Parameters
+
+These are the parameters to the full-service executable.
 
 | Param            | Purpose                  | Requirements              |
 | :--------------- | :----------------------- | :------------------------ |
