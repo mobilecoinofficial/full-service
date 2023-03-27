@@ -45,6 +45,11 @@ enum Opts {
         name: Option<String>,
         mnemonic: String,
     },
+    ImportFromLegecy {
+        #[structopt(short, long)]
+        name: Option<String>,
+        entropy: String,
+    },
     r#Sync {
         secret_mnemonic: String,
         sync_request: String,
@@ -72,6 +77,10 @@ fn main() {
             let name = name.unwrap_or_else(|| "".into());
             create_account(&name, Some(&mnemonic));
         }
+        Opts::ImportFromLegacy { entropy, name } => {
+            let name = name.unwrap_or_else(|| "".into());
+            import_account_from_legacy(&name, &entropy);
+        }
         Opts::ViewOnlyImportPackage {
             ref secret_mnemonic,
         } => {
@@ -91,6 +100,39 @@ fn main() {
             sign_transaction(secret_mnemonic, request);
         }
     }
+}
+
+fn import_account_from_legacy(name: &str, entropy: &str) {
+    println!("Creating account {name} from legacy entropy");
+
+    // Get account key from entropy
+    let mut entropy_bytes = [0u8; 32];
+    hex::decode_to_slice(entropy, &mut entropy_bytes)?;
+    let root_entropy = RootEntropy::from(&entropy_bytes);
+    let root_id = RootIdentity {
+        root_entropy: entropy.clone()
+    };
+    let account_key = AccountKey::from(&root_id);
+
+    let account_id = AccountID::from(&account_key);
+    let view_private_key_hex = ristretto_to_hex(account_key.view_private_key());
+    let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
+    let spend_public_key_hex = ristretto_public_to_hex(&spend_public_key);
+
+    let json_command_request = JsonCommandRequest::import_view_only_account {
+        view_private_key: view_private_key_hex,
+        spend_public_key: spend_public_key_hex,
+        name: None,
+        first_block_index: None,
+        next_subaddress_index: None,
+    };
+
+    // Write view private key and associated info to file.
+    let filename = format!(
+        "mobilecoin_view_account_import_package_{}.json",
+        &account_id.to_string()[..6]
+    );
+    write_json_command_request_to_file(&json_command_request, &filename);
 }
 
 fn create_account(name: &str, mnemonic: Option<&str>) {
