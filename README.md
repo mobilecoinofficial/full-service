@@ -135,125 +135,125 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
 2. Install dependencies (from this top-level full-service directory).
 
-   On Ubuntu:
-    ```sh
-    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
-    ```
+On Ubuntu:
+```sh
+sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
+```
 
-   On MacOS:
-    ```sh
-    brew bundle
-    ```
+On MacOS:
+```sh
+brew bundle
+```
 
-    After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
+After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
 
-   Ubuntu:
-    ```
-    PATH="/usr/local/opt/openssl@3/bin:$PATH"
-    LDFLAGS="-L/usr/local/opt/openssl@3/lib"
-    CPPFLAGS="-I/usr/local/opt/openssl@3/include"
-    PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
-    ```
-    
-    The `ulimit` command fixes an issue related to shell resource usage. 
+Ubuntu:
+```
+PATH="/usr/local/opt/openssl@3/bin:$PATH"
+LDFLAGS="-L/usr/local/opt/openssl@3/lib"
+CPPFLAGS="-I/usr/local/opt/openssl@3/include"
+PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
+```
 
-   MacOS:
-    ```sh
-   echo 'ulimit -n 4096' >> ~/.bash_profile
-   echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
-   source ~/.bash_profile
-   export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-   export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-   export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
-    ```
+The `ulimit` command fixes an issue related to shell resource usage. 
 
-   Finally, for both:
-   ```sh
-   rustup component add llvm-tools-preview
-   ```
+MacOS:
+```sh
+echo 'ulimit -n 4096' >> ~/.bash_profile
+echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
+source ~/.bash_profile
+export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+```
 
-4. Pull submodule.
+Finally, for both:
+```sh
+rustup component add llvm-tools-preview
+```
 
-    ```sh
-    git submodule update --init --recursive
-    ```
+3. Pull submodule.
 
-5. Get the appropriate published enclave measurements, which will be saved to `$(pwd)/consensus-enclave.css`
-   and `$(pwd)/ingest-enclave.css`
+```sh
+git submodule update --init --recursive
+```
 
-    * Note: Namespace is `test` for TestNet and `prod` for MainNet.
+4. Get the appropriate published enclave measurements, which will be saved to `$(pwd)/consensus-enclave.css` and `$(pwd)/ingest-enclave.css`
 
-    ```sh
-    NAMESPACE=test
+* Note: Namespace is `test` for TestNet and `prod` for MainNet.
 
-    CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
+```sh
+NAMESPACE=test
 
-    INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
-    ```
+CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
 
-6. Install SGX libraries (required for linux distros; not required for MacOS).
+INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
+```
 
-   On Ubuntu:
-    ```sh
-    wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
-    chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
-    sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
-    ```
+5. Install SGX libraries (required for linux distros; not required for MacOS).
 
-   Put this line in your .bashrc or .zhrc:
-    ```sh
-    source /opt/intel/sgxsdk/environment
-    ```
+On Ubuntu:
+```sh
+wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
+chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
+sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
+```
 
-   This works on more recent Ubuntu distributions, even though it specifies 18.04.
+Put this line in your .bashrc or .zhrc:
+```sh
+source /opt/intel/sgxsdk/environment
+```
+This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
-7. Put this line in your .bashrc or .zhrc:
+6. Put this line in your .bashrc or .zhrc:
 
-   Ubuntu:
-    ```sh
-    export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
-    ```
+Ubuntu:
+```sh
+export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
+```
 
-   OSX:
-   ```sh
-   echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
-   ```
+OSX:
+```sh
+echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
+```
 
-8. Build
-    ```sh
-    SGX_MODE=HW \
-    IAS_MODE=PROD \
-    CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
-    INGEST_ENCLAVE_CSS=$(pwd)/ingest-enclave.css \
-    cargo build --release -p mc-full-service
-    ```
+7. Build
 
-9. Set database password if using encryption.
-    ```sh
-    read -rs MC_PASSWORD
-    export MC_PASSWORD=$MC_PASSWORD
-    ```
-10. Run
+```sh
+SGX_MODE=HW \
+IAS_MODE=PROD \
+CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+INGEST_ENCLAVE_CSS=$(pwd)/ingest-enclave.css \
+cargo build --release -p mc-full-service
+```
 
+8. Set database password if using encryption.
 
-   TestNet Example
+```sh
+read -rs MC_PASSWORD
+export MC_PASSWORD=$MC_PASSWORD
+```
 
-    ```sh
-    mkdir -p /tmp/wallet-db/
-    ./target/release/full-service \
-        --wallet-db /tmp/wallet-db/wallet.db \
-        --ledger-db /tmp/ledger-db/ \
-        --peer mc://node1.test.mobilecoin.com/ \
-        --peer mc://node2.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
-        --chain-id test
-    ```
+9. Run
 
-   See [Parameters](#parameters) for full list of available options.
+TestNet Example
+
+```sh
+mkdir -p /tmp/wallet-db/
+./target/release/full-service \
+    --wallet-db /tmp/wallet-db/wallet.db \
+    --ledger-db /tmp/ledger-db/ \
+    --peer mc://node1.test.mobilecoin.com/ \
+    --peer mc://node2.test.mobilecoin.com/ \
+    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+    --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+    --chain-id test
+```
+
+See [Parameters](#parameters) for full list of available options.
 
 
 ## Build your own docker image
