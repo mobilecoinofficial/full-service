@@ -47,24 +47,26 @@ jobs:
           mkdir -pv build_artifacts/macOS-X64-mainnet
           mkdir -pv build_artifacts/macOS-ARM64-testnet
           mkdir -pv build_artifacts/macOS-ARM64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-testnet.tar.gz -C build_artifacts/Linux-X64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-Linux-X64-mainnet.tar.gz -C build_artifacts/Linux-X64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-testnet.tar.gz -C build_artifacts/macOS-X64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-X64-mainnet.tar.gz -C build_artifacts/macOS-X64-mainnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-testnet.tar.gz -C build_artifacts/macOS-ARM64-testnet
-          tar xzvf /var/tmp/${{ steps.current_release.outputs.tag_name }}-macOS-ARM64-mainnet.tar.gz -C build_artifacts/macOS-ARM64-mainnet
+          tag=${{ steps.current_release.outputs.tag_name }}
+          tar xzvf /var/tmp/${tag}-Linux-X64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-Linux-X64-testnet
+          tar xzvf /var/tmp/${tag}-Linux-X64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-Linux-X64-mainnet
+          tar xzvf /var/tmp/${tag}-macOS-X64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-X64-testnet
+          tar xzvf /var/tmp/${tag}-macOS-X64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-X64-mainnet
+          tar xzvf /var/tmp/${tag}-macOS-ARM64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-ARM64-testnet
+          tar xzvf /var/tmp/${tag}-macOS-ARM64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-ARM64-mainnet
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           mkdir -pv release
           cd release
-          tar -czvf ${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/ Linux-X64-testnet/
-          tar -czvf ${{ github.ref_name }}-Linux-X64-mainnet.tar.gz -C ../build_artifacts/ Linux-X64-mainnet/
-          tar -czvf ${{ github.ref_name }}-macOS-X64-testnet.tar.gz -C ../build_artifacts/ macOS-X64-testnet/
-          tar -czvf ${{ github.ref_name }}-macOS-X64-mainnet.tar.gz -C ../build_artifacts/ macOS-X64-mainnet/
-          tar -czvf ${{ github.ref_name }}-macOS-ARM64-testnet.tar.gz -C ../build_artifacts/ macOS-ARM64-testnet/
-          tar -czvf ${{ github.ref_name }}-macOS-ARM64-mainnet.tar.gz -C ../build_artifacts/ macOS-ARM64-mainnet/
+          tag=${{ steps.current_release.outputs.tag_name }}
+          tar -czvf MobileCoin-${{ github.ref_name }}-Linux-X64-testnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-Linux-X64-testnet/
+          tar -czvf MobileCoin-${{ github.ref_name }}-Linux-X64-mainnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-Linux-X64-mainnet/
+          tar -czvf MobileCoin-${{ github.ref_name }}-macOS-X64-testnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-macOS-X64-testnet/
+          tar -czvf MobileCoin-${{ github.ref_name }}-macOS-X64-mainnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-macOS-X64-mainnet/
+          tar -czvf MobileCoin-${{ github.ref_name }}-macOS-ARM64-testnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-macOS-ARM64-testnet/
+          tar -czvf MobileCoin-${{ github.ref_name }}-macOS-ARM64-mainnet.tar.gz -C ../build_artifacts/ MobileCoin-${tag}-macOS-ARM64-mainnet/
 
       - name: Upload Release
         if: startsWith(github.ref, 'refs/tags/v')
