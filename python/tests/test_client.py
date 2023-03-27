@@ -37,7 +37,7 @@ async def client():
 
 @pytest.fixture(scope='session')
 async def fees(client):
-    # Get the default fee amounts.
+    """Get the default fee amounts."""
     fees = {}
     network_status = await client.get_network_status()
     for token_id, value in network_status['fees'].items():
