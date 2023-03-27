@@ -41,18 +41,18 @@ jobs:
       - name: Extract Release
         run: |
           rm -rfv build_artifacts
-          mkdir -pv build_artifacts/Linux-X64-testnet
-          mkdir -pv build_artifacts/Linux-X64-mainnet
-          mkdir -pv build_artifacts/macOS-X64-testnet
-          mkdir -pv build_artifacts/macOS-X64-mainnet
-          mkdir -pv build_artifacts/macOS-ARM64-testnet
-          mkdir -pv build_artifacts/macOS-ARM64-mainnet
           tag=${{ steps.current_release.outputs.tag_name }}
+          mkdir -pv build_artifacts/MobileCoin-${tag}-Linux-X64-testnet
           tar xzvf /var/tmp/${tag}-Linux-X64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-Linux-X64-testnet
+          mkdir -pv build_artifacts/MobileCoin-${tag}-Linux-X64-mainnet
           tar xzvf /var/tmp/${tag}-Linux-X64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-Linux-X64-mainnet
+          mkdir -pv build_artifacts/MobileCoin-${tag}-macOS-X64-testnet
           tar xzvf /var/tmp/${tag}-macOS-X64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-X64-testnet
+          mkdir -pv build_artifacts/MobileCoin-${tag}-macOS-X64-mainnet
           tar xzvf /var/tmp/${tag}-macOS-X64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-X64-mainnet
+          mkdir -pv build_artifacts/MobileCoin-${tag}-macOS-ARM64-testnet
           tar xzvf /var/tmp/${tag}-macOS-ARM64-testnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-ARM64-testnet
+          mkdir -pv build_artifacts/MobileCoin-${tag}-macOS-ARM64-mainnet
           tar xzvf /var/tmp/${tag}-macOS-ARM64-mainnet.tar.gz -C build_artifacts/MobileCoin-${tag}-macOS-ARM64-mainnet
 
       - name: Create Release
