@@ -135,123 +135,123 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
 2. Install dependencies (from this top-level full-service directory).
 
-On Ubuntu:
-```sh
-sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
-```
+    On Ubuntu:
+    ```sh
+    sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
+    ```
 
-On MacOS:
-```sh
-brew bundle
-```
+    On MacOS:
+    ```sh
+    brew bundle
+    ```
 
-After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
+    After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
 
-Ubuntu:
-```
-PATH="/usr/local/opt/openssl@3/bin:$PATH"
-LDFLAGS="-L/usr/local/opt/openssl@3/lib"
-CPPFLAGS="-I/usr/local/opt/openssl@3/include"
-PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
-```
+    Ubuntu:
+    ```
+    PATH="/usr/local/opt/openssl@3/bin:$PATH"
+    LDFLAGS="-L/usr/local/opt/openssl@3/lib"
+    CPPFLAGS="-I/usr/local/opt/openssl@3/include"
+    PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
+    ```
 
-The `ulimit` command fixes an issue related to shell resource usage. 
+    The `ulimit` command fixes an issue related to shell resource usage. 
 
-MacOS:
-```sh
-echo 'ulimit -n 4096' >> ~/.bash_profile
-echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
-source ~/.bash_profile
-export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
-```
+    MacOS:
+    ```sh
+    echo 'ulimit -n 4096' >> ~/.bash_profile
+    echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
+    source ~/.bash_profile
+    export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+    ```
 
-Finally, for both:
-```sh
-rustup component add llvm-tools-preview
-```
+    Finally, for both:
+    ```sh
+    rustup component add llvm-tools-preview
+    ```
 
 3. Pull submodule.
 
-```sh
-git submodule update --init --recursive
-```
+    ```sh
+    git submodule update --init --recursive
+    ```
 
 4. Get the appropriate published enclave measurements, which will be saved to `$(pwd)/consensus-enclave.css` and `$(pwd)/ingest-enclave.css`
 
-* Note: Namespace is `test` for TestNet and `prod` for MainNet.
+    * Note: Namespace is `test` for TestNet and `prod` for MainNet.
 
-```sh
-NAMESPACE=test
+    ```sh
+    NAMESPACE=test
 
-CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
+    CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
 
-INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
-```
+    INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
+    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
+    ```
 
 5. Install SGX libraries (required for linux distros; not required for MacOS).
 
-On Ubuntu:
-```sh
-wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
-chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
-sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
-```
+    On Ubuntu:
+    ```sh
+    wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
+    chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
+    sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
+    ```
 
-Put this line in your .bashrc or .zhrc:
-```sh
-source /opt/intel/sgxsdk/environment
-```
-This works on more recent Ubuntu distributions, even though it specifies 18.04.
+    Put this line in your .bashrc or .zhrc:
+    ```sh
+    source /opt/intel/sgxsdk/environment
+    ```
+    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
 6. Put this line in your .bashrc or .zhrc:
 
-Ubuntu:
-```sh
-export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
-```
+    Ubuntu:
+    ```sh
+    export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
+    ```
 
-OSX:
-```sh
-echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
-```
+    OSX:
+    ```sh
+    echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
+    ```
 
 7. Build
 
-```sh
-SGX_MODE=HW \
-IAS_MODE=PROD \
-CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
-INGEST_ENCLAVE_CSS=$(pwd)/ingest-enclave.css \
-cargo build --release -p mc-full-service
-```
+    ```sh
+    SGX_MODE=HW \
+    IAS_MODE=PROD \
+    CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
+    INGEST_ENCLAVE_CSS=$(pwd)/ingest-enclave.css \
+    cargo build --release -p mc-full-service
+    ```
 
 8. Set database password if using encryption.
 
-```sh
-read -rs MC_PASSWORD
-export MC_PASSWORD=$MC_PASSWORD
-```
+    ```sh
+    read -rs MC_PASSWORD
+    export MC_PASSWORD=$MC_PASSWORD
+    ```
 
 9. Run
 
-TestNet Example
+    TestNet Example
 
-```sh
-mkdir -p /tmp/wallet-db/
-./target/release/full-service \
-    --wallet-db /tmp/wallet-db/wallet.db \
-    --ledger-db /tmp/ledger-db/ \
-    --peer mc://node1.test.mobilecoin.com/ \
-    --peer mc://node2.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-    --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
-    --chain-id test
-```
+    ```sh
+    mkdir -p /tmp/wallet-db/
+    ./target/release/full-service \
+        --wallet-db /tmp/wallet-db/wallet.db \
+        --ledger-db /tmp/ledger-db/ \
+        --peer mc://node1.test.mobilecoin.com/ \
+        --peer mc://node2.test.mobilecoin.com/ \
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+        --chain-id test
+    ```
 
 See [Parameters](#parameters) for full list of available options.
 
@@ -264,32 +264,32 @@ See [Parameters](#parameters) for full list of available options.
     git submodule update --init --recursive
     ```
 
-1. Build
+    2. Build
 
-   This build takes advantage of features in Docker BuildKit use `DOCKER_BUILDKIT=1` when building this image.
+    This build takes advantage of features in Docker BuildKit use `DOCKER_BUILDKIT=1` when building this image.
 
-   See the [Dockerfile](./Dockerfile) comments for the full list of available build arguments to customize the build.
+    See the [Dockerfile](./Dockerfile) comments for the full list of available build arguments to customize the build.
 
-   **TestNet Version**
+    **TestNet Version**
 
-   Use `--build-arg NAMESPACE=test` to configure build to use TestNet enclave measurements.
+    Use `--build-arg NAMESPACE=test` to configure build to use TestNet enclave measurements.
 
     ```sh
     DOCKER_BUILDKIT=1 docker build -t mobilecoin/full-service:0.0.0-testnet --progress=plain \
-    --build-arg NAMESPACE=test \
-    --build-arg BUILD_OPTS=--no-default-features .
-    ```
+                    --build-arg NAMESPACE=test \
+                    --build-arg BUILD_OPTS=--no-default-features .
+                    ```
 
-   **MainNet Version**
+                    **MainNet Version**
 
-   Use `--build-arg NAMESPACE=prod` to configure build to use MainNet enclave measurements.
+                    Use `--build-arg NAMESPACE=prod` to configure build to use MainNet enclave measurements.
 
-    ```sh
-    DOCKER_BUILDKIT=1 docker build -t mobilecoin/full-service:0.0.0 --progress=plain \
-        --build-arg NAMESPACE=prod .
-    ```
+                    ```sh
+                    DOCKER_BUILDKIT=1 docker build -t mobilecoin/full-service:0.0.0 --progress=plain \
+                                    --build-arg NAMESPACE=prod .
+                                    ```
 
-1. Run
+3. Run
 
    **Volumes**
 
