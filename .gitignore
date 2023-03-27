@@ -89,5 +89,9 @@ __pycache__
 # Python/Poetry projects
 .venv/
 
+# Node
 node_modules/
 *.pem
+
+# Output files from `mob export`.
+mobilecoin_secret_*
