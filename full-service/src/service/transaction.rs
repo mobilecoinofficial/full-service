@@ -6,7 +6,6 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         models::{Account, TransactionLog},
-        transaction,
         transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
     },
@@ -418,72 +417,72 @@ where
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            let mut builder = WalletTransactionBuilder::new(
-                account_id_hex.to_string(),
-                self.ledger_db.clone(),
-                self.fog_resolver_factory.clone(),
-            );
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        let mut builder = WalletTransactionBuilder::new(
+            account_id_hex.to_string(),
+            self.ledger_db.clone(),
+            self.fog_resolver_factory.clone(),
+        );
 
-            let mut default_fee_token_id = Mob::ID;
+        let mut default_fee_token_id = Mob::ID;
 
-            for (recipient_public_address, amount) in addresses_and_amounts {
-                if self.verify_address(recipient_public_address).is_err() {
-                    return Err(TransactionServiceError::InvalidPublicAddress(
-                        recipient_public_address.to_string(),
-                    ));
-                };
-                let recipient = b58_decode_public_address(recipient_public_address)?;
-                let amount =
-                    Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
-                builder.add_recipient(recipient, amount.value, amount.token_id)?;
-                default_fee_token_id = amount.token_id;
-            }
-
-            if let Some(tombstone) = tombstone_block {
-                builder.set_tombstone(tombstone.parse::<u64>()?)?;
-            } else {
-                builder.set_tombstone(0)?;
-            }
-
-            let fee_token_id = match fee_token_id {
-                Some(t) => TokenId::from(t.parse::<u64>()?),
-                None => default_fee_token_id,
+        for (recipient_public_address, amount) in addresses_and_amounts {
+            if self.verify_address(recipient_public_address).is_err() {
+                return Err(TransactionServiceError::InvalidPublicAddress(
+                    recipient_public_address.to_string(),
+                ));
             };
+            let recipient = b58_decode_public_address(recipient_public_address)?;
+            let amount =
+                Amount::try_from(amount).map_err(TransactionServiceError::InvalidAmount)?;
+            builder.add_recipient(recipient, amount.value, amount.token_id)?;
+            default_fee_token_id = amount.token_id;
+        }
 
-            let fee_value = match fee_value {
-                Some(f) => f.parse::<u64>()?,
-                None => self
-                    .get_network_fees()?
-                    .get_fee_for_token(&fee_token_id)
-                    .ok_or(TransactionServiceError::DefaultFeeNotFoundForToken(
-                        fee_token_id,
-                    ))?,
-            };
+        if let Some(tombstone) = tombstone_block {
+            builder.set_tombstone(tombstone.parse::<u64>()?)?;
+        } else {
+            builder.set_tombstone(0)?;
+        }
 
-            builder.set_fee(fee_value, fee_token_id)?;
+        let fee_token_id = match fee_token_id {
+            Some(t) => TokenId::from(t.parse::<u64>()?),
+            None => default_fee_token_id,
+        };
 
-            match block_version {
-                Some(v) => builder.set_block_version(v),
-                None => builder.set_block_version(self.get_network_block_version()?),
-            }
+        let fee_value = match fee_value {
+            Some(f) => f.parse::<u64>()?,
+            None => self
+                .get_network_fees()?
+                .get_fee_for_token(&fee_token_id)
+                .ok_or(TransactionServiceError::DefaultFeeNotFoundForToken(
+                    fee_token_id,
+                ))?,
+        };
 
-            if let Some(inputs) = input_txo_ids {
-                builder.set_txos(&conn, inputs)?;
+        builder.set_fee(fee_value, fee_token_id)?;
+
+        match block_version {
+            Some(v) => builder.set_block_version(v),
+            None => builder.set_block_version(self.get_network_block_version()?),
+        }
+
+        if let Some(inputs) = input_txo_ids {
+            builder.set_txos(conn, inputs)?;
+        } else {
+            let max_spendable = if let Some(msv) = max_spendable_value {
+                Some(msv.parse::<u64>()?)
             } else {
-                let max_spendable = if let Some(msv) = max_spendable_value {
-                    Some(msv.parse::<u64>()?)
-                } else {
-                    None
-                };
-                builder.select_txos(&conn, max_spendable)?;
-            }
+                None
+            };
+            builder.select_txos(conn, max_spendable)?;
+        }
 
-            let unsigned_tx_proposal = builder.build(memo, &conn)?;
+        let unsigned_tx_proposal = builder.build(memo, conn)?;
 
-            Ok(unsigned_tx_proposal)
-        })
+        Ok(unsigned_tx_proposal)
+        // })
     }
 
     fn build_and_sign_transaction(
@@ -509,23 +508,23 @@ where
             memo,
             block_version,
         )?;
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            let account = Account::get(&AccountID(account_id_hex.to_string()), &conn)?;
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-            let fee_map = if self.offline {
-                None
-            } else {
-                Some(self.get_network_fees()?)
-            };
+        let fee_map = if self.offline {
+            None
+        } else {
+            Some(self.get_network_fees()?)
+        };
 
-            let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
+        let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
 
-            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, &conn)?;
+        TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
 
-            Ok(tx_proposal)
-        })
+        Ok(tx_proposal)
+        // })
     }
 
     fn submit_transaction(
@@ -562,29 +561,29 @@ where
         );
 
         if let Some(account_id_hex) = account_id_hex {
-            let conn = self.get_conn()?;
+            let conn = &mut self.get_conn()?;
             let account_id = AccountID(account_id_hex.to_string());
 
-            transaction(&conn, || {
-                if Account::get(&account_id, &conn).is_ok() {
-                    let transaction_log = TransactionLog::log_submitted(
-                        tx_proposal,
-                        block_index,
-                        comment.unwrap_or_default(),
-                        &account_id_hex,
-                        &conn,
-                    )?;
+            // conn.exclusive_transaction(|conn| {
+            if Account::get(&account_id, conn).is_ok() {
+                let transaction_log = TransactionLog::log_submitted(
+                    tx_proposal,
+                    block_index,
+                    comment.unwrap_or_default(),
+                    &account_id_hex,
+                    conn,
+                )?;
 
-                    let associated_txos = transaction_log.get_associated_txos(&conn)?;
-                    let value_map = transaction_log.value_map(&conn)?;
+                let associated_txos = transaction_log.get_associated_txos(conn)?;
+                let value_map = transaction_log.value_map(conn)?;
 
-                    Ok(Some((transaction_log, associated_txos, value_map)))
-                } else {
-                    Err(TransactionServiceError::Database(
-                        WalletDbError::AccountNotFound(account_id_hex),
-                    ))
-                }
-            })
+                Ok(Some((transaction_log, associated_txos, value_map)))
+            } else {
+                Err(TransactionServiceError::Database(
+                    WalletDbError::AccountNotFound(account_id_hex),
+                ))
+            }
+            // })
         } else {
             Ok(None)
         }

@@ -91,7 +91,7 @@ where
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = &self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         Ok(TransactionLog::list_all(
             account_id,
             offset,
@@ -106,11 +106,11 @@ where
         &self,
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let transaction_log =
-            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
-        let associated = transaction_log.get_associated_txos(&conn)?;
-        let value_map = transaction_log.value_map(&conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), conn)?;
+        let associated = transaction_log.get_associated_txos(conn)?;
+        let value_map = transaction_log.value_map(conn)?;
 
         Ok((transaction_log, associated, value_map))
     }

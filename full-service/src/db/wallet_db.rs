@@ -7,16 +7,18 @@ use diesel::{
     connection::SimpleConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
-    sql_types, SqliteConnection,
+    sql_types,
+    sqlite::Sqlite,
+    SqliteConnection,
 };
-use diesel_migrations::embed_migrations;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use mc_common::logger::global_log;
 use mc_crypto_keys::RistrettoPublic;
 use std::{env, thread::sleep, time::Duration};
 
-embed_migrations!("migrations/");
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
-pub type Conn = PooledConnection<ConnectionManager<SqliteConnection>>;
+pub type Conn<'a> = &'a mut PooledConnection<ConnectionManager<SqliteConnection>>;
 
 #[derive(Debug)]
 pub struct ConnectionOptions {
@@ -56,7 +58,7 @@ impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error>
 
 #[derive(Clone)]
 pub struct WalletDb {
-    pool: Pool<ConnectionManager<SqliteConnection>>,
+    pub pool: Pool<ConnectionManager<SqliteConnection>>,
 }
 
 impl WalletDb {
@@ -78,11 +80,13 @@ impl WalletDb {
         Ok(Self::new(pool))
     }
 
-    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
+    pub fn get_conn(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         Ok(self.pool.get()?)
     }
 
-    pub fn set_db_encryption_key_from_env(conn: &SqliteConnection) {
+    pub fn set_db_encryption_key_from_env(conn: &mut SqliteConnection) {
         // Send the encryption key to SQLCipher, if it is not the empty string.
         let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
         if !encryption_key.is_empty() {
@@ -96,7 +100,7 @@ impl WalletDb {
         }
     }
 
-    pub fn try_change_db_encryption_key_from_env(conn: &SqliteConnection) {
+    pub fn try_change_db_encryption_key_from_env(conn: &mut SqliteConnection) {
         // Change the encryption key if specified by the environment variable.
         let encryption_key = env::var("MC_PASSWORD").unwrap_or_else(|_| "".to_string());
         let changed_encryption_key =
@@ -119,12 +123,12 @@ impl WalletDb {
         }
     }
 
-    pub fn check_database_connectivity(conn: &SqliteConnection) -> bool {
+    pub fn check_database_connectivity(conn: &mut SqliteConnection) -> bool {
         conn.batch_execute("SELECT count(*) FROM sqlite_master;")
             .is_ok()
     }
 
-    pub fn validate_foreign_keys(conn: &SqliteConnection) {
+    pub fn validate_foreign_keys(conn: &mut SqliteConnection) {
         let invalid_foreign_keys = diesel::dsl::sql::<(
             sql_types::Text,
             sql_types::Int8,
@@ -142,44 +146,46 @@ impl WalletDb {
         }
     }
 
-    pub fn run_migrations(conn: &SqliteConnection) {
+    pub fn run_migrations(conn: &mut impl MigrationHarness<Sqlite>) {
         // check for and retroactively insert any missing migrations if there is a later
         // migration without the prior ones.
         // We need to perform this first check in case this is a fresh database, in
         // which case there will be no migrations table.
-        if let Ok(migrations) = __diesel_schema_migrations::table.load::<Migration>(conn) {
-            global_log::info!("Number of migrations applied: {:?}", migrations.len());
+        // if let Ok(migrations) =
+        // __diesel_schema_migrations::table.load::<Migration>(conn) {
+        //     global_log::info!("Number of migrations applied: {:?}",
+        // migrations.len());
 
-            if migrations.len() == 1 && migrations[0].version == "20220613204000" {
-                global_log::info!("Retroactively inserting missing migrations");
-                let missing_migrations = vec![
-                    NewMigration::new("20202109165203"),
-                    NewMigration::new("20210303035127"),
-                    NewMigration::new("20210307192850"),
-                    NewMigration::new("20210308031049"),
-                    NewMigration::new("20210325042338"),
-                    NewMigration::new("20210330021521"),
-                    NewMigration::new("20210331220723"),
-                    NewMigration::new("20210403183001"),
-                    NewMigration::new("20210409050201"),
-                    NewMigration::new("20210420182449"),
-                    NewMigration::new("20210625225113"),
-                    NewMigration::new("20211214005344"),
-                    NewMigration::new("20220208225206"),
-                    NewMigration::new("20220215200456"),
-                    NewMigration::new("20220228190052"),
-                    NewMigration::new("20220328194805"),
-                    NewMigration::new("20220427170453"),
-                    NewMigration::new("20220513170243"),
-                    NewMigration::new("20220601162825"),
-                ];
+        //     if migrations.len() == 1 && migrations[0].version == "20220613204000" {
+        //         global_log::info!("Retroactively inserting missing migrations");
+        //         let missing_migrations = vec![
+        //             NewMigration::new("20202109165203"),
+        //             NewMigration::new("20210303035127"),
+        //             NewMigration::new("20210307192850"),
+        //             NewMigration::new("20210308031049"),
+        //             NewMigration::new("20210325042338"),
+        //             NewMigration::new("20210330021521"),
+        //             NewMigration::new("20210331220723"),
+        //             NewMigration::new("20210403183001"),
+        //             NewMigration::new("20210409050201"),
+        //             NewMigration::new("20210420182449"),
+        //             NewMigration::new("20210625225113"),
+        //             NewMigration::new("20211214005344"),
+        //             NewMigration::new("20220208225206"),
+        //             NewMigration::new("20220215200456"),
+        //             NewMigration::new("20220228190052"),
+        //             NewMigration::new("20220328194805"),
+        //             NewMigration::new("20220427170453"),
+        //             NewMigration::new("20220513170243"),
+        //             NewMigration::new("20220601162825"),
+        //         ];
 
-                diesel::insert_into(__diesel_schema_migrations::table)
-                    .values(&missing_migrations)
-                    .execute(conn)
-                    .expect("failed inserting migration");
-            }
-        }
+        //         diesel::insert_into(__diesel_schema_migrations::table)
+        //             .values(&missing_migrations)
+        //             .execute(conn)
+        //             .expect("failed inserting migration");
+        //     }
+        // }
 
         // Our migrations sometimes violate foreign keys, so disable foreign key checks
         // while we apply them.
@@ -190,16 +196,18 @@ impl WalletDb {
         // BEGIN or SAVEPOINT."
         // Check foreign key constraints after the migration. If they fail,
         // we will abort until the user resolves it.
-        conn.batch_execute("PRAGMA foreign_keys = OFF;")
-            .expect("failed disabling foreign keys");
-        embedded_migrations::run_with_output(conn, &mut std::io::stdout())
+        // conn.batch_execute("PRAGMA foreign_keys = OFF;")
+        //     .expect("failed disabling foreign keys");
+        conn.run_pending_migrations(MIGRATIONS)
             .expect("failed running migrations");
-        WalletDb::validate_foreign_keys(conn);
-        conn.batch_execute("PRAGMA foreign_keys = ON;")
-            .expect("failed enabling foreign keys");
+        // embedded_migrations::run_with_output(conn, &mut std::io::stdout())
+        //     .expect("failed running migrations");
+        // WalletDb::validate_foreign_keys(conn);
+        // conn.batch_execute("PRAGMA foreign_keys = ON;")
+        //     .expect("failed enabling foreign keys");
     }
 
-    pub fn run_proto_conversions_if_necessary(conn: &SqliteConnection) {
+    pub fn run_proto_conversions_if_necessary(conn: &mut SqliteConnection) {
         Self::run_assigned_subaddress_proto_conversions(conn);
     }
 
@@ -209,7 +217,7 @@ impl WalletDb {
     ///
     /// This is a one-time conversion, so we check if the conversion has already
     /// happened, and if it has we do nothing.
-    fn run_assigned_subaddress_proto_conversions(conn: &SqliteConnection) {
+    fn run_assigned_subaddress_proto_conversions(conn: &mut SqliteConnection) {
         global_log::info!("Checking for assigned subaddress proto conversions");
         let assigned_subaddresses = assigned_subaddresses::table
             .load::<AssignedSubaddress>(conn)
@@ -250,20 +258,20 @@ impl WalletDb {
 
 /// Create an immediate SQLite transaction with retry.
 /// Note: This function does not support nested transactions.
-pub fn transaction<T, E, F>(conn: &Conn, f: F) -> Result<T, E>
-where
-    F: Clone + FnOnce() -> Result<T, E>,
-    E: From<diesel::result::Error>,
-{
-    for i in 0..NUM_RETRIES {
-        let r = conn.exclusive_transaction::<T, E, F>(f.clone());
-        if r.is_ok() || i == (NUM_RETRIES - 1) {
-            return r;
-        }
-        sleep(Duration::from_millis((BASE_DELAY_MS * 2_u32.pow(i)) as u64));
-    }
-    panic!("Should never reach this point.");
-}
+// pub fn transaction<T, E, F>(conn: Conn, f: F) -> Result<T, E>
+// where
+//     F: FnOnce(&mut SqliteConnection) -> Result<T, E>,
+//     E: From<diesel::result::Error>,
+// {
+//     for i in 0..NUM_RETRIES {
+//         let r = conn.exclusive_transaction::<T, E, F>(f);
+//         if r.is_ok() || i == (NUM_RETRIES - 1) {
+//             return r;
+//         }
+//         sleep(Duration::from_millis((BASE_DELAY_MS * 2_u32.pow(i)) as u64));
+//     }
+//     panic!("Should never reach this point.");
+// }
 const BASE_DELAY_MS: u32 = 10;
 const NUM_RETRIES: u32 = 5;
 

@@ -175,14 +175,14 @@ where
         txo_id: &TxoID,
         confirmation_hex: &str,
     ) -> Result<bool, ConfirmationServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
         Ok(Txo::validate_confirmation(
             &AccountID(account_id.to_string()),
             &txo_id.to_string(),
             &confirmation,
-            &conn,
+            conn,
         )?)
     }
 }

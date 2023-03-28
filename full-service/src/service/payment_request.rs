@@ -111,12 +111,12 @@ where
         amount: Amount,
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
 
         let assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
             &account_id,
             subaddress_index.unwrap_or_default(),
-            &conn,
+            conn,
         )?;
 
         let public_address = b58_decode_public_address(&assigned_subaddress.public_address_b58)?;

@@ -7,6 +7,10 @@ use crate::{
     db::{Conn, WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
+use diesel::{
+    r2d2::{ConnectionManager, PooledConnection},
+    SqliteConnection,
+};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, UserTxConnection,
@@ -109,7 +113,9 @@ impl<
         }
     }
 
-    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
+    pub fn get_conn(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         self.wallet_db
             .as_ref()
             .ok_or(WalletDbError::WalletFunctionsDisabled)?

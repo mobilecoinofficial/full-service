@@ -190,7 +190,7 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
 
@@ -221,7 +221,7 @@ where
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
@@ -282,8 +282,8 @@ where
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
         let network_status = self.get_network_status()?;
 
-        let conn = self.get_conn()?;
-        let accounts = Account::list_all(&conn, None, None)?;
+        let conn = &mut self.get_conn()?;
+        let accounts = Account::list_all(conn, None, None)?;
         let mut account_map = HashMap::default();
 
         let mut balance_per_token = BTreeMap::new();
@@ -293,7 +293,7 @@ where
 
         for account in accounts {
             let account_id = AccountID(account.id.clone());
-            let token_ids = account.clone().get_token_ids(&conn)?;
+            let token_ids = account.clone().get_token_ids(conn)?;
 
             for token_id in token_ids {
                 let default_token_fee = network_status
@@ -305,7 +305,7 @@ where
                     None,
                     token_id,
                     &default_token_fee,
-                    &conn,
+                    conn,
                 )?;
                 balance_per_token
                     .entry(token_id)
@@ -355,7 +355,7 @@ where
         public_address_b58: Option<&str>,
         token_id: TokenId,
         default_token_fee: &u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Balance, BalanceServiceError> {
         let unspent = sum_query_result(Txo::list_unspent(
             account_id_hex,

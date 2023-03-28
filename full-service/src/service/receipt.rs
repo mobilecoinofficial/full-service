@@ -213,7 +213,7 @@ where
         address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
-        let conn = &self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;

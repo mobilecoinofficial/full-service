@@ -314,16 +314,16 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         let transaction_log =
-            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
         Ok(tx)
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = self.get_conn()?;
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        let conn = &mut self.get_conn()?;
+        let txo_details = Txo::get(txo_id_hex, conn)?;
         let txo = self.ledger_db.get_tx_out_by_index(
             self.ledger_db
                 .get_tx_out_index_by_public_key(&txo_details.public_key()?)?,

@@ -5,7 +5,7 @@
 use crate::{
     db::{
         account::AccountID, assigned_subaddress::AssignedSubaddressModel,
-        models::AssignedSubaddress, transaction, WalletDbError,
+        models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,
     util::b58::{b58_decode_public_address, B58Error},
@@ -137,22 +137,21 @@ where
         account_id: &AccountID,
         metadata: Option<&str>,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            let (public_address_b58, _subaddress_index) =
-                AssignedSubaddress::create_next_for_account(
-                    &account_id.to_string(),
-                    metadata.unwrap_or(""),
-                    &self.ledger_db,
-                    &conn,
-                )?;
-            Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        let (public_address_b58, _subaddress_index) = AssignedSubaddress::create_next_for_account(
+            &account_id.to_string(),
+            metadata.unwrap_or(""),
+            &self.ledger_db,
+            conn,
+        )?;
+        Ok(AssignedSubaddress::get(&public_address_b58, conn)?)
+        // })
     }
 
     fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
-        Ok(AssignedSubaddress::get(address_b58, &conn)?)
+        let conn = &mut self.get_conn()?;
+        Ok(AssignedSubaddress::get(address_b58, conn)?)
     }
 
     fn get_address_for_account(
@@ -160,11 +159,11 @@ where
         account_id: &AccountID,
         index: i64,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         Ok(AssignedSubaddress::get_for_account_by_index(
             &account_id.to_string(),
             index,
-            &conn,
+            conn,
         )?)
     }
 
@@ -174,9 +173,9 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
-        let conn = self.get_conn()?;
+        let conn = &mut self.get_conn()?;
         Ok(AssignedSubaddress::list_all(
-            account_id, offset, limit, &conn,
+            account_id, offset, limit, conn,
         )?)
     }
 
@@ -218,7 +217,7 @@ mod tests {
         let account = service
             .create_account(None, "".to_string(), "".to_string(), "".to_string())
             .unwrap();
-        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -227,7 +226,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(account.next_subaddress_index(conn).unwrap(), 3);
     }
 
     #[test_with_logger]
@@ -250,7 +249,7 @@ mod tests {
         let account = service
             .import_view_only_account(vpk_hex, spk_hex, None, None, None)
             .unwrap();
-        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -259,7 +258,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(account.next_subaddress_index(conn).unwrap(), 3);
     }
 
     // A properly encoded address should verify.

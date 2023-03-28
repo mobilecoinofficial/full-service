@@ -7,7 +7,6 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        transaction,
         txo::TxoModel,
         WalletDbError,
     },
@@ -367,22 +366,22 @@ where
         let first_block_index = network_block_height; // -1 +1
         let import_block_index = local_block_height; // -1 +1
 
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
-                &mnemonic,
-                Some(first_block_index),
-                Some(import_block_index),
-                None,
-                &name.unwrap_or_default(),
-                fog_report_url,
-                fog_report_id,
-                fog_authority_spki,
-                &conn,
-            )?;
-            let account = Account::get(&account_id, &conn)?;
-            Ok(account)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+            &mnemonic,
+            Some(first_block_index),
+            Some(import_block_index),
+            None,
+            &name.unwrap_or_default(),
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            conn,
+        )?;
+        let account = Account::get(&account_id, conn)?;
+        Ok(account)
+        // })
     }
 
     fn import_account(
@@ -423,20 +422,20 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            Ok(Account::import(
-                &mnemonic,
-                name,
-                import_block,
-                first_block_index,
-                next_subaddress_index,
-                fog_report_url,
-                fog_report_id,
-                fog_authority_spki,
-                &conn,
-            )?)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        Ok(Account::import(
+            &mnemonic,
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            conn,
+        )?)
+        // })
     }
 
     fn import_account_from_legacy_root_entropy(
@@ -463,20 +462,20 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            Ok(Account::import_legacy(
-                &RootEntropy::from(&entropy_bytes),
-                name,
-                import_block,
-                first_block_index,
-                next_subaddress_index,
-                fog_report_url,
-                fog_report_id,
-                fog_authority_spki,
-                &conn,
-            )?)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        Ok(Account::import_legacy(
+            &RootEntropy::from(&entropy_bytes),
+            name,
+            import_block,
+            first_block_index,
+            next_subaddress_index,
+            fog_report_url,
+            fog_report_id,
+            fog_authority_spki,
+            conn,
+        )?)
+        // })
     }
 
     fn import_view_only_account(
@@ -501,24 +500,24 @@ where
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            Ok(Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
-                name,
-                import_block_index,
-                first_block_index,
-                next_subaddress_index,
-                &conn,
-            )?)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        Ok(Account::import_view_only(
+            &view_private_key,
+            &spend_public_key,
+            name,
+            import_block_index,
+            first_block_index,
+            next_subaddress_index,
+            conn,
+        )?)
+        // })
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
-        let conn = self.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
-        account.update_next_block_index(account.first_block_index as u64, &conn)?;
+        let conn = &mut self.get_conn()?;
+        let account = Account::get(account_id, conn)?;
+        account.update_next_block_index(account.first_block_index as u64, conn)?;
         Ok(())
     }
 
@@ -526,8 +525,8 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<JsonRPCRequest, AccountServiceError> {
-        let conn = self.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
+        let conn = &mut self.get_conn()?;
+        let account = Account::get(account_id, conn)?;
 
         if account.view_only {
             return Err(AccountServiceError::AccountIsViewOnly(account_id.clone()));
@@ -542,7 +541,7 @@ where
             spend_public_key: ristretto_public_to_hex(&spend_public_key),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index(&conn)?.to_string()),
+            next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -568,22 +567,22 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, AccountServiceError> {
-        let conn = self.get_conn()?;
-        Ok(Account::list_all(&conn, offset, limit)?)
+        let conn = &mut self.get_conn()?;
+        Ok(Account::list_all(conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
-        let conn = self.get_conn()?;
-        Ok(Account::get(account_id, &conn)?)
+        let conn = &mut self.get_conn()?;
+        Ok(Account::get(account_id, conn)?)
     }
 
     fn get_next_subaddress_index_for_account(
         &self,
         account_id: &AccountID,
     ) -> Result<u64, AccountServiceError> {
-        let conn = self.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
-        Ok(account.next_subaddress_index(&conn)?)
+        let conn = &mut self.get_conn()?;
+        let account = Account::get(account_id, conn)?;
+        Ok(account.next_subaddress_index(conn)?)
     }
 
     fn update_account_name(
@@ -591,9 +590,9 @@ where
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, AccountServiceError> {
-        let conn = self.get_conn()?;
-        Account::get(account_id, &conn)?.update_name(name, &conn)?;
-        Ok(Account::get(account_id, &conn)?)
+        let conn = &mut self.get_conn()?;
+        Account::get(account_id, conn)?.update_name(name, conn)?;
+        Ok(Account::get(account_id, conn)?)
     }
 
     fn sync_account(
@@ -602,8 +601,8 @@ where
         txo_ids_and_key_images: Vec<(String, String)>,
         next_subaddress_index: u64,
     ) -> Result<(), AccountServiceError> {
-        let conn = self.get_conn()?;
-        let account = Account::get(account_id, &conn)?;
+        let conn = &mut self.get_conn()?;
+        let account = Account::get(account_id, conn)?;
 
         if !account.view_only {
             return Err(AccountServiceError::AccountIsNotViewOnly(
@@ -614,15 +613,15 @@ where
         for (txo_id_hex, key_image_encoded) in txo_ids_and_key_images {
             let key_image: KeyImage = mc_util_serial::decode(&hex::decode(key_image_encoded)?)?;
             let spent_block_index = self.ledger_db.check_key_image(&key_image)?;
-            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, &conn)?;
+            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, conn)?;
         }
 
-        for _ in account.next_subaddress_index(&conn)?..next_subaddress_index {
+        for _ in account.next_subaddress_index(conn)?..next_subaddress_index {
             AssignedSubaddress::create_next_for_account(
                 &account_id.to_string(),
                 "Recovered In Account Sync",
                 &self.ledger_db,
-                &conn,
+                conn,
             )?;
         }
 
@@ -631,12 +630,12 @@ where
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
-            let account = Account::get(account_id, &conn)?;
-            account.delete(&conn)?;
-            Ok(true)
-        })
+        let conn = &mut self.get_conn()?;
+        // transaction(conn, |_| {
+        let account = Account::get(account_id, conn)?;
+        account.delete(conn)?;
+        Ok(true)
+        // })
     }
 }
 
@@ -843,7 +842,7 @@ mod tests {
         // Store the real values for the txo's amount and target_key (arbitrary fields
         // we want to corrupt and sync back)
         let conn = wallet_db.get_conn().unwrap();
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
         let expected_txo_amount = associated_txos.outputs[0].0.value;
         let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
 
@@ -865,7 +864,7 @@ mod tests {
             (initial_block_count + 1).try_into().unwrap(),
             "".to_string(),
             &AccountID::from(&account_a_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -885,10 +884,10 @@ mod tests {
                 txos::value.eq(corrupted_txo_amount as i64),
                 txos::target_key.eq(&corrupted_target_key),
             ))
-            .execute(&conn)
+            .execute(conn)
             .unwrap();
 
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
         assert_ne!(expected_txo_amount, associated_txos.outputs[0].0.value);
         assert_ne!(expected_target_key, associated_txos.outputs[0].0.target_key);
 
@@ -900,11 +899,11 @@ mod tests {
 
         //  - check that the txo we futzed with is now stored correctly
         //  - check that the transaction log entries are exactly the same as before
-        let associated_txos = transaction_log.get_associated_txos(&conn).unwrap();
+        let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
         assert_eq!(expected_txo_amount, associated_txos.outputs[0].0.value);
         assert_eq!(expected_target_key, associated_txos.outputs[0].0.target_key);
         let transaction_log_new =
-            TransactionLog::get(&TransactionId(transaction_log.id.clone()), &conn).unwrap();
+            TransactionLog::get(&TransactionId(transaction_log.id.clone()), conn).unwrap();
         // We check every field in the struct except for the finalized index field
         // because we expect it to be different
         assert_eq!(transaction_log_new.id, transaction_log.id);
@@ -1141,7 +1140,7 @@ mod tests {
         assert_eq!(orphaned_txos[0].key_image, None);
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 2);
 
         let key_image_1 = KeyImage::from(rng.next_u64());
         let key_image_2 = KeyImage::from(rng.next_u64());
@@ -1164,7 +1163,7 @@ mod tests {
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),

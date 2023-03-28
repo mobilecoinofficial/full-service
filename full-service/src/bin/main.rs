@@ -69,18 +69,18 @@ fn rocket() -> Rocket<Build> {
         Some(ref wallet_db_path_buf) => {
             let wallet_db_path = wallet_db_path_buf.to_str().unwrap();
             // Connect to the database and run the migrations
-            let conn = SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
+            let conn = &mut SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
                 eprintln!("Cannot open database {wallet_db_path:?}: {err:?}");
                 exit(EXIT_NO_DATABASE_CONNECTION);
             });
-            WalletDb::set_db_encryption_key_from_env(&conn);
-            WalletDb::try_change_db_encryption_key_from_env(&conn);
-            if !WalletDb::check_database_connectivity(&conn) {
+            WalletDb::set_db_encryption_key_from_env(conn);
+            WalletDb::try_change_db_encryption_key_from_env(conn);
+            if !WalletDb::check_database_connectivity(conn) {
                 eprintln!("Incorrect password for database {wallet_db_path:?}.");
                 exit(EXIT_WRONG_PASSWORD);
             };
-            WalletDb::run_migrations(&conn);
-            WalletDb::run_proto_conversions_if_necessary(&conn);
+            WalletDb::run_migrations(conn);
+            WalletDb::run_proto_conversions_if_necessary(conn);
             log::info!(logger, "Connected to database.");
 
             Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))

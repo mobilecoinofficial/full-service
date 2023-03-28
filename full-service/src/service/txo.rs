@@ -227,7 +227,7 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
-        let conn = &self.get_conn()?;
+        let conn = &mut self.get_conn()?;
 
         let txos;
 
@@ -277,9 +277,9 @@ where
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
-        let conn = self.get_conn()?;
-        let txo = Txo::get(&txo_id.to_string(), &conn)?;
-        let status = txo.status(&conn)?;
+        let conn = &mut self.get_conn()?;
+        let txo = Txo::get(&txo_id.to_string(), conn)?;
+        let status = txo.status(conn)?;
         Ok((txo, status))
     }
 
@@ -294,8 +294,8 @@ where
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = self.get_conn()?;
-        let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
+        let conn = &mut self.get_conn()?;
+        let txo_details = Txo::get(&txo_id.to_string(), conn)?;
 
         let account_id_hex = txo_details
             .account_id
@@ -305,7 +305,7 @@ where
             AssignedSubaddress::get_for_account_by_index(
                 &account_id_hex,
                 subaddress_index.unwrap_or(0),
-                &conn,
+                conn,
             )?;
 
         let mut addresses_and_amounts = Vec::new();
@@ -331,7 +331,7 @@ where
             None,
         )?;
 
-        let account = Account::get(&AccountID(account_id_hex), &conn)?;
+        let account = Account::get(&AccountID(account_id_hex), conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         let fee_map = if self.offline {

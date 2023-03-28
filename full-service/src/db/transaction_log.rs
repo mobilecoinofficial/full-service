@@ -140,28 +140,28 @@ impl TransactionLog {
 
 pub trait TransactionLogModel {
     /// Get a transaction log from the TransactionId.
-    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
+    fn get(id: &TransactionId, conn: Conn) -> Result<TransactionLog, WalletDbError>;
 
     /// Get the Txos associated with a given TransactionId, grouped according to
     /// their type.
     ///
     /// Returns:
     /// * AssoiatedTxos(inputs, outputs, change)
-    fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError>;
+    fn get_associated_txos(&self, conn: Conn) -> Result<AssociatedTxos, WalletDbError>;
 
     fn update_submitted_block_index(
         &self,
         submitted_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
-    fn update_comment(&self, comment: String, conn: &Conn) -> Result<(), WalletDbError>;
+    fn update_comment(&self, comment: String, conn: Conn) -> Result<(), WalletDbError>;
 
     fn update_tx_and_tombstone_block_index(
         &self,
         tx: &[u8],
         tombstone_block_index: Option<i64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     /// List all TransactionLogs and their associated Txos for a given account.
@@ -174,7 +174,7 @@ pub trait TransactionLogModel {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
     /// Log a transaction that has been built but not yet signed.
@@ -184,7 +184,7 @@ pub trait TransactionLogModel {
     fn log_built(
         unsigned_tx_proposal: &UnsignedTxProposal,
         account_id: &AccountID,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a transaction that has been signed
@@ -195,7 +195,7 @@ pub trait TransactionLogModel {
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a submitted transaction.
@@ -213,28 +213,28 @@ pub trait TransactionLogModel {
         block_index: u64,
         comment: String,
         account_id_hex: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Remove all logs for an account
-    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    fn delete_all_for_account(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError>;
 
     fn update_pending_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     fn status(&self) -> TxStatus;
 
-    fn value_for_token_id(&self, token_id: TokenId, conn: &Conn) -> Result<u64, WalletDbError>;
+    fn value_for_token_id(&self, token_id: TokenId, conn: Conn) -> Result<u64, WalletDbError>;
 
-    fn value_map(&self, conn: &Conn) -> Result<ValueMap, WalletDbError>;
+    fn value_map(&self, conn: Conn) -> Result<ValueMap, WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
@@ -250,7 +250,7 @@ impl TransactionLogModel for TransactionLog {
         }
     }
 
-    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError> {
+    fn get(id: &TransactionId, conn: Conn) -> Result<TransactionLog, WalletDbError> {
         use crate::db::schema::transaction_logs::dsl::{id as dsl_id, transaction_logs};
 
         match transaction_logs
@@ -266,7 +266,7 @@ impl TransactionLogModel for TransactionLog {
         }
     }
 
-    fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError> {
+    fn get_associated_txos(&self, conn: Conn) -> Result<AssociatedTxos, WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
 
         let inputs: Vec<Txo> = txos::table
@@ -305,7 +305,7 @@ impl TransactionLogModel for TransactionLog {
     fn update_submitted_block_index(
         &self,
         submitted_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
@@ -316,7 +316,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
-    fn update_comment(&self, comment: String, conn: &Conn) -> Result<(), WalletDbError> {
+    fn update_comment(&self, comment: String, conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
         diesel::update(self)
@@ -330,7 +330,7 @@ impl TransactionLogModel for TransactionLog {
         &self,
         tx: &[u8],
         tombstone_block_index: Option<i64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
@@ -349,7 +349,7 @@ impl TransactionLogModel for TransactionLog {
         limit: Option<u64>,
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
         use crate::db::schema::transaction_logs;
 
@@ -392,7 +392,7 @@ impl TransactionLogModel for TransactionLog {
     fn log_built(
         unsigned_tx_proposal: &UnsignedTxProposal,
         account_id: &AccountID,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Verify that the account exists.
@@ -451,7 +451,7 @@ impl TransactionLogModel for TransactionLog {
         tx_proposal: TxProposal,
         comment: String,
         account_id_hex: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -526,7 +526,7 @@ impl TransactionLogModel for TransactionLog {
         block_index: u64,
         comment: String,
         account_id_hex: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -588,7 +588,7 @@ impl TransactionLogModel for TransactionLog {
         TransactionLog::get(&transaction_log_id, conn)
     }
 
-    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
+    fn delete_all_for_account(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::{
             transaction_input_txos, transaction_logs, transaction_output_txos,
         };
@@ -624,7 +624,7 @@ impl TransactionLogModel for TransactionLog {
     fn update_pending_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Find all submitted transaction logs associated with this txo that have not
@@ -649,7 +649,7 @@ impl TransactionLogModel for TransactionLog {
 
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
@@ -665,7 +665,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
-    fn value_for_token_id(&self, token_id: TokenId, conn: &Conn) -> Result<u64, WalletDbError> {
+    fn value_for_token_id(&self, token_id: TokenId, conn: Conn) -> Result<u64, WalletDbError> {
         let associated_txos = self.get_associated_txos(conn)?;
 
         let output_total = associated_txos
@@ -678,7 +678,7 @@ impl TransactionLogModel for TransactionLog {
         Ok(output_total)
     }
 
-    fn value_map(&self, conn: &Conn) -> Result<ValueMap, WalletDbError> {
+    fn value_map(&self, conn: Conn) -> Result<ValueMap, WalletDbError> {
         let associated_txos = self.get_associated_txos(conn)?;
 
         let mut value_map: HashMap<TokenId, u64> = HashMap::default();
@@ -752,9 +752,9 @@ mod tests {
             .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let tx_proposal = unsigned_tx_proposal
             .clone()
@@ -772,13 +772,13 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
         // The log's account ID matches the account_id which submitted the tx
         assert_eq!(tx_log.account_id, AccountID::from(&account_key).to_string());
-        assert_eq!(tx_log.value_for_token_id(Mob::ID, &conn).unwrap(), 50 * MOB);
+        assert_eq!(tx_log.value_for_token_id(Mob::ID, conn).unwrap(), 50 * MOB);
         assert_eq!(tx_log.fee_value as u64, Mob::MINIMUM_FEE);
         assert_eq!(tx_log.fee_token_id as u64, *Mob::ID);
         assert_eq!(tx_log.status(), TxStatus::Pending);
@@ -888,7 +888,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            updated_change_details.status(&conn).unwrap(),
+            updated_change_details.status(conn).unwrap(),
             TxoStatus::Unspent
         );
         assert_eq!(
@@ -932,9 +932,9 @@ mod tests {
             .unwrap();
 
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
@@ -943,7 +943,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -957,7 +957,7 @@ mod tests {
             b58_encode_public_address(&recipient).unwrap()
         );
 
-        assert_eq!(tx_log.value_for_token_id(Mob::ID, &conn).unwrap(), value);
+        assert_eq!(tx_log.value_for_token_id(Mob::ID, conn).unwrap(), value);
         assert_eq!(tx_log.fee_value as u64, Mob::MINIMUM_FEE);
         assert_eq!(tx_log.fee_token_id as u64, *Mob::ID);
         assert_eq!(tx_log.status(), TxStatus::Pending);
@@ -1011,9 +1011,9 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
@@ -1023,7 +1023,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -1111,9 +1111,9 @@ mod tests {
             .add_recipient(recipient, 10_000_000 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
@@ -1128,11 +1128,11 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
-        let pmob_value = tx_log.value_for_token_id(Mob::ID, &conn).unwrap();
+        let pmob_value = tx_log.value_for_token_id(Mob::ID, conn).unwrap();
         assert_eq!(pmob_value, 10_000_000 * MOB);
     }
 
@@ -1180,9 +1180,9 @@ mod tests {
             .add_recipient(account_key.subaddress(0), 12 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
@@ -1192,7 +1192,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -1400,13 +1400,13 @@ mod tests {
             .add_recipient(recipient.clone(), 50 * MOB, Mob::ID)
             .unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
 
         let tx_log =
-            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
+            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), conn)
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
@@ -1439,7 +1439,7 @@ mod tests {
             tx_proposal.clone(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -1464,7 +1464,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -1481,7 +1481,7 @@ mod tests {
             failed: false,
         };
         assert_eq!(tx_log, expected_tx_log);
-        assert_eq!(tx_log.value_for_token_id(Mob::ID, &conn).unwrap(), 50 * MOB);
+        assert_eq!(tx_log.value_for_token_id(Mob::ID, conn).unwrap(), 50 * MOB);
         assert_eq!(tx_log.status(), TxStatus::Pending);
 
         // Check the associated_txos for this transaction_log are as expected
@@ -1579,7 +1579,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            updated_change_details.status(&conn).unwrap(),
+            updated_change_details.status(conn).unwrap(),
             TxoStatus::Unspent
         );
         assert_eq!(
@@ -1623,13 +1623,13 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
 
         let tx_log =
-            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), &conn)
+            TransactionLog::log_built(&unsigned_tx_proposal, &AccountID::from(&account_key), conn)
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
@@ -1662,7 +1662,7 @@ mod tests {
             tx_proposal.clone(),
             "first change".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -1687,7 +1687,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "second change".to_string(),
             &AccountID::from(&account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap();
 

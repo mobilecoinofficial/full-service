@@ -97,7 +97,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// txos are included.
     pub fn set_txos(
         &mut self,
-        conn: &Conn,
+        conn: Conn,
         input_txo_ids: &[String],
     ) -> Result<(), WalletTransactionBuilderError> {
         let txos = Txo::select_by_id(input_txo_ids, conn)?;
@@ -116,7 +116,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// Selects Txos from the account.
     pub fn select_txos(
         &mut self,
-        conn: &Conn,
+        conn: Conn,
         max_spendable_value: Option<u64>,
     ) -> Result<(), WalletTransactionBuilderError> {
         let mut outlay_value_sum_map: BTreeMap<TokenId, u128> =
@@ -194,7 +194,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(())
     }
 
-    pub fn get_fog_resolver(&self, conn: &Conn) -> Result<FPR, WalletTransactionBuilderError> {
+    pub fn get_fog_resolver(&self, conn: Conn) -> Result<FPR, WalletTransactionBuilderError> {
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
         let change_subaddress = account.change_subaddress(conn)?;
         let change_public_address = change_subaddress.public_address()?;
@@ -215,7 +215,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     pub fn build(
         &self,
         memo: TransactionMemo,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
@@ -571,11 +571,11 @@ mod tests {
             .unwrap();
 
         // Select the txos for the recipient
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -650,9 +650,9 @@ mod tests {
 
         // This should auto select the necessary txos correctly, which should be the
         // minimum set of (at most) 16 txos that sum to >= the total output value + fee
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
 
-        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, conn).unwrap();
 
         // Check that the input txos are correct
         assert_eq!(unsigned_tx_proposal.unsigned_input_txos.len(), 6);
@@ -736,9 +736,9 @@ mod tests {
             .add_recipient(recipient, txos[0].value as u64, Mob::ID)
             .unwrap();
 
-        builder.set_txos(&conn, &[txos[0].id.clone()]).unwrap();
+        builder.set_txos(conn, &[txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(TransactionMemo::RTH(None, None), &conn) {
+        match builder.build(TransactionMemo::RTH(None, None), conn) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -756,11 +756,11 @@ mod tests {
             .unwrap();
 
         builder
-            .set_txos(&conn, &[txos[0].id.clone(), txos[1].id.clone()])
+            .set_txos(conn, &[txos[0].id.clone(), txos[1].id.clone()])
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -804,7 +804,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -824,7 +824,7 @@ mod tests {
         // This will create a total input value of > u64::MAX, which should be valid.
         builder
             .set_txos(
-                &conn,
+                conn,
                 &[txos[0].id.clone(), txos[1].id.clone(), txos[2].id.clone()],
             )
             .unwrap();
@@ -833,7 +833,7 @@ mod tests {
         // because of a u64::MAX limit on the total_outlay value.
         // See https://github.com/mobilecoinfoundation/mobilecoin/blob/437133a545b85958278efcb655bce36929c8f72a/transaction/extra/src/memo/destination_with_payment_request_id.rs#L51
         // for more details.
-        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, &conn).unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, conn).unwrap();
 
         // Check that the input txos are correct
         assert_eq!(unsigned_tx_proposal.unsigned_input_txos.len(), 3);
@@ -909,7 +909,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &conn,
+            conn,
         )
         .unwrap();
 
@@ -924,7 +924,7 @@ mod tests {
         // fail when trying to build.
         builder
             .set_txos(
-                &conn,
+                conn,
                 &[txos[0].id.clone(), txos[1].id.clone(), txos[2].id.clone()],
             )
             .unwrap();
@@ -935,7 +935,7 @@ mod tests {
         // This should fail because the change will be equal to
         // 18000000000000000000 * 3 - 100 - 4000000000 = 53999999999599999900
         let err = builder
-            .build(TransactionMemo::Empty, &conn)
+            .build(TransactionMemo::Empty, conn)
             .expect_err("Should fail");
 
         assert_eq!(
@@ -976,7 +976,7 @@ mod tests {
             .unwrap();
 
         // Test that selecting Txos with max_spendable < all our txo values fails
-        match builder.select_txos(&conn, Some(10)) {
+        match builder.select_txos(conn, Some(10)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(WalletDbError::NoSpendableTxos(
                 token_id,
@@ -988,7 +988,7 @@ mod tests {
 
         // We should be able to try again, with max_spendable at 70, but will not hit
         // our outlay target (80 * MOB)
-        match builder.select_txos(&conn, Some(70 * MOB)) {
+        match builder.select_txos(conn, Some(70 * MOB)) {
             Ok(_) => panic!("Should not be able to construct tx when max_spendable < all txos"),
             Err(WalletTransactionBuilderError::WalletDb(
                 WalletDbError::InsufficientFundsUnderMaxSpendable(_),
@@ -998,10 +998,10 @@ mod tests {
 
         // Now, we should succeed if we set max_spendable = 80 * MOB, because we will
         // pick up both 70 and 80
-        builder.select_txos(&conn, Some(80 * MOB)).unwrap();
+        builder.select_txos(conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -1038,13 +1038,13 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
 
         // Sanity check that our ledger is the height we think it is
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(TransactionMemo::RTH(None, None), &conn) {
+        match builder.build(TransactionMemo::RTH(None, None), conn) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1054,7 +1054,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
 
         // Set to default
         builder.set_tombstone(0).unwrap();
@@ -1062,7 +1062,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
@@ -1072,7 +1072,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
 
         // Set to default
         builder.set_tombstone(20).unwrap();
@@ -1080,7 +1080,7 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
@@ -1112,12 +1112,12 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
@@ -1127,7 +1127,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0, Mob::ID) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -1137,7 +1137,7 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
@@ -1147,7 +1147,7 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         match builder.set_fee(0, Mob::ID) {
             Ok(_) => panic!("Should not be able to set fee to 0"),
@@ -1160,11 +1160,11 @@ mod tests {
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
         builder.add_recipient(recipient, 10 * MOB, Mob::ID).unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
@@ -1200,12 +1200,12 @@ mod tests {
         builder
             .add_recipient(recipient.clone(), value, Mob::ID)
             .unwrap();
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
@@ -1257,11 +1257,11 @@ mod tests {
             .add_recipient(recipient.clone(), 40 * MOB, Mob::ID)
             .unwrap();
 
-        builder.select_txos(&conn, None).unwrap();
+        builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), &conn)
+            .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
 
