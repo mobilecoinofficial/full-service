@@ -124,26 +124,25 @@ pub struct SpendableTxosResult {
     pub max_spendable_in_wallet: u128,
 }
 
+fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
+    match RistrettoPublic::try_from(&tx_out.public_key) {
+        Err(_) => None,
+        Ok(k) => {
+            let account_key: Result<AccountKey, _> = mc_util_serial::decode(&account.account_key);
+            match account_key {
+                Err(_) => None,
+                Ok(account_key) => Some(get_tx_out_shared_secret(
+                    &account_key.view_private_key(),
+                    &k,
+                )),
+            }
+        }
+    }
+}
+
 impl Txo {
     pub fn amount(&self) -> Amount {
         Amount::new(self.value as u64, TokenId::from(self.token_id as u64))
-    }
-
-    fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
-        match RistrettoPublic::try_from(&tx_out.public_key) {
-            Err(_) => None,
-            Ok(k) => {
-                let account_key: Result<AccountKey, _> =
-                    mc_util_serial::decode(&account.account_key);
-                match account_key {
-                    Err(_) => None,
-                    Ok(account_key) => Some(get_tx_out_shared_secret(
-                        &account_key.view_private_key(),
-                        &k,
-                    )),
-                }
-            }
-        }
     }
 }
 
@@ -395,8 +394,8 @@ impl TxoModel for Txo {
         // Verify that the account exists.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let txo_id = TxoID::from(&txo);
-        let shared_secret = Self::get_shared_secret_if_possible(&account, &txo)
-            .map(|secret| secret.encode_to_vec());
+        let shared_secret =
+            get_shared_secret_if_possible(&account, &txo).map(|secret| secret.encode_to_vec());
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -1700,7 +1699,7 @@ mod tests {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
-        let _alice_account =
+        let alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         let conn = wallet_db.get_conn().unwrap();
@@ -1718,6 +1717,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Verify that the Txo is what we expect
+
         let expected_txo = Txo {
             id: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
@@ -1731,7 +1731,8 @@ mod tests {
             spent_block_index: None,
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
-            shared_secret: None,
+            shared_secret: get_shared_secret_if_possible(&alice_account, &for_alice_txo)
+                .map(|secret| secret.encode_to_vec()),
         };
 
         assert_eq!(expected_txo, txos[0]);
