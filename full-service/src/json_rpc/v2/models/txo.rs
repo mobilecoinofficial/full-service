@@ -56,7 +56,8 @@ pub struct Txo {
     /// that they participated in the construction of this Txo.
     pub confirmation: Option<String>,
 
-    /// TODO:
+    /// Shared secret that's used to mask the private keys associated with the
+    /// amounts in a transaction
     pub shared_secret: Option<String>,
 }
 
