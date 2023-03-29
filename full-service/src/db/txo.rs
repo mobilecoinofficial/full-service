@@ -13,12 +13,14 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
+    get_tx_out_shared_secret,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
-use std::{fmt, str::FromStr};
+use mc_util_serial::Message;
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -122,6 +124,22 @@ pub struct SpendableTxosResult {
     pub max_spendable_in_wallet: u128,
 }
 
+fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
+    match RistrettoPublic::try_from(&tx_out.public_key) {
+        Err(_) => None,
+        Ok(k) => {
+            let account_key: Result<AccountKey, _> = mc_util_serial::decode(&account.account_key);
+            match account_key {
+                Err(_) => None,
+                Ok(account_key) => Some(get_tx_out_shared_secret(
+                    &account_key.view_private_key(),
+                    &k,
+                )),
+            }
+        }
+    }
+}
+
 impl Txo {
     pub fn amount(&self) -> Amount {
         Amount::new(self.value as u64, TokenId::from(self.token_id as u64))
@@ -176,6 +194,7 @@ pub trait TxoModel {
         target_key: &[u8],
         public_key: &[u8],
         e_fog_hint: &[u8],
+        shared_secret: Option<&[u8]>,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -373,9 +392,10 @@ impl TxoModel for Txo {
         conn: &Conn,
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
-        Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let txo_id = TxoID::from(&txo);
+        let shared_secret =
+            get_shared_secret_if_possible(&account, &txo).map(|secret| secret.encode_to_vec());
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -389,6 +409,7 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&txo.target_key),
                     &mc_util_serial::encode(&txo.public_key),
                     &mc_util_serial::encode(&txo.e_fog_hint),
+                    shared_secret.as_deref(),
                     conn,
                 )?;
             }
@@ -409,6 +430,7 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
+                    shared_secret: shared_secret.as_deref(),
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -432,7 +454,6 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&output_txo.tx_out);
         let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
-
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
@@ -446,6 +467,7 @@ impl TxoModel for Txo {
             received_block_index: None,
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
+            shared_secret: None, // no account id so we don't
         };
 
         diesel::insert_into(txos::table)
@@ -479,6 +501,7 @@ impl TxoModel for Txo {
         target_key: &[u8],
         public_key: &[u8],
         e_fog_hint: &[u8],
+        shared_secret: Option<&[u8]>,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
@@ -496,6 +519,7 @@ impl TxoModel for Txo {
                 txos::target_key.eq(target_key),
                 txos::public_key.eq(public_key),
                 txos::e_fog_hint.eq(e_fog_hint),
+                txos::shared_secret.eq(shared_secret),
             ))
             .execute(conn)?;
         Ok(())
@@ -1675,7 +1699,7 @@ mod tests {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
-        let _alice_account =
+        let alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
         let conn = wallet_db.get_conn().unwrap();
@@ -1693,6 +1717,7 @@ mod tests {
         assert_eq!(txos.len(), 1);
 
         // Verify that the Txo is what we expect
+
         let expected_txo = Txo {
             id: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
@@ -1706,6 +1731,8 @@ mod tests {
             spent_block_index: None,
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
+            shared_secret: get_shared_secret_if_possible(&alice_account, &for_alice_txo)
+                .map(|secret| secret.encode_to_vec()),
         };
 
         assert_eq!(expected_txo, txos[0]);

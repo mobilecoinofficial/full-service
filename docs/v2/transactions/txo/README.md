@@ -25,6 +25,7 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
 | `subaddress_index` | string \(uint64\) | The assigned subaddress index for this TXO with respect to its received account. |
 | `key_image` \(only on pending/spent\) | string \(hex\) | A fingerprint of the TXO derived from your private spend key materials, required to spend a TXO |
 | `confirmation` | string \(hex\) | A confirmation that the sender of the TXO can provide to validate that they participated in the construction of this TXO. |
+| `shared_secret` | string \(hex\) | The proto-encoded shared secret used to decode the masked amount in the TXO |
 
 ## Example <a id="object_method"></a>
 
@@ -52,7 +53,8 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
   "subaddress_index": "20",
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
-  "confirmation": "23fd34a..."
+  "confirmation": "23fd34a...",
+  "shared_secret": "0a20eaa9..."
 }
 ```
 
@@ -84,7 +86,8 @@ In order to construct a transaction, the wallet will select "Unspent Transaction
   "subaddress_index": null,
   "assigned_subaddress": null,
   "key_image": null,
-  "confirmation": "0a2044..."
+  "confirmation": "0a2044...",
+  "shared_secret": "0a20eaa9..."
 }
 ```
 
