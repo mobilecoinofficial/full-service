@@ -16,7 +16,6 @@ fi
 
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
-    echo "I'm in mob prompt!"
     WORK_DIR="${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}"
     LISTEN_ADDR="0.0.0.0"
 else
