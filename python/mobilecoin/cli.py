@@ -513,9 +513,9 @@ class CommandLineInterface:
         print()
 
         if build_only:
-            tx_proposal = self.client.build_transaction(
+            tx_proposal, _ = self.client.build_transaction(
                 account_id,
-                {to_address, amount},
+                {to_address: amount},
                 fee=fee,
             )
             path = Path('tx_proposal.json')

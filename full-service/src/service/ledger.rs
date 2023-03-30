@@ -428,6 +428,19 @@ where
     }
 
     fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {
+        // If we are in offline mode, get the last block information from the last
+        // synced block
+        if self.offline {
+            let num_blocks = self.ledger_db.num_blocks()?;
+            if num_blocks < 1 {
+                return Err(LedgerServiceError::NoLastBlockInfo);
+            }
+
+            let last_block = self.ledger_db.get_block(num_blocks - 1)?;
+            let version = Ok(BlockVersion::try_from(last_block.version)?);
+            return version;
+        }
+
         Ok(BlockVersion::try_from(
             self.get_latest_block_info()?.network_block_version,
         )?)
