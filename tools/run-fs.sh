@@ -37,7 +37,7 @@ do
             shift 1
             ;;
         --offline)
-            export MC_OFFLINE=1
+            export MC_OFFLINE=true
             shift 1
             ;;
         --validator)
@@ -91,7 +91,7 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        if [[ -z "${offline}" ]]
+        if [[ -z "${MC_OFFLINE}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
@@ -104,7 +104,7 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        if [[ -z "${offline}" ]]
+        if [[ -z "${MC_OFFLINE}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
@@ -119,7 +119,7 @@ case "${net}" in
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        if [[ -z "${offline}" ]]
+        if [[ -z "${MC_OFFLINE}" ]]
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
@@ -129,7 +129,7 @@ case "${net}" in
     local)
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
-        if [[ -z "${offline}" ]]
+        if [[ -z "${MC_OFFLINE}" ]]
         then
             MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
             MC_TX_SOURCE_URL="file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-0,file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-1"
@@ -147,7 +147,7 @@ echo "Setting '${net}' environment values"
 export MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS MC_WALLET_DB MC_LEDGER_DB MC_LISTEN_HOST
 
 echo "  MC_CHAIN_ID: ${MC_CHAIN_ID}"
-if [[ -z "${offline}" ]]
+if [[ -z "${MC_OFFLINE}" ]]
 then
     echo "  MC_PEER: ${MC_PEER}"
     echo "  MC_TX_SOURCE_URL: ${MC_TX_SOURCE_URL}"
@@ -193,5 +193,6 @@ then
     unset MC_PEER
 fi
 
+echo peer $MC_PEER
 echo "Starting Full-Service Wallet from ${WORK_DIR}"
 "${WORK_DIR}/full-service"
