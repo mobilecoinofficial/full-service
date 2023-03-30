@@ -138,25 +138,79 @@ impl TransactionLog {
     }
 }
 
+#[rustfmt::skip]
 pub trait TransactionLogModel {
-    /// Get a transaction log from the TransactionId.
-    fn get(id: &TransactionId, conn: &Conn) -> Result<TransactionLog, WalletDbError>;
-
-    /// Get the Txos associated with a given TransactionId, grouped according to
-    /// their type.
+    /// Get a transaction log from the transaction id.
     ///
-    /// Returns:
+    /// # Arguments
+    ///
+    ///| Name   | Purpose                                                | Notes                                     |
+    ///|--------|--------------------------------------------------------|-------------------------------------------|
+    ///| `id`   | The transaction ID to get transaction log.             | Transaction log must exist in the wallet. |
+    ///| `conn` | An reference to the pool connection of wallet database |                                           |
+    ///
+    /// # Returns
+    /// * TransactionLog
+    fn get(
+        id: &TransactionId, 
+        conn: &Conn
+    ) -> Result<TransactionLog, WalletDbError>;
+
+    /// Get the Txos associated with a given transaction id, grouped according to their type.
+    ///
+    /// # Arguments
+    ///
+    ///| Name   | Purpose                                                | Notes                                     |
+    ///|--------|--------------------------------------------------------|-------------------------------------------|
+    ///| `conn` | An reference to the pool connection of wallet database |                                           |
+    ///
+    /// # Returns:
     /// * AssoiatedTxos(inputs, outputs, change)
     fn get_associated_txos(&self, conn: &Conn) -> Result<AssociatedTxos, WalletDbError>;
 
+
+    /// Update the block index of where the associate transaction was submitted to a transaction log.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                 | Notes |
+    ///|-------------------------|---------------------------------------------------------|-------|
+    ///| `submitted_block_index` | The block index of where the transaction was submitted. |       |
+    ///| `conn`                  | An reference to the pool connection of wallet database  |       |
+    ///
+    /// # Returns:
+    /// * unit
     fn update_submitted_block_index(
         &self,
         submitted_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    /// Update arbitrary comments to a transaction log of an associate transaction .
+    ///
+    /// # Arguments
+    /// 
+    ///| Name      | Purpose                                                | Notes |
+    ///|-----------|--------------------------------------------------------|-------|
+    ///| `comment` | The arbitrary comments of the existing transaction.    |       |
+    ///| `conn`    | An reference to the pool connection of wallet database |       |
+    ///
+    /// # Returns:
+    /// * unit
     fn update_comment(&self, comment: String, conn: &Conn) -> Result<(), WalletDbError>;
 
+    /// Update encoded value of the associate transaction and the tombstone_block_index to a transaction log.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                    | Purpose                                                                  | Notes                                                   |
+    ///|-------------------------|--------------------------------------------------------------------------|---------------------------------------------------------|
+    ///| `tx`                    | The encoded value of the associate transaction object.                   | Encoded value of a CryptoNote-style transaction object. |
+    ///| `tombstone_block_index` | The block index at which this transaction is no longer considered valid. |                                                         |
+    ///| `conn`                  | An reference to the pool connection of wallet database                   |                                                         |
+    ///
+    /// # Returns:
+    /// * unit
     fn update_tx_and_tombstone_block_index(
         &self,
         tx: &[u8],
@@ -164,9 +218,20 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
-    /// List all TransactionLogs and their associated Txos for a given account.
+    /// List all transaction logs and their associated Txos for a given account.
+    /// 
+    /// # Arguments
     ///
-    /// Returns:
+    ///| Name              | Purpose                                                    | Notes                               |
+    ///|-------------------|------------------------------------------------------------|-------------------------------------|
+    ///| `account_id`      | The account id to scan for transaction logs.               | Account must exist in the database. |
+    ///| `offset`          | The pagination offset. Results start at the offset index.  | Optional. Defaults to 0.            |
+    ///| `limit`           | Limit for the number of results.                           | Optional.                           |
+    ///| `min_block_index` | The minimum block index to find transaction logs from.     |                                     |
+    ///| `max_block_index` | The maximum block index to find transaction logs from.     |                                     |
+    ///| `conn`            | An reference to the pool connection of wallet database     |                                     |
+    ///
+    /// # Returns:
     /// * Vec(TransactionLog, AssociatedTxos(inputs, outputs, change))
     fn list_all(
         account_id: Option<String>,
@@ -178,8 +243,16 @@ pub trait TransactionLogModel {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
     /// Log a transaction that has been built but not yet signed.
+    /// 
+    /// # Arguments
     ///
-    /// Returns:
+    ///| Name                   | Purpose                                                 | Notes                               |
+    ///|------------------------|---------------------------------------------------------|-------------------------------------|
+    ///| `unsigned_tx_proposal` | The unsigned transaction proposal that will be logged.  |                                     |
+    ///| `account_id`           | The account id to scan for transaction logs.            | Account must exist in the database. |
+    ///| `conn`                 | An reference to the pool connection of wallet database  |                                     |
+    ///
+    /// # Returns:
     /// * TransactionLog
     fn log_built(
         unsigned_tx_proposal: &UnsignedTxProposal,
@@ -188,8 +261,17 @@ pub trait TransactionLogModel {
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a transaction that has been signed
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name             | Purpose                                                   | Notes                               |
+    ///|------------------|-----------------------------------------------------------|-------------------------------------|
+    ///| `tx_proposal`    | The signed transaction proposal that will be logged.      |                                     |
+    ///| `comment`        | The arbitrary comments of the current signed transaction. |                                     |
+    ///| `account_id_hex` | The account id to scan for transaction logs.              | Account must exist in the database. |
+    ///| `conn`           | An reference to the pool connection of wallet database    |                                     |
     ///
-    /// Returns:
+    /// # Returns:
     /// * TransactionLog
     fn log_signed(
         tx_proposal: TxProposal,
@@ -208,6 +290,19 @@ pub trait TransactionLogModel {
     /// recipient, with the rest of the minted txos designated as
     /// change. Other wallets may choose to behave differently, but
     /// our TransactionLogs Table assumes this behavior.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name             | Purpose                                                      | Notes                               |
+    ///|------------------|--------------------------------------------------------------|-------------------------------------|
+    ///| `tx_proposal`    | The submitted transaction proposal that will be logged.      |                                     |
+    ///| `block_index`    | The block index of where the transaction was submitted.      |                                     |
+    ///| `comment`        | The arbitrary comments of the current submitted transaction. |                                     |
+    ///| `account_id_hex` | The account id to scan for transaction logs.                 | Account must exist in the database. |
+    ///| `conn`           | An reference to the pool connection of wallet database       |                                     |
+    ///
+    /// # Returns:
+    /// * TransactionLog
     fn log_submitted(
         tx_proposal: &TxProposal,
         block_index: u64,
@@ -216,24 +311,89 @@ pub trait TransactionLogModel {
         conn: &Conn,
     ) -> Result<TransactionLog, WalletDbError>;
 
-    /// Remove all logs for an account
-    fn delete_all_for_account(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    /// Remove all transaction logs for an account.
+    /// 
+    /// # Arguments
+    ///
+    ///| Name             | Purpose                                                | Notes                               |
+    ///|------------------|--------------------------------------------------------|-------------------------------------|
+    ///| `account_id_hex` | The account id to scan for transaction logs.           | Account must exist in the database. |
+    ///| `conn`           | An reference to the pool connection of wallet database |                                     |
+    ///
+    /// # Returns
+    /// * unit
+    fn delete_all_for_account(
+        account_id_hex: &str, 
+        conn: &Conn
+    ) -> Result<(), WalletDbError>;
 
+    /// Update the finalized block index to all pending transaction logs that associate with a given transaction output (txo).
+    /// 
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                                      | Notes |
+    ///|-------------------------|------------------------------------------------------------------------------|-------|
+    ///| `txo_id_hex`            | The txo ID for which to get all transaction logs associated with this txo ID.|       |
+    ///| `finalized_block_index` | The block index at which the transaction will be completed and finalized.    |       |
+    ///| `conn`                  | An reference to the pool connection of wallet database                       |       |
+    ///
+    /// # Returns
+    /// * unit
     fn update_pending_associated_with_txo_to_succeeded(
         txo_id_hex: &str,
         finalized_block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    /// Set the status of a transaction log to failed if its tombstone_block_index is less than the given block index.
+    /// 
+    /// # Arguments
+    ///
+    ///| Name          | Purpose                                                                              | Notes |
+    ///|---------------|--------------------------------------------------------------------------------------|-------|
+    ///| `block_index` | The block index used for comparing the tombstone_block_index of the transaction log. |       |
+    ///| `conn`        | An reference to the pool connection of wallet database                               |       |
+    ///
+    /// # Returns
+    /// * unit
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         block_index: u64,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
+    /// Retrieve the status of an associated transaction from a transaction log.
+    /// 
+    /// # Arguments
+    /// * None
+    ///
+    /// # Returns
+    /// * TxStatus
     fn status(&self) -> TxStatus;
-
-    fn value_for_token_id(&self, token_id: TokenId, conn: &Conn) -> Result<u64, WalletDbError>;
-
+    
+    /// Get the total value of a token from all transaction outputs associated with the current transaction log.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name       | Purpose                                                | Notes |
+    ///|------------|--------------------------------------------------------|-------|
+    ///| `token_id` | The id of a supported type of token.                   |       |
+    ///| `conn`     | An reference to the pool connection of wallet database |       |
+    ///
+    /// # Returns
+    /// * aggreagated value (u64)
+    fn value_for_token_id(
+        &self, 
+        token_id: TokenId, 
+        conn: &Conn
+    ) -> Result<u64, WalletDbError>;
+    
+    /// Get the total value for each token from all transaction outputs associated with the current transaction log.
+    /// 
+    /// # Arguments
+    /// * None
+    /// 
+    /// # Returns
+    /// * ValueMap<TokenId, aggreagated value (u64)>
     fn value_map(&self, conn: &Conn) -> Result<ValueMap, WalletDbError>;
 }
 
