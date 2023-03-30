@@ -173,7 +173,14 @@ then
     then
         echo "validator-service is already running"
     else
-        echo "Starting validator-service"
+        # Make sure that the validator executable exists.
+        if [[ ! -f "${WORK_DIR}/validator-service" ]]
+        then
+            echo "${WORK_DIR}/validator-service not found."
+            exit 1
+        fi
+
+        echo "Starting validator-service. Log is at /tmp/validator-service.log"
         validator_ledger_db="${WORK_DIR}/validator/ledger-db"
         mkdir -p "${validator_ledger_db}"
 
@@ -184,7 +191,7 @@ then
             >/tmp/validator-service.log 2>&1 &
 
         echo $! >/tmp/.validator-service.pid
-        echo "Pause 10 to wait for validator to come up."
+        echo "Pausing 10 seconds to wait for validator to come up."
         sleep 10
     fi
 
