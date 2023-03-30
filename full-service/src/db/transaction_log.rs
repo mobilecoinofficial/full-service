@@ -370,7 +370,7 @@ pub trait TransactionLogModel {
     /// * TxStatus
     fn status(&self) -> TxStatus;
     
-    /// Get the total value of a token from all transaction outputs associated with the current transaction log.
+    /// Get the total value of transaction outputs for given token id from current transaction log instances.
     /// 
     /// # Arguments
     /// 
@@ -387,7 +387,7 @@ pub trait TransactionLogModel {
         conn: &Conn
     ) -> Result<u64, WalletDbError>;
     
-    /// Get the total value for each token from all transaction outputs associated with the current transaction log.
+    /// Get the total value of transaction outputs for each token id from current transaction log instances.
     /// 
     /// # Arguments
     /// * None
