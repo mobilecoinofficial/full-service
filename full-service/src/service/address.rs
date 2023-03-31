@@ -2,6 +2,8 @@
 
 //! Service for managing addresses.
 
+use std::ops::{Deref, DerefMut};
+
 use crate::{
     db::{
         account::AccountID, assigned_subaddress::AssignedSubaddressModel,
@@ -173,7 +175,8 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(AssignedSubaddress::list_all(
             account_id, offset, limit, conn,
         )?)
