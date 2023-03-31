@@ -4,7 +4,7 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 use clap::Parser;
-use diesel::{prelude::*, SqliteConnection};
+use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
@@ -79,7 +79,13 @@ fn rocket() -> Rocket<Build> {
                 eprintln!("Incorrect password for database {wallet_db_path:?}.");
                 exit(EXIT_WRONG_PASSWORD);
             };
+            WalletDb::add_mising_migrations(conn);
+            // conn.batch_execute("PRAGMA foreign_keys = OFF;")
+            //     .expect("failed disabling foreign keys");
             WalletDb::run_migrations(conn);
+            // WalletDb::validate_foreign_keys(conn);
+            // conn.batch_execute("PRAGMA foreign_keys = ON;")
+            //     .expect("failed enabling foreign keys");
             WalletDb::run_proto_conversions_if_necessary(conn);
             log::info!(logger, "Connected to database.");
 

@@ -2,7 +2,7 @@
 
 //! Service for managing addresses.
 
-use std::ops::{Deref, DerefMut};
+use std::ops::DerefMut;
 
 use crate::{
     db::{

@@ -4,7 +4,7 @@
 
 use crate::{
     config::NetworkConfig,
-    db::{Conn, WalletDb, WalletDbError},
+    db::{WalletDb, WalletDbError},
     service::sync::SyncThread,
 };
 use diesel::{
