@@ -2,6 +2,8 @@
 
 //! Service for managing Txos.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -227,7 +229,8 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
 
         let txos;
 
@@ -277,7 +280,8 @@ where
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let txo = Txo::get(&txo_id.to_string(), conn)?;
         let status = txo.status(conn)?;
         Ok((txo, status))
@@ -294,7 +298,8 @@ where
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let txo_details = Txo::get(&txo_id.to_string(), conn)?;
 
         let account_id_hex = txo_details

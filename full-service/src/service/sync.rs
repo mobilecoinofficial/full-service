@@ -64,7 +64,7 @@ impl SyncThread {
                     log::debug!(logger, "Sync thread started.");
 
                     let conn = &mut wallet_db
-                        .get_conn()
+                        .get_pooled_conn()
                         .expect("failed getting wallet db connection");
 
                     loop {
@@ -140,6 +140,7 @@ pub fn sync_account_next_chunk(
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
+    // TODO: This needs to be an exclusive transaction
     // transaction(conn, |_| {
     // Get the account data. If it is no longer available, the account has been
     // removed and we can simply return.

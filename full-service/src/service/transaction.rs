@@ -19,6 +19,7 @@ use crate::{
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
+use diesel::Connection;
 use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
@@ -40,7 +41,7 @@ use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
-use std::{convert::TryFrom, sync::atomic::Ordering};
+use std::{convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
 
 use super::models::tx_proposal::UnsignedTxProposal;
 
@@ -417,7 +418,9 @@ where
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        // TODO: This should be an exclusive transaction
         // transaction(conn, |_| {
         let mut builder = WalletTransactionBuilder::new(
             account_id_hex.to_string(),
@@ -508,23 +511,24 @@ where
             memo,
             block_version,
         )?;
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
-        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        conn.transaction(|conn| {
+            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-        let fee_map = if self.offline {
-            None
-        } else {
-            Some(self.get_network_fees()?)
-        };
+            let fee_map = if self.offline {
+                None
+            } else {
+                Some(self.get_network_fees()?)
+            };
 
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
+            let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
 
-        TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
+            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
 
-        Ok(tx_proposal)
-        // })
+            Ok(tx_proposal)
+        })
     }
 
     fn submit_transaction(
@@ -561,7 +565,8 @@ where
         );
 
         if let Some(account_id_hex) = account_id_hex {
-            let conn = &mut self.get_conn()?;
+            let mut pooled_conn = self.get_pooled_conn()?;
+            let conn = pooled_conn.deref_mut();
             let account_id = AccountID(account_id_hex.to_string());
 
             // conn.exclusive_transaction(|conn| {
@@ -959,12 +964,12 @@ mod tests {
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
-            .get_associated_txos(&service.get_conn().unwrap())
+            .get_associated_txos(&service.get_pooled_conn().unwrap())
             .unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -972,7 +977,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -980,7 +985,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);
@@ -1358,12 +1363,12 @@ mod tests {
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
-            .get_associated_txos(&service.get_conn().unwrap())
+            .get_associated_txos(&service.get_pooled_conn().unwrap())
             .unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -1371,7 +1376,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -1379,7 +1384,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);
@@ -1549,12 +1554,12 @@ mod tests {
 
         // Get the Txos from the transaction log
         let transaction_txos = transaction_log
-            .get_associated_txos(&service.get_conn().unwrap())
+            .get_associated_txos(&service.get_pooled_conn().unwrap())
             .unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -1562,7 +1567,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -1570,7 +1575,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, &service.get_conn().unwrap()).unwrap())
+            .map(|t| Txo::get(&t.id, &service.get_pooled_conn().unwrap()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);

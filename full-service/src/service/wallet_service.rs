@@ -113,12 +113,12 @@ impl<
         }
     }
 
-    pub fn get_conn(
+    pub fn get_pooled_conn(
         &self,
     ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         self.wallet_db
             .as_ref()
             .ok_or(WalletDbError::WalletFunctionsDisabled)?
-            .get_conn()
+            .get_pooled_conn()
     }
 }

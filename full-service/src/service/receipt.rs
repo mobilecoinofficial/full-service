@@ -27,7 +27,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{get_tx_out_shared_secret, MaskedAmount};
 use mc_transaction_extra::TxOutConfirmationNumber;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, ops::DerefMut};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -213,7 +213,8 @@ where
         address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;
@@ -450,7 +451,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &service.get_pooled_conn().unwrap(),
         )
         .expect("Could not log submitted");
 
@@ -586,7 +587,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &service.get_pooled_conn().unwrap(),
         )
         .expect("Could not log submitted");
 
@@ -702,7 +703,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &service.get_pooled_conn().unwrap(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
@@ -734,7 +735,7 @@ mod tests {
 
         // Now check status with a correct shared secret, but the wrong value
         let bob_account_key: AccountKey = mc_util_serial::decode(
-            &Account::get(&bob_account_id, &service.get_conn().unwrap())
+            &Account::get(&bob_account_id, &service.get_pooled_conn().unwrap())
                 .expect("Could not get bob account")
                 .account_key,
         )
@@ -843,7 +844,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &service.get_pooled_conn().unwrap(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);

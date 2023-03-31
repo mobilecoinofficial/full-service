@@ -559,7 +559,7 @@ mod tests {
         );
 
         // Construct a transaction
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -629,7 +629,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         let balance: u128 = unspent
@@ -639,7 +639,7 @@ mod tests {
         assert_eq!(balance, 55_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value (recipients + fee) > u64::MAX
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -723,11 +723,11 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -782,7 +782,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
@@ -881,7 +881,7 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
@@ -966,7 +966,7 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1021,7 +1021,7 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
 
         // Start sync thread
         let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
@@ -1107,7 +1107,7 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1191,7 +1191,7 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1240,7 +1240,7 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 

@@ -1,7 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Service for managing balances.
-use std::{collections::BTreeMap, convert::TryFrom};
+use std::{collections::BTreeMap, convert::TryFrom, ops::DerefMut};
 
 use crate::{
     config::NetworkConfig,
@@ -190,7 +190,8 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let account = self.get_account(account_id)?;
         let distinct_token_ids = account.get_token_ids(conn)?;
 
@@ -221,7 +222,8 @@ where
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID::from(assigned_address.account_id);
         let account = self.get_account(&account_id)?;
@@ -282,7 +284,8 @@ where
     fn get_wallet_status(&self) -> Result<WalletStatus, BalanceServiceError> {
         let network_status = self.get_network_status()?;
 
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let accounts = Account::list_all(conn, None, None)?;
         let mut account_map = HashMap::default();
 

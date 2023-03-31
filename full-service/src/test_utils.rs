@@ -345,7 +345,7 @@ pub fn manually_sync_account(
     loop {
         match sync_account_next_chunk(
             ledger_db,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
             &account_id.to_string(),
             logger,
         ) {
@@ -358,7 +358,7 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        account = Account::get(account_id, &wallet_db.get_pooled_conn().unwrap()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -412,7 +412,7 @@ pub fn create_test_received_txo(
         amount,
         received_block_index,
         &AccountID::from(account_key).to_string(),
-        &wallet_db.get_conn().unwrap(),
+        &wallet_db.get_pooled_conn().unwrap(),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
@@ -437,7 +437,7 @@ pub fn create_test_minted_and_change_txos(
         get_resolver_factory(&mut rng).unwrap(),
     );
 
-    let conn = wallet_db.get_conn().unwrap();
+    let conn = wallet_db.get_pooled_conn().unwrap();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
@@ -481,7 +481,7 @@ pub fn create_test_unsigned_txproposal_and_log(
         get_resolver_factory(&mut rng).unwrap(),
     );
 
-    let conn = wallet_db.get_conn().unwrap();
+    let conn = wallet_db.get_pooled_conn().unwrap();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(&conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
@@ -520,7 +520,7 @@ pub fn random_account_with_seed_values(
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
     }
@@ -548,7 +548,7 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 Some(0),
-                &wallet_db.get_conn().unwrap(),
+                &wallet_db.get_pooled_conn().unwrap(),
             )
             .unwrap()
             .len(),

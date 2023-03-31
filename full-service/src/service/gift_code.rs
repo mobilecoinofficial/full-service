@@ -30,6 +30,7 @@ use crate::{
     },
 };
 
+use diesel::Connection;
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -57,7 +58,9 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use std::{convert::TryFrom, fmt, iter::empty, str::FromStr, sync::atomic::Ordering};
+use std::{
+    convert::TryFrom, fmt, iter::empty, ops::DerefMut, str::FromStr, sync::atomic::Ordering,
+};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant, clippy::result_large_err)]
@@ -521,7 +524,8 @@ where
         let gift_code_account_main_subaddress_b58 =
             b58_encode_public_address(&gift_code_account_key.default_subaddress())?;
 
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let from_account = Account::get(from_account_id, conn)?;
 
         let fee_value = fee.map(|f| f.to_string());
@@ -585,10 +589,9 @@ where
         );
 
         // Save the gift code to the database before attempting to send it out.
-        let conn = &mut self.get_conn()?;
-        // let gift_code = transaction(conn, |_| GiftCode::create(gift_code_b58, value,
-        // conn))?;
-        let gift_code = GiftCode::create(gift_code_b58, value, conn)?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let gift_code = conn.transaction(|conn| GiftCode::create(gift_code_b58, value, conn))?;
 
         self.submit_transaction(
             tx_proposal,
@@ -610,7 +613,8 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<DecodedGiftCode, GiftCodeServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let gift_code = GiftCode::get(gift_code_b58, conn)?;
         DecodedGiftCode::try_from(gift_code)
     }
@@ -620,7 +624,8 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<DecodedGiftCode>, GiftCodeServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         GiftCode::list_all(conn, offset, limit)?
             .into_iter()
             .map(DecodedGiftCode::try_from)
@@ -842,8 +847,9 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<bool, GiftCodeServiceError> {
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| GiftCode::get(gift_code_b58, conn)?.delete(conn))?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        conn.transaction(|conn| GiftCode::get(gift_code_b58, conn)?.delete(conn))?;
         GiftCode::get(gift_code_b58, conn)?.delete(conn)?;
         Ok(true)
     }

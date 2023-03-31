@@ -2,6 +2,8 @@
 
 //! Service for managing accounts.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -24,6 +26,7 @@ use crate::{
 };
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
+use diesel::Connection;
 use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
@@ -366,22 +369,24 @@ where
         let first_block_index = network_block_height; // -1 +1
         let import_block_index = local_block_height; // -1 +1
 
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
-        let (account_id, _public_address_b58) = Account::create_from_mnemonic(
-            &mnemonic,
-            Some(first_block_index),
-            Some(import_block_index),
-            None,
-            &name.unwrap_or_default(),
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            conn,
-        )?;
-        let account = Account::get(&account_id, conn)?;
-        Ok(account)
-        // })
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+
+        conn.transaction(|conn| {
+            let (account_id, _public_address_b58) = Account::create_from_mnemonic(
+                &mnemonic,
+                Some(first_block_index),
+                Some(import_block_index),
+                None,
+                &name.unwrap_or_default(),
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                conn,
+            )?;
+            let account = Account::get(&account_id, conn)?;
+            Ok(account)
+        })
     }
 
     fn import_account(
@@ -422,20 +427,21 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
-        Ok(Account::import(
-            &mnemonic,
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            conn,
-        )?)
-        // })
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        conn.transaction(|conn| {
+            Ok(Account::import(
+                &mnemonic,
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                conn,
+            )?)
+        })
     }
 
     fn import_account_from_legacy_root_entropy(
@@ -462,20 +468,21 @@ where
         // start scanning.
         let import_block = self.ledger_db.num_blocks()? - 1;
 
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
-        Ok(Account::import_legacy(
-            &RootEntropy::from(&entropy_bytes),
-            name,
-            import_block,
-            first_block_index,
-            next_subaddress_index,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki,
-            conn,
-        )?)
-        // })
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        conn.transaction(|conn| {
+            Ok(Account::import_legacy(
+                &RootEntropy::from(&entropy_bytes),
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_report_id,
+                fog_authority_spki,
+                conn,
+            )?)
+        })
     }
 
     fn import_view_only_account(
@@ -500,8 +507,9 @@ where
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        // conn.transaction(|conn| {
         Ok(Account::import_view_only(
             &view_private_key,
             &spend_public_key,
@@ -515,7 +523,8 @@ where
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let account = Account::get(account_id, conn)?;
         account.update_next_block_index(account.first_block_index as u64, conn)?;
         Ok(())
@@ -525,7 +534,8 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<JsonRPCRequest, AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let account = Account::get(account_id, conn)?;
 
         if account.view_only {
@@ -567,12 +577,14 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(Account::list_all(conn, offset, limit)?)
     }
 
     fn get_account(&self, account_id: &AccountID) -> Result<Account, AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(Account::get(account_id, conn)?)
     }
 
@@ -580,7 +592,8 @@ where
         &self,
         account_id: &AccountID,
     ) -> Result<u64, AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let account = Account::get(account_id, conn)?;
         Ok(account.next_subaddress_index(conn)?)
     }
@@ -590,7 +603,8 @@ where
         account_id: &AccountID,
         name: String,
     ) -> Result<Account, AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Account::get(account_id, conn)?.update_name(name, conn)?;
         Ok(Account::get(account_id, conn)?)
     }
@@ -601,7 +615,8 @@ where
         txo_ids_and_key_images: Vec<(String, String)>,
         next_subaddress_index: u64,
     ) -> Result<(), AccountServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let account = Account::get(account_id, conn)?;
 
         if !account.view_only {
@@ -630,12 +645,14 @@ where
 
     fn remove_account(&self, account_id: &AccountID) -> Result<bool, AccountServiceError> {
         log::info!(self.logger, "Deleting account {}", account_id,);
-        let conn = &mut self.get_conn()?;
-        // transaction(conn, |_| {
-        let account = Account::get(account_id, conn)?;
-        account.delete(conn)?;
-        Ok(true)
-        // })
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+
+        conn.transaction(|conn| {
+            let account = Account::get(account_id, conn)?;
+            account.delete(conn)?;
+            Ok(true)
+        })
     }
 }
 
@@ -841,7 +858,7 @@ mod tests {
 
         // Store the real values for the txo's amount and target_key (arbitrary fields
         // we want to corrupt and sync back)
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
         let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
         let expected_txo_amount = associated_txos.outputs[0].0.value;
         let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
@@ -966,7 +983,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -984,7 +1001,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
@@ -1075,7 +1092,7 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
-        let conn = wallet_db.get_conn().unwrap();
+        let conn = wallet_db.get_pooled_conn().unwrap();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -1116,7 +1133,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -1131,7 +1148,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -1173,7 +1190,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -1186,7 +1203,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -1200,7 +1217,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 

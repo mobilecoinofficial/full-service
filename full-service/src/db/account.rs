@@ -845,7 +845,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -862,12 +862,12 @@ mod tests {
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
-        let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc = Account::get(&account_id_hex, &wallet_db.get_pooled_conn().unwrap()).unwrap();
         let expected_account = Account {
             id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
@@ -887,7 +887,7 @@ mod tests {
             Some(account_id_hex.to_string()),
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(subaddresses.len(), 3);
@@ -903,7 +903,7 @@ mod tests {
         let (retrieved_index, retrieved_account_id_hex) =
             AssignedSubaddress::find_by_subaddress_spend_public_key(
                 main_subaddress.spend_public_key(),
-                &wallet_db.get_conn().unwrap(),
+                &wallet_db.get_pooled_conn().unwrap(),
             )
             .unwrap();
         assert_eq!(retrieved_index, 0);
@@ -922,14 +922,17 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &wallet_db.get_conn().unwrap(),
+                &wallet_db.get_pooled_conn().unwrap(),
             )
             .unwrap();
-        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
+        let res = Account::list_all(&wallet_db.get_pooled_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 2);
 
-        let acc_secondary =
-            Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc_secondary = Account::get(
+            &account_id_hex_secondary,
+            &wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
         let mut expected_account_secondary = Account {
             id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
@@ -948,24 +951,30 @@ mod tests {
         acc_secondary
             .update_name(
                 "Alice's Secondary Account".to_string(),
-                &wallet_db.get_conn().unwrap(),
+                &wallet_db.get_pooled_conn().unwrap(),
             )
             .unwrap();
-        let acc_secondary2 =
-            Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc_secondary2 = Account::get(
+            &account_id_hex_secondary,
+            &wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
         expected_account_secondary.name = "Alice's Secondary Account".to_string();
         assert_eq!(expected_account_secondary, acc_secondary2);
 
         // Delete the secondary account
         acc_secondary
-            .delete(&wallet_db.get_conn().unwrap())
+            .delete(&wallet_db.get_pooled_conn().unwrap())
             .unwrap();
 
-        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
+        let res = Account::list_all(&wallet_db.get_pooled_conn().unwrap(), None, None).unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
-        let res = Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap());
+        let res = Account::get(
+            &account_id_hex_secondary,
+            &wallet_db.get_pooled_conn().unwrap(),
+        );
         match res {
             Ok(_) => panic!("Should have deleted account"),
             Err(WalletDbError::AccountNotFound(s)) => {
@@ -987,7 +996,7 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let account_id = {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -1002,7 +1011,7 @@ mod tests {
             .unwrap();
             account_id_hex
         };
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let account = Account::get(&account_id, &wallet_db.get_pooled_conn().unwrap()).unwrap();
         let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
@@ -1018,7 +1027,7 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -1035,12 +1044,12 @@ mod tests {
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
-        let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc = Account::get(&account_id_hex, &wallet_db.get_pooled_conn().unwrap()).unwrap();
         let expected_account = Account {
             id: account_id_hex.to_string(),
             account_key: [
@@ -1077,7 +1086,7 @@ mod tests {
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
 
         let account = {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
 
             Account::import_view_only(
                 &view_private_key,
@@ -1092,7 +1101,7 @@ mod tests {
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
+            let conn = wallet_db.get_pooled_conn().unwrap();
             let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }

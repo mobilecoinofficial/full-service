@@ -35,7 +35,7 @@ use rand::Rng;
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::convert::TryFrom;
+use std::{convert::TryFrom, ops::DerefMut};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -314,7 +314,8 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let transaction_log =
             TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
@@ -322,7 +323,8 @@ where
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = &mut self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let txo_details = Txo::get(txo_id_hex, conn)?;
         let txo = self.ledger_db.get_tx_out_by_index(
             self.ledger_db

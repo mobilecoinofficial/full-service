@@ -90,7 +90,7 @@ pub trait AssignedSubaddressModel {
         account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &mut SqliteConnection,
+        conn: Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
     /// Delete all AssignedSubaddresses for a given account.
@@ -340,7 +340,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &mut SqliteConnection,
+        conn: Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
