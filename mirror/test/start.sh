@@ -86,7 +86,8 @@ then
     then
         echo "${app} is already running"
     else
-        echo "- Starting full-service with validator-service"
+        echo "- Starting full-service on port 9090"
+        echo "- Starting validator-service on port 11000"
         exec "${GIT_BASE}"/tools/run-fs.sh --validator "${net}" > "${log}" 2>&1 &
         echo $! > "${pid}"
     fi
@@ -117,7 +118,7 @@ do
         then
             echo "v${v}-${app} is already running"
         else
-            echo "- Starting v${v} ${app}"
+            echo "- Starting v${v} ${app} on port 1000${v}"
             exec "${bin_dir}/${app}" \
                 --mirror-public-uri "wallet-service-mirror://127.0.0.1:1000${v}/?ca-bundle=${test_dir}/server.crt&tls-hostname=localhost" \
                 --wallet-service-uri "${wallet_service_uri}" \
@@ -139,7 +140,7 @@ do
         then
             echo "v${v} ${app} is already running"
         else
-            echo "- Starting v${v} ${app}"
+            echo "- Starting v${v} ${app} on port 1000${v}"
             exec "${bin_dir}/${app}" \
                 --client-listen-uri "http://${LISTEN_ADDR}:909${v}/" \
                 --mirror-listen-uri "wallet-service-mirror://127.0.0.1:1000${v}/?tls-chain=${test_dir}/server.crt&tls-key=${test_dir}/server.key" \

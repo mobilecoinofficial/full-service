@@ -9,7 +9,7 @@ from mobilecoin.token import get_token
 
 MOB = get_token('MOB')
 
-DEFAULT_URL = 'http://127.0.0.1:9090'
+DEFAULT_HOST = 'http://127.0.0.1:9090'
 
 MAX_TOMBSTONE_BLOCKS = 100
 
@@ -27,10 +27,13 @@ class Client:
     This version of the API does not support multiple token types. Please do
     not use this for new development.
     """
-    def __init__(self, url=None, verbose=False):
-        if url is None:
-            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL) + "/wallet"
-        self.url = url
+
+    REQ_PATH = '/wallet'
+
+    def __init__(self, host=None, verbose=False):
+        if host is None:
+            host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
+        self.host = host
         self.verbose = verbose
         self._query_count = 0
 
@@ -43,18 +46,18 @@ class Client:
         request_data = {**request_data, **default_params}
 
         if self.verbose:
-            print('POST', self.url)
+            print('POST', self.host)
             print(json.dumps(request_data, indent=2))
             print()
 
         try:
-            parsed_url = urlparse(self.url)
+            parsed_url = urlparse(self.host + self.REQ_PATH)
             connection = http.client.HTTPConnection(parsed_url.netloc)
             connection.request('POST', parsed_url.path, json.dumps(request_data), {'Content-Type': 'application/json'})
             r = connection.getresponse()
 
         except ConnectionError:
-            raise ConnectionError(f'Could not connect to wallet server at {self.url}.')
+            raise ConnectionError(f'Could not connect to wallet server at {self.host}.')
 
         raw_response = None
         try:
