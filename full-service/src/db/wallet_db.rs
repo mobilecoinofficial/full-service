@@ -4,6 +4,7 @@ use crate::db::{
     WalletDbError,
 };
 use diesel::{
+    connection::SimpleConnection,
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
     sql_types,
@@ -145,11 +146,11 @@ impl WalletDb {
         }
     }
 
+    // check for and retroactively insert any missing migrations if there is a later
+    // migration without the prior ones.
+    // We need to perform this first check in case this is a fresh database, in
+    // which case there will be no migrations table.
     pub fn add_mising_migrations(conn: Conn) {
-        // check for and retroactively insert any missing migrations if there is a later
-        // migration without the prior ones.
-        // We need to perform this first check in case this is a fresh database, in
-        // which case there will be no migrations table.
         if let Ok(migrations) = __diesel_schema_migrations::table.load::<Migration>(conn) {
             global_log::debug!("Number of migrations applied: {:?}", migrations.len());
 
@@ -186,24 +187,8 @@ impl WalletDb {
     }
 
     pub fn run_migrations(conn: &mut impl MigrationHarness<Sqlite>) {
-        // Our migrations sometimes violate foreign keys, so disable foreign key checks
-        // while we apply them.
-        // This has to happen outside the scope of a transaction. Quoting
-        // https://www.sqlite.org/pragma.html,
-        // "This pragma is a no-op within a transaction; foreign key constraint
-        // enforcement may only be enabled or disabled when there is no pending
-        // BEGIN or SAVEPOINT."
-        // Check foreign key constraints after the migration. If they fail,
-        // we will abort until the user resolves it.
-        // conn.batch_execute("PRAGMA foreign_keys = OFF;")
-        //     .expect("failed disabling foreign keys");
         conn.run_pending_migrations(MIGRATIONS)
             .expect("failed running migrations");
-        // embedded_migrations::run_with_output(conn, &mut std::io::stdout())
-        //     .expect("failed running migrations");
-        // WalletDb::validate_foreign_keys(conn);
-        // conn.batch_execute("PRAGMA foreign_keys = ON;")
-        //     .expect("failed enabling foreign keys");
     }
 
     pub fn run_proto_conversions_if_necessary(conn: &mut SqliteConnection) {
@@ -217,7 +202,7 @@ impl WalletDb {
     /// This is a one-time conversion, so we check if the conversion has already
     /// happened, and if it has we do nothing.
     fn run_assigned_subaddress_proto_conversions(conn: &mut SqliteConnection) {
-        global_log::info!("Checking for assigned subaddress proto conversions");
+        global_log::debug!("Checking for assigned subaddress proto conversions");
         let assigned_subaddresses = assigned_subaddresses::table
             .load::<AssignedSubaddress>(conn)
             .expect("failed querying for assigned subaddresses");
@@ -233,7 +218,7 @@ impl WalletDb {
             ) {
                 Ok(spend_public_key) => spend_public_key.to_bytes().to_vec(),
                 Err(_) => {
-                    global_log::info!(
+                    global_log::debug!(
                         "Assigned subaddress proto conversion already done, skipping..."
                     );
                     return;
@@ -250,29 +235,10 @@ impl WalletDb {
             .execute(conn)
             .expect("failed updating assigned subaddress");
 
-            global_log::info!("Assigned subaddress proto conversion done");
+            global_log::debug!("Assigned subaddress proto conversion done");
         }
     }
 }
-
-/// Create an exclusive SQLite transaction with retry.
-/// Note: This function does not support nested transactions.
-// pub fn transaction<T, E, F>(conn: Conn, f: F) -> Result<T, E>
-// where
-//     F: FnOnce(Conn) -> Result<T, E>,
-//     E: From<diesel::result::Error>,
-// {
-//     for i in 0..NUM_RETRIES {
-//         let r = conn.exclusive_transaction::<T, E, F>(f);
-//         if r.is_ok() || i == (NUM_RETRIES - 1) {
-//             return r;
-//         }
-//         sleep(Duration::from_millis((BASE_DELAY_MS * 2_u32.pow(i)) as u64));
-//     }
-//     panic!("Should never reach this point.");
-// }
-// const BASE_DELAY_MS: u32 = 10;
-// const NUM_RETRIES: u32 = 5;
 
 /// Escape a string for consumption by SQLite.
 /// This function doubles all single quote characters within the string, then

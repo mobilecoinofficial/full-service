@@ -80,12 +80,12 @@ fn rocket() -> Rocket<Build> {
                 exit(EXIT_WRONG_PASSWORD);
             };
             WalletDb::add_mising_migrations(conn);
-            // conn.batch_execute("PRAGMA foreign_keys = OFF;")
-            //     .expect("failed disabling foreign keys");
+            conn.batch_execute("PRAGMA foreign_keys = OFF;")
+                .expect("failed disabling foreign keys");
             WalletDb::run_migrations(conn);
-            // WalletDb::validate_foreign_keys(conn);
-            // conn.batch_execute("PRAGMA foreign_keys = ON;")
-            //     .expect("failed enabling foreign keys");
+            WalletDb::validate_foreign_keys(conn);
+            conn.batch_execute("PRAGMA foreign_keys = ON;")
+                .expect("failed enabling foreign keys");
             WalletDb::run_proto_conversions_if_necessary(conn);
             log::info!(logger, "Connected to database.");
 
