@@ -14,26 +14,14 @@ from mobilecoin.token import get_token, Amount
 MOB = get_token('MOB')
 EUSD = get_token('EUSD')
 
-
 # Enable debug logging during unittests.
 client_log.setLevel('DEBUG')
-
-
-# In order to import just one wallet for the whole test session, we need to set the
-# asyncio-pytest event loop to session scope.
-@pytest.fixture(scope="session")
-def event_loop():
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope='session')
 async def client():
     async with ClientAsync() as client:
         yield client
-
 
 @pytest.fixture(scope='session')
 async def fees(client):
