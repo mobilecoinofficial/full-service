@@ -13,8 +13,10 @@ env:
 on:
   pull_request:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
+    - feature/*
+
 
 concurrency:
   group: full-service-dev-cd-${{ github.head_ref || github.ref }}
