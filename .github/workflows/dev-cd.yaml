@@ -11,11 +11,13 @@ env:
   MOBILECOIN_NETWORK: test
 
 on:
+  push:
+    branches:
+    - feature/*
   pull_request:
     branches:
     - main
     - release/*
-    - feature/*
 
 
 concurrency:
