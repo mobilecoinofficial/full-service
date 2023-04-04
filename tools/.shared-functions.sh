@@ -6,7 +6,6 @@
 
 GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
-CARGO_TARGET_DIR="${GIT_BASE}/target"
 
 # Assume that if you're git directory is /tmp/mobilenode that we're in mob prompt
 if [[ "${GIT_BASE}" == "/tmp/mobilenode" ]]

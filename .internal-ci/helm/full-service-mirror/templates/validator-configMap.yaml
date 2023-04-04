@@ -1,0 +1,12 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-validator
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+    app: validator
+data:
+  MC_CHAIN_ID: {{ .Values.config.chainId }}
+  MC_TX_SOURCE_URL: {{ join "," .Values.config.txSourceURLs }}
+  MC_PEER: {{ join "," .Values.config.peers }}

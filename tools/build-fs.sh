@@ -49,7 +49,7 @@ fi
 # use main instead of legacy prod
 if [[ "${net}" == "prod" ]]
 then
-    echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+    echo "Detected 'prod' legacy network setting. Using 'main' instead."
     net=main
 fi
 
@@ -90,10 +90,11 @@ case ${net} in
         IAS_MODE=DEV
 
         INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
-        if test -f "${WORK_DIR}/consensus-enclave.css"; then
+        if [[ -f "${WORK_DIR}/consensus-enclave.css" ]]
+        then
             CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
         else
-            CONSENSUS_ENCLAVE_CSS=`pwd`/mobilecoin/target/docker/release/consensus-enclave.css
+            CONSENSUS_ENCLAVE_CSS=$(pwd)/mobilecoin/target/docker/release/consensus-enclave.css
         fi
         ;;
     *)
@@ -116,7 +117,11 @@ target_dir=${CARGO_TARGET_DIR:-"target"}
 
 if [[ "${target_dir}/release" != "${WORK_DIR}" ]]
 then
-    echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
+    echo "  Binaries are available in ${target_dir}/release and ${WORK_DIR}"
     cp "${target_dir}/release/full-service" "${WORK_DIR}"
     cp "${target_dir}/release/validator-service" "${WORK_DIR}"
 fi
+
+echo "  Copy measurements to ${target_dir}/release for docker and packaging"
+cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
+cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"

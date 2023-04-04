@@ -1,0 +1,117 @@
+# Copyright (c) 2018-2022 The MobileCoin Foundation
+nameOverride: ""
+fullnameOverride: ""
+
+imagePullSecrets:
+- name: docker-credentials
+
+image:
+  org: mobilecoin
+  name: full-service
+  tag: ''
+  pullPolicy: Always
+
+## Example args for testnet - note the .test chart and container image include these values.
+# config:
+#   chainId: test
+#   peers:
+#   - mc://node1.test.mobilecoin.com/
+#   - mc://node2.test.mobilecoin.com/
+#   txSourceURLs:
+#   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
+#   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+
+## Example args for mainnet - note the .main chart and container image includes these values. (prod is correct for the urls)
+# config:
+#   chainId: main
+#   peers:
+#   - mc://node1.prod.mobilecoin.com/
+#   - mc://node2.prod.mobilecoin.com/
+#   txSourceURLs:
+#   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.prod.mobilecoin.com/
+#   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.prod.mobilecoin.com/
+
+config:
+  chainId: ""
+  txSourceURLs: []
+  peers: []
+
+fullService:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 128Gi
+
+  secret:
+    name: full-service-wallets
+    data: {}
+      # add an optional list of accounts to import at start up.
+      # wallets.json: |
+        # {
+        #   "accounts": [
+        #     {
+        #       "name": ""
+        #       "nmemonic": ""
+        #       "main_address": ""
+        #     }
+        #   ]
+        # }
+
+private:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  secret:
+    name: private-client-msg-encryption
+    data: {}
+      # The mirror setup uses an additional RSA 4096 key to send encrypted message payloads.
+      # Add an external secret called .Values.private.secret.name with a value of mirror-private.pem: ""
+      # OR
+      # Add the secret inline with --set-file=private.secret.data."mirror-private.pem"=mirror-private.pem
+
+public:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ledger-validator
+validator:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 128Gi
+  configMap:
+    data: {}
+

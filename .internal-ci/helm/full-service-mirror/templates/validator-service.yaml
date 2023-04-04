@@ -1,0 +1,18 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-validator
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+    app: validator
+spec:
+  type: ClusterIP
+  ports:
+    - name: validator
+      port: 11000
+      targetPort: validator
+      protocol: TCP
+  selector:
+    {{- include "fullServiceMirror.selectorLabels" . | nindent 4 }}
+    app: validator
