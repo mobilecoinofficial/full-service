@@ -77,13 +77,9 @@ table! {
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
         shared_secret -> Nullable<Binary>,
-    }
-}
-
-table! {
-    __diesel_schema_migrations(version) {
-        version -> Text,
-        run_on -> Timestamp,
+        memo -> Binary,
+        memo_type -> Nullable<Integer>,
+        address_hash -> Nullable<Binary>,
     }
 }
 

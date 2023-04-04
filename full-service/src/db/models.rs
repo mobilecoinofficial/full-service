@@ -83,6 +83,12 @@ pub struct Txo {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
     pub shared_secret: Option<Vec<u8>>,
+    /// The memo field for the TxOut.
+    pub memo: Vec<u8>,
+    /// The memo type, indicated by the first two bytes. See mobilecoin/transaction/extra/src/memo/mod.rs
+    pub memo_type: u16,
+    /// If the memo is an AuthenticatedSender memo, the sender's address hash.
+    pub address_hash: Option<Vec<u8>>,
 }
 
 impl Txo {

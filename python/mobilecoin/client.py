@@ -304,6 +304,9 @@ class ClientAsync:
         fee=None,
     ):
         params = {
+            ##DEBUG
+            "sender_memo_credential_subaddress_index": 0,
+            ##
             "account_id": account_id,
             "recipient_public_address": to_address,
             "amount": {
@@ -362,6 +365,23 @@ class ClientAsync:
         return await self._req({
             "method": "check_b58_type",
             "params": {"b58_code": b58_code},
+        })
+
+    async def get_txos(self, account_id):
+        r = await self._req({
+            "method": "get_txos",
+            "params": {
+                "account_id": account_id,
+            }
+        })
+        return r['txo_map']
+
+    async def resync_account(self, account_id):
+        await self._req({
+            "method": "resync_account",
+            "params": {
+                "account_id": account_id,
+            }
         })
 
     # Polling utility functions.

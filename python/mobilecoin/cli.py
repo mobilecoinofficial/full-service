@@ -166,15 +166,9 @@ class CommandLineInterface:
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
 
-        # Sync view-only account.
-        self.sync_args = command_sp.add_parser('sync', help='Sync a view-only account.')
-        self.sync_args.add_argument(
-            'account_id_or_sync_response',
-            help=(
-                'If an account ID is passed, then generate a sync request for the transaction signer. '
-                'Once the signer is finished, call this again with the completed json file.'
-            )
-        )
+        # Resync account.
+        self.resync_args = command_sp.add_parser('resync', help='Resync an account.')
+        self.resync_args.add_argument('account_id', help='Account ID to resync.')
 
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
@@ -883,45 +877,10 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
-    def sync(self, account_id_or_sync_response):
-        if account_id_or_sync_response.endswith('.json'):
-            sync_response = account_id_or_sync_response
-            self._finish_sync(sync_response)
-        else:
-            account_id = account_id_or_sync_response
-            self._start_sync(account_id)
-
-    def _start_sync(self, account_id):
+    def resync(self, account_id):
         account = self._load_account_prefix(account_id)
-        print()
-        print(_format_account_header(account))
-
-        account_id = account['id']
-        response = self.client.create_view_only_account_sync_request(account_id)
-
-        network_status = self.client.get_network_status()
-        filename = 'sync_request_{}_{}.json'.format(account_id[:6], network_status['local_block_height'])
-        _save_json_file(filename, response)
-
-        print(f'Wrote {filename}.')
-
-    def _finish_sync(self, sync_response):
-        with open(sync_response) as f:
-            data = json.load(f)
-
-        self.client.sync_view_only_account(data['params'])
-        account_id = data['params']['account_id']
-        num_synced = len(data['params']['completed_txos'])
-
-        status = self.client.get_account_status(account_id)
-
-        print()
-        print('Synced {} transaction output{}.'.format(
-            num_synced,
-            '' if num_synced == 1 else '',
-        ))
-        print()
-        _print_account(status)
+        self.client.resync_account(account['id'])
+        print('Scheduled re-sync for account {}'.format(account['id'][:6]))
 
     def version(self):
         version = self.client.version()
