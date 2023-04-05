@@ -583,7 +583,7 @@ pub trait TxoModel {
     ///| `txo_id_hex` | The TxOut id from which to retrieve a TxOut            |       |
     ///| `conn`       | An reference to the pool connection of wallet database |       |
     ///
-    /// Returns:
+    /// # Returns:
     /// * TxOut
     fn get(
         txo_id_hex: &str, 
@@ -599,7 +599,7 @@ pub trait TxoModel {
     ///| `public_keys` | The public key where to retrieve TxOuts from           |       |
     ///| `conn`        | An reference to the pool connection of wallet database |       |
     ///
-    /// Returns:
+    /// # Returns:
     /// * Vector of TxoOut
     fn select_by_public_key(
         public_keys: &[&CompressedRistrettoPublic],
@@ -615,7 +615,7 @@ pub trait TxoModel {
     ///| `txo_ids` | The list of TxOut IDs from which to retrieve TxOuts    |       |
     ///| `conn`    | An reference to the pool connection of wallet database |       |
     ///
-    /// Returns:
+    /// # Returns:
     /// * Vector of TxoOut
     fn select_by_id(
         txo_ids: &[String], 
@@ -635,7 +635,7 @@ pub trait TxoModel {
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
     ///
-    /// Returns:
+    /// # Returns:
     /// * Vector of TxoOut
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
@@ -657,7 +657,7 @@ pub trait TxoModel {
     ///| `confirmation` | The confirmation to valid the TxOut public_key and account key |                                     |
     ///| `conn`         | An reference to the pool connection of wallet database         |                                     |
     ///
-    /// Returns:
+    /// # Returns:
     /// * Bool - true if verified
     fn validate_confirmation(
         account_id: &AccountID,
