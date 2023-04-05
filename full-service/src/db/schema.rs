@@ -83,6 +83,13 @@ table! {
     }
 }
 
+table! {
+    __diesel_schema_migrations(version) {
+        version -> Text,
+        run_on -> Timestamp,
+    }
+}
+
 joinable!(assigned_subaddresses -> accounts (account_id));
 joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
 joinable!(transaction_input_txos -> txos (txo_id));
