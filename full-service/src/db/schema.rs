@@ -77,7 +77,7 @@ table! {
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
         shared_secret -> Nullable<Binary>,
-        memo -> Binary,
+        memo -> Nullable<Binary>,
         memo_type -> Nullable<SmallInt>,
         address_hash -> Nullable<Binary>,
     }
