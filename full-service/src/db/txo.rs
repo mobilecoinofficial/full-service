@@ -1739,6 +1739,9 @@ mod tests {
             account_id: Some(alice_account_id.to_string()),
             shared_secret: get_shared_secret_if_possible(&alice_account, &for_alice_txo)
                 .map(|secret| secret.encode_to_vec()),
+            memo: vec![],       //todo
+            memo_type: None,    // todo
+            address_hash: None, //todo
         };
 
         assert_eq!(expected_txo, txos[0]);
