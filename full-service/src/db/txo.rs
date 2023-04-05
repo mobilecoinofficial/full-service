@@ -394,8 +394,15 @@ impl TxoModel for Txo {
         // Verify that the account exists.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let txo_id = TxoID::from(&txo);
-        let shared_secret =
-            get_shared_secret_if_possible(&account, &txo).map(|secret| secret.encode_to_vec());
+        let shared_secret = get_shared_secret_if_possible(&account, &txo);
+        let memo = shared_secret.map(|x| txo.e_memo.unwrap().decrypt(&x));
+        let memo_type = memo
+            .clone()
+            .map(|x| i16::from_be_bytes(*(x.get_memo_type()) /* .to_vec().try_into() */));
+        let memo = memo.map(|x| x.get_memo_data().to_vec());
+        // let address_hash = get_address_hash_if_memo_type_supported(memo_type, memo);
+
+        let shared_secret = shared_secret.map(|secret| secret.encode_to_vec());
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -410,6 +417,7 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&txo.public_key),
                     &mc_util_serial::encode(&txo.e_fog_hint),
                     shared_secret.as_deref(),
+                    // TODO: memo/memotype/address hash
                     conn,
                 )?;
             }
@@ -431,8 +439,8 @@ impl TxoModel for Txo {
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: shared_secret.as_deref(),
-                    memo: "".as_ref(),  // TODO
-                    memo_type: None,    // TODO
+                    memo: memo.as_deref(),
+                    memo_type,
                     address_hash: None, // TODO
                 };
 
@@ -471,7 +479,7 @@ impl TxoModel for Txo {
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
             shared_secret: None, // no account id so we don't
-            memo: "".as_ref(),   // TODO
+            memo: None,          // TODO
             memo_type: None,     // TODO
             address_hash: None,  // TODO
         };
@@ -1739,9 +1747,9 @@ mod tests {
             account_id: Some(alice_account_id.to_string()),
             shared_secret: get_shared_secret_if_possible(&alice_account, &for_alice_txo)
                 .map(|secret| secret.encode_to_vec()),
-            memo: vec![],       //todo
-            memo_type: None,    // todo
-            address_hash: None, //todo
+            memo: None,
+            memo_type: None,
+            address_hash: None,
         };
 
         assert_eq!(expected_txo, txos[0]);
