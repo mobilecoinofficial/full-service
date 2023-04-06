@@ -18,7 +18,10 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
-use mc_transaction_extra::{AuthenticatedSenderMemo, TxOutConfirmationNumber};
+use mc_transaction_extra::{
+    AuthenticatedSenderMemo, MemoType, MemoType::AuthenticatedSender, RegisteredMemoType,
+    TxOutConfirmationNumber, UnusedMemo,
+};
 use mc_util_serial::Message;
 use std::{collections::HashSet, convert::TryFrom, fmt, str::FromStr};
 
@@ -122,10 +125,6 @@ impl fmt::Display for TxoID {
 pub struct SpendableTxosResult {
     pub spendable_txos: Vec<Txo>,
     pub max_spendable_in_wallet: u128,
-}
-
-fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
-    todo!(); // remove this function completely
 }
 
 impl Txo {
@@ -389,23 +388,22 @@ impl TxoModel for Txo {
             &RistrettoPublic::try_from(&tx_out.public_key)?,
         );
 
-        let shared_secret = get_shared_secret_if_possible(&account, &tx_out);
-        let memo = shared_secret.map(|x| tx_out.e_memo.unwrap().decrypt(&x));
-        let memo_type = memo
-            .clone()
-            .map(|x| *(x.get_memo_type()))
-            .unwrap_or([0u8, 0u8]);
+        let (memo_type, memo, address_hash) = match tx_out.e_memo {
+            None => (UnusedMemo::MEMO_TYPE_BYTES.to_vec(), None, None),
+            Some(e_memo) => {
+                let memo = e_memo.decrypt(&shared_secret);
+                let memo_type = MemoType::try_from(&memo)?;
+                let address_hash = match memo_type {
+                    AuthenticatedSender(asm) => Some(asm.sender_address_hash()),
+                    //AuthenticatedSenderWithPaymentRequestId(AuthenticatedSenderWithPaymentRequestIdMemo),
+                    //AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
+                    _ => None,
+                };
+                (memo.get_memo_type().to_vec(), Some(memo), address_hash)
+            }
+        };
 
-        let mut supported_memo_types = HashSet::new();
-        let supported_memo_type_codes = vec!["0100", "0101", "0102"];
-        for authenticated_sender_type in supported_memo_type_codes.iter() {
-            supported_memo_types
-                .insert(i16::from_str_radix(authenticated_sender_type, 16).unwrap());
-        }
-
-        // let memotype = MemoType::try_from(memo.unwrap());
-
-        let shared_secret = shared_secret.map(|secret| secret.encode_to_vec());
+        let shared_secret = shared_secret.encode_to_vec();
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -419,7 +417,7 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&tx_out.target_key),
                     &mc_util_serial::encode(&tx_out.public_key),
                     &mc_util_serial::encode(&tx_out.e_fog_hint),
-                    shared_secret.as_deref(),
+                    Some(&shared_secret),
                     // TODO: memo/memotype/address hash
                     conn,
                 )?;
@@ -441,9 +439,9 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
-                    shared_secret: shared_secret.as_deref(),
-                    memo: None, // memo.as_deref(),
-                    memo_type: i16::from_be_bytes(memo_type),
+                    shared_secret: Some(&shared_secret),
+                    memo: None,         // TODO memo.as_deref(),
+                    memo_type: 0i16,    // TODO
                     address_hash: None, // TODO
                 };
 
@@ -1641,10 +1639,7 @@ impl TxoModel for Txo {
 #[cfg(test)]
 mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::{
-        logger::{log, test_with_logger, Logger},
-        HashSet,
-    };
+    use mc_common::logger::{log, test_with_logger, Logger};
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
@@ -1748,10 +1743,9 @@ mod tests {
             spent_block_index: None,
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
-            shared_secret: get_shared_secret_if_possible(&alice_account, &for_alice_txo)
-                .map(|secret| secret.encode_to_vec()),
+            shared_secret: None,
             memo: None,
-            memo_type: None,
+            memo_type: 0i16,
             address_hash: None,
         };
 

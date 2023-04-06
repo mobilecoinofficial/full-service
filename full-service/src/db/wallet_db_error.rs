@@ -1,8 +1,10 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
+use mc_transaction_extra;
 
 use displaydoc::Display;
+use mc_transaction_extra::MemoDecodingError;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
@@ -46,6 +48,9 @@ pub enum WalletDbError {
 
     /// We expect one change output per TxProposal
     UnexpectedNumberOfChangeOutputs,
+
+    /// Memo error
+    MemoDecodingError(mc_transaction_extra::MemoDecodingError),
 
     /// Key Image missing when recovering orphaned Txo
     MissingKeyImage,
@@ -217,5 +222,11 @@ impl From<base64::DecodeError> for WalletDbError {
 impl From<mc_crypto_keys::KeyError> for WalletDbError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::KeyError(src)
+    }
+}
+
+impl From<MemoDecodingError> for WalletDbError {
+    fn from(src: MemoDecodingError) -> Self {
+        Self::MemoDecodingError(src)
     }
 }
