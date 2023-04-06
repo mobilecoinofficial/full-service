@@ -1604,9 +1604,9 @@ mod tests {
         logger::{log, test_with_logger, Logger},
         HashSet,
     };
-    use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
+    use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};

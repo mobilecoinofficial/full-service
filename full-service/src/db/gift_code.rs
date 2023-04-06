@@ -121,7 +121,7 @@ mod tests {
     use crate::test_utils::{create_test_txo_for_recipient, WalletDbTestContext};
     use mc_account_keys::{AccountKey, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
+    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};

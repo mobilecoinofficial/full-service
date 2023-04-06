@@ -670,7 +670,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
-    use mc_crypto_rand::RngCore;
+    use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};

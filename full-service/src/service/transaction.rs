@@ -673,7 +673,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
-    use mc_crypto_rand::rand_core::RngCore;
+    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
