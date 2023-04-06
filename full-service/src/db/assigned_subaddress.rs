@@ -163,7 +163,7 @@ pub trait AssignedSubaddressModel {
     ///
     /// # Returns:
     /// * unit
-    fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    fn delete_all(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError>;
 
     /// Helper to get the public address out of the assigned subaddress.
     ///

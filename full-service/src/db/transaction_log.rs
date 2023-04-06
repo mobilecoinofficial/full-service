@@ -394,7 +394,7 @@ pub trait TransactionLogModel {
     /// 
     /// # Returns
     /// * ValueMap<TokenId, aggreagated value (u64)>
-    fn value_map(&self, conn: &Conn) -> Result<ValueMap, WalletDbError>;
+    fn value_map(&self, conn: Conn) -> Result<ValueMap, WalletDbError>;
 }
 
 impl TransactionLogModel for TransactionLog {
