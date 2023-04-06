@@ -389,7 +389,7 @@ impl TxoModel for Txo {
         );
 
         let (memo_type, memo, address_hash) = match tx_out.e_memo {
-            None => (UnusedMemo::MEMO_TYPE_BYTES.to_vec(), None, None),
+            None => (UnusedMemo::MEMO_TYPE_BYTES, None, None),
             Some(e_memo) => {
                 let memo = e_memo.decrypt(&shared_secret);
                 let memo_type = MemoType::try_from(&memo)?;
@@ -399,7 +399,7 @@ impl TxoModel for Txo {
                     //AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
                     _ => None,
                 };
-                (memo.get_memo_type().to_vec(), Some(memo), address_hash)
+                (memo.get_memo_type().clone(), Some(memo), address_hash)
             }
         };
 
@@ -426,6 +426,15 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+
+                let memo_bytes: Option<&[u8]> = memo.map(|x| x.get_memo_data().clone().as_ref());
+                let memo_type = i16::from_be_bytes(memo_type);
+                let address_hash_bytes = address_hash.map(|x| {
+                    let x1: [u8; 16] = x.into();
+                    let x2: &[u8] = x1.cloned().as_ref();
+                    return x2;
+                });
+                //let address_hash_bytes = address_hash_bytes.map(|x| x.as_ref());
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -440,9 +449,9 @@ impl TxoModel for Txo {
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: Some(&shared_secret),
-                    memo: None,         // TODO memo.as_deref(),
-                    memo_type: 0i16,    // TODO
-                    address_hash: None, // TODO
+                    memo: memo_bytes,
+                    memo_type,
+                    address_hash: address_hash_bytes,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
