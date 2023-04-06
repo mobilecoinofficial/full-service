@@ -18,7 +18,7 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
-use mc_transaction_extra::TxOutConfirmationNumber;
+use mc_transaction_extra::{AuthenticatedSenderMemo, TxOutConfirmationNumber};
 use mc_util_serial::Message;
 use std::{collections::HashSet, convert::TryFrom, fmt, str::FromStr};
 
@@ -125,19 +125,7 @@ pub struct SpendableTxosResult {
 }
 
 fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<RistrettoPublic> {
-    match RistrettoPublic::try_from(&tx_out.public_key) {
-        Err(_) => None,
-        Ok(k) => {
-            let account_key: Result<AccountKey, _> = mc_util_serial::decode(&account.account_key);
-            match account_key {
-                Err(_) => None,
-                Ok(account_key) => Some(get_tx_out_shared_secret(
-                    &account_key.view_private_key(),
-                    &k,
-                )),
-            }
-        }
-    }
+    todo!(); // remove this function completely
 }
 
 impl Txo {
@@ -172,7 +160,6 @@ pub trait TxoModel {
         received_block_index: u64,
         account_id_hex: &str,
         conn: &Conn,
-        view_private_key: &RistrettoPrivate,
     ) -> Result<String, WalletDbError>;
 
     fn create_new_output(
@@ -391,20 +378,24 @@ impl TxoModel for Txo {
         received_block_index: u64,
         account_id_hex: &str,
         conn: &Conn,
-        view_private_key: &RistrettoPrivate,
     ) -> Result<String, WalletDbError> {
         // Verify that the account exists.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         let txo_id = TxoID::from(&tx_out);
+        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let shared_secret = get_tx_out_shared_secret(
+            account_key.view_private_key(),
+            &RistrettoPublic::try_from(&tx_out.public_key)?,
+        );
+
         let shared_secret = get_shared_secret_if_possible(&account, &tx_out);
         let memo = shared_secret.map(|x| tx_out.e_memo.unwrap().decrypt(&x));
-        let memo_type = memo.clone().map(|x| *(x.get_memo_type())).unwrap_or([0u8,0u8]);
-        let memo_type_i16 = i16::from_be_bytes(memo_type).unwrap_or(0i16);
+        let memo_type = memo
+            .clone()
+            .map(|x| *(x.get_memo_type()))
+            .unwrap_or([0u8, 0u8]);
 
-        let memo = memo.map(|x| x.get_memo_data().to_vec());
-
-        let mut address_hash = None;
         let mut supported_memo_types = HashSet::new();
         let supported_memo_type_codes = vec!["0100", "0101", "0102"];
         for authenticated_sender_type in supported_memo_type_codes.iter() {
@@ -412,36 +403,7 @@ impl TxoModel for Txo {
                 .insert(i16::from_str_radix(authenticated_sender_type, 16).unwrap());
         }
 
-        match memo {
-            Some(memo_data) => if supported_memo_types.contains(&memo_type_i16) {
-                // parse out and validate hmac
-                let hmac_value = compute_category1_hmac(
-                    shared_secret.as_ref(),
-                    tx_out.public_key,
-                    memo_type,
-                    &memo_data,
-                );
-
-                let validation = validate_authenticated_sender(sender_address: &PublicAddress,
-                                                               view_account_key.view_private_key(),
-                                                               tx_out.public_key,
-                                                               memo_type,
-                                                               &memo_data);
-
-                // if hmac valid, then store extract address_hash
-            },
-            _ => ()
-        }
-
-
-        /*
-        let address_hash = match memo_type{
-            Some(x) => 7{
-                //let supported  = i16::from_str_radix(", 16);
-            }
-        };
-
-         */
+        // let memotype = MemoType::try_from(memo.unwrap());
 
         let shared_secret = shared_secret.map(|secret| secret.encode_to_vec());
         match Txo::get(&txo_id.to_string(), conn) {
@@ -480,8 +442,8 @@ impl TxoModel for Txo {
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: shared_secret.as_deref(),
-                    memo: memo.as_deref(),
-                    memo_type: memo_type_i16,
+                    memo: None, // memo.as_deref(),
+                    memo_type: i16::from_be_bytes(memo_type),
                     address_hash: None, // TODO
                 };
 
@@ -1043,7 +1005,7 @@ impl TxoModel for Txo {
         }
 
         if let Some(token_id) = token_id {
-            query = qu  ery.filter(txos::token_id.eq(token_id as i64));
+            query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
         if let Some(min_received_block_index) = min_received_block_index {
@@ -3075,7 +3037,6 @@ mod tests {
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
-            ,
         )
         .unwrap();
 
@@ -3101,7 +3062,6 @@ mod tests {
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
-            ,
         )
         .unwrap();
 
@@ -3127,7 +3087,6 @@ mod tests {
             15,
             &account_id.to_string(),
             &wallet_db.get_conn().unwrap(),
-            ,
         )
         .unwrap();
 

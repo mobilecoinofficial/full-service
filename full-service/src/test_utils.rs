@@ -413,7 +413,6 @@ pub fn create_test_received_txo(
         received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),
-        &ViewAccountKey::from(account_key),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
