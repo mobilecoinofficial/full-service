@@ -85,6 +85,7 @@ pub struct Txo {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
+    pub shared_secret: Option<Vec<u8>>,
 }
 
 impl Txo {
@@ -110,6 +111,7 @@ pub struct NewTxo<'a> {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
+    pub shared_secret: Option<&'a [u8]>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking

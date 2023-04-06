@@ -9,7 +9,8 @@ from mobilecoin.token import get_token
 
 MOB = get_token('MOB')
 
-DEFAULT_URL = 'http://127.0.0.1:9090'
+DEFAULT_HOST = 'http://127.0.0.1:9090'
+DEFAULT_PORT = 9090
 
 MAX_TOMBSTONE_BLOCKS = 100
 
@@ -27,10 +28,16 @@ class Client:
     This version of the API does not support multiple token types. Please do
     not use this for new development.
     """
-    def __init__(self, url=None, verbose=False):
-        if url is None:
-            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL) + "/wallet"
-        self.url = url
+
+    REQ_PATH = '/wallet'
+
+    def __init__(self, host=None, port=None, verbose=False):
+        if host is None:
+            host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
+        if port is None:
+            port = os.environ.get('MC_FULL_SERVICE_PORT', DEFAULT_PORT)
+        self.url = f'{host}:{DEFAULT_PORT}' + self.REQ_PATH
+
         self.verbose = verbose
         self._query_count = 0
 
