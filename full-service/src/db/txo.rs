@@ -395,6 +395,7 @@ impl TxoModel for Txo {
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let txo_id = TxoID::from(&txo);
         let shared_secret = get_shared_secret_if_possible(&account, &txo);
+
         let memo = shared_secret.map(|x| txo.e_memo.unwrap().decrypt(&x));
         let memo_type = memo
             .clone()
