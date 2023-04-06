@@ -4,16 +4,14 @@ import aiohttp
 import os
 import json
 import time
-from typing import Optional
-
-from mobilecoin.token import get_token, Amount
 
 
 log = logging.getLogger('client_async')
 
-DEFAULT_HOST = 'http://127.0.0.1:9090'
-DEFAULT_MIRROR_HOST ='http://127.0.0.1:9092'
-MAX_TOMBSTONE_BLOCKS = 100
+DEFAULT_HOST = 'http://127.0.0.1'
+DEFAULT_PORT = 9090
+
+MAX_TOMBSTONE_BLOCKS = 20160
 
 
 class WalletAPIError(Exception):
@@ -22,12 +20,16 @@ class WalletAPIError(Exception):
 
 
 class ClientAsync:
+
     REQ_PATH = '/wallet/v2'
 
-    def __init__(self, host=None):
+    def __init__(self, host=None, port=None):
         if host is None:
             host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
-        self.host = host
+        if port is None:
+            port = os.environ.get('MC_FULL_SERVICE_PORT', DEFAULT_PORT)
+        self.url = f'{host}:{DEFAULT_PORT}' + self.REQ_PATH
+
         self.api_key = os.environ.get('MC_API_KEY')
         self.session = aiohttp.ClientSession()
 
@@ -57,12 +59,9 @@ class ClientAsync:
         headers = {}
         if self.api_key is not None:
             headers['X-API-KEY'] = self.api_key
+
         # Send request.
-        async with self.session.post(
-            self.host + self.REQ_PATH,
-            json=request_data,
-            headers=headers,
-        ) as response:
+        async with self.session.post(self.url, json=request_data, headers=headers) as response:
             r_json = await response.text()
         r = json.loads(r_json)
         log.debug(f'Response: {json.dumps(r, indent=4)}')
