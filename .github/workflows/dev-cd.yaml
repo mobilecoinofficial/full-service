@@ -273,6 +273,7 @@ jobs:
       image: python:3.11
     env:
       POETRY_HOME: /opt/poetry
+      MC_FULL_SERVICE_HOST: http://full-service.${{ needs.metadata.outputs.namespace }}
       MC_WALLET_FILE: ${{ github.workspace }}/.tmp/wallet.json
     steps:
     - name: Checkout

@@ -7,7 +7,6 @@ from textwrap import indent
 from .client import (
     ClientSync as Client,
     WalletAPIError,
-    MAX_TOMBSTONE_BLOCKS,
     log as client_log,
 )
 from .token import Amount, get_token, TOKENS
