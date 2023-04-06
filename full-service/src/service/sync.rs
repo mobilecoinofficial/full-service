@@ -2,6 +2,7 @@
 
 //! Manages ledger block scanning for wallet accounts.
 
+use mc_account_keys::{AccountKey, ViewAccountKey};
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -14,7 +15,6 @@ use crate::{
     },
     error::SyncError,
 };
-use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
     logger::{log, Logger},
     HashMap,
@@ -221,6 +221,7 @@ pub fn sync_account_next_chunk(
                     block_index,
                     account_id_hex,
                     conn,
+                    &view_account_key,
                 )?;
             }
 
@@ -309,6 +310,7 @@ pub fn sync_account_next_chunk(
                     block_index,
                     account_id_hex,
                     conn,
+                    ,
                 )?;
             }
 

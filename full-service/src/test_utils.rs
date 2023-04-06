@@ -20,7 +20,7 @@ use crate::{
 };
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
-use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
+use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
@@ -413,6 +413,7 @@ pub fn create_test_received_txo(
         received_block_index,
         &AccountID::from(account_key).to_string(),
         &wallet_db.get_conn().unwrap(),
+        &ViewAccountKey::from(account_key),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
