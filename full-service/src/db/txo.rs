@@ -20,7 +20,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::TxOutConfirmationNumber;
 use mc_util_serial::Message;
-use std::{convert::TryFrom, fmt, str::FromStr};
+use std::{collections::HashSet, convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -398,9 +398,26 @@ impl TxoModel for Txo {
         let memo = shared_secret.map(|x| txo.e_memo.unwrap().decrypt(&x));
         let memo_type = memo
             .clone()
-            .map(|x| i16::from_be_bytes(*(x.get_memo_type()) /* .to_vec().try_into() */));
+            .map(|x| i16::from_be_bytes(*(x.get_memo_type())))
+            .unwrap_or(0i16);
         let memo = memo.map(|x| x.get_memo_data().to_vec());
-        // let address_hash = get_address_hash_if_memo_type_supported(memo_type, memo);
+        //let address_hash = get_address_hash_if_memo_type_supported(memo_type, memo);
+
+        let mut supported_memo_types = HashSet::new();
+        let supported_memo_type_codes = vec!["0100", "0101", "0102"];
+        for authenticated_sender_type in supported_memo_type_codes.iter() {
+            supported_memo_types
+                .insert(i16::from_str_radix(authenticated_sender_type, 16).unwrap());
+        }
+
+        /*
+        let address_hash = match memo_type{
+            Some(x) => 7{
+                //let supported  = i16::from_str_radix(", 16);
+            }
+        };
+
+         */
 
         let shared_secret = shared_secret.map(|secret| secret.encode_to_vec());
         match Txo::get(&txo_id.to_string(), conn) {
@@ -480,7 +497,7 @@ impl TxoModel for Txo {
             confirmation: Some(&encoded_confirmation),
             shared_secret: None, // no account id so we don't
             memo: None,          // TODO
-            memo_type: None,     // TODO
+            memo_type: 0i16,     // TODO
             address_hash: None,  // TODO
         };
 

@@ -78,7 +78,7 @@ table! {
         confirmation -> Nullable<Binary>,
         shared_secret -> Nullable<Binary>,
         memo -> Nullable<Binary>,
-        memo_type -> Nullable<SmallInt>,
+        memo_type -> SmallInt,
         address_hash -> Nullable<Binary>,
     }
 }
