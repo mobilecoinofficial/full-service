@@ -6,6 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
+use byteorder::{BigEndian, ByteOrder};
 use mc_account_keys::AccountKey;
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -19,11 +20,11 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::{
-    AuthenticatedSenderMemo, MemoType, MemoType::AuthenticatedSender, RegisteredMemoType,
+    MemoType, MemoType::AuthenticatedSender, RegisteredMemoType,
     TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
-use std::{collections::HashSet, convert::TryFrom, fmt, str::FromStr};
+use std::{convert::TryFrom, fmt, str::FromStr};
 
 use crate::{
     db::{
@@ -381,15 +382,14 @@ impl TxoModel for Txo {
         // Verify that the account exists.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let txo_id = TxoID::from(&tx_out);
+        // Get memo information.
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         let shared_secret = get_tx_out_shared_secret(
             account_key.view_private_key(),
             &RistrettoPublic::try_from(&tx_out.public_key)?,
         );
-
-        let (memo_type, memo, address_hash) = match tx_out.e_memo {
-            None => (UnusedMemo::MEMO_TYPE_BYTES, None, None),
+        let (memo, memo_type, address_hash) = match tx_out.e_memo {
+            None => (None, UnusedMemo::MEMO_TYPE_BYTES, None),
             Some(e_memo) => {
                 let memo = e_memo.decrypt(&shared_secret);
                 let memo_type = MemoType::try_from(&memo)?;
@@ -399,11 +399,12 @@ impl TxoModel for Txo {
                     //AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
                     _ => None,
                 };
-                (memo.get_memo_type().clone(), Some(memo), address_hash)
+                (Some(memo), memo.get_memo_type().clone(), address_hash)
             }
         };
 
-        let shared_secret = shared_secret.encode_to_vec();
+        let txo_id = TxoID::from(&tx_out);
+        let shared_secret_vec = shared_secret.encode_to_vec();
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -417,7 +418,7 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&tx_out.target_key),
                     &mc_util_serial::encode(&tx_out.public_key),
                     &mc_util_serial::encode(&tx_out.e_fog_hint),
-                    Some(&shared_secret),
+                    Some(&shared_secret_vec),
                     // TODO: memo/memotype/address hash
                     conn,
                 )?;
@@ -426,15 +427,9 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+                let memo_bytes = memo.as_ref().map(|m| m.as_ref());
+                let address_hash_bytes = address_hash.as_ref().map(|h| &h.as_ref()[..]);
 
-                let memo_bytes: Option<&[u8]> = memo.map(|x| x.get_memo_data().clone().as_ref());
-                let memo_type = i16::from_be_bytes(memo_type);
-                let address_hash_bytes = address_hash.map(|x| {
-                    let x1: [u8; 16] = x.into();
-                    let x2: &[u8] = x1.cloned().as_ref();
-                    return x2;
-                });
-                //let address_hash_bytes = address_hash_bytes.map(|x| x.as_ref());
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -448,9 +443,9 @@ impl TxoModel for Txo {
                     spent_block_index: None,
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
-                    shared_secret: Some(&shared_secret),
+                    shared_secret: Some(&shared_secret_vec),
                     memo: memo_bytes,
-                    memo_type,
+                    memo_type: BigEndian::read_i16(&memo_type),
                     address_hash: address_hash_bytes,
                 };
 

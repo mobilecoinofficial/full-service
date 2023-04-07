@@ -48,6 +48,7 @@ mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
 base64 = "0.13.1"
+byteorder = "1.4.3"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.0", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
