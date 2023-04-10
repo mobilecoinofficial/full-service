@@ -58,7 +58,6 @@ fi
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
-
 # Setup release dir - set in .shared-functions.sh
 mkdir -p "${RELEASE_DIR}"
 

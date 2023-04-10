@@ -85,8 +85,8 @@ jobs:
       if: "! steps.rust_artifact_cache.outputs.cache-hit"
       run: |
         mkdir -p rust_build_artifacts/${{ matrix.network.chain_id }}
-        find target/release -maxdepth 1 -executable -type f -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
-        find target/release -maxdepth 1 -name "*.css" -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
+        find target/${{ matrix.network.chain_id }}/release -maxdepth 1 -executable -type f -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
+        find target/${{ matrix.network.chain_id }}/release -maxdepth 1 -name "*.css" -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
 
   publish:
     strategy:
