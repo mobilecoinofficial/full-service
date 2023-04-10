@@ -19,7 +19,6 @@ on:
     - main
     - release/*
 
-
 concurrency:
   group: full-service-dev-cd-${{ github.head_ref || github.ref }}
   cancel-in-progress: true

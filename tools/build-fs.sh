@@ -120,8 +120,8 @@ then
     echo "  Binaries are available in ${target_dir}/release and ${WORK_DIR}"
     cp "${target_dir}/release/full-service" "${WORK_DIR}"
     cp "${target_dir}/release/validator-service" "${WORK_DIR}"
-fi
 
-echo "  Copy measurements to ${target_dir}/release for docker and packaging"
-cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
-cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
+    echo "  Copy measurements to ${target_dir}/release for docker and packaging"
+    cp "${CONSENSUS_ENCLAVE_CSS}" "${target_dir}/release"
+    cp "${INGEST_ENCLAVE_CSS}" "${target_dir}/release"
+fi
