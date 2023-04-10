@@ -2,11 +2,11 @@
 
 //! DB impl for the Txo model.
 
+use byteorder::{BigEndian, ByteOrder};
 use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use byteorder::{BigEndian, ByteOrder};
 use mc_account_keys::AccountKey;
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
@@ -20,8 +20,8 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::{
-    MemoType, MemoType::AuthenticatedSender, RegisteredMemoType,
-    TxOutConfirmationNumber, UnusedMemo,
+    MemoType, MemoType::AuthenticatedSender, RegisteredMemoType, TxOutConfirmationNumber,
+    UnusedMemo,
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -395,8 +395,8 @@ impl TxoModel for Txo {
                 let memo_type = MemoType::try_from(&memo)?;
                 let address_hash = match memo_type {
                     AuthenticatedSender(asm) => Some(asm.sender_address_hash()),
-                    //AuthenticatedSenderWithPaymentRequestId(AuthenticatedSenderWithPaymentRequestIdMemo),
-                    //AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
+                    // TODO: AuthenticatedSenderWithPaymentRequestId(AuthenticatedSenderWithPaymentRequestIdMemo),
+                    // TODO: AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
                     _ => None,
                 };
                 (Some(memo), memo.get_memo_type().clone(), address_hash)
@@ -427,7 +427,9 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+
                 let memo_bytes = memo.as_ref().map(|m| m.as_ref());
+
                 let address_hash_bytes = address_hash.as_ref().map(|h| &h.as_ref()[..]);
 
                 let new_txo = NewTxo {
@@ -1643,7 +1645,10 @@ impl TxoModel for Txo {
 #[cfg(test)]
 mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_common::{
+        logger::{log, test_with_logger, Logger},
+        HashSet,
+    };
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
@@ -1734,6 +1739,10 @@ mod tests {
 
         // Verify that the Txo is what we expect
 
+        let shared_secret = get_tx_out_shared_secret(
+            alice_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&for_alice_txo.public_key).unwrap(),
+        );
         let expected_txo = Txo {
             id: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
@@ -1747,8 +1756,8 @@ mod tests {
             spent_block_index: None,
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
-            shared_secret: None,
-            memo: None,
+            shared_secret: Some(shared_secret.encode_to_vec()),
+            memo: Some(vec![0; 66]),
             memo_type: 0i16,
             address_hash: None,
         };
