@@ -200,6 +200,5 @@ then
     unset MC_PEER
 fi
 
-echo peer $MC_PEER
 echo "Starting Full-Service Wallet from ${WORK_DIR}"
 "${WORK_DIR}/full-service"
