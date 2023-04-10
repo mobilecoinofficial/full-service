@@ -14,6 +14,7 @@ use crate::{
     },
     error::SyncError,
 };
+use byteorder::{BigEndian, ByteOrder};
 use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
     logger::{log, Logger},
@@ -27,6 +28,10 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tx::TxOut,
     Amount,
+};
+use mc_transaction_extra::{
+    MemoType, MemoType::AuthenticatedSender, RegisteredMemoType, TxOutConfirmationNumber,
+    UnusedMemo,
 };
 use rayon::prelude::*;
 
@@ -374,6 +379,41 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
         Ok((a, _)) => Some(a),
         Err(_) => None,
     }
+}
+
+pub fn decode_memo(
+    tx_out: &TxOut,
+    view_private_key: &RistrettoPrivate,
+) -> (Option<Vec<u8>>, Option<i16>, Option<Vec<u8>>) {
+    let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
+        Err(_) => return (None, None, None),
+        Ok(k) => k,
+    };
+    let shared_secret = get_tx_out_shared_secret(view_private_key, &tx_public_key);
+    let (memo, memo_type, address_hash) = match tx_out.e_memo {
+        None => (
+            None,
+            Some(BigEndian::read_i16(&UnusedMemo::MEMO_TYPE_BYTES)),
+            None,
+        ),
+        Some(e_memo) => {
+            let memo = e_memo.decrypt(&shared_secret);
+            let memo_type = MemoType::try_from(&memo).unwrap(); // todo handle this correclty
+            let address_hash = match memo_type {
+                AuthenticatedSender(asm) => {
+                    Some(<[u8; 16]>::from(asm.sender_address_hash()).to_vec())
+                }
+                // TODO: AuthenticatedSenderWithPaymentRequestId(AuthenticatedSenderWithPaymentRequestIdMemo),
+                // TODO: AuthenticamemotedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
+                _ => None,
+            };
+            let memo_type = Some(BigEndian::read_i16(&memo.get_memo_type().clone()));
+            let memo: &[u8] = (&memo).as_ref();
+
+            (Some(memo.to_vec()), memo_type, address_hash)
+        }
+    };
+    return (memo, memo_type, address_hash);
 }
 
 pub fn decode_subaddress_index(
