@@ -59,6 +59,10 @@ pub struct Txo {
     /// Shared secret that's used to mask the private keys associated with the
     /// amounts in a transaction
     pub shared_secret: Option<String>,
+
+    pub memo_type: String,
+
+    pub address_hash: Option<String>,
 }
 
 impl Txo {
@@ -78,6 +82,8 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
             shared_secret: txo.shared_secret.as_ref().map(hex::encode),
+            memo_type: format!("{:x}", txo.memo_type),
+            address_hash: txo.address_hash.as_ref().map(hex::encode),
         }
     }
 }
