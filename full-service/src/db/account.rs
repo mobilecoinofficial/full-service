@@ -24,7 +24,7 @@ use mc_account_keys::{
 use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_transaction_core::TokenId;
+use mc_transaction_core::{ring_signature::get_tx_out_shared_secret, TokenId};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -417,6 +417,7 @@ pub trait AccountModel {
     /// # Returns:
     /// * RistrettoPrivate
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
+    fn get_shared_secret(&self, tx_public_key: &RistrettoPublic) -> Result<RistrettoPublic, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -822,6 +823,16 @@ impl AccountModel for Account {
 
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
         Ok(*self.view_account_key()?.view_private_key())
+    }
+
+    fn get_shared_secret(
+        &self,
+        tx_public_key: &RistrettoPublic,
+    ) -> Result<RistrettoPublic, WalletDbError> {
+        Ok(get_tx_out_shared_secret(
+            &self.view_private_key()?,
+            tx_public_key,
+        ))
     }
 }
 
