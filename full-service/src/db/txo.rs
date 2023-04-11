@@ -549,6 +549,9 @@ impl TxoModel for Txo {
                 txos::public_key.eq(public_key),
                 txos::e_fog_hint.eq(e_fog_hint),
                 txos::shared_secret.eq(shared_secret),
+                txos::memo.eq(memo),
+                txos::memo_type.eq(memo_type),
+                txos::address_hash.eq(address_hash),
             ))
             .execute(conn)?;
         Ok(())
