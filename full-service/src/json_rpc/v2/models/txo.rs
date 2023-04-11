@@ -2,7 +2,10 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoStatus};
+use crate::{
+    db,
+    db::txo::{RTHMemoType, TxoStatus},
+};
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.
@@ -82,7 +85,7 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
             shared_secret: txo.shared_secret.as_ref().map(hex::encode),
-            memo_type: format!("{:x}", txo.memo_type),
+            memo_type: RTHMemoType::from(txo.memo_type).to_string(),
             address_hash: txo.address_hash.as_ref().map(hex::encode),
         }
     }
