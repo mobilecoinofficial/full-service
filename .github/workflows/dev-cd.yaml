@@ -175,12 +175,6 @@ jobs:
       matrix:
         network:
         - chain_id: test
-          # peers:
-          # - mc://node1.prod.mobilecoin.com/
-          # - mc://node2.prod.mobilecoin.com/
-          # tx_source_urls:
-          # - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.prod.mobilecoin.com/
-          # - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.prod.mobilecoin.com/
         # - chain_id: main
         chart:
         - full-service
@@ -226,8 +220,19 @@ jobs:
 
     - name: Generate secrets files
       run: |
-        mkdir -p "${BASE_PATH}"
-        echo -n "${{ secrets.MIRROR_PRIVATE_PEM }}" > "${BASE_PATH}/mirror-private.pem"
+        mkdir -p "${BASE_PATH}/secrets"
+        echo -n "${{ secrets.MIRROR_PRIVATE_PEM }}" > "${BASE_PATH}/secrets/mirror-private.pem"
+
+    - name: Create mirror-private secrets
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: secrets-create-from-file
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+        object_name: private-client-msg-encryption
+        src: "${{ env.BASE_PATH }}/secrets"
 
     - name: Deploy chart
       uses: mobilecoinofficial/gha-k8s-toolbox@v1
@@ -237,8 +242,6 @@ jobs:
         chart_name: ${{ matrix.chart }}
         chart_version: ${{ steps.meta.outputs.tag }}.${{ matrix.network.chain_id }}
         chart_values: ${{ env.BASE_PATH }}/values.yaml
-        chart_set: |
-          --set-file=private.secret.data."mirror-private\.pem"=${{ env.BASE_PATH }}/mirror-private.pem
         release_name: ${{ matrix.chart }}
         namespace: ${{ steps.meta.outputs.namespace }}
         rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
