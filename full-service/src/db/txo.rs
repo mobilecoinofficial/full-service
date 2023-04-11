@@ -692,7 +692,7 @@ pub trait TxoModel {
         public_key: &CompressedRistrettoPublic,
         key_image: &KeyImage,
         spent_block_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 }
 
@@ -1942,7 +1942,7 @@ impl TxoModel for Txo {
         public_key: &CompressedRistrettoPublic,
         key_image: &KeyImage,
         spent_block_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
