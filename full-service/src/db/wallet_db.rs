@@ -14,7 +14,7 @@ use diesel::{
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use mc_common::logger::global_log;
 use mc_crypto_keys::RistrettoPublic;
-use std::{env, time::Duration};
+use std::{env, thread::sleep, time::Duration};
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
@@ -246,3 +246,23 @@ impl WalletDb {
 fn sql_escape_string(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
+
+/// Create an immediate SQLite transaction with retry.
+/// Note: This function does not support nested transactions.
+pub fn exclusive_transaction<T, E, F>(conn: Conn, f: F) -> Result<T, E>
+where
+    F: Clone + FnOnce(&mut SqliteConnection) -> Result<T, E>,
+    E: From<diesel::result::Error>,
+{
+    for i in 0..NUM_RETRIES {
+        let r = conn.exclusive_transaction::<T, E, F>(f.clone());
+        if r.is_ok() || i == (NUM_RETRIES - 1) {
+            return r;
+        }
+        sleep(Duration::from_millis((BASE_DELAY_MS * 2_u32.pow(i)) as u64));
+    }
+    panic!("Should never reach this point.");
+}
+
+const BASE_DELAY_MS: u32 = 10;
+const NUM_RETRIES: u32 = 5;

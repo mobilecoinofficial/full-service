@@ -5,6 +5,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        exclusive_transaction,
         models::{Account, TransactionLog},
         transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
@@ -421,7 +422,7 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
-        conn.exclusive_transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
@@ -513,7 +514,7 @@ where
         )?;
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 

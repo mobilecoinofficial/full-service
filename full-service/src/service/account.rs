@@ -8,6 +8,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        exclusive_transaction,
         models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         WalletDbError,
@@ -372,7 +373,7 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             let (account_id, _public_address_b58) = Account::create_from_mnemonic(
                 &mnemonic,
                 Some(first_block_index),
@@ -429,7 +430,7 @@ where
 
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             Ok(Account::import(
                 &mnemonic,
                 name,
@@ -470,7 +471,7 @@ where
 
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             Ok(Account::import_legacy(
                 &RootEntropy::from(&entropy_bytes),
                 name,
@@ -509,17 +510,17 @@ where
 
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        // conn.transaction(|conn| {
-        Ok(Account::import_view_only(
-            &view_private_key,
-            &spend_public_key,
-            name,
-            import_block_index,
-            first_block_index,
-            next_subaddress_index,
-            conn,
-        )?)
-        // })
+        exclusive_transaction(conn, |conn| {
+            Ok(Account::import_view_only(
+                &view_private_key,
+                &spend_public_key,
+                name,
+                import_block_index,
+                first_block_index,
+                next_subaddress_index,
+                conn,
+            )?)
+        })
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
@@ -648,7 +649,7 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             let account = Account::get(account_id, conn)?;
             account.delete(conn)?;
             Ok(true)

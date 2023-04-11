@@ -6,6 +6,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        exclusive_transaction,
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
         txo::TxoModel,
@@ -140,7 +141,7 @@ pub fn sync_account_next_chunk(
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    conn.exclusive_transaction(|conn| {
+    exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;

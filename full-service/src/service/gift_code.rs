@@ -10,6 +10,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        exclusive_transaction,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
         WalletDbError,
@@ -591,7 +592,8 @@ where
         // Save the gift code to the database before attempting to send it out.
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        let gift_code = conn.transaction(|conn| GiftCode::create(gift_code_b58, value, conn))?;
+        let gift_code =
+            exclusive_transaction(conn, |conn| GiftCode::create(gift_code_b58, value, conn))?;
 
         self.submit_transaction(
             tx_proposal,
@@ -849,7 +851,9 @@ where
     ) -> Result<bool, GiftCodeServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        conn.transaction(|conn| GiftCode::get(gift_code_b58, conn)?.delete(conn))?;
+        exclusive_transaction(conn, |conn| {
+            GiftCode::get(gift_code_b58, conn)?.delete(conn)
+        })?;
         GiftCode::get(gift_code_b58, conn)?.delete(conn)?;
         Ok(true)
     }

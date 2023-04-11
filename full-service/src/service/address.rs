@@ -6,7 +6,7 @@ use std::ops::DerefMut;
 
 use crate::{
     db::{
-        account::AccountID, assigned_subaddress::AssignedSubaddressModel,
+        account::AccountID, assigned_subaddress::AssignedSubaddressModel, exclusive_transaction,
         models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,
@@ -142,7 +142,7 @@ where
     ) -> Result<AssignedSubaddress, AddressServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        conn.transaction(|conn| {
+        exclusive_transaction(conn, |conn| {
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
                     &account_id.to_string(),
