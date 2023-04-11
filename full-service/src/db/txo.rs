@@ -14,7 +14,6 @@ use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
-    get_tx_out_shared_secret,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
@@ -383,11 +382,8 @@ impl TxoModel for Txo {
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         // Get memo information.
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-        let shared_secret = get_tx_out_shared_secret(
-            account_key.view_private_key(),
-            &RistrettoPublic::try_from(&tx_out.public_key)?,
-        );
+        let shared_secret =
+            account.get_shared_secret(&RistrettoPublic::try_from(&tx_out.public_key)?)?;
         let (memo, memo_type, address_hash) = match tx_out.e_memo {
             None => (None, UnusedMemo::MEMO_TYPE_BYTES, None),
             Some(e_memo) => {
@@ -1739,10 +1735,9 @@ mod tests {
 
         // Verify that the Txo is what we expect
 
-        let shared_secret = get_tx_out_shared_secret(
-            alice_account_key.view_private_key(),
-            &RistrettoPublic::try_from(&for_alice_txo.public_key).unwrap(),
-        );
+        let shared_secret = alice_account
+            .get_shared_secret(&RistrettoPublic::try_from(&for_alice_txo.public_key).unwrap())
+            .unwrap();
         let expected_txo = Txo {
             id: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
