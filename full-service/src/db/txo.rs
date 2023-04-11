@@ -19,8 +19,12 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::{
-    MemoType, MemoType::AuthenticatedSender, RegisteredMemoType, TxOutConfirmationNumber,
-    UnusedMemo,
+    MemoType,
+    MemoType::{
+        AuthenticatedSender, AuthenticatedSenderWithPaymentIntentId,
+        AuthenticatedSenderWithPaymentRequestId,
+    },
+    RegisteredMemoType, TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -391,8 +395,8 @@ impl TxoModel for Txo {
                 let memo_type = MemoType::try_from(&memo)?;
                 let address_hash = match memo_type {
                     AuthenticatedSender(asm) => Some(asm.sender_address_hash()),
-                    // TODO: AuthenticatedSenderWithPaymentRequestId(AuthenticatedSenderWithPaymentRequestIdMemo),
-                    // TODO: AuthenticatedSenderWithPaymentIntentId(AuthenticatedSenderWithPaymentIntentIdMemo),
+                    AuthenticatedSenderWithPaymentRequestId(asm) => Some(asm.sender_address_hash()),
+                    AuthenticatedSenderWithPaymentIntentId(asm) => Some(asm.sender_address_hash()),
                     _ => None,
                 };
                 (Some(memo), memo.get_memo_type().clone(), address_hash)
