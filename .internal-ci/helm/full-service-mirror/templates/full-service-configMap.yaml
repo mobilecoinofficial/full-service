@@ -8,4 +8,3 @@ metadata:
     app: full-service
 data:
   MC_VALIDATOR: "insecure-validator://{{ include "fullServiceMirror.fullname" . }}-validator:11000/"
-  MC_CHAIN_ID: {{ .Values.config.chainId }}
