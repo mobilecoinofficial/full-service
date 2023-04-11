@@ -191,13 +191,13 @@ mod tests {
         let gift_code = GiftCode::create(
             &EncodedGiftCode("gk7CcXuK5RKNW13LvrWY156ZLjaoHaXxLedqACZsw3w6FfF6TR4TVzaAQkH5EHxaw54DnGWRJPA31PpcmvGLoArZbDRj1kBhcTusE8AVW4Mj7QT5".to_string()),
             value as i64,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
         let gotten = GiftCode::get(
             &EncodedGiftCode(gift_code.gift_code_b58),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(gotten, expected_gift_code);
 
         let all_gift_codes =
-            GiftCode::list_all(&wallet_db.get_pooled_conn().unwrap(), None, None).unwrap();
+            GiftCode::list_all(&mut wallet_db.get_pooled_conn().unwrap(), None, None).unwrap();
         assert_eq!(all_gift_codes.len(), 1);
         assert_eq!(all_gift_codes[0], expected_gift_code);
     }

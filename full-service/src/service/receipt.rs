@@ -451,7 +451,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_pooled_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -587,7 +587,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_pooled_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -703,7 +703,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_pooled_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
@@ -735,9 +735,12 @@ mod tests {
 
         // Now check status with a correct shared secret, but the wrong value
         let bob_account_key: AccountKey = mc_util_serial::decode(
-            &Account::get(&bob_account_id, &service.get_pooled_conn().unwrap())
-                .expect("Could not get bob account")
-                .account_key,
+            &Account::get(
+                &bob_account_id,
+                &mut service.get_pooled_conn().unwrap().deref_mut(),
+            )
+            .expect("Could not get bob account")
+            .account_key,
         )
         .expect("Could not decode");
         let public_key: RistrettoPublic = RistrettoPublic::try_from(&receipt0.public_key)
@@ -844,7 +847,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_pooled_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);

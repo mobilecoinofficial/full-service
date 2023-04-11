@@ -525,6 +525,8 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
+    use std::ops::DerefMut;
+
     use super::*;
     use crate::{
         db::WalletDbError,
@@ -559,7 +561,8 @@ mod tests {
         );
 
         // Construct a transaction
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -629,7 +632,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let balance: u128 = unspent
@@ -639,7 +642,8 @@ mod tests {
         assert_eq!(balance, 55_000_000 * MOB as u128);
 
         // Now try to send a transaction with a value (recipients + fee) > u64::MAX
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -723,11 +727,12 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -782,7 +787,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
@@ -881,7 +887,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger.clone());
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
@@ -966,7 +973,8 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1021,7 +1029,8 @@ mod tests {
         let wallet_db = db_test_context.get_db_instance(logger.clone());
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         // Start sync thread
         let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
@@ -1107,7 +1116,8 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1191,7 +1201,8 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1240,7 +1251,8 @@ mod tests {
             &logger,
         );
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 

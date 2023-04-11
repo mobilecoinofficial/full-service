@@ -114,7 +114,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -128,10 +128,10 @@ mod tests {
             &wallet_db,
         );
 
-        let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_pooled_conn().unwrap())
+        let txo_details = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
             .expect("Could not get Txo");
         let status = txo_details
-            .status(&wallet_db.get_pooled_conn().unwrap())
+            .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::new(&txo_details, &status);

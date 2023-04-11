@@ -1634,7 +1634,7 @@ mod tests {
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, time::Duration};
+    use std::{iter::FromIterator, ops::DerefMut, time::Duration};
 
     use crate::{
         db::{
@@ -1678,7 +1678,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -1702,7 +1702,8 @@ mod tests {
         let alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
             None,
@@ -1847,7 +1848,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 3);
@@ -1861,7 +1862,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(spent_txos.len(), 1);
@@ -1875,7 +1876,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(unspent_txos.len(), 1);
@@ -1894,7 +1895,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(spent.len(), 1);
@@ -1913,7 +1914,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(orphaned.len(), 1);
@@ -1931,7 +1932,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(unspent.len(), 1);
@@ -1948,17 +1949,17 @@ mod tests {
                 &alice_account_id.to_string(),
                 "",
                 &ledger_db,
-                &wallet_db.get_pooled_conn().unwrap(),
+                &mut wallet_db.get_pooled_conn().unwrap(),
             )
             .unwrap();
         }
 
         let alice_account =
-            Account::get(&alice_account_id, &wallet_db.get_pooled_conn().unwrap()).unwrap();
+            Account::get(&alice_account_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
         assert_eq!(alice_account.next_block_index, 14);
         assert_eq!(
             alice_account
-                .next_subaddress_index(&wallet_db.get_pooled_conn().unwrap())
+                .next_subaddress_index(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             5
         );
@@ -1973,7 +1974,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(unspent.len(), 2);
@@ -1986,7 +1987,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2018,7 +2019,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2031,7 +2032,7 @@ mod tests {
         );
 
         let associated_txos = transaction_log
-            .get_associated_txos(&wallet_db.get_pooled_conn().unwrap())
+            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
 
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
@@ -2074,7 +2075,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -2109,7 +2110,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2195,7 +2197,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2219,7 +2221,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
@@ -2232,7 +2234,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
@@ -2248,7 +2250,7 @@ mod tests {
             Some(200 * MOB),
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
         match res {
@@ -2265,7 +2267,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
@@ -2310,7 +2312,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2335,7 +2337,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2345,7 +2347,7 @@ mod tests {
             Some(100 * MOB),
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
         match res {
@@ -2376,7 +2378,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2399,7 +2401,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         );
         match res {
             Err(WalletDbError::InsufficientFundsFragmentedTxos) => {}
@@ -2434,7 +2436,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2457,7 +2459,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2472,7 +2474,7 @@ mod tests {
         );
 
         let associated_txos = transaction_log
-            .get_associated_txos(&wallet_db.get_pooled_conn().unwrap())
+            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
 
         let (minted_txo, _) = associated_txos.outputs.first().unwrap();
@@ -2509,7 +2511,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2529,7 +2531,8 @@ mod tests {
         // Create TxProposal from the sender account, which contains the Confirmation
         // Number
         log::info!(logger, "Creating transaction builder");
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
@@ -2564,7 +2567,7 @@ mod tests {
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &sender_account_id.to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2588,7 +2591,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -2610,7 +2613,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2620,12 +2623,15 @@ mod tests {
         // Get the associated Txos with the transaction log
         log::info!(logger, "Getting associated Txos with the transaction");
         let associated = tx_log
-            .get_associated_txos(&wallet_db.get_pooled_conn().unwrap())
+            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
         let sent_outputs = associated.outputs;
         assert_eq!(sent_outputs.len(), 1);
-        let sent_txo_details =
-            Txo::get(&sent_outputs[0].0.id, &wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let sent_txo_details = Txo::get(
+            &sent_outputs[0].0.id,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
 
         // These two txos should actually be the same txo, and the account_txo_status is
         // what differentiates them.
@@ -2639,7 +2645,7 @@ mod tests {
             &AccountID::from(&recipient_account_key),
             &received_txo.id,
             &confirmation,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert!(verified);
@@ -2663,7 +2669,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -2684,12 +2690,12 @@ mod tests {
             src_txos.iter().map(|t| &t.public_key).collect();
 
         let txos_and_status =
-            Txo::select_by_public_key(&pubkeys, &wallet_db.get_pooled_conn().unwrap())
+            Txo::select_by_public_key(&pubkeys, &mut wallet_db.get_pooled_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 10);
 
         let txos_and_status =
-            Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_pooled_conn().unwrap())
+            Txo::select_by_public_key(&pubkeys[0..5], &mut wallet_db.get_pooled_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 5);
     }
@@ -2715,16 +2721,17 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
-        let account = Account::get(&account_id_hex, &wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let account =
+            Account::get(&account_id_hex, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
 
         // Create some txos.
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             0
         );
@@ -2741,7 +2748,7 @@ mod tests {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             10
         );
@@ -2754,14 +2761,14 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 10);
 
         // Delete the account. No Txos are left.
         account
-            .delete(&wallet_db.get_pooled_conn().unwrap())
+            .delete(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
 
         let txos = Txo::list_for_account(
@@ -2772,7 +2779,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
@@ -2780,7 +2787,7 @@ mod tests {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             0
         );
@@ -2792,7 +2799,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2848,7 +2856,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2901,7 +2910,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -2990,7 +3000,8 @@ mod tests {
 
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
@@ -3003,7 +3014,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -3019,7 +3030,7 @@ mod tests {
             amount,
             15,
             &account_id.to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -3044,7 +3055,7 @@ mod tests {
             amount,
             15,
             &account_id.to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -3069,7 +3080,7 @@ mod tests {
             amount,
             15,
             &account_id.to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -3104,7 +3115,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -3188,7 +3199,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(result.len(), 16);
@@ -3206,7 +3217,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
         assert!(result.is_err());
@@ -3224,7 +3235,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(result.len(), 1);
@@ -3240,7 +3251,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         );
         assert!(result.is_err());
     }
@@ -3257,7 +3268,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(result.len(), 16);

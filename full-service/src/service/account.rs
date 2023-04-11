@@ -858,7 +858,8 @@ mod tests {
 
         // Store the real values for the txo's amount and target_key (arbitrary fields
         // we want to corrupt and sync back)
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
         let associated_txos = transaction_log.get_associated_txos(conn).unwrap();
         let expected_txo_amount = associated_txos.outputs[0].0.value;
         let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
@@ -983,7 +984,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -1001,7 +1002,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
@@ -1092,7 +1093,8 @@ mod tests {
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
-        let conn = wallet_db.get_pooled_conn().unwrap();
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
@@ -1133,7 +1135,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1148,7 +1150,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1190,7 +1192,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1203,7 +1205,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1217,7 +1219,7 @@ mod tests {
             None,
             None,
             None,
-            &wallet_db.get_pooled_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 

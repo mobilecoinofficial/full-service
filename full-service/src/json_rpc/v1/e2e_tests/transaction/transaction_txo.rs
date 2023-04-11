@@ -79,7 +79,7 @@ mod e2e_transaction {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             0
         );
@@ -100,7 +100,7 @@ mod e2e_transaction {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             1
         );
@@ -149,7 +149,7 @@ mod e2e_transaction {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             3
         );
@@ -169,7 +169,7 @@ mod e2e_transaction {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             1
         );
@@ -218,7 +218,7 @@ mod e2e_transaction {
         assert_eq!(
             txos::table
                 .select(count(txos::id))
-                .first::<i64>(&wallet_db.get_pooled_conn().unwrap())
+                .first::<i64>(&mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap(),
             3
         );
