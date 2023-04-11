@@ -186,6 +186,9 @@ pub trait TxoModel {
         public_key: &[u8],
         e_fog_hint: &[u8],
         shared_secret: Option<&[u8]>,
+        memo: Option<&[u8]>,
+        memo_type: i16,
+        address_hash: Option<&[u8]>,
         conn: &Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -405,6 +408,10 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&tx_out);
         let shared_secret_vec = shared_secret.encode_to_vec();
+        let memo_bytes = memo.as_ref().map(|m| m.as_ref());
+        let memo_type = BigEndian::read_i16(&memo_type);
+        let address_hash = address_hash.as_ref().map(|h| &h.as_ref()[..]);
+
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -419,7 +426,9 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&tx_out.public_key),
                     &mc_util_serial::encode(&tx_out.e_fog_hint),
                     Some(&shared_secret_vec),
-                    // TODO: memo/memotype/address hash
+                    memo_bytes,
+                    memo_type,
+                    address_hash,
                     conn,
                 )?;
             }
@@ -427,10 +436,6 @@ impl TxoModel for Txo {
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
                 let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
-
-                let memo_bytes = memo.as_ref().map(|m| m.as_ref());
-
-                let address_hash_bytes = address_hash.as_ref().map(|h| &h.as_ref()[..]);
 
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
@@ -447,8 +452,8 @@ impl TxoModel for Txo {
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: Some(&shared_secret_vec),
                     memo: memo_bytes,
-                    memo_type: BigEndian::read_i16(&memo_type),
-                    address_hash: address_hash_bytes,
+                    memo_type,
+                    address_hash,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -486,9 +491,9 @@ impl TxoModel for Txo {
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
             shared_secret: None, // no account id so we don't
-            memo: None,          // TODO
-            memo_type: 0i16,     // TODO
-            address_hash: None,  // TODO
+            memo: None,          // we can add this info if/when we sync the txo
+            memo_type: 0i16,     // we can add this info if/when we sync the txo
+            address_hash: None,  // we can add this info if/when we sync the txo
         };
 
         diesel::insert_into(txos::table)
@@ -523,6 +528,9 @@ impl TxoModel for Txo {
         public_key: &[u8],
         e_fog_hint: &[u8],
         shared_secret: Option<&[u8]>,
+        memo: Option<&[u8]>,
+        memo_type: i16,
+        address_hash: Option<&[u8]>,
         conn: &Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
