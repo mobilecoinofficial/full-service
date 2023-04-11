@@ -76,8 +76,7 @@ pub async fn sync_txos(
         let tx_public_key = (&unsynced_txo.0.public_key).try_into()?;
         let key_image = device_handle
             .key_image(0, unsynced_txo.1, tx_public_key)
-            .await
-            .map_err(|_| HardwareWalletServiceError::LedgerHID)?;
+            .await?;
 
         synced_txos.push(TxoSynced {
             tx_out_public_key: tx_public_key.into(),
