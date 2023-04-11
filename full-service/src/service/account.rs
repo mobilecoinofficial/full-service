@@ -629,7 +629,7 @@ where
                 &ristretto_public.into(),
                 &synced_txo.key_image,
                 spent_block_index,
-                &conn,
+                conn,
             )?;
         }
 
