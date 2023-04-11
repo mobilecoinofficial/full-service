@@ -72,6 +72,14 @@ pub enum TxoStatus {
     Unverified,
 }
 
+#[derive(Debug, PartialEq)]
+pub enum RTHMemoType {
+    AuthenticatedSender,
+    AuthenticatedSenderWithPaymentIntentId,
+    AuthenticatedSenderWithPaymentRequestId,
+    Unsupported,
+}
+
 impl fmt::Display for TxoStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -99,6 +107,35 @@ impl FromStr for TxoStatus {
             "unspent" => Ok(TxoStatus::Unspent),
             "unverified" => Ok(TxoStatus::Unverified),
             _ => Err(WalletDbError::InvalidTxoStatus(s.to_string())),
+        }
+    }
+}
+
+impl fmt::Display for RTHMemoType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RTHMemoType::AuthenticatedSender => write!(f, "AuthenticatedSender"),
+            RTHMemoType::AuthenticatedSenderWithPaymentIntentId => {
+                write!(f, "AuthenticatedSenderWithPaymentIntentId")
+            }
+            RTHMemoType::AuthenticatedSenderWithPaymentRequestId => {
+                write!(f, "AuthenticatedSenderWithPaymentRequestId")
+            }
+            _ => write!(f, "Unsupported memo format"),
+        }
+    }
+}
+
+impl From<i16> for RTHMemoType {
+    fn from(val: i16) -> Self {
+        let mut val_buff = [0u8; 2];
+        BigEndian::write_i16(&mut val_buff, val);
+
+        match val_buff {
+            [0x01, 0x00] => RTHMemoType::AuthenticatedSender,
+            [0x01, 0x01] => RTHMemoType::AuthenticatedSenderWithPaymentRequestId,
+            [0x01, 0x02] => RTHMemoType::AuthenticatedSenderWithPaymentIntentId,
+            _ => RTHMemoType::Unsupported,
         }
     }
 }
