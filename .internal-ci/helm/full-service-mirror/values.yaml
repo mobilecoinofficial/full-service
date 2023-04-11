@@ -11,6 +11,9 @@ image:
   tag: ''
   pullPolicy: Always
 
+## config: is optional. The built containers are batteries included and have the appropriate chainId, peers and txSourceURLs defined by default.
+# config is provided here so you can override if needed.
+
 ## Example args for testnet - note the .test chart and container image include these values.
 # config:
 #   chainId: test
@@ -58,12 +61,14 @@ fullService:
     name: full-service-wallets
     data: {}
       # add an optional list of accounts to import at start up.
+      # Add the secret inline with --set-file=fullService.secret.data."wallets\.json"=.mob/wallets.json
+      # Or define inline:
       # wallets.json: |
         # {
         #   "accounts": [
         #     {
         #       "name": ""
-        #       "nmemonic": ""
+        #       "mnemonic": ""
         #       "main_address": ""
         #     }
         #   ]
@@ -83,7 +88,7 @@ private:
       # The mirror setup uses an additional RSA 4096 key to send encrypted message payloads.
       # Add an external secret called .Values.private.secret.name with a value of mirror-private.pem: ""
       # OR
-      # Add the secret inline with --set-file=private.secret.data."mirror-private.pem"=mirror-private.pem
+      # Add the secret inline with --set-file=private.secret.data."mirror-private\.pem"=mirror-private.pem
 
 public:
   replicaCount: 1

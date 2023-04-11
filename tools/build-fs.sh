@@ -81,7 +81,12 @@ then
 
     # create parent workdir and link release_dir to work_dir
     mkdir -p "$(dirname "${WORK_DIR}")"
-    ln -s "${RELEASE_DIR}" "${WORK_DIR}"
+
+    # At this point WORK_DIR can only be a symlink, remove it and create a new one.
+    rm -f "${WORK_DIR}"
+
+    # this needs to be a relative link from GIT_BASE
+    ln -s -r "${RELEASE_DIR}" "${WORK_DIR}"
 fi
 
 case ${net} in

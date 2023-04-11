@@ -48,9 +48,6 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
-        - name: secrets
-          readOnly: true
-          mountPath: "/secrets"
         resources:
           {{- toYaml .Values.fullService.resources | nindent 12 }}
       nodeSelector:
@@ -59,12 +56,8 @@ spec:
         {{- toYaml .Values.fullService.affinity | nindent 8 }}
       tolerations:
         {{- toYaml .Values.fullService.tolerations | nindent 8 }}
-      volumes:
-      - name: secrets
-        optional: true
-        secret:
-          secretName: {{ include "fullServiceMirror.fullService.secret.name" . }}
       {{- if eq .Values.fullService.persistence.enabled false }}
+      volumes:
       - name: data
         emptyDir: {}
       {{- end }}
