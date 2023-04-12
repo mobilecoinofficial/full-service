@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "fullServiceMirror.fullname" . }}-public
+  name: public
   labels:
     {{- include "fullServiceMirror.labels" . | nindent 4 }}
     app: public

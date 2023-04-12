@@ -38,8 +38,8 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - /usr/local/bin/wallet-service-mirror-private
-        - --mirror-public-uri=insecure-wallet-service-mirror://{{ include "fullServiceMirror.fullname" . }}-public:10000/
-        - --wallet-service-uri=http://{{ include "fullServiceMirror.fullname" . }}-full-service:9090/wallet/v2
+        - --mirror-public-uri=insecure-wallet-service-mirror://public:10000/
+        - --wallet-service-uri=http://full-service:9090/wallet/v2
         - --mirror-key=/secrets/mirror-private.pem
         resources:
           {{- toYaml .Values.private.resources | nindent 12 }}
