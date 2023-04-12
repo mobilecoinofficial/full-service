@@ -9,6 +9,8 @@ use ledger_mob::{transport::GenericTransport, Connect, DeviceHandle, LedgerProvi
 use mc_common::logger::global_log;
 use mc_core::account::ViewAccount;
 use mc_crypto_keys::RistrettoPublic;
+use mc_transaction_core::tx::TxOut;
+use mc_transaction_signer::types::TxoSynced;
 use strum::Display;
 
 use crate::service::models::tx_proposal::{InputTxo, TxProposal, UnsignedTxProposal};
