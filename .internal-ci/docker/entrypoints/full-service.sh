@@ -37,7 +37,7 @@ then
         echo "${MC_LEDGER_DB}/data.mdb exists. Skipping restore"
     else
         echo "Restoring from ${MC_LEDGER_DB_URL}"
-        curl -sSL "${MC_LEDGER_DB_URL}" -O "${MC_LEDGER_DB}/data.mdb"
+        curl -L "${MC_LEDGER_DB_URL}" -o "${MC_LEDGER_DB}/data.mdb"
     fi
 fi
 
