@@ -208,6 +208,7 @@ pub enum JsonCommandRequest {
         max_received_block_index: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
+        // TODO: add memo type and addr hash
     },
     get_wallet_status,
     import_account_from_legacy_root_entropy {

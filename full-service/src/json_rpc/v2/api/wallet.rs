@@ -948,6 +948,7 @@ where
                 Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
                 None => None,
             };
+            // TODO: get and parse out the memo_type and the address_hash
 
             let txos_and_statuses = service
                 .list_txos(

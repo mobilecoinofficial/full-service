@@ -226,6 +226,7 @@ where
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
+        // TODO: add memotype and addr hash to parameters
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
         let conn = &self.get_conn()?;
 
