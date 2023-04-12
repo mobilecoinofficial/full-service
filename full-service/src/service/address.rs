@@ -12,7 +12,6 @@ use crate::{
     service::WalletService,
     util::b58::{b58_decode_public_address, B58Error},
 };
-use diesel::Connection;
 use mc_account_keys::PublicAddress;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;

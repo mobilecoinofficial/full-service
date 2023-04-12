@@ -13,14 +13,15 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount as AmountJSON,
     service::{
+        address::{AddressService, AddressServiceError},
         ledger::{LedgerService, LedgerServiceError},
-        models::tx_proposal::TxProposal,
+        models::tx_proposal::{TxProposal, UnsignedTxProposal},
         transaction_builder::WalletTransactionBuilder,
         WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
-use diesel::Connection;
+
 use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
@@ -38,13 +39,10 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
 
-use crate::service::address::{AddressService, AddressServiceError};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use std::{convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
-
-use super::models::tx_proposal::UnsignedTxProposal;
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]

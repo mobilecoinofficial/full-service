@@ -131,10 +131,9 @@ fn get_shared_secret_if_possible(account: &Account, tx_out: &TxOut) -> Option<Ri
             let account_key: Result<AccountKey, _> = mc_util_serial::decode(&account.account_key);
             match account_key {
                 Err(_) => None,
-                Ok(account_key) => Some(get_tx_out_shared_secret(
-                    &account_key.view_private_key(),
-                    &k,
-                )),
+                Ok(account_key) => {
+                    Some(get_tx_out_shared_secret(account_key.view_private_key(), &k))
+                }
             }
         }
     }

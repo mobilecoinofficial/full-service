@@ -31,7 +31,6 @@ use crate::{
     },
 };
 
-use diesel::Connection;
 use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::log, HashSet};
 use mc_connection::{BlockchainConnection, RetryableUserTxConnection, UserTxConnection};
@@ -854,7 +853,6 @@ where
         exclusive_transaction(conn, |conn| {
             GiftCode::get(gift_code_b58, conn)?.delete(conn)
         })?;
-        GiftCode::get(gift_code_b58, conn)?.delete(conn)?;
         Ok(true)
     }
 }

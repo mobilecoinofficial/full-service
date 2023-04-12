@@ -25,10 +25,11 @@ use crate::{
         },
     },
 };
+
 use base64;
 use bip39::{Language, Mnemonic, MnemonicType};
-use diesel::Connection;
 use displaydoc::Display;
+
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
