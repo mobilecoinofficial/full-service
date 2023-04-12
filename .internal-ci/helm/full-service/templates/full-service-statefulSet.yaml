@@ -50,6 +50,24 @@ spec:
         - name: full-service
           containerPort: 9090
           protocol: TCP
+        startupProbe:
+          httpGet:
+            path: /health
+          failureThreshold: 300
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health
+          failureThreshold: 2
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
         - name: data
           mountPath: /data
