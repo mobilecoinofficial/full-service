@@ -16,3 +16,6 @@ data:
 {{- if .Values.config.peers }}
   MC_PEER: {{ join "," .Values.config.peers | quote }}
 {{- end }}
+{{- if .Values.config.ledgerDbURL }}
+  MC_LEDGER_DB_URL: {{ .Values.config.ledgerDbURL | quote }}
+{{- end }}

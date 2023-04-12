@@ -8,3 +8,6 @@ metadata:
     app: full-service
 data:
   MC_VALIDATOR: "insecure-validator://{{ include "fullServiceMirror.fullname" . }}-validator:11000/"
+{{- if .Values.config.ledgerDbURL }}
+  MC_LEDGER_DB_URL: {{ .Values.config.ledgerDbURL | quote }}
+{{- end }}

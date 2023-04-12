@@ -22,6 +22,7 @@ image:
 #   txSourceURLs:
 #   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/
 #   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+#   ledgerDbURL: https://mcdeveu1ledger.blob.core.windows.net/test/data.mdb
 
 ## Example args for mainnet - note the .main chart and container image includes these values. (prod is correct for the urls)
 # config:
@@ -32,6 +33,7 @@ image:
 #   txSourceURLs:
 #   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.prod.mobilecoin.com/
 #   - https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.prod.mobilecoin.com/
+#   ledgerDbURL: https://mcdeveu1ledger.blob.core.windows.net/main/data.mdb
 
 config:
   chainId: ""

@@ -28,6 +28,19 @@ then
     unset MC_TX_SOURCE_URL
 fi
 
+# Restore from existing ledger database.
+if [[ -n "${MC_LEDGER_DB_URL}" ]]
+then
+    echo "MC_LEDGER_DB_URL set, restoring ${MC_LEDGER_DB}/data.mdb from backup"
+    if [[ -f "${MC_LEDGER_DB}/data.mdb" ]]
+    then
+        echo "${MC_LEDGER_DB}/data.mdb exists. Skipping restore"
+    else
+        echo "Restoring from ${MC_LEDGER_DB_URL}"
+        curl -sSL "${MC_LEDGER_DB_URL}" -O "${MC_LEDGER_DB}/data.mdb"
+    fi
+fi
+
 # Check to see if leading argument starts with "--".
 # If so execute with full-service for compatibility with the previous container/cli arg only configuration.
 if [[ "${1}" =~ ^--.* ]]

@@ -206,18 +206,6 @@ jobs:
         rancher_url: ${{ secrets.DEV_RANCHER_URL }}
         rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
-    - name: Generate full-service values file
-      run: |
-        mkdir -p "${BASE_PATH}"
-        cat <<EOF > "${BASE_PATH}/values.yaml"
-        fullService:
-          persistence:
-            enabled: false
-        validator:
-          persistence:
-            enabled: false
-        EOF
-
     - name: Generate secrets files
       run: |
         mkdir -p "${BASE_PATH}/secrets"
@@ -233,6 +221,20 @@ jobs:
         rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
         object_name: private-client-msg-encryption
         src: "${{ env.BASE_PATH }}/secrets"
+
+    - name: Generate full-service values file
+      run: |
+        mkdir -p "${BASE_PATH}"
+        cat <<EOF > "${BASE_PATH}/values.yaml"
+        fullService:
+          persistence:
+            enabled: false
+        validator:
+          persistence:
+            enabled: false
+        config:
+          ledgerDbURL: https://mcdeveu1ledger.blob.core.windows.net/${{ matrix.network.chain_id }}/data.mdb
+        EOF
 
     - name: Deploy chart
       uses: mobilecoinofficial/gha-k8s-toolbox@v1
@@ -271,7 +273,7 @@ jobs:
       image: mobilecoin/builder-install:v0.0.23
     env:
       POETRY_HOME: /opt/poetry
-      MC_WALLET_FILE: .tmp/wallet.json
+      MC_WALLET_FILE: ${{ github.workspace }}/.tmp/wallet.json
     steps:
     - name: Checkout
       uses: actions/checkout@v3
