@@ -309,8 +309,6 @@ jobs:
         echo "MC_FOG_REPORT_URL ${MC_FOG_REPORT_URL}"
         echo "MC_FOG_AUTHORITY_SPKI ${MC_FOG_AUTHORITY_SPKI}"
 
-        curl -f -v "${MC_FULL_SERVICE_URL}"
-
         # Switch to testing directory and install dependencies.
         pushd python || exit 1
         "${POETRY_HOME}/bin/poetry" install
