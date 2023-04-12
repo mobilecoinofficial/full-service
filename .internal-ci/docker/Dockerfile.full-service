@@ -46,12 +46,12 @@ ENV MC_LISTEN_PORT=9090
 
 # Since we have to compile with specific block chain, lets make this batteries included.
 # You can override these options at runtime.
-# ARG MC_CHAIN_ID
-# ARG MC_PEER
-# ARG MC_TX_SOURCE_URL
-# ENV MC_CHAIN_ID=${MC_CHAIN_ID}
-# ENV MC_PEER=${MC_PEER}
-# ENV MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}
+ARG MC_CHAIN_ID
+ARG MC_PEER
+ARG MC_TX_SOURCE_URL
+ENV MC_CHAIN_ID=${MC_CHAIN_ID}
+ENV MC_PEER=${MC_PEER}
+ENV MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 

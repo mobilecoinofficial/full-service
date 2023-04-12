@@ -11,8 +11,7 @@ image:
   tag: ''
   pullPolicy: Always
 
-## config: is optional. The built containers are batteries included and have the appropriate chainId, peers and txSourceURLs defined by default.
-# config is provided here so you can override if needed.
+## config: is optional. The built containers are batteries included and have the appropriate chainId, peers and txSourceURLs defined by default. config is provided here so you can override if needed.
 
 ## Example args for testnet - note the .test chart and container image include these values.
 # config:
