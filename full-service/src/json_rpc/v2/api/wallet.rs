@@ -928,6 +928,8 @@ where
             max_received_block_index,
             offset,
             limit,
+            memo_type,
+            memo_address_hash,
         } => {
             let status = match status {
                 Some(s) => Some(TxoStatus::from_str(&s).map_err(format_error)?),
