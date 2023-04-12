@@ -84,7 +84,7 @@ jobs:
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
       - name: Set Git Safe Directory
-        run: git config --global --add safe.directory '*'
+        run: git config --global --add safe.directory /__w/full-service/full-service/
 
       - uses: actions-rs/cargo@v1
         with:
@@ -136,7 +136,7 @@ jobs:
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
 
       - name: Set Git Safe Directory
-        run: git config --global --add safe.directory '*'
+        run: git config --global --add safe.directory /__w/full-service/full-service/
 
       - name: Build documentation
         uses: actions-rs/cargo@v1
