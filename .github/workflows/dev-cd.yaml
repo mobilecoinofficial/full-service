@@ -299,7 +299,7 @@ jobs:
       env:
         MC_FULL_SERVICE_URL: http://full-service.${{ steps.meta.outputs.namespace }}.svc.cluster.local:9090
         MC_FOG_REPORT_URL: ${{ matrix.network.fog_report_url }}
-        MC_FOG_AUTHORITY_SPKI: ${{ env[matrix.network.fog_authority_spki_var] }}
+        MC_FOG_AUTHORITY_SPKI: ${{ vars[matrix.network.fog_authority_spki_var] }}
       shell: bash
       run: |
         # Set git permissions
