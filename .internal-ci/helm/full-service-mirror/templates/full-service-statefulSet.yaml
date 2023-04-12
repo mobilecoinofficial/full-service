@@ -48,18 +48,21 @@ spec:
         startupProbe:
           httpGet:
             path: /health
+            port: full-service
           failureThreshold: 300
           initialDelaySeconds: 10
           periodSeconds: 5
         readinessProbe:
           httpGet:
             path: /health
+            port: full-service
           failureThreshold: 2
           initialDelaySeconds: 5
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
+            port: full-service
           initialDelaySeconds: 5
           failureThreshold: 10
           periodSeconds: 5
