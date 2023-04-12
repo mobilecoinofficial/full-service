@@ -290,13 +290,19 @@ jobs:
 
     - name: Test full-service
       env:
-        MC_FULL_SERVICE_URL: http://full-service.${{ steps.meta.outputs.namespace }}:9090
+        MC_FULL_SERVICE_URL: http://full-service.${{ steps.meta.outputs.namespace }}.svc.cluster.local:9090
         MC_FOG_REPORT_URL: ${{ matrix.network.fog_report_url }}
         MC_FOG_AUTHORITY_SPKI: ${{ env[matrix.network.fog_authority_spki_var] }}
       shell: bash
       run: |
         # Set git permissions
         git config --global --add safe.directory '*'
+
+        echo "MC_FULL_SERVICE_URL ${MC_FULL_SERVICE_URL}"
+        echo "MC_FOG_REPORT_URL ${MC_FOG_REPORT_URL}"
+        echo "MC_FOG_AUTHORITY_SPKI ${MC_FOG_AUTHORITY_SPKI}"
+
+        curl -f -v "${MC_FULL_SERVICE_URL}"
 
         # Switch to testing directory and install dependencies.
         pushd python || exit 1
