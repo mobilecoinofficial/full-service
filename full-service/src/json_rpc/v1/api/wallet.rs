@@ -535,6 +535,8 @@ where
                     Some(block_index),
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
 
@@ -588,7 +590,18 @@ where
             let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
 
             let received_txos = service
-                .list_txos(None, None, None, Some(*Mob::ID), None, None, None, None)
+                .list_txos(
+                    None,
+                    None,
+                    None,
+                    Some(*Mob::ID),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
                 .map_err(format_error)?;
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
@@ -635,6 +648,8 @@ where
                     Some(address),
                     None,
                     Some(*Mob::ID),
+                    None,
+                    None,
                     None,
                     None,
                     None,
@@ -797,6 +812,8 @@ where
                     None,
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
 
@@ -883,6 +900,8 @@ where
                     None,
                     Some(o),
                     Some(l),
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(

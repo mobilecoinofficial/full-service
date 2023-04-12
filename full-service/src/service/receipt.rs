@@ -471,7 +471,18 @@ mod tests {
 
         // Get corresponding Txo for Bob
         let txos_and_statuses = service
-            .list_txos(Some(bob.id), None, None, None, None, None, None, None)
+            .list_txos(
+                Some(bob.id),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
             .expect("Could not get Bob Txos");
         assert_eq!(txos_and_statuses.len(), 1);
 

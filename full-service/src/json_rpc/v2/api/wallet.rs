@@ -530,6 +530,8 @@ where
                     None,
                     None,
                     None,
+                    None,
+                    None,
                 )
                 .map_err(format_error)?;
 
@@ -956,7 +958,6 @@ where
                 None => None,
             };
 
-            // TODO: pass in the memo_type and addr hash
             let txos_and_statuses = service
                 .list_txos(
                     account_id,
@@ -967,6 +968,8 @@ where
                     max_received_block_index,
                     offset,
                     limit,
+                    memo_type,
+                    memo_address_hash,
                 )
                 .map_err(format_error)?;
 

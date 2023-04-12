@@ -7,7 +7,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoID, TxoModel, TxoStatus},
+        txo::{RTHMemoType, TxoID, TxoModel, TxoStatus},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -172,6 +172,8 @@ pub trait TxoService {
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
+        memo_type: Option<RTHMemoType>,
+        memo_address_hash: Option<String>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
@@ -226,7 +228,8 @@ where
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-        // TODO: add memotype and addr hash to parameters
+        memo_type: Option<RTHMemoType>,
+        memo_address_hash: Option<String>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
         let conn = &self.get_conn()?;
 
@@ -255,6 +258,7 @@ where
                 conn,
             )?;
         } else {
+            // TODO: use memo type here
             txos = Txo::list(
                 status,
                 min_received_block_index,
@@ -419,6 +423,8 @@ mod tests {
                 None,
                 None,
                 None,
+                None,
+                None,
             )
             .unwrap();
         assert_eq!(txos.len(), 1);
@@ -460,6 +466,8 @@ mod tests {
                 Some(alice.id.clone()),
                 None,
                 Some(TxoStatus::Pending),
+                None,
+                None,
                 None,
                 None,
                 None,
