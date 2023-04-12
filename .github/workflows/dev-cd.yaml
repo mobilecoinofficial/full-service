@@ -121,7 +121,7 @@ jobs:
       with:
         flavor: |
           latest=false
-          suffix=.${{ matrix.network.chain_id }}
+          suffix=-${{ matrix.network.chain_id }}
         images: ${{ env.DOCKER_ORG }}/full-service
         tags: ${{ needs.metadata.outputs.docker_tag }}
 
@@ -148,26 +148,26 @@ jobs:
         push: true
         tags: ${{ steps.docker_meta.outputs.tags }}
 
-    - name: Package and publish "simple" chart
+    - name: Package and publish "full-service" chart
       uses: mobilecoinofficial/gha-k8s-toolbox@v1
       with:
         action: helm-publish
         chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
         chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
         chart_repo: ${{ env.CHART_REPO }}
-        chart_app_version: ${{ needs.metadata.outputs.tag }}.${{ matrix.network.chain_id }}
-        chart_version: ${{ needs.metadata.outputs.tag }}.${{ matrix.network.chain_id }}
+        chart_app_version: ${{ needs.metadata.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_version: ${{ needs.metadata.outputs.tag }}-${{ matrix.network.chain_id }}
         chart_path: .internal-ci/helm/full-service
 
-    - name: Package and publish "mirror" chart
+    - name: Package and publish "full-service-mirror" chart
       uses: mobilecoinofficial/gha-k8s-toolbox@v1
       with:
         action: helm-publish
         chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
         chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
         chart_repo: ${{ env.CHART_REPO }}
-        chart_app_version: ${{ needs.metadata.outputs.tag }}.${{ matrix.network.chain_id }}
-        chart_version: ${{ needs.metadata.outputs.tag }}.${{ matrix.network.chain_id }}
+        chart_app_version: ${{ needs.metadata.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_version: ${{ needs.metadata.outputs.tag }}-${{ matrix.network.chain_id }}
         chart_path: .internal-ci/helm/full-service-mirror
 
   deploy:
@@ -240,7 +240,7 @@ jobs:
         action: helm-deploy
         chart_repo: ${{ env.CHART_REPO }}
         chart_name: ${{ matrix.chart }}
-        chart_version: ${{ steps.meta.outputs.tag }}.${{ matrix.network.chain_id }}
+        chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
         chart_values: ${{ env.BASE_PATH }}/values.yaml
         release_name: ${{ matrix.chart }}
         namespace: ${{ steps.meta.outputs.namespace }}
@@ -255,12 +255,12 @@ jobs:
         network:
         - chain_id: test
           fog_report_url: fog://fog.test.mobilecoin.com
-          fog_authority_spki: MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==
           wallet_secret: TEST_ACCOUNT_WALLET_JSON
+          fog_authority_spki_var: TEST_FOG_AUTHORITY_SPKI
         # - chain_id: main
         #   fog_report_url: fog://fog.prod.mobilecoinww.com
-        #   fog_authority_spki: MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAyr/99fvxi104MLgDgvWPVt01TuTJ+rN4qcNBUbF5i3EMM5zDZlugFHKPYPv7flCh5yDDYyLQHfWkxPQqCBAqlhSrCakvQH3HqDSpbM5FJg7pt0k5w+UQGWvP079iSEO5fMRhjE/lORkvk3/UKr2yIXjZ19iEgP8hlhk9xkI42DSg0iIhk59k3wEYPMGSkVarqlPoKBzx2+11CieXnbCkRvoNwLvdzLceY8QNoLc6h2/nht4bcjDCdB0MKNSKFLVp6XNHkVF66jC7QWTZRA/d4pgI5xa+GmkQ90zDZC2sBc+xfquVIVtk0nEvqSkUDZjv7AcJaq/VdPu4uj773ojrZz094PI4Q6sdbg7mfWrcq3ZQG8t9RDXD+6cgugCTFx2Cq/vJhDAPbQHmCEaMoXv2sRSfOhRjtMP1KmKUw5zXmAZa7s88+e7UXRQC+SS77V8s3hinE/I5Gqa/lzl73smhXx8l4CwGnXzlQ5h1lgEHnYLRFnIenNw/mdMGKlWH5HwHLX3hIujERCPAnGLDt+4MjcUiU0spDH3hC9mjPVA3ltaA3+Mk2lDw0kLrZ4Gv3/Ik9WPlYetOuWteMkR1fz6VOc13+WoTJPz0dVrJsK2bUz+YvdBsoHQBbUpCkmnQ5Ok+yiuWa5vYikEJ24SEr8wUiZ4Oe12KVEcjyDIxp6QoE8kCAwEAAQ==
         #   wallet_secret: MAIN_ACCOUNT_WALLET_JSON
+        #   fog_authority_spki_var: MAIN_FOG_AUTHORITY_SPKI
         chart:
         - full-service
         - full-service-mirror
@@ -296,7 +296,7 @@ jobs:
       env:
         MC_FULL_SERVICE_URL: http://full-service.${{ steps.meta.outputs.namespace }}:9090
         MC_FOG_REPORT_URL: ${{ matrix.network.fog_report_url }}
-        MC_FOG_AUTHORITY_SPKI: ${{ matrix.network.fog_authority_spki }}
+        MC_FOG_AUTHORITY_SPKI: ${{ env[matrix.network.fog_authority_spki_var] }}
       shell: bash
       run: |
         # Set git permissions
