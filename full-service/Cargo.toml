@@ -24,7 +24,6 @@ mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-core = { path = "../mobilecoin/core" }
 mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
-mc-rand = "1.0.0"
 mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-resolver = { path = "../mobilecoin/fog/report/resolver" }
@@ -35,6 +34,7 @@ mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
+mc-rand = "1.0.0"
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
