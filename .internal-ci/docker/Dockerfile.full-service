@@ -15,7 +15,7 @@ RUN  addgroup --system --gid 1000 app \
 
 RUN  apt-get update \
   && apt-get upgrade -y \
-  && apt-get install -y ca-certificates \
+  && apt-get install -y ca-certificates curl \
   && apt-get clean \
   && rm -r /var/lib/apt/lists \
   && mkdir -p /usr/share/grpc \
