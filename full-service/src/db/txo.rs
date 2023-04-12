@@ -126,6 +126,23 @@ impl fmt::Display for RTHMemoType {
     }
 }
 
+impl FromStr for RTHMemoType {
+    type Err = WalletDbError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "AuthenticatedSender" => Ok(RTHMemoType::AuthenticatedSender),
+            "AuthenticatedSenderWithPaymentIntentId" => {
+                Ok(RTHMemoType::AuthenticatedSenderWithPaymentIntentId)
+            }
+            "AuthenticatedSenderWithPaymentRequestId" => {
+                Ok(RTHMemoType::AuthenticatedSenderWithPaymentRequestId)
+            }
+            _ => Ok(RTHMemoType::Unsupported),
+        }
+    }
+}
+
 impl From<i16> for RTHMemoType {
     fn from(val: i16) -> Self {
         let mut val_buff = [0u8; 2];

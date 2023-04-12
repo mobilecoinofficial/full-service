@@ -2,7 +2,7 @@ use crate::{
     db::{
         account::AccountID,
         transaction_log::TransactionId,
-        txo::{TxoID, TxoStatus},
+        txo::{RTHMemoType, TxoID, TxoStatus},
     },
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
@@ -950,8 +950,13 @@ where
                 Some(i) => Some(i.parse::<u64>().map_err(format_error)?),
                 None => None,
             };
-            // TODO: get and parse out the memo_type and the address_hash
 
+            let memo_type = match memo_type {
+                Some(mt) => Some(RTHMemoType::from_str(&mt).map_err(format_error)?),
+                None => None,
+            };
+
+            // TODO: pass in the memo_type and addr hash
             let txos_and_statuses = service
                 .list_txos(
                     account_id,
