@@ -44,10 +44,8 @@ jobs:
           SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2023-01-04
-          override: true
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory /__w/full-service/full-service/
 
       - name: Cargo sort
         run: |
@@ -88,12 +86,8 @@ jobs:
           SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .ingest.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
 
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly-2023-01-04
-          override: true
-          components: llvm-tools-preview
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory /__w/full-service/full-service/
 
       - uses: actions-rs/cargo@v1
         with:
@@ -143,6 +137,9 @@ jobs:
         run: |
           SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
           curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
+
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory /__w/full-service/full-service/
 
       - name: Build documentation
         uses: actions-rs/cargo@v1

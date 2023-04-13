@@ -60,6 +60,9 @@ jobs:
         with:
           cache_buster: ${{ secrets.CACHE_BUSTER }}
 
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory /__w/full-service/full-service/
+
       - name: Build all binaries
         if: "! steps.rust_artifact_cache.outputs.cache-hit"
         env:

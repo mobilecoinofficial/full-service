@@ -19,7 +19,7 @@ use crate::{
     WalletService,
 };
 use diesel::{Connection as DSLConnection, SqliteConnection};
-use diesel_migrations::embed_migrations;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
@@ -28,10 +28,10 @@ use mc_connection::{Connection, ConnectionManager};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
+use mc_rand::{CryptoRng, RngCore};
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
@@ -47,13 +47,14 @@ use std::{
     collections::BTreeMap,
     convert::TryFrom,
     env,
+    ops::DerefMut,
     path::PathBuf,
     sync::{Arc, RwLock},
     time::Duration,
 };
 use tempdir::TempDir;
 
-embed_migrations!("migrations/");
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations/");
 
 pub const MOB: u64 = 1_000_000_000_000;
 
@@ -84,9 +85,11 @@ impl Default for WalletDbTestContext {
         // Clear environment variables for db encryption.
         env::set_var("MC_PASSWORD", "");
         env::set_var("MC_CHANGE_PASSWORD", "");
-        let conn = SqliteConnection::establish(&format!("{base_url}/{db_name}"))
+        let conn = &mut SqliteConnection::establish(&format!("{base_url}/{db_name}"))
             .unwrap_or_else(|err| panic!("Cannot connect to {} database: {:?}", db_name, err));
-        embedded_migrations::run(&conn).expect("failed running migrations");
+        // embedded_migrations::run(conn).expect("failed running migrations");
+        conn.run_pending_migrations(MIGRATIONS)
+            .expect("failed running migrations");
 
         // Success
         Self { base_url, db_name }
@@ -345,7 +348,7 @@ pub fn manually_sync_account(
     loop {
         match sync_account_next_chunk(
             ledger_db,
-            &wallet_db.get_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
             &account_id.to_string(),
             logger,
         ) {
@@ -358,7 +361,11 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        account = Account::get(
+            account_id,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -412,7 +419,7 @@ pub fn create_test_received_txo(
         amount,
         received_block_index,
         &AccountID::from(account_key).to_string(),
-        &wallet_db.get_conn().unwrap(),
+        &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
@@ -437,12 +444,13 @@ pub fn create_test_minted_and_change_txos(
         get_resolver_factory(&mut rng).unwrap(),
     );
 
-    let conn = wallet_db.get_conn().unwrap();
+    let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+    let conn = pooled_conn.deref_mut();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
-    builder.select_txos(&conn, None).unwrap();
+    builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), &conn)
+        .build(TransactionMemo::RTH(None, None), conn)
         .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
 
@@ -455,7 +463,7 @@ pub fn create_test_minted_and_change_txos(
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(&src_account_key).to_string(),
-            &conn,
+            conn,
         )
         .unwrap(),
         tx_proposal,
@@ -481,19 +489,20 @@ pub fn create_test_unsigned_txproposal_and_log(
         get_resolver_factory(&mut rng).unwrap(),
     );
 
-    let conn = wallet_db.get_conn().unwrap();
+    let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+    let conn = pooled_conn.deref_mut();
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
-    builder.select_txos(&conn, None).unwrap();
+    builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), &conn)
+        .build(TransactionMemo::RTH(None, None), conn)
         .unwrap();
 
     (
         TransactionLog::log_built(
             &unsigned_tx_proposal,
             &AccountID::from(&src_account_key),
-            &conn,
+            conn,
         )
         .unwrap(),
         unsigned_tx_proposal,
@@ -520,7 +529,7 @@ pub fn random_account_with_seed_values(
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
     }
@@ -548,7 +557,7 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 Some(0),
-                &wallet_db.get_conn().unwrap(),
+                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap()
             .len(),

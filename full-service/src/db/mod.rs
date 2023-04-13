@@ -13,5 +13,5 @@ pub mod txo;
 mod wallet_db;
 mod wallet_db_error;
 
-pub use wallet_db::{transaction, Conn, WalletDb};
+pub use wallet_db::{exclusive_transaction, Conn, WalletDb};
 pub use wallet_db_error::WalletDbError;

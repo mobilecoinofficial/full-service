@@ -15,7 +15,7 @@ mod e2e_account {
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_core::slip10::Slip10KeyGenerator;
-    use mc_crypto_rand::rand_core::RngCore;
+    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
 
     use bip39::{Language, Mnemonic};
