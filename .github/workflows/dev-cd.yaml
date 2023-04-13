@@ -60,7 +60,7 @@ jobs:
       id: rust_artifact_cache
       uses: ./.github/actions/mobilecoin-cache-rust-binaries
       with:
-        cache_buster: ${{ secrets.CACHE_BUSTER }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
         additional_keys: ${{ matrix.network.chain_id }}
 
     # Skip the following steps if we already have binaries.
@@ -68,14 +68,13 @@ jobs:
       if: "! steps.rust_artifact_cache.outputs.cache-hit"
       uses: ./.github/actions/mobilecoin-cache-cargo-package
       with:
-        cache_buster: ${{ secrets.CACHE_BUSTER }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
         additional_keys: ${{ matrix.network.chain_id }}
 
     - name: Build all binaries
       if: "! steps.rust_artifact_cache.outputs.cache-hit"
       env:
         BUILD_OPTIONS: "--locked"
-        CSS_JSON_FILE: production-${{ env.MOBILECOIN_ENCLAVE_VERSION }}.json
       run: |
         # Set git permissions
         git config --global --add safe.directory '*'
@@ -112,7 +111,7 @@ jobs:
       id: rust_artifact_cache
       uses: ./.github/actions/mobilecoin-cache-rust-binaries
       with:
-        cache_buster: ${{ secrets.CACHE_BUSTER }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
         additional_keys: ${{ matrix.network.chain_id }}
 
     - name: Generate Docker Tags
@@ -296,7 +295,7 @@ jobs:
         mkdir -p "$(dirname "${MC_WALLET_FILE}")"
         cat << EOF > "${MC_WALLET_FILE}"
         {
-            "mnemonic": ${{ secrets[matrix.network.mnemonic_secret] }}",
+            "mnemonic": "${{ secrets[matrix.network.mnemonic_secret] }}",
             "first_block_index": 0
         }
         EOF
