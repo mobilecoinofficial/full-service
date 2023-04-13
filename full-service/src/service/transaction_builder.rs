@@ -228,7 +228,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
-        let memo_builder = memo.memo_builder(account.account_key()?)?;
+        let memo_builder = memo.memo_builder(account)?;
 
         let mut transaction_builder = TransactionBuilder::new_with_box(
             block_version,

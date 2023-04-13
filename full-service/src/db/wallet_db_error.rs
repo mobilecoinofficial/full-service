@@ -152,6 +152,9 @@ pub enum WalletDbError {
 
     /// Expected to find a key image for a txo with id: {0}
     MissingKeyImageForInputTxo(String),
+
+    /// Account key is not available for a view only account
+    AccountKeyNotAvailableForViewOnlyAccount,
 }
 
 impl From<diesel::result::Error> for WalletDbError {

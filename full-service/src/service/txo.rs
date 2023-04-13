@@ -15,14 +15,13 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
-        ledger::{LedgerService, LedgerServiceError},
+        ledger::LedgerServiceError,
         models::tx_proposal::TxProposal,
         transaction::{TransactionMemo, TransactionService, TransactionServiceError},
     },
     WalletService,
 };
 use displaydoc::Display;
-use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::FeeMapError;
@@ -147,6 +146,7 @@ impl From<LedgerServiceError> for TxoServiceError {
 /// Txos.
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
+#[async_trait]
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
     ///
@@ -202,7 +202,7 @@ pub trait TxoService {
     ///| `fee_token_id`     | The fee token_id to submit with this transaction     | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
     ///| `tombstone_block`  | The block after which this transaction expires       | If not provided, uses current height + 10                                                         |
     ///
-    fn split_txo(
+    async fn split_txo(
         &self,
         txo_id: &TxoID,
         output_values: &[String],
@@ -213,6 +213,7 @@ pub trait TxoService {
     ) -> Result<TxProposal, TxoServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> TxoService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
@@ -287,7 +288,7 @@ where
         Ok((txo, status))
     }
 
-    fn split_txo(
+    async fn split_txo(
         &self,
         txo_id: &TxoID,
         output_values: &[String],
@@ -337,15 +338,8 @@ where
         )?;
 
         let account = Account::get(&AccountID(account_id_hex), conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-        let fee_map = if self.offline {
-            None
-        } else {
-            Some(self.get_network_fees()?)
-        };
-
-        Ok(unsigned_transaction.sign(&account_key, fee_map.as_ref())?)
+        Ok(unsigned_transaction.sign(&account).await?)
     }
 }
 

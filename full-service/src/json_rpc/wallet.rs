@@ -131,21 +131,21 @@ fn wallet_help_v1() -> Result<String, String> {
 
 /// The route for the Full Service Wallet API.
 #[post("/wallet", format = "json", data = "<command>")]
-fn consensus_backed_wallet_api_v1(
+async fn consensus_backed_wallet_api_v1(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<ThickClient<HardcodedCredentialsProvider>, FogResolver>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse_v1>>, String> {
-    generic_wallet_api_v1(_api_key_guard, state, command)
+    generic_wallet_api_v1(_api_key_guard, state, command).await
 }
 
 #[post("/wallet", format = "json", data = "<command>")]
-fn validator_backed_wallet_api_v1(
+async fn validator_backed_wallet_api_v1(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<ValidatorConnection, FogResolver>>,
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse_v1>>, String> {
-    generic_wallet_api_v1(_api_key_guard, state, command)
+    generic_wallet_api_v1(_api_key_guard, state, command).await
 }
 
 #[get("/wallet/v2")]
