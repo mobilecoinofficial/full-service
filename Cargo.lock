@@ -2096,7 +2096,7 @@ dependencies = [
  "mc-crypto-ring-signature-signer",
  "mc-transaction-core",
  "mc-transaction-extra",
- "mc-transaction-signer 4.1.0-pre0",
+ "mc-transaction-signer",
  "mc-transaction-summary",
  "once_cell",
  "prost",
@@ -3100,7 +3100,7 @@ dependencies = [
  "mc-transaction-builder",
  "mc-transaction-core",
  "mc-transaction-extra",
- "mc-transaction-signer 4.1.0-pre0",
+ "mc-transaction-signer",
  "mc-transaction-summary",
  "mc-transaction-types",
  "mc-util-from-random",
@@ -3493,6 +3493,35 @@ dependencies = [
  "serde",
  "sha2",
  "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "mc-transaction-signer"
+version = "4.1.0-pre0"
+dependencies = [
+ "anyhow",
+ "clap 4.2.2",
+ "displaydoc",
+ "hex",
+ "log",
+ "mc-account-keys",
+ "mc-common",
+ "mc-core",
+ "mc-core-types",
+ "mc-crypto-keys",
+ "mc-crypto-ring-signature",
+ "mc-crypto-ring-signature-signer",
+ "mc-transaction-core",
+ "mc-transaction-extra",
+ "mc-transaction-summary",
+ "mc-util-repr-bytes",
+ "mc-util-serial",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tiny-bip39",
  "zeroize",
 ]
 
