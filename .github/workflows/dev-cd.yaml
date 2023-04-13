@@ -253,6 +253,7 @@ jobs:
   # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
   integration-test:
     strategy:
+      fail-fast: false
       matrix:
         network:
         - chain_id: test
@@ -334,6 +335,7 @@ jobs:
   cleanup-after-run:
     if: github.event_name == 'pull_request'
     strategy:
+      fail-fast: false
       matrix:
         network:
         - chain_id: test
