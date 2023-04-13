@@ -78,7 +78,6 @@ jobs:
           mkdir -pv build_artifacts/${{ matrix.network }}/mirror
           cp /var/tmp/*.css build_artifacts/${{ matrix.network }}
           cp target/release/full-service build_artifacts/${{ matrix.network }}
-          cp target/release/transaction-signer build_artifacts/${{ matrix.network }}
           cp target/release/validator-service build_artifacts/${{ matrix.network }}
           cp target/release/wallet-service-mirror-private build_artifacts/${{ matrix.network }}/mirror
           cp target/release/wallet-service-mirror-public build_artifacts/${{ matrix.network }}/mirror
