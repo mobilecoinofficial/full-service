@@ -296,7 +296,7 @@ jobs:
         cat << EOF > "${MC_WALLET_FILE}"
         {
             "mnemonic": "${{ secrets[matrix.network.mnemonic_secret] }}",
-            "first_block_index": 0
+            "first_block_index": 1000000
         }
         EOF
 
