@@ -5,10 +5,10 @@ resolver = "2"
 members = [
     "full-service",
     "mirror",
+    "transaction-signer",
     "validator/api",
     "validator/connection",
     "validator/service",
-    "transaction-signer",
 ]
 exclude = [
     "mobilecoin",
