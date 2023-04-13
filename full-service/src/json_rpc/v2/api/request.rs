@@ -226,8 +226,8 @@ pub enum JsonCommandRequest {
         fog_info: Option<FogInfo>,
     },
     import_view_only_account {
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: Option<String>,
+        spend_public_key: Option<String>,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
