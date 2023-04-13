@@ -54,6 +54,10 @@ pub struct Account {
 
     /// A flag that indicates if this account is a watch only account.
     pub view_only: bool,
+
+    /// A flag that indicates if this account's private spend key is managed by
+    /// a hardware wallet.
+    pub managed_by_hardware_wallet: bool,
 }
 
 impl Account {
@@ -83,6 +87,7 @@ impl Account {
             recovery_mode: false,
             fog_enabled: src.fog_enabled,
             view_only: src.view_only,
+            managed_by_hardware_wallet: src.managed_by_hardware_wallet,
         })
     }
 }
