@@ -138,3 +138,11 @@ class Amount:
         assert self.token == other.token
         return self.value >= other.value
 
+    def __str__(self):
+        return self.format()
+
+    def __repr__(self):
+        return "Amount.from_display_units({}, '{}')".format(
+            self.display_value(),
+            self.token.short_code,
+        )
