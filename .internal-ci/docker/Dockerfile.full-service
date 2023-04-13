@@ -23,7 +23,6 @@ RUN  apt-get update \
 
 ARG RUST_BIN_PATH=target/release
 COPY ${RUST_BIN_PATH}/full-service /usr/local/bin/
-COPY ${RUST_BIN_PATH}/transaction-signer /usr/local/bin/
 COPY ${RUST_BIN_PATH}/validator-service /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-private /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-public /usr/local/bin/
