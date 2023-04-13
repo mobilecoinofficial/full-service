@@ -30,6 +30,7 @@ use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
+use mc_core::keys::{RootSpendPublic, RootViewPrivate};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
@@ -209,11 +210,12 @@ pub trait AccountService {
     ///
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -477,11 +479,12 @@ where
 
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -490,23 +493,19 @@ where
             first_block_index,
         );
 
-        let view_private_key =
-            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
-        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
-            .map_err(AccountServiceError::Base64DecodeError)?;
-
-        let import_block_index = self.ledger_db.num_blocks()? - 1;
-
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
         exclusive_transaction(conn, |conn| {
             Ok(Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
+                view_private_key,
+                spend_public_key,
                 name,
                 import_block_index,
                 first_block_index,
                 next_subaddress_index,
+                managed_by_hardware_wallet,
                 conn,
             )?)
         })
@@ -537,8 +536,8 @@ where
         let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
 
         let json_command_request = JsonCommandRequest::import_view_only_account {
-            view_private_key: ristretto_to_hex(view_private_key),
-            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            view_private_key: Some(ristretto_to_hex(view_private_key)),
+            spend_public_key: Some(ristretto_public_to_hex(&spend_public_key)),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
             next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
@@ -1100,6 +1099,7 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
             )
             .unwrap();
 
