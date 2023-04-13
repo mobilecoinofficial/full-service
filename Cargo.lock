@@ -3281,6 +3281,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-transaction-signer"
+version = "2.5.0"
+dependencies = [
+ "base64 0.13.1",
+ "hex",
+ "mc-account-keys",
+ "mc-common",
+ "mc-core",
+ "mc-crypto-keys",
+ "mc-crypto-ring-signature-signer",
+ "mc-full-service",
+ "mc-transaction-builder",
+ "mc-transaction-core",
+ "mc-transaction-extra",
+ "mc-util-serial",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "structopt",
+ "tiny-bip39",
+]
+
+[[package]]
 name = "mc-transaction-summary"
 version = "4.1.0-pre0"
 dependencies = [

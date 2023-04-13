@@ -8,6 +8,7 @@ members = [
     "validator/api",
     "validator/connection",
     "validator/service",
+    "transaction-signer",
 ]
 exclude = [
     "mobilecoin",
