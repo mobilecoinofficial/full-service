@@ -1,0 +1,1 @@
+ALTER TABLE accounts DROP COLUMN managed_by_hardware_wallet;

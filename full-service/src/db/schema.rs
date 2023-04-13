@@ -10,6 +10,7 @@ table! {
         name -> Text,
         fog_enabled -> Bool,
         view_only -> Bool,
+        managed_by_hardware_wallet -> Bool,
     }
 }
 
