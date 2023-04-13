@@ -6,16 +6,11 @@ use mc_crypto_keys::ReprBytes;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub enum MaskedAmountVersion {
+    #[default]
     V1,
     V2,
-}
-
-impl Default for MaskedAmountVersion {
-    fn default() -> Self {
-        MaskedAmountVersion::V1
-    }
 }
 
 /// The encrypted amount of pMOB in a Txo.

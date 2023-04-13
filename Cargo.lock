@@ -245,7 +245,7 @@ dependencies = [
  "cc",
  "cfg-if",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.6.2",
  "object",
  "rustc-demangle",
 ]
@@ -375,6 +375,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "block"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
+
+[[package]]
 name = "block-buffer"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -393,6 +399,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "bluez-async"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ce7d4413c940e8e3cb6afc122d3f4a07096aca259d286781128683fc9f39d9b"
+dependencies = [
+ "async-trait",
+ "bitflags 2.3.2",
+ "bluez-generated",
+ "dbus",
+ "dbus-tokio",
+ "futures",
+ "itertools",
+ "log",
+ "serde",
+ "serde-xml-rs",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "bluez-generated"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d1c659dbc82f0b8ca75606c91a371e763589b7f6acf36858eeed0c705afe367"
+dependencies = [
+ "dbus",
+]
+
+[[package]]
 name = "boring"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -400,7 +436,7 @@ checksum = "4c713ad6d8d7a681a43870ac37b89efd2a08015ceb4b256d82707509c1f0b6bb"
 dependencies = [
  "bitflags 1.3.2",
  "boring-sys",
- "foreign-types",
+ "foreign-types 0.5.0",
  "lazy_static",
  "libc",
 ]
@@ -440,13 +476,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "btleplug"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790e133b9d27f6dbd1289e046e735cef97fb0b4c840f18db52c959521dfb8145"
+dependencies = [
+ "async-trait",
+ "bitflags 1.3.2",
+ "bluez-async",
+ "cocoa",
+ "dashmap",
+ "dbus",
+ "futures",
+ "jni",
+ "jni-utils",
+ "libc",
+ "log",
+ "objc",
+ "once_cell",
+ "static_assertions",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+ "windows",
+]
+
+[[package]]
 name = "bulletproofs-og"
 version = "3.0.0-pre.1"
 source = "git+https://github.com/mobilecoinfoundation/bulletproofs.git?rev=9abfdc054d9ba65f1e185ea1e6eff3947ce879dc#9abfdc054d9ba65f1e185ea1e6eff3947ce879dc"
 dependencies = [
  "byteorder",
  "clear_on_drop",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "merlin",
  "rand_core 0.6.4",
  "serde",
@@ -525,6 +588,12 @@ checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "cesu8"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d43a04d8753f35258c91f8ec639f792891f748a1edbd759cf1dcea3382ad83c"
 
 [[package]]
 name = "cexpr"
@@ -656,6 +725,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
+name = "combine"
+version = "4.6.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35ed6e9d84f0b51a7f52daf1c7d71dd136fd7a3f41a8462b8cdb8c78d920fad4"
+dependencies = [
+ "bytes",
+ "memchr",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -687,6 +766,30 @@ name = "core-foundation-sys"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
+
+[[package]]
+name = "core-graphics"
+version = "0.22.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2581bbab3b8ffc6fcbd550bf46c355135d16e9ff2a6ea032ad6b9bf1d7efe4fb"
+dependencies = [
+ "bitflags 1.3.2",
+ "core-foundation",
+ "core-graphics-types",
+ "foreign-types 0.3.2",
+ "libc",
+]
+
+[[package]]
+name = "core-graphics-types"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bb142d41022986c1d8ff29103a1411c8a3dfad3552f87a4f8dc50d61d4f4e33"
+dependencies = [
+ "bitflags 1.3.2",
+ "core-foundation",
+ "libc",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -811,8 +914,9 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
-version = "4.0.0-rc.1"
-source = "git+https://github.com/dalek-cryptography/curve25519-dalek?rev=99c0520aa79401b69fb51d38172cd58c6a256cfb#99c0520aa79401b69fb51d38172cd58c6a256cfb"
+version = "4.0.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03d928d978dbec61a1167414f5ec534f24bea0d7a0d24dd9b6233d3d8223e585"
 dependencies = [
  "cfg-if",
  "digest 0.10.7",
@@ -855,9 +959,57 @@ version = "0.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "836a9bbc7ad63342d6d6e7b815ccab164bc77a2d95d84bc3117a8c0d5c98e2d5"
 dependencies = [
- "darling_core",
+ "darling_core 0.14.4",
  "quote",
  "syn 2.0.37",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29a358ff9f12ec09c3e61fef9b5a9902623a695a46a917b07f269bff1445611a"
+dependencies = [
+ "darling_core 0.20.1",
+ "quote",
+ "syn 2.0.18",
+]
+
+[[package]]
+name = "dashmap"
+version = "5.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "907076dfda823b0b36d2a1bb5f90c96660a5bbcd7729e10727f07858f22c4edc"
+dependencies = [
+ "cfg-if",
+ "hashbrown 0.12.3",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
+name = "dbus"
+version = "0.9.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bb21987b9fb1613058ba3843121dd18b163b254d8a6e797e144cbac14d96d1b"
+dependencies = [
+ "futures-channel",
+ "futures-util",
+ "libc",
+ "libdbus-sys",
+ "winapi",
+]
+
+[[package]]
+name = "dbus-tokio"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "007688d459bc677131c063a3a77fb899526e17b7980f390b69644bdbc41fad13"
+dependencies = [
+ "dbus",
+ "libc",
+ "tokio",
 ]
 
 [[package]]
@@ -1082,8 +1234,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519-dalek"
-version = "2.0.0-pre.0"
-source = "git+https://github.com/dalek-cryptography/ed25519-dalek.git?rev=2931c688eb11341a1145e257bc41d8ecbe36277c#2931c688eb11341a1145e257bc41d8ecbe36277c"
+version = "2.0.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "798f704d128510932661a3489b08e3f4c934a01d61c5def59ae7b8e48f19665a"
 dependencies = [
  "curve25519-dalek 4.0.0-rc.1",
  "ed25519 2.2.2",
@@ -1099,6 +1252,51 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
+name = "encdec"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25de94e10baa85551f7c65730423239370ed5bed60bf8d2a9cbf2683327ba421"
+dependencies = [
+ "encdec-base 0.9.0",
+ "encdec-macros",
+]
+
+[[package]]
+name = "encdec-base"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "825dce54de7b07af1e5e6fb68321151291cd0fe7b0765aaa12a757c932ae3a1d"
+dependencies = [
+ "byteorder",
+ "num-traits",
+]
+
+[[package]]
+name = "encdec-base"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "516ae3c7d00515548bf26a6531883335ceac2e9cde4938e70feea7456569be09"
+dependencies = [
+ "byteorder",
+ "heapless",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
+name = "encdec-macros"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15497932aae6b53bf8548cc63c65929b4fab6be54e28709c80fc72f5707eeed"
+dependencies = [
+ "darling 0.14.4",
+ "encdec-base 0.8.2",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "encoding_rs"
@@ -1225,7 +1423,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6c98ee8095e9d1dcbf2fcc6d95acccb90d1c81db1e44725c6a984b1dbdfb010"
 dependencies = [
  "crc32fast",
- "miniz_oxide",
+ "miniz_oxide 0.7.1",
 ]
 
 [[package]]
@@ -1245,12 +1443,21 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "foreign-types"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
+dependencies = [
+ "foreign-types-shared 0.1.1",
+]
+
+[[package]]
+name = "foreign-types"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965"
 dependencies = [
  "foreign-types-macros",
- "foreign-types-shared",
+ "foreign-types-shared 0.3.1",
 ]
 
 [[package]]
@@ -1263,6 +1470,12 @@ dependencies = [
  "quote",
  "syn 2.0.37",
 ]
+
+[[package]]
+name = "foreign-types-shared"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
 name = "foreign-types-shared"
@@ -1638,6 +1851,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b07f60793ff0a4d9cef0f18e63b5357e06209987153a64648c972c1e5aff336f"
 
 [[package]]
+name = "hidapi"
+version = "2.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f841dbb77615e116fb2ca38044b42310370f0d093c774a72361670ff2ae431b"
+dependencies = [
+ "cc",
+ "libc",
+ "pkg-config",
+ "winapi",
+]
+
+[[package]]
 name = "hkdf"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1893,6 +2118,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
+name = "jni"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6df18c2e3db7e453d3c6ac5b3e9d5182664d28788126d39b91f2d1e22b017ec"
+dependencies = [
+ "cesu8",
+ "combine",
+ "jni-sys",
+ "log",
+ "thiserror",
+ "walkdir",
+]
+
+[[package]]
+name = "jni-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
+
+[[package]]
+name = "jni-utils"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d3a00638470bedd9bcbea85292bef2207e6db984079db0bd70148a449cdb457"
+dependencies = [
+ "dashmap",
+ "futures",
+ "jni",
+ "log",
+ "once_cell",
+ "static_assertions",
+ "uuid",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1926,10 +2186,115 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
+name = "ledger-lib"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59318e4561e37d83571927c35cdfd1ce52f0fad14d326ee7778309288b73ea2b"
+dependencies = [
+ "async-trait",
+ "btleplug",
+ "clap 4.3.5",
+ "encdec",
+ "futures",
+ "hidapi",
+ "ledger-proto",
+ "once_cell",
+ "strum 0.24.1",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "ledger-mob"
+version = "0.13.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.21.4",
+ "clap 4.3.5",
+ "ed25519-dalek 2.0.0-rc.2",
+ "encdec",
+ "futures",
+ "hex",
+ "lazy_static",
+ "ledger-lib",
+ "ledger-mob-apdu",
+ "ledger-proto",
+ "log",
+ "mc-core",
+ "mc-crypto-keys",
+ "mc-crypto-ring-signature",
+ "mc-crypto-ring-signature-signer",
+ "mc-transaction-core",
+ "mc-transaction-extra",
+ "mc-transaction-signer",
+ "mc-transaction-summary",
+ "once_cell",
+ "prost",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_cbor",
+ "serde_json",
+ "simplelog",
+ "strum 0.24.1",
+ "thiserror",
+ "tokio",
+ "zeroize",
+]
+
+[[package]]
+name = "ledger-mob-apdu"
+version = "0.13.0"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "curve25519-dalek 4.0.0-rc.2",
+ "encdec",
+ "heapless",
+ "ledger-proto",
+ "mc-core",
+ "mc-crypto-digestible",
+ "mc-crypto-keys",
+ "mc-crypto-ring-signature",
+ "mc-transaction-types",
+ "mc-util-from-random",
+ "num_enum",
+ "rand_core 0.6.4",
+ "sha2 0.10.7",
+ "strum 0.24.1",
+ "zeroize",
+]
+
+[[package]]
+name = "ledger-proto"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "522849296eded72ceed7a046d84171e04735dd1cff1fdd01a7c9a9691acbadea"
+dependencies = [
+ "bitflags 2.3.2",
+ "displaydoc",
+ "encdec",
+ "thiserror",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.148"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9cdc71e17332e86d2e1d38c1f99edcb6288ee11b815fb1a4b049eaa2114d369b"
+
+[[package]]
+name = "libdbus-sys"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06085512b750d640299b79be4bad3d2fa90a9c00b1fd9e1b46364f66f0485c72"
+dependencies = [
+ "pkg-config",
+]
 
 [[package]]
 name = "libloading"
@@ -2029,6 +2394,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "malloc_buf"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "maplit"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2087,7 +2461,7 @@ dependencies = [
 name = "mc-account-keys"
 version = "5.0.8"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "hex_fmt",
  "hkdf",
@@ -2121,7 +2495,7 @@ dependencies = [
  "bs58 0.4.0",
  "cargo-emit",
  "crc",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "mc-account-keys",
  "mc-attest-verifier-types",
@@ -2462,8 +2836,8 @@ dependencies = [
 name = "mc-core"
 version = "5.0.8"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
- "ed25519-dalek 2.0.0-pre.0",
+ "curve25519-dalek 4.0.0-rc.2",
+ "ed25519-dalek 2.0.0-rc.2",
  "generic-array",
  "hkdf",
  "mc-core-types",
@@ -2480,7 +2854,7 @@ dependencies = [
 name = "mc-core-types"
 version = "5.0.8"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "mc-crypto-keys",
  "serde",
  "subtle",
@@ -2506,8 +2880,8 @@ name = "mc-crypto-digestible"
 version = "5.0.8"
 dependencies = [
  "cfg-if",
- "curve25519-dalek 4.0.0-rc.1",
- "ed25519-dalek 2.0.0-pre.0",
+ "curve25519-dalek 4.0.0-rc.2",
+ "ed25519-dalek 2.0.0-rc.2",
  "generic-array",
  "mc-crypto-digestible-derive",
  "merlin",
@@ -2617,9 +2991,9 @@ dependencies = [
 name = "mc-crypto-ring-signature"
 version = "5.0.8"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
- "ed25519-dalek 2.0.0-pre.0",
+ "ed25519-dalek 2.0.0-rc.2",
  "mc-account-keys-types",
  "mc-core-types",
  "mc-crypto-digestible",
@@ -2639,7 +3013,7 @@ dependencies = [
 name = "mc-crypto-ring-signature-signer"
 version = "5.0.8"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "generic-array",
  "hex_fmt",
@@ -2808,6 +3182,7 @@ dependencies = [
  "ed25519-dalek 1.0.1",
  "grpcio",
  "hex",
+ "ledger-mob",
  "libsqlite3-sys",
  "mc-account-keys",
  "mc-api",
@@ -2840,6 +3215,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-transaction-extra",
  "mc-transaction-signer",
+ "mc-transaction-summary",
  "mc-transaction-types",
  "mc-util-from-random",
  "mc-util-parse",
@@ -2861,10 +3237,11 @@ dependencies = [
  "serde-big-array",
  "serde_derive",
  "serde_json",
- "strum",
- "strum_macros",
+ "strum 0.25.0",
+ "strum_macros 0.25.1",
  "tempdir",
  "tiny-bip39",
+ "tokio",
  "url",
  "uuid",
  "vergen",
@@ -3149,8 +3526,8 @@ dependencies = [
  "serde",
  "serde_json",
  "structopt",
- "strum",
- "strum_macros",
+ "strum 0.25.0",
+ "strum_macros 0.25.1",
  "subtle",
  "tiny-bip39",
  "vergen",
@@ -3162,7 +3539,7 @@ name = "mc-transaction-builder"
 version = "5.0.8"
 dependencies = [
  "cfg-if",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "hmac",
  "mc-account-keys",
@@ -3194,7 +3571,7 @@ dependencies = [
  "bulletproofs-og",
  "crc",
  "ctr",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "generic-array",
  "hex_fmt",
@@ -3244,7 +3621,7 @@ name = "mc-transaction-extra"
 version = "5.0.8"
 dependencies = [
  "cfg-if",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "displaydoc",
  "hmac",
  "mc-account-keys",
@@ -3734,6 +4111,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "miniz_oxide"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7810e0be55b428ada41041c41f32c9f1a42817901b4ccf45fa3d4b6561e74c7"
+dependencies = [
+ "adler",
+]
+
+[[package]]
 name = "mio"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3867,12 +4253,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "num_enum"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f646caf906c20226733ed5b1374287eb97e3c2a5c227ce668c1f2ce20ae57c9"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.5.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcbff9bc912032c62bf65ef1d5aea88983b420f4f839db1e9b0c281a25c9c799"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "num_threads"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2819ce041d2ee131036f4fc9d6ae7ae125a3a40e97ba64d04fe799ad9dabbb44"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "objc"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "915b1b472bc21c53464d6c8461c9d3af805ba1ef837e1cac254428f4a77177b1"
+dependencies = [
+ "malloc_buf",
 ]
 
 [[package]]
@@ -4961,7 +5376,7 @@ dependencies = [
  "arrayref",
  "arrayvec",
  "cfg-if",
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "merlin",
  "rand_core 0.6.4",
  "sha2 0.10.8",
@@ -5159,9 +5574,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-xml-rs"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb3aa78ecda1ebc9ec9847d5d3aba7d618823446a049ba2491940506da6e2782"
+dependencies = [
+ "log",
+ "serde",
+ "thiserror",
+ "xml-rs",
+]
+
+[[package]]
 name = "serde_cbor"
-version = "0.11.1"
-source = "git+https://github.com/mobilecoinofficial/cbor?rev=4c886a7c1d523aae1ec4aa7386f402cb2f4341b5#4c886a7c1d523aae1ec4aa7386f402cb2f4341b5"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bef2ebfde456fb76bbcf9f59315333decc4fda0b2b44b420243c11e0f5ec1f5"
 dependencies = [
  "half",
  "serde",
@@ -5227,7 +5655,7 @@ version = "2.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "881b6f881b17d13214e5d494c939ebab463d01264ce1811e9d4ac3a882e7695f"
 dependencies = [
- "darling",
+ "darling 0.20.1",
  "proc-macro2",
  "quote",
  "syn 2.0.37",
@@ -5325,6 +5753,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fe458c98333f9c8152221191a77e2a44e8325d0193484af2e9421a53019e57d"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "simplelog"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "acee08041c5de3d5048c8b3f6f13fafb3026b24ba43c6a695a0c76179b844369"
+dependencies = [
+ "log",
+ "termcolor",
+ "time 0.3.22",
 ]
 
 [[package]]
@@ -5563,11 +6002,20 @@ dependencies = [
 
 [[package]]
 name = "strum"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
+dependencies = [
+ "strum_macros 0.24.3",
+]
+
+[[package]]
+name = "strum"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.25.1",
 ]
 
 [[package]]
@@ -5665,6 +6113,7 @@ version = "3.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb94d2f3cc536af71caac6b6fcebf65860b347e7ce0cc9ebe8f70d3e521054ef"
 dependencies = [
+ "autocfg",
  "cfg-if",
  "fastrand",
  "redox_syscall 0.3.5",
@@ -5834,6 +6283,7 @@ dependencies = [
  "libc",
  "mio",
  "num_cpus",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.5.4",
@@ -5882,6 +6332,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -6485,7 +6936,7 @@ name = "x25519-dalek"
 version = "2.0.0-pre.2"
 source = "git+https://github.com/mobilecoinfoundation/x25519-dalek.git?rev=4fbaa3343301c62cfdbc3023c9f485257e6b718a#4fbaa3343301c62cfdbc3023c9f485257e6b718a"
 dependencies = [
- "curve25519-dalek 4.0.0-rc.1",
+ "curve25519-dalek 4.0.0-rc.2",
  "rand_core 0.6.4",
  "zeroize",
 ]
@@ -6499,6 +6950,12 @@ dependencies = [
  "ring",
  "untrusted",
 ]
+
+[[package]]
+name = "xml-rs"
+version = "0.8.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52839dc911083a8ef63efa4d039d1f58b5e409f923e44c80828f206f66e5541c"
 
 [[package]]
 name = "yansi"

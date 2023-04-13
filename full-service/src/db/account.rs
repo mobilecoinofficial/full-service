@@ -389,8 +389,8 @@ pub trait AccountModel {
     /// * None
     ///
     /// # Returns:
-    /// * Either an AccountKey or None
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+    /// * AccountKey
+    fn account_key(&self) -> Result<AccountKey, WalletDbError>;
 
     /// Get the view only account key for the current account.
     ///
@@ -800,13 +800,13 @@ impl AccountModel for Account {
         Ok(highest_subaddress_index as u64 + 1)
     }
 
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+    fn account_key(&self) -> Result<AccountKey, WalletDbError> {
         if self.view_only {
-            return Ok(None);
+            return Err(WalletDbError::AccountKeyNotAvailableForViewOnlyAccount);
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        Ok(Some(account_key))
+        Ok(account_key)
     }
 
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {

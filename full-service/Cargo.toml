@@ -37,6 +37,7 @@ mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
 mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "../mobilecoin/transaction/summary"}
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
@@ -47,6 +48,9 @@ mc-validator-connection = { path = "../validator/connection" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
+ledger-mob = { path = "../ledger-mob/lib" }
+
+async-trait = "0.1.59"
 base64 = "0.21.4"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.3", features = ["derive", "env"] }
@@ -86,7 +90,8 @@ mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validat
 
 bs58 = "0.5.0"
 tempdir = "0.3"
-url = "2.4"
+tokio = "1.27"
+url = "2.3"
 
 [build-dependencies]
 anyhow = "1.0"

@@ -22,9 +22,8 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 
-use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
-use mc_common::logger::log;
+use mc_common::logger::{global_log, log};
 use mc_connection::{
     BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
 };
@@ -124,6 +123,9 @@ pub enum TransactionServiceError {
 
     /// Ring CT Error: {0}
     RingCT(mc_transaction_core::ring_ct::Error),
+
+    /// Hardware Wallet Service Error: {0}
+    HardwareWalletService(crate::service::hardware_wallet::HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -215,6 +217,11 @@ impl From<mc_transaction_core::ring_ct::Error> for TransactionServiceError {
         Self::RingCT(src)
     }
 }
+impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for TransactionServiceError {
+    fn from(src: crate::service::hardware_wallet::HardwareWalletServiceError) -> Self {
+        Self::HardwareWalletService(src)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 /// This represents the different types of Transaction Memos that can be used in
@@ -243,15 +250,20 @@ pub enum TransactionMemo {
 impl TransactionMemo {
     pub fn memo_builder(
         &self,
-        account_key: Option<AccountKey>,
+        account: Account,
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
-            #[allow(clippy::box_default)]
-            Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
+            Self::Empty => Ok(Box::<EmptyMemoBuilder>::default()),
             Self::RTH(subaddress_index, payment_request_id) => {
+                let account_key = match account.account_key() {
+                    Ok(account_key) => account_key,
+                    Err(_) => {
+                        global_log::warn!("Could not get account key, using empty memo");
+                        return Ok(Box::<EmptyMemoBuilder>::default());
+                    }
+                };
+
                 let mut memo_builder = RTHMemoBuilder::default();
-                let account_key = account_key
-                    .ok_or(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts)?;
                 let sender_memo_credential = match subaddress_index {
                     Some(subaddress_index) => {
                         SenderMemoCredential::new_from_address_and_spend_private_key(
@@ -280,6 +292,7 @@ impl TransactionMemo {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 #[rustfmt::skip]
+#[async_trait]
 pub trait TransactionService {
 
     /// Build a transaction to confirm its contents before submitting it to the network.
@@ -329,7 +342,7 @@ pub trait TransactionService {
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_and_sign_transaction(
+    async fn build_and_sign_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -376,7 +389,7 @@ pub trait TransactionService {
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_sign_and_submit_transaction(
+    async fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -391,6 +404,7 @@ pub trait TransactionService {
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> TransactionService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
@@ -481,7 +495,7 @@ where
         })
     }
 
-    fn build_and_sign_transaction(
+    async fn build_and_sign_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -504,22 +518,16 @@ where
             memo,
             block_version,
         )?;
+
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await?;
+
         exclusive_transaction(conn, |conn| {
-            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-
-            let fee_map = if self.offline {
-                None
-            } else {
-                Some(self.get_network_fees()?)
-            };
-
-            let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
-
             TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
-
             Ok(tx_proposal)
         })
     }
@@ -585,7 +593,7 @@ where
         }
     }
 
-    fn build_sign_and_submit_transaction(
+    async fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -599,17 +607,19 @@ where
         block_version: Option<BlockVersion>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        let tx_proposal = self.build_and_sign_transaction(
-            account_id_hex,
-            addresses_and_amounts,
-            input_txo_ids,
-            fee_value,
-            fee_token_id,
-            tombstone_block,
-            max_spendable_value,
-            memo,
-            block_version,
-        )?;
+        let tx_proposal = self
+            .build_and_sign_transaction(
+                account_id_hex,
+                addresses_and_amounts,
+                input_txo_ids,
+                fee_value,
+                fee_token_id,
+                tombstone_block,
+                max_spendable_value,
+                memo,
+                block_version,
+            )
+            .await?;
 
         if let Some(transaction_log_and_associated_txos) =
             self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
@@ -662,7 +672,7 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
@@ -674,8 +684,8 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
 
-    #[test_with_logger]
-    fn test_build_transaction_and_log(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_build_transaction_and_log(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -763,6 +773,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -792,6 +803,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -821,6 +833,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -832,8 +845,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -910,6 +923,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 
@@ -1012,6 +1026,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -1070,8 +1085,8 @@ mod tests {
     }
 
     // Building a transaction for an invalid public address should fail.
-    #[test_with_logger]
-    fn test_invalid_public_address_fails(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_invalid_public_address_fails(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1107,17 +1122,20 @@ mod tests {
             &logger,
         );
 
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &[("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
-            None,
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &[("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
             }
@@ -1126,8 +1144,8 @@ mod tests {
         };
     }
 
-    #[test_with_logger]
-    fn test_maximum_inputs_and_outputs(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_maximum_inputs_and_outputs(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1171,17 +1189,20 @@ mod tests {
                 AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &outputs,
-            None,
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &outputs,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -1203,17 +1224,20 @@ mod tests {
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &outputs,
-            Some(&inputs),
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &outputs,
+                Some(&inputs),
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")
             }
@@ -1225,8 +1249,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction_with_sender_memo_cred_subaddress_index(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction_with_sender_memo_cred_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1309,6 +1333,7 @@ mod tests {
                 TransactionMemo::RTH(Some(alice_address_from_bob.subaddress_index as u64), None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 
@@ -1413,8 +1438,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction_with_payment_request_id(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction_with_payment_request_id(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1502,6 +1527,7 @@ mod tests {
                 ),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 

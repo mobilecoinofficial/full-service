@@ -647,7 +647,7 @@ mod tests {
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
@@ -746,8 +746,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_resync_account_badly_stored_txo(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_resync_account_badly_stored_txo(logger: Logger) {
         use crate::{
             db::{
                 account::AccountID,
@@ -830,7 +830,8 @@ mod tests {
             72 * MOB,
             wallet_db.clone(),
             ledger_db.clone(),
-        );
+        )
+        .await;
 
         // Store the real values for the txo's amount and target_key (arbitrary fields
         // we want to corrupt and sync back)

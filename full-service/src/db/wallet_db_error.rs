@@ -159,6 +159,9 @@ pub enum WalletDbError {
 
     /// ed25519-dalek error
     Dalek(ed25519_dalek::ed25519::Error),
+
+    /// Account key is not available for a view only account
+    AccountKeyNotAvailableForViewOnlyAccount,
 }
 
 impl From<diesel::result::Error> for WalletDbError {
