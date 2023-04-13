@@ -22,9 +22,8 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 
-use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
-use mc_common::logger::log;
+use mc_common::logger::{global_log, log};
 use mc_connection::{
     BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
 };
@@ -124,6 +123,9 @@ pub enum TransactionServiceError {
 
     /// Ring CT Error: {0}
     RingCT(mc_transaction_core::ring_ct::Error),
+
+    /// Hardware Wallet Service Error: {0}
+    HardwareWalletService(crate::service::hardware_wallet::HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -215,6 +217,11 @@ impl From<mc_transaction_core::ring_ct::Error> for TransactionServiceError {
         Self::RingCT(src)
     }
 }
+impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for TransactionServiceError {
+    fn from(src: crate::service::hardware_wallet::HardwareWalletServiceError) -> Self {
+        Self::HardwareWalletService(src)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 /// This represents the different types of Transaction Memos that can be used in
@@ -243,15 +250,21 @@ pub enum TransactionMemo {
 impl TransactionMemo {
     pub fn memo_builder(
         &self,
-        account_key: Option<AccountKey>,
+        account: Account,
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
             #[allow(clippy::box_default)]
             Self::Empty => Ok(Box::new(EmptyMemoBuilder::default())),
             Self::RTH(subaddress_index, payment_request_id) => {
+                let account_key = match account.account_key() {
+                    Ok(account_key) => account_key,
+                    Err(_) => {
+                        global_log::warn!("Could not get account key, using empty memo");
+                        return Ok(Box::new(EmptyMemoBuilder::default()));
+                    }
+                };
+
                 let mut memo_builder = RTHMemoBuilder::default();
-                let account_key = account_key
-                    .ok_or(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts)?;
                 let sender_memo_credential = match subaddress_index {
                     Some(subaddress_index) => {
                         SenderMemoCredential::new_from_address_and_spend_private_key(
@@ -280,6 +293,7 @@ impl TransactionMemo {
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 #[rustfmt::skip]
+#[async_trait]
 pub trait TransactionService {
 
     /// Build a transaction to confirm its contents before submitting it to the network.
@@ -329,7 +343,7 @@ pub trait TransactionService {
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_and_sign_transaction(
+    async fn build_and_sign_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -376,7 +390,7 @@ pub trait TransactionService {
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_sign_and_submit_transaction(
+    async fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -391,6 +405,7 @@ pub trait TransactionService {
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> TransactionService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
@@ -481,7 +496,7 @@ where
         })
     }
 
-    fn build_and_sign_transaction(
+    async fn build_and_sign_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -504,22 +519,16 @@ where
             memo,
             block_version,
         )?;
+
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await?;
+
         exclusive_transaction(conn, |conn| {
-            let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
-            let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-
-            let fee_map = if self.offline {
-                None
-            } else {
-                Some(self.get_network_fees()?)
-            };
-
-            let tx_proposal = unsigned_tx_proposal.sign(&account_key, fee_map.as_ref())?;
-
             TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
-
             Ok(tx_proposal)
         })
     }
@@ -585,7 +594,7 @@ where
         }
     }
 
-    fn build_sign_and_submit_transaction(
+    async fn build_sign_and_submit_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -599,17 +608,19 @@ where
         block_version: Option<BlockVersion>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        let tx_proposal = self.build_and_sign_transaction(
-            account_id_hex,
-            addresses_and_amounts,
-            input_txo_ids,
-            fee_value,
-            fee_token_id,
-            tombstone_block,
-            max_spendable_value,
-            memo,
-            block_version,
-        )?;
+        let tx_proposal = self
+            .build_and_sign_transaction(
+                account_id_hex,
+                addresses_and_amounts,
+                input_txo_ids,
+                fee_value,
+                fee_token_id,
+                tombstone_block,
+                max_spendable_value,
+                memo,
+                block_version,
+            )
+            .await?;
 
         if let Some(transaction_log_and_associated_txos) =
             self.submit_transaction(&tx_proposal, comment, Some(account_id_hex.to_string()))?
