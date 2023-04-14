@@ -532,7 +532,7 @@ where
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
-                    Some(account_id.clone()),
+                    Some(account_id),
                     None,
                     Some(TxoStatus::Unverified),
                     None,
@@ -545,14 +545,14 @@ where
 
             let mut unsynced_txos = vec![];
             for (txo, _) in unverified_txos {
-                let tx_out = service.get_txo_object(&txo.id).map_err(format_error)?;
+                let _tx_out = service.get_txo_object(&txo.id).map_err(format_error)?;
                 let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
                     .try_into()
                     .map_err(format_error)?;
                 // We can guarantee that subaddress index will exist because the query for
                 // unverified txos only returns txos that have a subaddress
                 // index but not a key image.
-                let subaddress_index = txo.subaddress_index.unwrap().clone() as u64;
+                let subaddress_index = txo.subaddress_index.unwrap() as u64;
                 unsynced_txos.push(TxoUnsynced {
                     subaddress: subaddress_index,
                     tx_out_public_key: txo_pubkey.into(),
