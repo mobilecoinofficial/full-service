@@ -235,10 +235,12 @@ pub trait AccountModel {
     ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                       |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
     /// * Account
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only(
         view_private_key: &RootViewPrivate,
         spend_public_key: &RootSpendPublic,
