@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 use ledger_mob::{transport::GenericTransport, Connect, DeviceHandle, LedgerProvider};
 
 use mc_common::logger::global_log;
-use mc_core::{account::ViewAccount};
+use mc_core::account::ViewAccount;
 use mc_crypto_keys::RistrettoPublic;
 use strum::Display;
 
