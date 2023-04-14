@@ -3127,6 +3127,7 @@ dependencies = [
  "strum_macros",
  "tempdir",
  "tiny-bip39",
+ "tokio",
  "url",
  "uuid",
  "vergen",

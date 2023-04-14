@@ -358,13 +358,13 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_txo_lifecycle(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -448,6 +448,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         let _submitted = service
             .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))

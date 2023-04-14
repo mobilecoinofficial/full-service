@@ -866,13 +866,13 @@ mod tests {
         },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_gift_code_lifecycle(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_gift_code_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -927,6 +927,7 @@ mod tests {
                 None,
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built gift code transaction");
 
@@ -1053,8 +1054,8 @@ mod tests {
         )
     }
 
-    #[test_with_logger]
-    fn test_remove_gift_code(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_remove_gift_code(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1109,6 +1110,7 @@ mod tests {
                 None,
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built gift code transaction");
 

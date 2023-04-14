@@ -318,7 +318,7 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
@@ -375,8 +375,8 @@ mod tests {
         assert_eq!(txo.get_masked_amount().unwrap(), &tx_receipt.amount);
     }
 
-    #[test_with_logger]
-    fn test_create_receipt(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_create_receipt(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -435,6 +435,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -506,8 +507,8 @@ mod tests {
 
     // All txos received should return TransactionSuccess, and TransactionPending
     // until they are received.
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_success(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_success(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -566,6 +567,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -629,8 +631,8 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -690,6 +692,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -773,8 +776,8 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -834,6 +837,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service

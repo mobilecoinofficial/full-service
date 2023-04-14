@@ -69,7 +69,7 @@ async fn test_wallet_api(
         id: command.0.id,
     };
 
-    match wallet_api_inner(&state.service, JsonCommandRequest::try_from(&req)?) {
+    match wallet_api_inner(&state.service, JsonCommandRequest::try_from(&req)?).await {
         Ok(command_response) => {
             response.result = Some(command_response);
         }
