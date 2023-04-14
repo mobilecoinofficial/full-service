@@ -1283,8 +1283,15 @@ mod tests {
             key_image: KeyImage::from(rng.next_u64()),
         };
 
+        let txo_synced_2 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&orphaned_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
+
         service
-            .sync_account(&account_id, vec![txo_synced_1])
+            .sync_account(&account_id, vec![txo_synced_1, txo_synced_2])
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();

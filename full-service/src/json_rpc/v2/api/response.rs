@@ -30,7 +30,6 @@ use crate::{
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
-use mc_transaction_core::tx::TxOut;
 use mc_transaction_signer::types::TxoSyncReq;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
