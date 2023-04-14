@@ -260,6 +260,7 @@ impl TransactionMemo {
                     Ok(account_key) => account_key,
                     Err(_) => {
                         global_log::warn!("Could not get account key, using empty memo");
+                        #[allow(clippy::box_default)]
                         return Ok(Box::new(EmptyMemoBuilder::default()));
                     }
                 };
@@ -673,7 +674,7 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
@@ -685,8 +686,8 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
 
-    #[test_with_logger]
-    fn test_build_transaction_and_log(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_build_transaction_and_log(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -776,6 +777,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -805,6 +807,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -834,6 +837,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built transaction from Alice");
 
@@ -845,8 +849,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -925,6 +929,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 
@@ -1027,6 +1032,7 @@ mod tests {
                 TransactionMemo::RTH(None, None),
                 None,
             )
+            .await
             .unwrap();
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
@@ -1085,8 +1091,8 @@ mod tests {
     }
 
     // Building a transaction for an invalid public address should fail.
-    #[test_with_logger]
-    fn test_invalid_public_address_fails(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_invalid_public_address_fails(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1123,17 +1129,20 @@ mod tests {
             &logger,
         );
 
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &[("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
-            None,
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &[("NOTB58".to_string(), AmountJSON::new(42 * MOB, Mob::ID))],
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction to invalid b58 public address")
             }
@@ -1142,8 +1151,8 @@ mod tests {
         };
     }
 
-    #[test_with_logger]
-    fn test_maximum_inputs_and_outputs(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_maximum_inputs_and_outputs(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1188,17 +1197,20 @@ mod tests {
                 AmountJSON::new(42 * MOB, Mob::ID),
             ));
         }
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &outputs,
-            None,
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &outputs,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many ouputs")
             }
@@ -1220,17 +1232,20 @@ mod tests {
         for _ in 0..17 {
             inputs.push("fake txo id".to_string());
         }
-        match service.build_and_sign_transaction(
-            &alice.id,
-            &outputs,
-            Some(&inputs),
-            None,
-            None,
-            None,
-            None,
-            TransactionMemo::RTH(None, None),
-            None,
-        ) {
+        match service
+            .build_and_sign_transaction(
+                &alice.id,
+                &outputs,
+                Some(&inputs),
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH(None, None),
+                None,
+            )
+            .await
+        {
             Ok(_) => {
                 panic!("Should not be able to build transaction with too many inputs")
             }
@@ -1242,8 +1257,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction_with_sender_memo_cred_subaddress_index(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction_with_sender_memo_cred_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1328,6 +1343,7 @@ mod tests {
                 TransactionMemo::RTH(Some(alice_address_from_bob.subaddress_index as u64), None),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 
@@ -1432,8 +1448,8 @@ mod tests {
     }
 
     // Test sending a transaction from Alice -> Bob, and then from Bob -> Alice
-    #[test_with_logger]
-    fn test_send_transaction_with_payment_request_id(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_send_transaction_with_payment_request_id(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1523,6 +1539,7 @@ mod tests {
                 ),
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built and submitted transaction from Alice");
 

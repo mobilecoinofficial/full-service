@@ -7,7 +7,6 @@ use std::convert::TryFrom;
 use ledger_mob::{transport::GenericTransport, Connect, DeviceHandle, LedgerProvider};
 
 use mc_common::logger::global_log;
-use mc_core::keys::TxOutPublic;
 use mc_crypto_keys::RistrettoPublic;
 use strum::Display;
 
@@ -47,7 +46,7 @@ async fn get_device_handle() -> Result<DeviceHandle<GenericTransport>, HardwareW
     let ledger_provider = LedgerProvider::new().unwrap();
     let devices = ledger_provider.list_devices(ledger_mob::Filter::Hid).await;
 
-    if devices.len() == 0 {
+    if devices.is_empty() {
         return Err(HardwareWalletServiceError::NoHardwareWalletsFound);
     }
 
@@ -76,7 +75,7 @@ pub async fn sign_tx_proposal(
         let tx_out_public_key = RistrettoPublic::try_from(&txo.tx_out.public_key)?;
         let key_image = txos_synced
             .iter()
-            .find(|txo| txo.tx_out_public_key == TxOutPublic::from(tx_out_public_key))
+            .find(|txo| txo.tx_out_public_key == tx_out_public_key)
             .ok_or(HardwareWalletServiceError::KeyImageNotFoundForSignedInput)?
             .key_image;
 
