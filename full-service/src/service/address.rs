@@ -198,10 +198,7 @@ mod tests {
         db::account::AccountModel,
         service::account::AccountService,
         test_utils::{get_test_ledger, setup_wallet_service},
-        util::{
-            b58::b58_encode_public_address,
-            encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
-        },
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -248,15 +245,19 @@ mod tests {
         let pooled_conn = &mut service.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let spend_public_key = RistrettoPublic::from_random(&mut rng);
-
-        let vpk_hex = ristretto_to_hex(&view_private_key);
-        let spk_hex = ristretto_public_to_hex(&spend_public_key);
+        let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
+        let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
 
         // Create an account.
         let account = service
-            .import_view_only_account(vpk_hex, spk_hex, None, None, None, false)
+            .import_view_only_account(
+                &view_private_key,
+                &spend_public_key,
+                None,
+                None,
+                None,
+                false,
+            )
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 

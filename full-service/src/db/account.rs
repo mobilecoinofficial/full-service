@@ -862,6 +862,7 @@ mod tests {
     use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{collections::HashSet, convert::TryFrom, iter::FromIterator, ops::DerefMut};
@@ -1171,8 +1172,8 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+        let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
+        let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
 
         let account = {
             let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
@@ -1185,6 +1186,7 @@ mod tests {
                 12,
                 None,
                 None,
+                false,
                 conn,
             )
             .unwrap()
