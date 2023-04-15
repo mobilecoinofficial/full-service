@@ -597,13 +597,7 @@ pub trait TxoModel {
     ///|---------------|--------------------------------------------------------|-------|
     ///| `public_keys` | The public key where to retrieve TxOuts from           |       |
     ///| `conn`        | An reference to the pool connection of wallet database |       |
-    ///
-    /// Returns:
-    /// * Txo
-    fn get(txo_id_hex: &str, conn: Conn) -> Result<Txo, WalletDbError>;
-
-    /// Get several Txos by Txo public_keys
-    ///
+    /// 
     /// # Returns:
     /// * Vector of TxoOut
     fn select_by_public_key(
