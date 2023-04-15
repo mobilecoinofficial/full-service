@@ -567,7 +567,7 @@ pub trait TxoModel {
     /// * Vector of TxoOut
     fn list_secreted(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get the details for a specific TxOut.
+    /// Get the details for a specific Txo.
     ///
     /// # Arguments
     /// 
