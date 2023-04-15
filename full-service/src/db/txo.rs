@@ -704,7 +704,7 @@ pub trait TxoModel {
     ///
     /// # Returns
     /// * TxoStatus 
-    fn status(&self, conn: &Conn) -> Result<TxoStatus, WalletDbError>;
+    fn status(&self, conn: Conn) -> Result<TxoStatus, WalletDbError>;
 
 
     /// Get the membership proof from ledger DB for current TxOut
