@@ -92,7 +92,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Create an account from root entropy.
@@ -123,7 +123,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Create an account from either mnemonic phrase (v2) or root entropy (v1).
@@ -154,7 +154,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account from a mnemonic phrase (v2).
@@ -185,7 +185,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
     /// Import account from a root entropy (v1).
@@ -216,7 +216,7 @@ pub trait AccountModel {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
     /// Import a view only account.
@@ -242,7 +242,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
     /// List all accounts from wallet DB.
@@ -258,7 +258,7 @@ pub trait AccountModel {
     /// # Returns:
     /// * Vector of all Accounts in the DB
     fn list_all(
-        conn: &Conn,
+        conn: Conn,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, WalletDbError>;
@@ -276,7 +276,7 @@ pub trait AccountModel {
     /// * Account
     fn get(
         account_id: &AccountID, 
-        conn: &Conn
+        conn: Conn
     ) -> Result<Account, WalletDbError>;
 
     /// Get the accounts associated with the given Txo.
@@ -292,7 +292,7 @@ pub trait AccountModel {
     /// *  Vector of all Accounts associated with the given Txo
     fn get_by_txo_id(
         txo_id_hex: &str, 
-        conn: &Conn
+        conn: Conn
     ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update the account name for current account.
@@ -309,7 +309,7 @@ pub trait AccountModel {
     fn update_name(
         &self, 
         new_name: String, 
-        conn: &Conn
+        conn: Conn
     ) -> Result<(), WalletDbError>;
 
     /// Update the next block index in current account that needs to sync.
@@ -326,7 +326,7 @@ pub trait AccountModel {
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Delete the current account.
@@ -339,7 +339,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * unit
-    fn delete(self, conn: &Conn) -> Result<(), WalletDbError>;
+    fn delete(self, conn: Conn) -> Result<(), WalletDbError>;
 
     /// Get subaddress for the current account where funds are returned when the input txos exceed the amount spent.
     /// 
@@ -351,7 +351,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * AssignedSubaddress
-    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+    fn change_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get main public address for the current account
     /// 
@@ -363,7 +363,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * AssignedSubaddress
-    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+    fn main_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get all of the token ids present for the current account.
     /// 
@@ -375,7 +375,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * Vector of all TokenIds 
-    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError>;
+    fn get_token_ids(self, conn: Conn) -> Result<Vec<TokenId>, WalletDbError>;
 
     /// Get the next sequentially unassigned subaddress index for the account
     /// * reserved addresses are not included
@@ -388,7 +388,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * Vector of all TokenIds 
-    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError>;
+    fn next_subaddress_index(self, conn: Conn) -> Result<u64, WalletDbError>;
 
     /// Get the account key for the current account.
     /// 
@@ -429,7 +429,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
 
@@ -463,7 +463,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
 
@@ -497,7 +497,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
 
@@ -560,7 +560,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
             mnemonic,
@@ -585,7 +585,7 @@ impl AccountModel for Account {
         fog_report_url: String,
         fog_report_id: String,
         fog_authority_spki: String,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
             root_entropy,
@@ -608,7 +608,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
@@ -676,7 +676,7 @@ impl AccountModel for Account {
     }
 
     fn list_all(
-        conn: &Conn,
+        conn: Conn,
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<Account>, WalletDbError> {
@@ -691,7 +691,7 @@ impl AccountModel for Account {
         Ok(query.load(conn)?)
     }
 
-    fn get(account_id: &AccountID, conn: &Conn) -> Result<Account, WalletDbError> {
+    fn get(account_id: &AccountID, conn: Conn) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
         match accounts::table
@@ -707,7 +707,7 @@ impl AccountModel for Account {
         }
     }
 
-    fn get_by_txo_id(txo_id_hex: &str, conn: &Conn) -> Result<Vec<Account>, WalletDbError> {
+    fn get_by_txo_id(txo_id_hex: &str, conn: Conn) -> Result<Vec<Account>, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
 
         let mut accounts: Vec<Account> = Vec::<Account>::new();
@@ -720,7 +720,7 @@ impl AccountModel for Account {
         Ok(accounts)
     }
 
-    fn update_name(&self, new_name: String, conn: &Conn) -> Result<(), WalletDbError> {
+    fn update_name(&self, new_name: String, conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts;
 
         diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
@@ -732,7 +732,7 @@ impl AccountModel for Account {
     fn update_next_block_index(
         &self,
         next_block_index: u64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts;
         diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
@@ -741,7 +741,7 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn delete(self, conn: &Conn) -> Result<(), WalletDbError> {
+    fn delete(self, conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::accounts;
 
         // Delete transaction logs associated with this account
@@ -761,11 +761,11 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn change_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+    fn change_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(&self.id, CHANGE_SUBADDRESS_INDEX as i64, conn)
     }
 
-    fn main_subaddress(self, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+    fn main_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(
             &self.id,
             DEFAULT_SUBADDRESS_INDEX as i64,
@@ -773,7 +773,7 @@ impl AccountModel for Account {
         )
     }
 
-    fn get_token_ids(self, conn: &Conn) -> Result<Vec<TokenId>, WalletDbError> {
+    fn get_token_ids(self, conn: Conn) -> Result<Vec<TokenId>, WalletDbError> {
         use crate::db::schema::txos;
 
         let distinct_token_ids = txos::table
@@ -788,7 +788,7 @@ impl AccountModel for Account {
         Ok(distinct_token_ids)
     }
 
-    fn next_subaddress_index(self, conn: &Conn) -> Result<u64, WalletDbError> {
+    fn next_subaddress_index(self, conn: Conn) -> Result<u64, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
         let highest_subaddress_index: i64 = assigned_subaddresses::table
@@ -833,7 +833,7 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator};
+    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator, ops::DerefMut};
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -845,7 +845,8 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -855,19 +856,24 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &conn,
+                conn,
             )
             .unwrap();
             account_id_hex
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn, None, None).unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
-        let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc = Account::get(
+            &account_id_hex,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         let expected_account = Account {
             id: account_id_hex.to_string(),
             account_key: mc_util_serial::encode(&account_key),
@@ -887,7 +893,7 @@ mod tests {
             Some(account_id_hex.to_string()),
             None,
             None,
-            &wallet_db.get_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(subaddresses.len(), 3);
@@ -903,7 +909,7 @@ mod tests {
         let (retrieved_index, retrieved_account_id_hex) =
             AssignedSubaddress::find_by_subaddress_spend_public_key(
                 main_subaddress.spend_public_key(),
-                &wallet_db.get_conn().unwrap(),
+                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
         assert_eq!(retrieved_index, 0);
@@ -922,14 +928,22 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &wallet_db.get_conn().unwrap(),
+                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
-        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
+        let res = Account::list_all(
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(res.len(), 2);
 
-        let acc_secondary =
-            Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc_secondary = Account::get(
+            &account_id_hex_secondary,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         let mut expected_account_secondary = Account {
             id: account_id_hex_secondary.to_string(),
             account_key: mc_util_serial::encode(&account_key_secondary),
@@ -948,24 +962,35 @@ mod tests {
         acc_secondary
             .update_name(
                 "Alice's Secondary Account".to_string(),
-                &wallet_db.get_conn().unwrap(),
+                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
-        let acc_secondary2 =
-            Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc_secondary2 = Account::get(
+            &account_id_hex_secondary,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         expected_account_secondary.name = "Alice's Secondary Account".to_string();
         assert_eq!(expected_account_secondary, acc_secondary2);
 
         // Delete the secondary account
         acc_secondary
-            .delete(&wallet_db.get_conn().unwrap())
+            .delete(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
-        let res = Account::list_all(&wallet_db.get_conn().unwrap(), None, None).unwrap();
+        let res = Account::list_all(
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            None,
+            None,
+        )
+        .unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
-        let res = Account::get(&account_id_hex_secondary, &wallet_db.get_conn().unwrap());
+        let res = Account::get(
+            &account_id_hex_secondary,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        );
         match res {
             Ok(_) => panic!("Should have deleted account"),
             Err(WalletDbError::AccountNotFound(s)) => {
@@ -987,7 +1012,8 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let account_id = {
-            let conn = wallet_db.get_conn().unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -997,12 +1023,16 @@ mod tests {
                 "".to_string(),
                 "".to_string(),
                 "".to_string(),
-                &conn,
+                conn,
             )
             .unwrap();
             account_id_hex
         };
-        let account = Account::get(&account_id, &wallet_db.get_conn().unwrap()).unwrap();
+        let account = Account::get(
+            &account_id,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
         assert_eq!(decoded_entropy, root_id.root_entropy);
         let decoded_account_key: AccountKey = mc_util_serial::decode(&account.account_key).unwrap();
@@ -1018,7 +1048,8 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_id_hex = {
-            let conn = wallet_db.get_conn().unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
             let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
                 &root_id.root_entropy,
                 Some(0),
@@ -1028,19 +1059,24 @@ mod tests {
                 "fog//some.fog.url".to_string(),
                 "".to_string(),
                 "DefinitelyARealFOGAuthoritySPKI".to_string(),
-                &conn,
+                conn,
             )
             .unwrap();
             account_id_hex
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn, None, None).unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 
-        let acc = Account::get(&account_id_hex, &wallet_db.get_conn().unwrap()).unwrap();
+        let acc = Account::get(
+            &account_id_hex,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         let expected_account = Account {
             id: account_id_hex.to_string(),
             account_key: [
@@ -1077,7 +1113,8 @@ mod tests {
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
 
         let account = {
-            let conn = wallet_db.get_conn().unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
 
             Account::import_view_only(
                 &view_private_key,
@@ -1086,14 +1123,15 @@ mod tests {
                 12,
                 None,
                 None,
-                &conn,
+                conn,
             )
             .unwrap()
         };
 
         {
-            let conn = wallet_db.get_conn().unwrap();
-            let res = Account::list_all(&conn, None, None).unwrap();
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            let res = Account::list_all(conn, None, None).unwrap();
             assert_eq!(res.len(), 1);
         }
 

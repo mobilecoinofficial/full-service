@@ -27,7 +27,7 @@ use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{get_tx_out_shared_secret, MaskedAmount};
 use mc_transaction_extra::TxOutConfirmationNumber;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{convert::TryFrom, ops::DerefMut};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -213,7 +213,8 @@ where
         address: &str,
         receiver_receipt: &ReceiverReceipt,
     ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
-        let conn = &self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
         let account_id = AccountID(assigned_address.account_id);
         let account = Account::get(&account_id, conn)?;
@@ -319,7 +320,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
-    use mc_crypto_rand::RngCore;
+    use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
@@ -450,7 +451,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -586,7 +587,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -702,7 +703,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
@@ -734,9 +735,12 @@ mod tests {
 
         // Now check status with a correct shared secret, but the wrong value
         let bob_account_key: AccountKey = mc_util_serial::decode(
-            &Account::get(&bob_account_id, &service.get_conn().unwrap())
-                .expect("Could not get bob account")
-                .account_key,
+            &Account::get(
+                &bob_account_id,
+                &mut service.get_pooled_conn().unwrap().deref_mut(),
+            )
+            .expect("Could not get bob account")
+            .account_key,
         )
         .expect("Could not decode");
         let public_key: RistrettoPublic = RistrettoPublic::try_from(&receipt0.public_key)
@@ -843,7 +847,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &service.get_conn().unwrap(),
+            &mut service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);

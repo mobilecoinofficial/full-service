@@ -4,7 +4,7 @@
 
 #![feature(proc_macro_hygiene, decl_macro)]
 use clap::Parser;
-use diesel::{prelude::*, SqliteConnection};
+use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use dotenv::dotenv;
 use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
 use mc_common::logger::{create_app_logger, log, o, Logger};
@@ -69,18 +69,24 @@ fn rocket() -> Rocket<Build> {
         Some(ref wallet_db_path_buf) => {
             let wallet_db_path = wallet_db_path_buf.to_str().unwrap();
             // Connect to the database and run the migrations
-            let conn = SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
+            let conn = &mut SqliteConnection::establish(wallet_db_path).unwrap_or_else(|err| {
                 eprintln!("Cannot open database {wallet_db_path:?}: {err:?}");
                 exit(EXIT_NO_DATABASE_CONNECTION);
             });
-            WalletDb::set_db_encryption_key_from_env(&conn);
-            WalletDb::try_change_db_encryption_key_from_env(&conn);
-            if !WalletDb::check_database_connectivity(&conn) {
+            WalletDb::set_db_encryption_key_from_env(conn);
+            WalletDb::try_change_db_encryption_key_from_env(conn);
+            if !WalletDb::check_database_connectivity(conn) {
                 eprintln!("Incorrect password for database {wallet_db_path:?}.");
                 exit(EXIT_WRONG_PASSWORD);
             };
-            WalletDb::run_migrations(&conn);
-            WalletDb::run_proto_conversions_if_necessary(&conn);
+            WalletDb::add_mising_migrations(conn);
+            conn.batch_execute("PRAGMA foreign_keys = OFF;")
+                .expect("failed disabling foreign keys");
+            WalletDb::run_migrations(conn);
+            WalletDb::validate_foreign_keys(conn);
+            conn.batch_execute("PRAGMA foreign_keys = ON;")
+                .expect("failed enabling foreign keys");
+            WalletDb::run_proto_conversions_if_necessary(conn);
             log::info!(logger, "Connected to database.");
 
             Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))

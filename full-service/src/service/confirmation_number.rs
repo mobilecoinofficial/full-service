@@ -2,6 +2,8 @@
 
 //! Service for managing confirmation numbers.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
         account::AccountID,
@@ -175,14 +177,15 @@ where
         txo_id: &TxoID,
         confirmation_hex: &str,
     ) -> Result<bool, ConfirmationServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
         Ok(Txo::validate_confirmation(
             &AccountID(account_id.to_string()),
             &txo_id.to_string(),
             &confirmation,
-            &conn,
+            conn,
         )?)
     }
 }
