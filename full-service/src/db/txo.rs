@@ -277,7 +277,7 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `status`                   | The status of TxOuts to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -297,14 +297,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all TxOuts associated with a given account.
+    /// Get all Txos associated with a given account.
     /// 
     /// # Arguments
     ///
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.                                                      |
-    ///| `status`                   | The status of TxOuts to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.                                                      |
+    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -326,14 +326,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all TxOuts associated with an assigned subaddress
+    /// Get all Txos associated with an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of TxOuts from                  |                                                                                          |
-    ///| `status`                   | The status of TxOuts to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                                                                          |
+    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -361,7 +361,7 @@ pub trait TxoModel {
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the key images and TxOuts from    | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the key images and Txos from    | Account must exist in the database. |
     ///| `token_id`       | The id of a supported type of token to filter on       |                                     |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     ///
@@ -373,14 +373,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<HashMap<KeyImage, String>, WalletDbError>;
 
-    /// Get all unspent TxOuts associated  with an account or an assigned subaddress
+    /// Get all unspent Txos associated  with an account or an assigned subaddress
     /// 
     /// # Arguments
     ///
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.                                                      |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of TxOuts from                  |                                                                                          |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.                                                      |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                                                                          |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                                                                          |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
@@ -402,14 +402,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all spent TxOuts associated  with an account or an assigned subaddress
+    /// Get all spent Txos associated  with an account or an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of TxOuts from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -431,13 +431,13 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all orphaned TxOuts associated with an account or an assigned subaddress
+    /// Get all orphaned Txos associated with an account or an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.  |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -457,14 +457,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all pending TxOuts associated with an account or an assigned subaddress
+    /// Get all pending Txos associated with an account or an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of TxOuts from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -486,14 +486,14 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all unverified TxOuts associated with an account or an assigned subaddress
+    /// Get all unverified Txos associated with an account or an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of TxOuts from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of TxOuts from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -516,15 +516,15 @@ pub trait TxoModel {
     ) -> Result<Vec<Txo>, WalletDbError>;
 
 
-    /// Get all spendable TxOuts and max spendable value in wallet associated with an account or an assigned subaddress
+    /// Get all spendable Txos and max spendable value in wallet associated with an account or an assigned subaddress
     /// 
     /// # Arguments
     /// 
     ///| Name                      | Purpose                                                    | Notes                               |
     ///|---------------------------|------------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex`          | The account id at which the list of TxOuts from            | Account must exist in the database. |
+    ///| `account_id_hex`          | The account id at which the list of Txos from            | Account must exist in the database. |
     ///| `max_spendable_value`     | The upper limit for the spendable TxOut value to filter on |                                     |
-    ///| `assigned_subaddress_b58` | The subaddress at which the list of TxOuts from            |                                     |
+    ///| `assigned_subaddress_b58` | The subaddress at which the list of Txos from            |                                     |
     ///| `token_id`                | The id of a supported type of token to filter on           |                                     |
     ///| `conn`                    | An reference to the pool connection of wallet database     |                                     |
     ///
@@ -541,37 +541,31 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<SpendableTxosResult, WalletDbError>;
 
-    /// Get all created TxOuts in wallet associated with an account
+    /// Get all created Txos in wallet associated with an account
     /// 
     /// # Arguments
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the TxOuts from                   | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the Txos from                   | Account must exist in the database. |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     /// 
     /// # Returns
     /// * Vector of TxoOut
-    fn list_created(
-        account_id_hex: Option<&str>, 
-        conn: &Conn
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_created(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Get all secreted TxOuts in wallet associated with an account
+    /// Get all secreted Txos in wallet associated with an account
     /// 
     /// # Arguments
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the TxOuts from                   | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the Txos from                   | Account must exist in the database. |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     /// 
     /// # Returns
     /// * Vector of TxoOut
-    fn list_secreted(
-        account_id_hex: Option<&str>, 
-        conn: &Conn
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_secreted(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific TxOut.
     ///
@@ -584,18 +578,16 @@ pub trait TxoModel {
     ///
     /// # Returns:
     /// * TxOut
-    fn get(
-        txo_id_hex: &str, 
-        conn: &Conn
-    ) -> Result<Txo, WalletDbError>;
+    fn get(txo_id_hex: &str, conn: Conn) -> Result<Txo, WalletDbError>;
 
-    /// Get several TxOuts by Txo public_keys
+
+    /// Get several Txos by Txo public_keys
     ///
     /// # Arguments
     ///
     ///| Name          | Purpose                                                | Notes |
     ///|---------------|--------------------------------------------------------|-------|
-    ///| `public_keys` | The public key where to retrieve TxOuts from           |       |
+    ///| `public_keys` | The public key where to retrieve Txos from           |       |
     ///| `conn`        | An reference to the pool connection of wallet database |       |
     /// 
     /// # Returns:
@@ -605,30 +597,27 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Select several TxOuts by their TxoIds
+    /// Select several Txos by their TxoIds
     ///
     /// # Arguments
     /// 
     ///| Name      | Purpose                                                | Notes |
     ///|-----------|--------------------------------------------------------|-------|
-    ///| `txo_ids` | The list of TxOut IDs from which to retrieve TxOuts    |       |
+    ///| `txo_ids` | The list of TxOut IDs from which to retrieve Txos    |       |
     ///| `conn`    | An reference to the pool connection of wallet database |       |
     ///
     /// # Returns:
     /// * Vector of TxoOut
-    fn select_by_id(
-        txo_ids: &[String], 
-        conn: &Conn
-    ) -> Result<Vec<Txo>, WalletDbError>;
+    fn select_by_id(txo_ids: &[String], conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
-    /// Select a set of unspent TxOuts to reach a given value.
+    /// Select a set of unspent Txos to reach a given value.
     ///
     /// # Arguments
     ///
     ///| Name                  | Purpose                                                    | Notes                               |
     ///|-----------------------|------------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex`      | The account id where the TxOuts from                       | Account must exist in the database. |
-    ///| `target_value`        | The value used to filter spendable TxOuts on its value     |                                     |
+    ///| `account_id_hex`      | The account id where the Txos from                       | Account must exist in the database. |
+    ///| `target_value`        | The value used to filter spendable Txos on its value     |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
@@ -665,21 +654,18 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<bool, WalletDbError>;
 
-    /// Remove account id from all TxOuts at which the account associates to
+    /// Remove account id from all Txos at which the account associates to
     /// 
     /// # Arguments
     /// 
     ///| Name         | Purpose                                                                               | Notes |
     ///|--------------|---------------------------------------------------------------------------------------|-------|
-    ///| `account_id` | The account id needs to be removed from all TxOuts at which the account associates to |       |
+    ///| `account_id` | The account id needs to be removed from all Txos at which the account associates to |       |
     ///| `conn`       | An reference to the pool connection of wallet database                                |       |
     ///
     /// # Returns
     /// * unit
-    fn scrub_account(
-        account_id_hex: &str, 
-        conn: &Conn
-    ) -> Result<(), WalletDbError>;
+    fn scrub_account(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError>;
 
     /// Delete txos which are not referenced by any account or transaction.
     /// 
@@ -691,8 +677,7 @@ pub trait TxoModel {
     ///
     /// # Returns
     /// * unit
-    fn delete_unreferenced(conn: &Conn) -> Result<(), WalletDbError>;
-
+    fn delete_unreferenced(conn: Conn) -> Result<(), WalletDbError>;
 
     /// Get status for current TxOut
     /// 
@@ -1778,7 +1763,7 @@ impl TxoModel for Txo {
             }
         }
 
-        // Select the actual TxOuts to spend. We want to opportunistically fill up the
+        // Select the actual Txos to spend. We want to opportunistically fill up the
         // input slots with dust, from any subaddress, so we take from the back
         // of the Txo vec. This is a knapsack problem, and the selection could
         // be improved. For now, we simply move the window of MAX_INPUTS up from
@@ -1795,7 +1780,7 @@ impl TxoModel for Txo {
             // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
             let next_utxo = spendable_txos.pop().ok_or_else(|| {
                 WalletDbError::InsufficientFunds(format!(
-                    "Not enough TxOuts to sum to target value: {target_value:?}"
+                    "Not enough Txos to sum to target value: {target_value:?}"
                 ))
             })?;
             selected_utxos.push(next_utxo.clone());
@@ -1817,7 +1802,7 @@ impl TxoModel for Txo {
 
         if selected_utxos.is_empty() || selected_utxos.len() > MAX_INPUTS as usize {
             return Err(WalletDbError::InsufficientFunds(
-                "Logic error. Could not select TxOuts despite having sufficient funds".to_string(),
+                "Logic error. Could not select Txos despite having sufficient funds".to_string(),
             ));
         }
 
@@ -1994,7 +1979,7 @@ mod tests {
     use super::*;
 
     // The narrative for this test is that Alice receives a Txo, then sends a
-    // transaction to Bob. We verify expected qualities of the TxOuts involved at
+    // transaction to Bob. We verify expected qualities of the Txos involved at
     // each step of the lifecycle.
     // Note: This is not a replacement for a service-level test, but instead tests
     // basic assumptions after common DB operations with the Txo.
@@ -2165,7 +2150,7 @@ mod tests {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
 
-        // Now we'll process these TxOuts and verify that the TXO was "spent."
+        // Now we'll process these Txos and verify that the TXO was "spent."
         let _alice_account =
             manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
 
@@ -2330,10 +2315,10 @@ mod tests {
         )
         .unwrap();
 
-        // There are now 3 total TxOuts for our account
+        // There are now 3 total Txos for our account
         assert_eq!(updated_txos.len(), 3);
 
-        // Verify that there is one change Txo in our current TxOuts
+        // Verify that there is one change Txo in our current Txos
         let change: Vec<&Txo> = updated_txos
             .iter()
             .filter(|f| {
@@ -2380,7 +2365,7 @@ mod tests {
         assert_eq!(minted_txo.value as u64, 72 * MOB);
         assert_eq!(change_txo.value as u64, 928 * MOB - (2 * Mob::MINIMUM_FEE));
 
-        // Add the minted TxOuts to the ledger
+        // Add the minted Txos to the ledger
         add_block_with_tx_outs(
             &mut ledger_db,
             &[
@@ -2921,7 +2906,7 @@ mod tests {
         manually_sync_account(&ledger_db, &wallet_db, &sender_account_id, &logger);
 
         // Then let's make sure we received the Txo on the recipient account
-        log::info!(logger, "Listing all TxOuts for recipient account");
+        log::info!(logger, "Listing all Txos for recipient account");
         let txos = Txo::list_for_account(
             &recipient_account_id.to_string(),
             None,
@@ -2943,7 +2928,7 @@ mod tests {
         assert!(received_txo.confirmation.is_some());
 
         // Get the txo from the sent perspective
-        log::info!(logger, "Listing all TxOuts for sender account");
+        log::info!(logger, "Listing all Txos for sender account");
         let sender_txos = Txo::list_for_account(
             &sender_account_id.to_string(),
             None,
@@ -2959,8 +2944,8 @@ mod tests {
         // We seeded with 3 received (70, 80, 90), and a change txo
         assert_eq!(sender_txos.len(), 4);
 
-        // Get the associated TxOuts with the transaction log
-        log::info!(logger, "Getting associated TxOuts with the transaction");
+        // Get the associated Txos with the transaction log
+        log::info!(logger, "Getting associated Txos with the transaction");
         let associated = tx_log
             .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
@@ -3012,7 +2997,7 @@ mod tests {
         )
         .unwrap();
 
-        // Seed TxOuts
+        // Seed Txos
         let mut src_txos = Vec::new();
         for i in 0..10 {
             let (_txo_id, txo, _key_image) = create_test_received_txo(
@@ -3104,7 +3089,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(txos.len(), 10);
-
 
         // Delete the account. No Txos are left.
         account
