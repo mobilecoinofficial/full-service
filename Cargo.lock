@@ -3297,9 +3297,12 @@ dependencies = [
  "mc-transaction-extra",
  "mc-util-serial",
  "rand 0.8.5",
+ "rocket",
  "serde",
  "serde_json",
  "structopt",
+ "strum",
+ "strum_macros",
  "tiny-bip39",
 ]
 
