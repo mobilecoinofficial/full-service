@@ -13,7 +13,7 @@ pub mod response;
 
 /// The route for the Transaction Signer Service API.
 #[post("/api", format = "json", data = "<command>")]
-pub fn api(
+pub fn signer_service_api(
     command: Json<JsonRPCRequest>,
 ) -> Result<Json<JsonRPCResponse<JsonCommandResponse>>, String> {
     let req: JsonRPCRequest = command.0.clone();
@@ -34,7 +34,7 @@ pub fn api(
         }
     };
 
-    match api_inner(request) {
+    match signer_service_api_inner(request) {
         Ok(command_response) => {
             global_log::info!("Command executed successfully");
             response.result = Some(command_response);
@@ -48,10 +48,28 @@ pub fn api(
     Ok(Json(response))
 }
 
-fn api_inner(command: JsonCommandRequest) -> Result<JsonCommandResponse, JsonRPCError> {
+fn signer_service_api_inner(
+    command: JsonCommandRequest,
+) -> Result<JsonCommandResponse, JsonRPCError> {
     global_log::info!("Running command {:?}", command);
 
-    let response = match command {};
+    let response = match command {
+        JsonCommandRequest::create_account {} => {
+            todo!()
+        }
+        JsonCommandRequest::get_account { mnemonic } => {
+            todo!()
+        }
+        JsonCommandRequest::sign_tx {
+            mnemonic,
+            unsigned_tx,
+        } => {
+            todo!()
+        }
+        JsonCommandRequest::sync_txos { mnemonic, txos } => {
+            todo!()
+        }
+    };
 
     Ok(response)
 }
