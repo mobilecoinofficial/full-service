@@ -22,6 +22,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  output:
+    runs-on: [self-hosted, Linux, small]
+    steps:
+    - name: full-service-dev-cd-${{ github.sha }}
+      run: |
+        echo full-service-dev-cd-${{ github.sha }}
+
   build:
     strategy:
       matrix:
