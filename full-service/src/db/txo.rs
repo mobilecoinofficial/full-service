@@ -1732,6 +1732,7 @@ mod tests {
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
+    use mc_transaction_extra::{AuthenticatedSenderMemo, SenderMemoCredential};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, time::Duration};
@@ -2804,6 +2805,112 @@ mod tests {
             Txo::select_by_public_key(&pubkeys[0..5], &wallet_db.get_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 5);
+    }
+
+    #[test_with_logger]
+    fn applesauce(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (_account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            "".to_string(),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Seed Txos
+        let mut src_txos = Vec::new();
+        for i in 0..2 {
+            let (_txo_id, txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(i * MOB, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+                None,
+            );
+            src_txos.push(txo);
+        }
+
+        let sender_memo_creds = SenderMemoCredential::new_from_address_and_spend_private_key(
+            &account_key.default_subaddress(),
+            account_key.default_subaddress_spend_private(),
+        );
+
+        let view_public_key = RistrettoPublic::from_random(&mut rng);
+        let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
+        // TODO: what is the right syntax to leverage From<&AccountKey> for
+        // SenderMemoCredential??
+        let asm = AuthenticatedSenderMemo::new(
+            &sender_memo_creds,
+            &view_public_key,
+            &tx_out_spend_public_key.into(),
+        );
+        for i in 0..3 {
+            let (_txo_id, txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(i * MOB, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+                None,
+            );
+            src_txos.push(txo);
+        }
+
+        let view_public_key2 = RistrettoPublic::from_random(&mut rng);
+        assert_ne!(view_public_key, view_public_key2);
+        let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
+        // TODO: what is the right syntax to leverage From<&AccountKey> for
+        // SenderMemoCredential??
+        let asm = AuthenticatedSenderMemo::new(
+            &sender_memo_creds,
+            &view_public_key2,
+            &tx_out_spend_public_key.into(),
+        );
+        for i in 0..4 {
+            let (_txo_id, txo, _key_image) = create_test_received_txo(
+                &account_key,
+                i,
+                Amount::new(i * MOB, Mob::ID),
+                i,
+                &mut rng,
+                &wallet_db,
+                None,
+            );
+            src_txos.push(txo);
+        }
+
+        // 3 memo-free txos
+        // 9 authenticated sender memo txos
+        // 5  txos with a the specified address hash
+        // 12 total txos
+
+        let txos_by_type = Txo::list(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            RTHMemoType::AuthenticatedSender,
+            None,
+        )
+        .unwrap();
+        assert_eq!(txos_by_type.len(), 9);
     }
 
     #[test_with_logger]
