@@ -11,14 +11,14 @@ env:
 on:
   push:
     branches:
-    - feature/*
+    - feature/**
   pull_request:
     branches:
     - main
-    - release/*
+    - release/**
 
 concurrency:
-  group: full-service-dev-cd-${{ github.head_ref || github.ref }}
+  group: full-service-dev-cd-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -55,9 +55,6 @@ jobs:
       env:
         BUILD_OPTIONS: "--locked"
       run: |
-        id
-        git config --global -l --show-origin
-        pwd
         tools/build-fs.sh ${{ matrix.network.chain_id }}
 
     - name: Copy artifacts to cache
@@ -325,7 +322,6 @@ jobs:
         # Run tests.
         "${POETRY_HOME}/bin/poetry" run pytest -v
         popd || exit 0
-
 
   # remove the testing environment after all tests are run successfully when this
   #  is triggered from a PR.  For a feature branch, see dev-delete-cd.yaml
