@@ -88,7 +88,8 @@ pub struct Txo {
     /// The memo type, indicated by the first two bytes. See
     /// mobilecoin/transaction/extra/src/memo/mod.rs
     pub memo_type: i16,
-    /// If the memo is an AuthenticatedSender memo, the sender's address hash.
+    /// If the memo is an AuthenticatedSender memo (or one of its derivatives),
+    /// the sender's address hash.
     pub address_hash: Option<Vec<u8>>,
 }
 
