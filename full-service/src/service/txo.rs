@@ -258,7 +258,6 @@ where
                 conn,
             )?;
         } else {
-            // TODO: use memo type here
             txos = Txo::list(
                 status,
                 min_received_block_index,
@@ -266,6 +265,8 @@ where
                 offset,
                 limit,
                 token_id,
+                memo_type,
+                memo_address_hash,
                 conn,
             )?;
         }

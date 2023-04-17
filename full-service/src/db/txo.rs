@@ -267,6 +267,8 @@ pub trait TxoModel {
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
+        memo_type: Option<RTHMemoType>,
+        memo_address_hash: Option<String>,
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -651,7 +653,9 @@ impl TxoModel for Txo {
         offset: Option<u64>,
         limit: Option<u64>,
         token_id: Option<u64>,
-        // Todo: add addr hash and memo type to parameters
+        memo_type: Option<RTHMemoType>,
+        memo_address_hash: Option<String>,
+        // TODO: use addr hash and memo type to parameters
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
