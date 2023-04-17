@@ -18,17 +18,10 @@ on:
     - release/**
 
 concurrency:
-  group: full-service-dev-cd-${{ github.sha }}
+  group: full-service-dev-cd-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  output:
-    runs-on: [self-hosted, Linux, small]
-    steps:
-    - name: full-service-dev-cd-${{ github.sha }}
-      run: |
-        echo full-service-dev-cd-${{ github.sha }}
-
   build:
     strategy:
       matrix:
