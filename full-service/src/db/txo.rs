@@ -655,7 +655,6 @@ impl TxoModel for Txo {
         token_id: Option<u64>,
         memo_type: Option<RTHMemoType>,
         memo_address_hash: Option<String>,
-        // TODO: use addr hash and memo type to parameters
         conn: &Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
@@ -748,8 +747,15 @@ impl TxoModel for Txo {
             query = query.filter(txos::received_block_index.le(max_received_block_index as i64));
         }
 
-        // TODO: Add query extension for memo type
-        // TODO: Add query extension for addr hash
+        if let Some(memo_type) = memo_type {
+            query = query.filter(txos::memo_type.eq(memo_type as i16));
+        }
+
+        if let Some(memo_address_hash) = memo_address_hash {
+            if let Ok(memo_address_bytes) = hex::decode(memo_address_hash) {
+                query = query.filter(txos::address_hash.eq(memo_address_bytes));
+            }
+        }
 
         Ok(query.order(txos::received_block_index.desc()).load(conn)?)
     }
