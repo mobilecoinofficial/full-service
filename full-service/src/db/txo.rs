@@ -1731,7 +1731,7 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
+    use mc_transaction_core::{tokens::Mob, Amount, MemoPayload, Token, TokenId};
     use mc_transaction_extra::{AuthenticatedSenderMemo, SenderMemoCredential};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
@@ -2858,6 +2858,7 @@ mod tests {
             &view_public_key,
             &tx_out_spend_public_key.into(),
         );
+        let payload_option = Some(MemoPayload::from(asm));
         for i in 0..3 {
             let (_txo_id, txo, _key_image) = create_test_received_txo(
                 &account_key,
@@ -2866,7 +2867,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
-                None,
+                payload_option,
             );
             src_txos.push(txo);
         }
@@ -2881,6 +2882,7 @@ mod tests {
             &view_public_key2,
             &tx_out_spend_public_key.into(),
         );
+        let payload_option = Some(MemoPayload::from(asm));
         for i in 0..4 {
             let (_txo_id, txo, _key_image) = create_test_received_txo(
                 &account_key,
@@ -2889,7 +2891,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
-                None,
+                payload_option,
             );
             src_txos.push(txo);
         }
@@ -2906,11 +2908,27 @@ mod tests {
             None,
             None,
             None,
-            RTHMemoType::AuthenticatedSender,
+            Some(RTHMemoType::AuthenticatedSender),
             None,
+            &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(txos_by_type.len(), 9);
+
+        let address_hash_for_query = sender_memo_creds.address_hash.to_string();
+        let txos_by_memo_addr = Txo::list(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(address_hash_for_query),
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos_by_memo_addr.len(), 5);
     }
 
     #[test_with_logger]
