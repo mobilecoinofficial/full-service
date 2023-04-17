@@ -1788,6 +1788,7 @@ mod tests {
             0,
             Amount::new(1000 * MOB, Mob::ID),
             &mut rng,
+            None,
         );
 
         // Let's add this txo to the ledger
@@ -3111,7 +3112,8 @@ mod tests {
 
         let amount = Amount::new(28922973268924, Mob::ID);
 
-        let (txo, key_image) = create_test_txo_for_recipient(&account_key, 1, amount, &mut rng);
+        let (txo, key_image) =
+            create_test_txo_for_recipient(&account_key, 1, amount, &mut rng, None);
 
         // create 1 txo with no key image and no subaddress
         Txo::create_received(

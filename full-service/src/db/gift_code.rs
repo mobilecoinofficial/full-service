@@ -183,6 +183,7 @@ mod tests {
             0,
             Amount::new(value, Mob::ID),
             &mut rng,
+            None,
         );
 
         let mut tx_log_bytes = [0u8; 32];

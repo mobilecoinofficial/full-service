@@ -813,6 +813,7 @@ mod tests {
             0,
             mc_transaction_core::Amount::new(1000 * MOB, Mob::ID),
             &mut rng,
+            None,
         );
 
         // Let's add this txo to the ledger

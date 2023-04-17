@@ -20,7 +20,7 @@ use crate::{
 };
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::embed_migrations;
-use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
+use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
@@ -38,7 +38,7 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, FeeMap, Token, TokenId,
+    Amount, FeeMap, MemoPayload, Token, TokenId,
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
@@ -371,6 +371,7 @@ pub fn create_test_txo_for_recipient(
     recipient_subaddress_index: u64,
     amount: Amount,
     rng: &mut StdRng,
+    memo: Option<MemoPayload>,
 ) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
@@ -403,7 +404,7 @@ pub fn create_test_received_txo(
     wallet_db: &WalletDb,
 ) -> (String, TxOut, KeyImage) {
     let (txo, key_image) =
-        create_test_txo_for_recipient(account_key, recipient_subaddress_index, amount, rng);
+        create_test_txo_for_recipient(account_key, recipient_subaddress_index, amount, rng, None);
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),

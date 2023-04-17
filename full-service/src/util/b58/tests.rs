@@ -60,6 +60,7 @@ mod tests {
             0,
             Amount::new(1_000_000_000_000, Mob::ID),
             &mut rng,
+            None,
         );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
@@ -111,6 +112,7 @@ mod tests {
             0,
             Amount::new(1_000_000_000_000, Mob::ID),
             &mut rng,
+            None,
         );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
@@ -137,6 +139,7 @@ mod tests {
             0,
             Amount::new(1_000_000_000_000, Mob::ID),
             &mut rng,
+            None,
         );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
@@ -207,6 +210,7 @@ mod tests {
             0,
             Amount::new(1_000_000_000_000, Mob::ID),
             &mut rng,
+            None,
         );
 
         let proto_tx_pubkey: mc_api::external::CompressedRistretto = (&txo.public_key).into();
