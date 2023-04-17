@@ -63,8 +63,11 @@ pub struct Txo {
     /// amounts in a transaction
     pub shared_secret: Option<String>,
 
+    /// The memo type on the TXO
     pub memo_type: String,
 
+    /// If the memo_type is supported by Full Service and has an address hash,
+    /// the address hash
     pub address_hash: Option<String>,
 }
 
