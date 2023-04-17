@@ -158,6 +158,7 @@ mod e2e_misc {
             13,
             &mut rng,
             &wallet_db,
+            None,
         );
 
         add_block_with_tx_outs(
@@ -222,6 +223,7 @@ mod e2e_misc {
             13,
             &mut rng,
             &wallet_db,
+            None,
         );
 
         add_block_with_tx_outs(

@@ -2240,6 +2240,7 @@ mod tests {
             145,
             &mut rng,
             &wallet_db,
+            None,
         );
 
         let (_txo_hex, _txo, _key_image) = create_test_received_txo(
@@ -2249,6 +2250,7 @@ mod tests {
             146,
             &mut rng,
             &wallet_db,
+            None,
         );
 
         // Create some small TXOs for the account, more than the max number of TXOs we
@@ -2261,6 +2263,7 @@ mod tests {
                 (146 + i) as u64,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -2315,6 +2318,7 @@ mod tests {
                 144 + i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -2430,6 +2434,7 @@ mod tests {
                 144 + i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -2496,6 +2501,7 @@ mod tests {
                 144 + i as u64,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -2783,6 +2789,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
             src_txos.push(txo);
         }
@@ -2841,6 +2848,7 @@ mod tests {
                 144_u64,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
         assert_eq!(
@@ -2922,6 +2930,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -2978,6 +2987,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -3032,6 +3042,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
         for i in 1..=5 {
@@ -3042,6 +3053,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
         // Create some txos with token id != 0 to make sure it doesn't select those
@@ -3053,6 +3065,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
         for i in 1..=5 {
@@ -3063,6 +3076,7 @@ mod tests {
                 i,
                 &mut rng,
                 &wallet_db,
+                None,
             );
         }
 
@@ -3220,6 +3234,7 @@ mod tests {
                 15,
                 &mut rng,
                 &wallet_db,
+                None,
             );
 
             for i in 1..=15 {
@@ -3230,6 +3245,7 @@ mod tests {
                     i,
                     &mut rng,
                     &wallet_db,
+                    None,
                 );
             }
 
@@ -3241,6 +3257,7 @@ mod tests {
                     i,
                     &mut rng,
                     &wallet_db,
+                    None,
                 );
             }
 
@@ -3252,6 +3269,7 @@ mod tests {
                     i,
                     &mut rng,
                     &wallet_db,
+                    None,
                 );
             }
         } else {
@@ -3263,6 +3281,7 @@ mod tests {
                     i,
                     &mut rng,
                     &wallet_db,
+                    None,
                 );
             }
             // Create some txos with token id != 0
@@ -3274,6 +3293,7 @@ mod tests {
                     i,
                     &mut rng,
                     &wallet_db,
+                    None,
                 );
             }
         }

@@ -958,6 +958,7 @@ mod tests {
             13_u64,
             &mut rng,
             wallet_db,
+            None,
         );
 
         let txos = Txo::list_for_account(

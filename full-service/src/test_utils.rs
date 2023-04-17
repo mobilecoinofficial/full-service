@@ -414,6 +414,7 @@ pub fn create_test_received_txo(
     received_block_index: u64,
     rng: &mut StdRng,
     wallet_db: &WalletDb,
+    memo_payload: Option<MemoPayload>,
 ) -> (String, TxOut, KeyImage) {
     let (txo, key_image) =
         create_test_txo_for_recipient(account_key, recipient_subaddress_index, amount, rng, None);

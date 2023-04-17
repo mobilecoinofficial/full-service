@@ -138,6 +138,7 @@ mod tests {
             0,
             &mut rng,
             &wallet_db,
+            None,
         );
 
         let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
