@@ -178,6 +178,15 @@ jobs:
         action: generate-metadata
         prefix: ${{ matrix.chart }}-${{ matrix.network.chain_id }}
 
+    - name: Clean namespace
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: namespace-delete
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
     - name: Create namespace
       uses: mobilecoinofficial/gha-k8s-toolbox@v1
       with:
