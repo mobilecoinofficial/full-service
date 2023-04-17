@@ -5,7 +5,7 @@ resolver = "2"
 members = [
     "full-service",
     "mirror",
-    "transaction-signer",
+    "signer",
     "validator/api",
     "validator/connection",
     "validator/service",

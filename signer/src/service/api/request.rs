@@ -1,5 +1,8 @@
-use mc_full_service::json_rpc::json_rpc_request::JsonRPCRequest;
+use mc_full_service::json_rpc::{
+    json_rpc_request::JsonRPCRequest, v2::models::tx_proposal::UnsignedTxProposal,
+};
 
+use mc_transaction_signer::types::TxoUnsynced;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::{EnumIter, IntoEnumIterator};
@@ -25,4 +28,17 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
-pub enum JsonCommandRequest {}
+pub enum JsonCommandRequest {
+    create_account {},
+    get_account {
+        mnemonic: String,
+    },
+    sign_tx {
+        mnemonic: String,
+        unsigned_tx: UnsignedTxProposal,
+    },
+    sync_txos {
+        mnemonic: String,
+        txos: Vec<TxoUnsynced>,
+    },
+}
