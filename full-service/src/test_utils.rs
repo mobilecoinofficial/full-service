@@ -377,13 +377,13 @@ pub fn create_test_txo_for_recipient(
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
     let tx_out = match memo_payload {
-        Some(payload) => TxOut::new_with_memo(
+        Some(memo_payload) => TxOut::new_with_memo(
             BlockVersion::MAX,
             amount,
             &recipient,
             &tx_private_key,
             hint,
-            |_| Ok(payload),
+            |_| Ok(memo_payload),
         ),
         None => TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint),
     }
