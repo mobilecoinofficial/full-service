@@ -1,4 +1,5 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
+use crate::db::schema::txos::memo;
 #[cfg(test)]
 use crate::{
     config::NetworkConfig,
@@ -371,12 +372,23 @@ pub fn create_test_txo_for_recipient(
     recipient_subaddress_index: u64,
     amount: Amount,
     rng: &mut StdRng,
-    memo: Option<MemoPayload>,
+    memo_payload: Option<MemoPayload>,
 ) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
+    let tx_out = match memo_payload {
+        Some(payload) => TxOut::new_with_memo(
+            BlockVersion::MAX,
+            amount,
+            &recipient,
+            &tx_private_key,
+            hint,
+            |_| Ok(payload),
+        ),
+        None => TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint),
+    }
+    .unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
