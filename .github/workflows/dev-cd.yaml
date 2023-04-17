@@ -9,9 +9,6 @@ env:
   DOCKER_ORG: mobilecoin
 
 on:
-  push:
-    branches:
-    - feature/**
   pull_request:
     branches:
     - main
