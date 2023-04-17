@@ -1,5 +1,4 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
-use crate::db::schema::txos::memo;
 #[cfg(test)]
 use crate::{
     config::NetworkConfig,
