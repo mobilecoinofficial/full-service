@@ -7,226 +7,349 @@ name: Development CD
 env:
   CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
   DOCKER_ORG: mobilecoin
-  MOBILECOIN_ENCLAVE_VERSION: v3.0.0
-  MOBILECOIN_NETWORK: test
 
 on:
+  push:
+    branches:
+    - feature/*
   pull_request:
     branches:
-      - main
-      - release/*
+    - main
+    - release/*
 
 concurrency:
   group: full-service-dev-cd-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  metadata:
-    runs-on: [self-hosted, Linux, small]
-    outputs:
-      namespace: ${{ steps.meta.outputs.namespace }}
-      tag: ${{ steps.meta.outputs.tag }}
-      docker_tag: ${{ steps.meta.outputs.docker_tag }}
-      docker_org: ${{ env.DOCKER_ORG }}
-      chart_repo: ${{ env.CHART_REPO }}
-    steps:
-      - name: Generate version metadata
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        id: meta
-        with:
-          action: generate-metadata
-          prefix: fs
-
   build:
+    strategy:
+      matrix:
+        network:
+        - chain_id: test
+        # - chain_id: main
     runs-on: [self-hosted, Linux, large-cd]
     container:
       image: mobilecoin/rust-sgx-base:v0.0.25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-      - name: Cache rust build binaries
-        id: rust_artifact_cache
-        uses: ./.github/actions/mobilecoin-cache-rust-binaries
-        with:
-          cache_buster: ${{ secrets.CACHE_BUSTER }}
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        additional_keys: ${{ matrix.network.chain_id }}
 
-      # Skip the following steps if we already have binaries.
-      - name: Cache cargo packages
-        if: "! steps.rust_artifact_cache.outputs.cache-hit"
-        uses: ./.github/actions/mobilecoin-cache-cargo-package
-        with:
-          cache_buster: ${{ secrets.CACHE_BUSTER }}
+    # Skip the following steps if we already have binaries.
+    - name: Cache cargo packages
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      uses: mobilecoinofficial/gh-actions/cache-cargo-packages@v0
+      with:
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        additional_keys: ${{ matrix.network.chain_id }}
 
-      - name: Set Git Safe Directory
-        run: git config --global --add safe.directory /__w/full-service/full-service/
+    - name: Build all binaries
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      env:
+        BUILD_OPTIONS: "--locked"
+      run: |
+        id
+        git config --global -l --show-origin
+        pwd
+        tools/build-fs.sh ${{ matrix.network.chain_id }}
 
-      - name: Build all binaries
-        if: "! steps.rust_artifact_cache.outputs.cache-hit"
-        env:
-          BUILD_OPTIONS: "--locked"
-          CSS_JSON_FILE: production-${{ env.MOBILECOIN_ENCLAVE_VERSION }}.json
-          WORK_DIR: ${{ github.workspace }}/target/release
-        run: |
-          # Set git permissions
-          git config --global --add safe.directory '*'
-          tools/build-fs.sh test
-
-      - name: Copy artifacts to cache
-        if: "! steps.rust_artifact_cache.outputs.cache-hit"
-        run: |
-          mkdir -p rust_build_artifacts
-          find target/release -maxdepth 1 -executable -type f -exec cp "{}" rust_build_artifacts/ \;
-          find target/release -maxdepth 1 -name "*.css" -exec cp "{}" rust_build_artifacts/ \;
+    - name: Copy artifacts to cache
+      if: "! steps.rust_artifact_cache.outputs.cache-hit"
+      run: |
+        mkdir -p rust_build_artifacts/${{ matrix.network.chain_id }}
+        find target/release -maxdepth 1 -executable -type f -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
+        find target/release -maxdepth 1 -name "*.css" -exec cp "{}" rust_build_artifacts/${{ matrix.network.chain_id }} \;
 
   publish:
+    strategy:
+      matrix:
+        network:
+        - chain_id: test
+          peer: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+          tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        # - chain_id: main
+        #   peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
+        #   tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/
     runs-on: [self-hosted, Linux, small]
     needs:
-      - metadata
-      - build
+    - build
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-      - name: Cache rust build binaries
-        id: rust_artifact_cache
-        uses: ./.github/actions/mobilecoin-cache-rust-binaries
-        with:
-          cache_buster: ${{ secrets.CACHE_BUSTER }}
+    - name: Generate version metadata
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      id: meta
+      with:
+        action: generate-metadata
+        prefix: fs
 
-      - name: Generate Docker Tags
-        id: docker_meta
-        uses: docker/metadata-action@v4
-        with:
-          flavor: |
-            latest=false
-            suffix=.test
-          images: ${{ env.DOCKER_ORG }}/full-service
-          tags: ${{ needs.metadata.outputs.docker_tag }}
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        additional_keys: ${{ matrix.network.chain_id }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+    - name: Generate Docker Tags
+      id: docker_meta
+      uses: docker/metadata-action@v4
+      with:
+        flavor: |
+          latest=false
+          suffix=-${{ matrix.network.chain_id }}
+        images: ${{ env.DOCKER_ORG }}/full-service
+        tags: ${{ steps.meta.outputs.docker_tag }}
 
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
-      - name: Publish to DockerHub
-        uses: docker/build-push-action@v4
-        with:
-          build-args: |
-            RUST_BIN_PATH=rust_build_artifacts
-            MC_CHAIN_ID=test
-            MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
-            MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
-          context: .
-          file: .internal-ci/docker/Dockerfile.full-service
-          labels: ${{ steps.docker_meta.outputs.labels }}
-          push: true
-          tags: ${{ steps.docker_meta.outputs.tags }}
+    - name: Login to DockerHub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Package and publish chart
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: helm-publish
-          chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-          chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-          chart_repo: ${{ env.CHART_REPO }}
-          chart_app_version: ${{ needs.metadata.outputs.tag }}.test
-          chart_version: ${{ needs.metadata.outputs.tag }}.test
-          chart_path: .internal-ci/helm/full-service
+    - name: Publish to DockerHub
+      uses: docker/build-push-action@v4
+      with:
+        build-args: |
+          RUST_BIN_PATH=rust_build_artifacts/${{ matrix.network.chain_id }}
+          MC_CHAIN_ID=${{ matrix.network.chain_id }}
+          MC_PEER=${{ matrix.network.peer }}
+          MC_TX_SOURCE_URL=${{ matrix.network.tx_source_url }}
+        context: .
+        file: .internal-ci/docker/Dockerfile.full-service
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        push: true
+        tags: ${{ steps.docker_meta.outputs.tags }}
+
+    - name: Package and publish "full-service" chart
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-publish
+        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_app_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_path: .internal-ci/helm/full-service
+
+    - name: Package and publish "full-service-mirror" chart
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-publish
+        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_app_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_path: .internal-ci/helm/full-service-mirror
 
   deploy:
+    strategy:
+      matrix:
+        network:
+        - chain_id: test
+        # - chain_id: main
+        chart:
+        - full-service
+        - full-service-mirror
     runs-on: [self-hosted, Linux, small]
     needs:
-      - metadata
-      - publish
+    - publish
+    env:
+      BASE_PATH: .tmp/
     steps:
-      - name: Create namespace
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: namespace-create
-          namespace: ${{ needs.metadata.outputs.namespace }}
-          rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-          rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-          rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-      - name: Deploy "simple" full-service
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: helm-deploy
-          chart_repo: ${{ env.CHART_REPO }}
-          chart_name: full-service
-          chart_version: ${{ needs.metadata.outputs.tag }}.test
-          chart_set: |
-            --set=persistence.enabled=false
-          release_name: full-service
-          namespace: ${{ needs.metadata.outputs.namespace }}
-          rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-          rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-          rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+    - name: Generate version metadata
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      id: meta
+      with:
+        action: generate-metadata
+        prefix: ${{ matrix.chart }}-${{ matrix.network.chain_id }}
+
+    - name: Create namespace
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: namespace-create
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
+    - name: Generate secrets files
+      run: |
+        mkdir -p "${BASE_PATH}/secrets"
+        echo -n "${{ secrets.MIRROR_PRIVATE_PEM }}" > "${BASE_PATH}/secrets/mirror-private.pem"
+
+    - name: Create mirror-private secrets
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: secrets-create-from-file
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+        object_name: private-client-msg-encryption
+        src: "${{ env.BASE_PATH }}/secrets"
+
+    - name: Generate full-service values file
+      run: |
+        mkdir -p "${BASE_PATH}"
+        cat <<EOF > "${BASE_PATH}/values.yaml"
+        fullService:
+          persistence:
+            enabled: false
+        validator:
+          persistence:
+            enabled: false
+        config:
+          ledgerDbURL: https://mcdeveu1ledger.blob.core.windows.net/${{ matrix.network.chain_id }}/data.mdb
+        EOF
+
+    - name: Deploy chart
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-deploy
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_name: ${{ matrix.chart }}
+        chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+        chart_values: ${{ env.BASE_PATH }}/values.yaml
+        release_name: ${{ matrix.chart }}
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
   # This will need to run on our self-hosted so it can connect to the privately deployed full-service.
   integration-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - chain_id: test
+          chart: full-service
+          fog_report_url: fog://fog.test.mobilecoin.com
+          mnemonic_secret: TEST_ACCOUNT_MNEMONIC_1
+          account_first_block_var: TEST_ACCOUNT_FIRST_BLOCK_INDEX_1
+          fog_authority_spki_var: TEST_FOG_AUTHORITY_SPKI
+        - chain_id: test
+          chart: full-service-mirror
+          fog_report_url: fog://fog.test.mobilecoin.com
+          mnemonic_secret: TEST_ACCOUNT_MNEMONIC_2
+          account_first_block_var: TEST_ACCOUNT_FIRST_BLOCK_INDEX_2
+          fog_authority_spki_var: TEST_FOG_AUTHORITY_SPKI
+        # - chain_id: main
+        #   fog_report_url: fog://fog.prod.mobilecoinww.com
+        #   mnemonic_secret: MAIN_ACCOUNT_MNEMONIC
+        #   account_first_block_var: MAIN_ACCOUNT_FIRST_BLOCK_INDEX
+        #   fog_authority_spki_var: MAIN_FOG_AUTHORITY_SPKI
     runs-on: [self-hosted, Linux, small]
     needs:
-      - metadata
-      - deploy
+    - deploy
     container:
-      image: mobilecoin/builder-install:v0.0.23
+      image: python:3.11
     env:
       POETRY_HOME: /opt/poetry
-      MC_FULL_SERVICE_HOST: http://full-service.${{ needs.metadata.outputs.namespace }}
       MC_WALLET_FILE: ${{ github.workspace }}/.tmp/wallet.json
-      MC_FOG_REPORT_URL: fog://fog.test.mobilecoin.com
-      MC_FOG_AUTHORITY_SPKI: MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+    - name: "Network: ${{ matrix.network.chain_id }} Chart: ${{ matrix.network.chart }}"
+      run: |
+        true
 
-      - name: Setup testnet wallet file
-        run: |
-          mkdir -p "$(dirname "${MC_WALLET_FILE}")"
-          echo '${{ secrets.TEST_ACCOUNT_WALLET_JSON }}' > "${MC_WALLET_FILE}"
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-      - name: Install Python Poetry env/package manager
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
+    - name: Generate version metadata
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      id: meta
+      with:
+        action: generate-metadata
+        prefix: ${{ matrix.network.chart }}-${{ matrix.network.chain_id }}
 
-      - name: Test full-service - TestNet
-        shell: bash
-        run: |
-          # Set git permissions
-          git config --global --add safe.directory '*'
+    - name: Setup wallet file
+      run: |
+        mkdir -p "$(dirname "${MC_WALLET_FILE}")"
+        cat << EOF > "${MC_WALLET_FILE}"
+        {
+            "name": "${{ matrix.network.mnemonic_secret }}",
+            "mnemonic": "${{ secrets[matrix.network.mnemonic_secret] }}",
+            "key_derivation_version": "2",
+            "first_block_index": ${{ vars[matrix.network.account_first_block_var] }},
+            "account_key": {
+              "fog_report_url": "${{ matrix.network.fog_report_url }}",
+              "fog_authority_spki": "${{ vars[matrix.network.fog_authority_spki_var] }}"
+            }
+        }
+        EOF
 
-          # Switch to testing directory and install dependencies.
-          pushd python || exit 1
-          "${POETRY_HOME}/bin/poetry" install
+    - name: Install Python Poetry env/package manager
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
 
-          # Run tests.
-          "${POETRY_HOME}/bin/poetry" run pytest -v
-          popd || exit 0
+    - name: Test full-service
+      env:
+        MC_FULL_SERVICE_HOST: http://full-service.${{ steps.meta.outputs.namespace }}.svc.cluster.local
+        MC_FULL_SERVICE_PORT: "9090"
+        MC_FOG_REPORT_URL: ${{ matrix.network.fog_report_url }}
+        MC_FOG_AUTHORITY_SPKI: ${{ vars[matrix.network.fog_authority_spki_var] }}
+      shell: bash
+      run: |
+        echo "MC_FULL_SERVICE_URL ${MC_FULL_SERVICE_URL}"
+        echo "MC_FOG_REPORT_URL ${MC_FOG_REPORT_URL}"
+        echo "MC_FOG_AUTHORITY_SPKI ${MC_FOG_AUTHORITY_SPKI}"
+
+        # Switch to testing directory and install dependencies.
+        pushd python || exit 1
+        "${POETRY_HOME}/bin/poetry" install
+
+        # Run tests.
+        "${POETRY_HOME}/bin/poetry" run pytest -v
+        popd || exit 0
+
 
   # remove the testing environment after all tests are run successfully when this
   #  is triggered from a PR.  For a feature branch, see dev-delete-cd.yaml
   cleanup-after-run:
     if: github.event_name == 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - chain_id: test
+        # - chain_id: main
+        chart:
+        - full-service
+        - full-service-mirror
     runs-on: [self-hosted, Linux, small]
     needs:
-      - metadata
-      - integration-test
+    - integration-test
     steps:
-      - name: Delete namespace
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: namespace-delete
-          namespace: ${{ needs.metadata.outputs.namespace }}
-          rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-          rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-          rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Generate version metadata
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      id: meta
+      with:
+        action: generate-metadata
+        prefix: ${{ matrix.chart }}-${{ matrix.network.chain_id }}
+
+    - name: Delete namespace
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: namespace-delete
+        namespace: ${{ steps.meta.outputs.namespace }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}

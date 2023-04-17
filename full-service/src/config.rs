@@ -73,7 +73,7 @@ pub struct APIConfig {
 
     /// Path to watcher db (lmdb). When provided, watcher syncing will take
     /// place.
-    #[structopt(long)]
+    #[clap(long, value_parser, env = "MC_WATCHER_DB")]
     pub watcher_db: Option<PathBuf>,
 
     /// Allowed CORS origin. When provided, the http server will add CORS

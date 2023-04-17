@@ -7,6 +7,9 @@ imagePullSecrets:
 
 image:
   org: mobilecoin
+  name: full-service
+  tag: ''
+  pullPolicy: Always
 
 ## config: is optional. The built containers are batteries included and have the appropriate chainId, peers and txSourceURLs defined by default. config is provided here so you can override if needed.
 
@@ -39,10 +42,6 @@ config:
 
 fullService:
   replicaCount: 1
-  image:
-    org: ''
-    name: full-service
-    tag: ''
   podAnnotations:
     fluentbit.io/include: 'true'
   resources: {}
@@ -54,25 +53,71 @@ fullService:
     spec:
       storageClassName: fast
       accessModes:
-        - "ReadWriteOnce"
+      - "ReadWriteOnce"
+      resources:
+        requests:
+          storage: 128Gi
+
+  secret:
+    name: full-service-wallets
+    data: {}
+      # add an optional list of accounts to import at start up.
+      # Add the secret inline with --set-file=fullService.secret.data."wallets\.json"=.mob/wallets.json
+      # Or define inline:
+      # wallets.json: |
+        # {
+        #   "accounts": [
+        #     {
+        #       "name": ""
+        #       "mnemonic": ""
+        #       "main_address": ""
+        #     }
+        #   ]
+        # }
+
+private:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  secret:
+    name: private-client-msg-encryption
+    data: {}
+      # The mirror setup uses an additional RSA 4096 key to send encrypted message payloads.
+      # Add an external secret called .Values.private.secret.name with a value of mirror-private.pem: ""
+      # OR
+      # Add the secret inline with --set-file=private.secret.data."mirror-private\.pem"=mirror-private.pem
+
+public:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ledger-validator
+validator:
+  replicaCount: 1
+  podAnnotations:
+    fluentbit.io/include: 'true'
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  persistence:
+    enabled: true
+    spec:
+      storageClassName: fast
+      accessModes:
+      - "ReadWriteOnce"
       resources:
         requests:
           storage: 128Gi
   configMap:
-    name: full-service
     data: {}
 
-backupsSidecar:
-  enabled: false
-  image:
-    org: ''
-    name: infra-replication-sidecar
-    tag: v0.0.1
-  # Create backups-sidecar secret or set external 'false'
-  secret:
-    external: true
-    name: backups-sidecar
-    data:
-      ENCRYPT_KEY: <file encryption passphrase>
-      AZURE_STORAGE_ACCOUNT: <azure storage account name>
-      AZURE_STORAGE_KEY: <azure storage account access key>
