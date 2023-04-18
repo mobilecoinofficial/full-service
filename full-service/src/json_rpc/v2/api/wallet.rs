@@ -1210,15 +1210,10 @@ where
         }
         JsonCommandRequest::sync_view_only_account {
             account_id,
-            completed_txos,
-            next_subaddress_index,
+            synced_txos,
         } => {
             service
-                .sync_account(
-                    &AccountID(account_id),
-                    completed_txos,
-                    next_subaddress_index.parse::<u64>().map_err(format_error)?,
-                )
+                .sync_account(&AccountID(account_id), synced_txos)
                 .map_err(format_error)?;
 
             JsonCommandResponse::sync_view_only_account

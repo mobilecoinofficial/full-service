@@ -7,9 +7,8 @@ use std::ops::DerefMut;
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
-        models::{Account, AssignedSubaddress, Txo},
+        models::{Account, Txo},
         txo::TxoModel,
         WalletDbError,
     },
@@ -36,7 +35,7 @@ use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::ring_signature::KeyImage;
+use mc_transaction_signer::types::TxoSynced;
 
 #[derive(Display, Debug)]
 pub enum AccountServiceError {
@@ -316,8 +315,7 @@ pub trait AccountService {
     fn sync_account(
         &self,
         account_id: &AccountID,
-        txo_ids_and_key_images: Vec<(String, String)>,
-        next_subaddress_index: u64,
+        synced_txos: Vec<TxoSynced>,
     ) -> Result<(), AccountServiceError>;
 
     /// Remove an account from the wallet.
@@ -614,8 +612,7 @@ where
     fn sync_account(
         &self,
         account_id: &AccountID,
-        txo_ids_and_key_images: Vec<(String, String)>,
-        next_subaddress_index: u64,
+        synced_txos: Vec<TxoSynced>,
     ) -> Result<(), AccountServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
@@ -627,17 +624,13 @@ where
             ));
         }
 
-        for (txo_id_hex, key_image_encoded) in txo_ids_and_key_images {
-            let key_image: KeyImage = mc_util_serial::decode(&hex::decode(key_image_encoded)?)?;
-            let spent_block_index = self.ledger_db.check_key_image(&key_image)?;
-            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, conn)?;
-        }
-
-        for _ in account.next_subaddress_index(conn)?..next_subaddress_index {
-            AssignedSubaddress::create_next_for_account(
-                &account_id.to_string(),
-                "Recovered In Account Sync",
-                &self.ledger_db,
+        for synced_txo in synced_txos {
+            let spent_block_index = self.ledger_db.check_key_image(&synced_txo.key_image)?;
+            let ristretto_public: &RistrettoPublic = synced_txo.tx_out_public_key.as_ref();
+            Txo::update_key_image_by_pubkey(
+                &ristretto_public.into(),
+                &synced_txo.key_image,
+                spent_block_index,
                 conn,
             )?;
         }

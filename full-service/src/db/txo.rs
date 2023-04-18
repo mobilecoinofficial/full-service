@@ -703,6 +703,13 @@ pub trait TxoModel {
     /// # Returns
     /// * TxOutMembershipProof 
     fn membership_proof(&self, ledger_db: &LedgerDB) -> Result<TxOutMembershipProof, WalletDbError>;
+
+    fn update_key_image_by_pubkey(
+        public_key: &CompressedRistrettoPublic,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: Conn,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -1942,6 +1949,26 @@ impl TxoModel for Txo {
             .clone();
 
         Ok(membership_proof)
+    }
+
+    fn update_key_image_by_pubkey(
+        public_key: &CompressedRistrettoPublic,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        let pubkey = &mc_util_serial::encode(public_key);
+
+        let txo = txos::table
+            .filter(txos::public_key.eq(pubkey))
+            .first::<Txo>(conn)?;
+
+        let txo = Txo::get(&txo.id, conn)?;
+        Self::update_key_image(&txo.id, key_image, spent_block_index, conn)?;
+
+        Ok(())
     }
 }
 
