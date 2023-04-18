@@ -16,7 +16,7 @@ pub fn create_account() -> (Mnemonic, AccountInfo) {
     let account = get_account_from_mnemonic(mnemonic.clone());
     let account_info = AccountInfo {
         view_private: account.view_private_key().clone(),
-        spend_public: account.spend_public_key().clone(),
+        spend_public: account.spend_public_key(),
         account_index: 0,
     };
 
@@ -29,7 +29,7 @@ pub fn get_account(mnemonic: &str) -> Result<AccountInfo> {
 
     Ok(AccountInfo {
         view_private: account.view_private_key().clone(),
-        spend_public: account.spend_public_key().clone(),
+        spend_public: account.spend_public_key(),
         account_index: 0,
     })
 }
@@ -63,9 +63,9 @@ pub fn sign_tx(mnemonic: &str, unsigned_tx_proposal: UnsignedTxProposal) -> Resu
         account.view_private_key().as_ref(),
     );
 
-    Ok(unsigned_tx_proposal
+    unsigned_tx_proposal
         .sign(&account_key, None)
-        .map_err(|e| anyhow!(e))?)
+        .map_err(|e| anyhow!(e))
 }
 
 fn get_account_from_mnemonic(mnemonic: Mnemonic) -> Account {
