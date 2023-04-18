@@ -656,6 +656,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{models::Txo, txo::TxoModel},
+        service::address::AddressService,
         test_utils::{
             add_block_to_ledger_db, create_test_received_txo, generate_n_blocks_on_ledger,
             get_empty_test_ledger, get_test_ledger, manually_sync_account, setup_wallet_service,
@@ -1163,19 +1164,12 @@ mod tests {
             key_image: KeyImage::from(rng.next_u64()),
         };
 
-        let txo_synced_2 = TxoSynced {
-            tx_out_public_key: RistrettoPublic::try_from(&orphaned_txos[0].public_key().unwrap())
-                .unwrap()
-                .into(),
-            key_image: KeyImage::from(rng.next_u64()),
-        };
-
         service
-            .sync_account(&account_id, vec![txo_synced_1, txo_synced_2])
+            .sync_account(&account_id, vec![txo_synced_1])
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 2);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),
@@ -1202,7 +1196,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(orphaned_txos.len(), 0);
+        assert_eq!(orphaned_txos.len(), 1);
 
         let unspent_txos = Txo::list_unspent(
             Some(&account_id.to_string()),
@@ -1216,6 +1210,38 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(unspent_txos.len(), 2);
+        assert_eq!(unspent_txos.len(), 1);
+
+        service
+            .assign_address_for_account(&account_id, None)
+            .unwrap();
+
+        let unverified_txos = Txo::list_unverified(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
+
+        assert_eq!(unverified_txos.len(), 1);
+
+        let txo_synced_2 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&orphaned_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
+
+        service
+            .sync_account(&account_id, vec![txo_synced_2])
+            .unwrap();
+
+        let view_only_account = service.get_account(&account_id).unwrap();
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
     }
 }
