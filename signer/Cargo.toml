@@ -3,6 +3,7 @@ name = "mc-signer"
 authors = ["MobileCoin"]
 version = "2.6.0"
 edition = "2021"
+build = "build.rs"
 
 [[bin]]
 name = "signer"
@@ -47,3 +48,7 @@ strum_macros = "0.24.3"
 subtle = { version = "2.4.1", default-features = false, features = ["i128"] }
 tiny-bip39 = "1.0"
 zeroize = { version = "1", default-features = false }
+
+[build-dependencies]
+anyhow = "1.0"
+vergen = { version = "8.1.1", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }

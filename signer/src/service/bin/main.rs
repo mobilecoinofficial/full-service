@@ -1,6 +1,6 @@
 use std::{net::IpAddr, str::FromStr};
 
-use mc_signer::service::api::signer_service_api;
+use mc_signer::service::api::{signer_service_api, version};
 
 use clap::Parser;
 use rocket::{self, launch, routes, Build, Rocket};
@@ -32,5 +32,5 @@ fn rocket() -> Rocket<Build> {
         ..rocket::Config::default()
     };
 
-    rocket::custom(rocket_config).mount("/", routes![signer_service_api])
+    rocket::custom(rocket_config).mount("/", routes![signer_service_api, version])
 }
