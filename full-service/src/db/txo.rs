@@ -157,6 +157,21 @@ impl From<i16> for RTHMemoType {
     }
 }
 
+impl From<RTHMemoType> for i16 {
+    fn from(val: RTHMemoType) -> Self {
+        match val {
+            RTHMemoType::AuthenticatedSender => BigEndian::read_i16(&[0x01, 0x00]),
+            RTHMemoType::AuthenticatedSenderWithPaymentRequestId => {
+                BigEndian::read_i16(&[0x01, 0x01])
+            }
+            RTHMemoType::AuthenticatedSenderWithPaymentIntentId => {
+                BigEndian::read_i16(&[0x01, 0x02])
+            }
+            _ => 0i16, // RTHMemoType::Unsupported
+        }
+    }
+}
+
 /// A unique ID derived from a TxOut in the ledger.
 #[derive(Debug)]
 pub struct TxoID(pub String);
@@ -748,7 +763,8 @@ impl TxoModel for Txo {
         }
 
         if let Some(memo_type) = memo_type {
-            query = query.filter(txos::memo_type.eq(memo_type as i16));
+            let memo_type_i16: i16 = memo_type.into();
+            query = query.filter(txos::memo_type.eq(memo_type_i16));
         }
 
         if let Some(memo_address_hash) = memo_address_hash {
@@ -1730,7 +1746,9 @@ mod tests {
     use mc_crypto_rand::RngCore;
     use mc_fog_report_validation::MockFogPubkeyResolver;
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{tokens::Mob, Amount, MemoPayload, Token, TokenId};
+    use mc_transaction_core::{
+        get_tx_out_shared_secret, tokens::Mob, Amount, MemoPayload, Token, TokenId,
+    };
     use mc_transaction_extra::{AuthenticatedSenderMemo, SenderMemoCredential};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
@@ -2813,6 +2831,10 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
+        // Seed Txos
+        let mut src_txos = Vec::new();
+        let view_public_key = RistrettoPublic::from_random(&mut rng);
+
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
         let (_account_id, _address) = Account::create_from_root_entropy(
@@ -2827,74 +2849,80 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-
-        // Seed Txos
-        let mut src_txos = Vec::new();
-        for i in 0..2 {
-            let (_txo_id, txo, _key_image) = create_test_received_txo(
-                &account_key,
-                i,
-                Amount::new(i * MOB, Mob::ID),
-                i,
-                &mut rng,
-                &wallet_db,
-                None,
-            );
-            src_txos.push(txo);
-        }
-
         let sender_memo_creds = SenderMemoCredential::from(&account_key);
 
-        let view_public_key = RistrettoPublic::from_random(&mut rng);
-        let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
-        let asm = AuthenticatedSenderMemo::new(
-            &sender_memo_creds,
-            &view_public_key,
-            &tx_out_spend_public_key.into(),
-        );
-        let payload_option = Some(MemoPayload::from(asm));
-        for i in 0..3 {
-            let (_txo_id, txo, _key_image) = create_test_received_txo(
-                &account_key,
-                i,
-                Amount::new(i * MOB, Mob::ID),
-                i,
-                &mut rng,
-                &wallet_db,
-                payload_option,
+        for j in 0..2 {
+            let root_id = RootIdentity::from_random(&mut rng);
+            let account_key = AccountKey::from(&root_id);
+            let (_account_id, _address) = Account::create_from_root_entropy(
+                &root_id.root_entropy,
+                Some(0),
+                None,
+                None,
+                "",
+                "".to_string(),
+                "".to_string(),
+                "".to_string(),
+                &wallet_db.get_conn().unwrap(),
+            )
+            .unwrap();
+            let sender_memo_creds = SenderMemoCredential::from(&account_key);
+
+            let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
+            let asm = AuthenticatedSenderMemo::new(
+                &sender_memo_creds,
+                &view_public_key,
+                &tx_out_spend_public_key.into(),
             );
-            src_txos.push(txo);
+
+            let payload_option = Some(MemoPayload::from(asm.clone()));
+            for i in 0..3 {
+                let (_txo_id, txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    0,
+                    Amount::new(i * MOB, Mob::ID),
+                    3 + i + j * 4,
+                    &mut rng,
+                    &wallet_db,
+                    payload_option,
+                );
+
+                let ss = get_tx_out_shared_secret(
+                    &account_key.view_private_key(),
+                    &RistrettoPublic::try_from(&txo.public_key).unwrap(),
+                );
+                let memo = txo.e_memo.unwrap().decrypt(&ss);
+                let memo_type = MemoType::try_from(&memo).unwrap();
+                let tx_addr_hash = match memo_type {
+                    AuthenticatedSender(asm) => Some(asm.sender_address_hash()),
+                    _ => None,
+                }
+                .unwrap();
+                assert_eq!(tx_addr_hash, asm.sender_address_hash());
+
+                src_txos.push(txo);
+            }
         }
 
-        let view_public_key2 = RistrettoPublic::from_random(&mut rng);
-        assert_ne!(view_public_key, view_public_key2);
-        let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
-        let asm = AuthenticatedSenderMemo::new(
-            &sender_memo_creds,
-            &view_public_key2,
-            &tx_out_spend_public_key.into(),
-        );
-        let payload_option = Some(MemoPayload::from(asm));
-        for i in 0..4 {
-            let (_txo_id, txo, _key_image) = create_test_received_txo(
-                &account_key,
-                i,
-                Amount::new(i * MOB, Mob::ID),
-                i,
-                &mut rng,
-                &wallet_db,
-                payload_option,
+        let all_txos = Txo::list(
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &wallet_db.get_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(all_txos.len(), 6);
+        for t in all_txos.iter() {
+            assert_eq!(
+                RTHMemoType::from(t.memo_type),
+                RTHMemoType::AuthenticatedSender
             );
-            src_txos.push(txo);
         }
-
-        // Take the txo and decrypt the memo (using shared secret), look at it and try
-        // to access the address hash bytes and assert that they're correct
-
-        // 3 memo-free txos
-        // 9 authenticated sender memo txos
-        // 5  txos with a the specified address hash
-        // 12 total txos
 
         let txos_by_type = Txo::list(
             None,
@@ -2908,7 +2936,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(txos_by_type.len(), 9);
+        assert_eq!(txos_by_type.len(), 6);
 
         let address_hash_for_query = hex::encode(sender_memo_creds.address_hash.as_ref());
 
@@ -2924,7 +2952,7 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        assert_eq!(txos_by_memo_addr.len(), 5);
+        assert_eq!(txos_by_memo_addr.len(), 3);
     }
 
     #[test_with_logger]
