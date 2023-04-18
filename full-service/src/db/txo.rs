@@ -752,9 +752,8 @@ impl TxoModel for Txo {
         }
 
         if let Some(memo_address_hash) = memo_address_hash {
-            if let Ok(memo_address_bytes) = hex::decode(memo_address_hash) {
-                query = query.filter(txos::address_hash.eq(memo_address_bytes));
-            }
+            let memo_address_bytes = hex::decode(memo_address_hash)?;
+            query = query.filter(txos::address_hash.eq(memo_address_bytes));
         }
 
         Ok(query.order(txos::received_block_index.desc()).load(conn)?)
@@ -2849,10 +2848,10 @@ mod tests {
             account_key.default_subaddress_spend_private(),
         );
 
+        let sender_memo_creds = SenderMemoCredential::From(&account_key);
+
         let view_public_key = RistrettoPublic::from_random(&mut rng);
         let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
-        // TODO: what is the right syntax to leverage From<&AccountKey> for
-        // SenderMemoCredential??
         let asm = AuthenticatedSenderMemo::new(
             &sender_memo_creds,
             &view_public_key,
@@ -2875,8 +2874,6 @@ mod tests {
         let view_public_key2 = RistrettoPublic::from_random(&mut rng);
         assert_ne!(view_public_key, view_public_key2);
         let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
-        // TODO: what is the right syntax to leverage From<&AccountKey> for
-        // SenderMemoCredential??
         let asm = AuthenticatedSenderMemo::new(
             &sender_memo_creds,
             &view_public_key2,
@@ -2915,7 +2912,8 @@ mod tests {
         .unwrap();
         assert_eq!(txos_by_type.len(), 9);
 
-        let address_hash_for_query = sender_memo_creds.address_hash.to_string();
+        let address_hash_for_query = hex::encode(sender_memo_creds.address_hash.as_ref());
+
         let txos_by_memo_addr = Txo::list(
             None,
             None,
