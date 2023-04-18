@@ -1,4 +1,6 @@
+use anyhow::{anyhow, Result};
 use bip39::{Language, Mnemonic, MnemonicType};
+
 use mc_account_keys::AccountKey;
 use mc_core::{account::Account, slip10::Slip10KeyGenerator};
 use mc_full_service::service::models::tx_proposal::{TxProposal, UnsignedTxProposal};
@@ -21,19 +23,19 @@ pub fn create_account() -> (Mnemonic, AccountInfo) {
     (mnemonic, account_info)
 }
 
-pub fn get_account(mnemonic: &str) -> AccountInfo {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English).unwrap();
+pub fn get_account(mnemonic: &str) -> Result<AccountInfo> {
+    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
     let account = get_account_from_mnemonic(mnemonic);
 
-    AccountInfo {
+    Ok(AccountInfo {
         view_private: account.view_private_key().clone(),
         spend_public: account.spend_public_key().clone(),
         account_index: 0,
-    }
+    })
 }
 
-pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Vec<TxoSynced> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English).unwrap();
+pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
+    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
     let account = get_account_from_mnemonic(mnemonic);
 
     let mut synced: Vec<TxoSynced> = Vec::new();
@@ -42,10 +44,7 @@ pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Vec<TxoSynced> {
         tx_out_public_key,
     } in txos
     {
-        let key_image = match account.compute_key_image(subaddress, &tx_out_public_key) {
-            Ok(key_image) => key_image,
-            Err(e) => todo!(),
-        };
+        let key_image = account.compute_key_image(subaddress, &tx_out_public_key)?;
 
         synced.push(TxoSynced {
             tx_out_public_key,
@@ -53,18 +52,20 @@ pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Vec<TxoSynced> {
         });
     }
 
-    synced
+    Ok(synced)
 }
 
-pub fn sign_tx(mnemonic: &str, unsigned_tx_proposal: UnsignedTxProposal) -> TxProposal {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English).unwrap();
+pub fn sign_tx(mnemonic: &str, unsigned_tx_proposal: UnsignedTxProposal) -> Result<TxProposal> {
+    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
     let account = get_account_from_mnemonic(mnemonic);
     let account_key = AccountKey::new(
         account.spend_private_key().as_ref(),
         account.view_private_key().as_ref(),
     );
 
-    unsigned_tx_proposal.sign(&account_key, None).unwrap()
+    Ok(unsigned_tx_proposal
+        .sign(&account_key, None)
+        .map_err(|e| anyhow!(e))?)
 }
 
 fn get_account_from_mnemonic(mnemonic: Mnemonic) -> Account {

@@ -18,7 +18,7 @@ pub enum JsonCommandResponse {
         account_info: AccountInfo,
     },
     get_account {
-        info: AccountInfo,
+        account_info: AccountInfo,
     },
     sign_tx {
         tx_proposal: TxProposal,
