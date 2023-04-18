@@ -2843,11 +2843,6 @@ mod tests {
             src_txos.push(txo);
         }
 
-        let sender_memo_creds = SenderMemoCredential::new_from_address_and_spend_private_key(
-            &account_key.default_subaddress(),
-            account_key.default_subaddress_spend_private(),
-        );
-
         let sender_memo_creds = SenderMemoCredential::from(&account_key);
 
         let view_public_key = RistrettoPublic::from_random(&mut rng);
