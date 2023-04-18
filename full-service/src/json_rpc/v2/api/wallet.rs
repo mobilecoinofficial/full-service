@@ -543,7 +543,7 @@ where
                 // We can guarantee that subaddress index will exist because the query for
                 // unverified txos only returns txos that have a subaddress
                 // index but not a key image.
-                let subaddress_index = txo.subaddress_index.unwrap().clone() as u64;
+                let subaddress_index = txo.subaddress_index.unwrap() as u64;
                 unsynced_txos.push(TxoUnsynced {
                     subaddress: subaddress_index,
                     tx_out_public_key: txo_pubkey.into(),
