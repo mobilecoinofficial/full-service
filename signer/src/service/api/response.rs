@@ -1,4 +1,7 @@
-use mc_full_service::json_rpc::json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait;
+use mc_full_service::json_rpc::{
+    json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
+    v2::models::tx_proposal::TxProposal,
+};
 
 use mc_transaction_signer::types::{AccountInfo, TxoSynced};
 
@@ -12,13 +15,15 @@ use serde::{Deserialize, Serialize};
 pub enum JsonCommandResponse {
     create_account {
         mnemonic: String,
+        account_info: AccountInfo,
     },
     get_account {
         info: AccountInfo,
     },
-    sign_tx {},
+    sign_tx {
+        tx_proposal: TxProposal,
+    },
     sync_txos {
-        account_id: String,
         txos_synced: Vec<TxoSynced>,
     },
 }

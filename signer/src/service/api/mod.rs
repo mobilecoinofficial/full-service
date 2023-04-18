@@ -6,7 +6,10 @@ use mc_full_service::json_rpc::{
 
 use rocket::{post, serde::json::Json};
 
-use self::{request::JsonCommandRequest, response::JsonCommandResponse};
+use crate::{
+    service,
+    service::api::{request::JsonCommandRequest, response::JsonCommandResponse},
+};
 
 pub mod request;
 pub mod response;
@@ -55,19 +58,28 @@ fn signer_service_api_inner(
 
     let response = match command {
         JsonCommandRequest::create_account {} => {
-            todo!()
+            let (mnemonic, account_info) = service::create_account();
+            JsonCommandResponse::create_account {
+                mnemonic: mnemonic.to_string(),
+                account_info: account_info,
+            }
         }
         JsonCommandRequest::get_account { mnemonic } => {
-            todo!()
+            let account_info = service::get_account(&mnemonic);
+            JsonCommandResponse::get_account { info: account_info }
         }
         JsonCommandRequest::sign_tx {
             mnemonic,
             unsigned_tx,
         } => {
-            todo!()
+            let signed_tx = service::sign_tx(&mnemonic, unsigned_tx.try_into().unwrap());
+            JsonCommandResponse::sign_tx {
+                tx_proposal: (&signed_tx).try_into().unwrap(),
+            }
         }
         JsonCommandRequest::sync_txos { mnemonic, txos } => {
-            todo!()
+            let txos_synced = service::sync_txos(&mnemonic, txos);
+            JsonCommandResponse::sync_txos { txos_synced }
         }
     };
 
