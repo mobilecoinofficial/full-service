@@ -524,7 +524,7 @@ where
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
-                    Some(account_id.clone()),
+                    Some(account_id),
                     None,
                     Some(TxoStatus::Unverified),
                     None,
