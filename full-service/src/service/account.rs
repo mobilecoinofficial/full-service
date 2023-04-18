@@ -666,10 +666,10 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_rand::RngCore;
-    use mc_transaction_core::{tokens::Mob, Amount, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::convert::TryInto;
+    use std::convert::{TryFrom, TryInto};
 
     #[test_with_logger]
     fn test_resync_account(logger: Logger) {
@@ -1156,24 +1156,22 @@ mod tests {
         let view_only_account = service.get_account(&account_id).unwrap();
         assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 2);
 
-        let key_image_1 = KeyImage::from(rng.next_u64());
-        let key_image_2 = KeyImage::from(rng.next_u64());
+        let txo_synced_1 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&unverified_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
 
-        let key_image_1_hex = hex::encode(mc_util_serial::encode(&key_image_1));
-        let key_image_2_hex = hex::encode(mc_util_serial::encode(&key_image_2));
-
-        let txo_id_hex_1 = unverified_txos[0].id.clone();
-        let txo_id_hex_2 = orphaned_txos[0].id.clone();
+        let txo_synced_2 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&orphaned_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
 
         service
-            .sync_account(
-                &account_id,
-                vec![
-                    (txo_id_hex_1, key_image_1_hex),
-                    (txo_id_hex_2, key_image_2_hex),
-                ],
-                3,
-            )
+            .sync_account(&account_id, vec![txo_synced_1, txo_synced_2])
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
