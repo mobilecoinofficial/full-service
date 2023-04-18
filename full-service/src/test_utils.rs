@@ -371,12 +371,12 @@ pub fn create_test_txo_for_recipient(
     recipient_subaddress_index: u64,
     amount: Amount,
     rng: &mut StdRng,
-    memo_payload: Option<MemoPayload>,
+    _memo_payload: Option<MemoPayload>,
 ) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = match memo_payload {
+    let tx_out = match _memo_payload {
         Some(memo_payload) => TxOut::new_with_memo(
             BlockVersion::MAX,
             amount,
@@ -415,8 +415,13 @@ pub fn create_test_received_txo(
     wallet_db: &WalletDb,
     memo_payload: Option<MemoPayload>,
 ) -> (String, TxOut, KeyImage) {
-    let (txo, key_image) =
-        create_test_txo_for_recipient(account_key, recipient_subaddress_index, amount, rng, None);
+    let (txo, key_image) = create_test_txo_for_recipient(
+        account_key,
+        recipient_subaddress_index,
+        amount,
+        rng,
+        memo_payload,
+    );
 
     let txo_id_hex = Txo::create_received(
         txo.clone(),
