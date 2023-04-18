@@ -2848,7 +2848,7 @@ mod tests {
             account_key.default_subaddress_spend_private(),
         );
 
-        let sender_memo_creds = SenderMemoCredential::From(&account_key);
+        let sender_memo_creds = SenderMemoCredential::from(&account_key);
 
         let view_public_key = RistrettoPublic::from_random(&mut rng);
         let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
@@ -2892,6 +2892,9 @@ mod tests {
             );
             src_txos.push(txo);
         }
+
+        // Take the txo and decrypt the memo (using shared secret), look at it and try
+        // to access the address hash bytes and assert that they're correct
 
         // 3 memo-free txos
         // 9 authenticated sender memo txos

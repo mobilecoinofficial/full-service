@@ -4,6 +4,7 @@ use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
 use mc_transaction_extra;
 
 use displaydoc::Display;
+use hex::FromHexError;
 use mc_transaction_extra::MemoDecodingError;
 
 #[derive(Display, Debug)]
@@ -157,6 +158,9 @@ pub enum WalletDbError {
 
     /// Expected to find a key image for a txo with id: {0}
     MissingKeyImageForInputTxo(String),
+
+    /// Hex Error
+    FromHexError(FromHexError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -228,5 +232,11 @@ impl From<mc_crypto_keys::KeyError> for WalletDbError {
 impl From<MemoDecodingError> for WalletDbError {
     fn from(src: MemoDecodingError) -> Self {
         Self::MemoDecodingError(src)
+    }
+}
+
+impl From<FromHexError> for WalletDbError {
+    fn from(src: FromHexError) -> Self {
+        Self::FromHexError(src)
     }
 }
