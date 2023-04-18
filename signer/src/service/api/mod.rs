@@ -4,7 +4,7 @@ use mc_full_service::json_rpc::{
     json_rpc_response::{format_invalid_request_error, JsonRPCError, JsonRPCResponse},
 };
 
-use rocket::{post, serde::json::Json};
+use rocket::{get, post, serde::json::Json};
 
 use crate::{
     service,
@@ -13,6 +13,17 @@ use crate::{
 
 pub mod request;
 pub mod response;
+
+#[get("/version")]
+pub fn version() -> serde_json::Value {
+    serde_json::json!({
+        "version": env!("CARGO_PKG_VERSION").to_string(),
+        "commit": env!("VERGEN_GIT_SHA"),
+        "build_date": env!("VERGEN_BUILD_DATE"),
+        "build_time": env!("VERGEN_BUILD_TIMESTAMP"),
+        "target": env!("VERGEN_CARGO_TARGET_TRIPLE"),
+    })
+}
 
 /// The route for the Transaction Signer Service API.
 #[post("/api", format = "json", data = "<command>")]

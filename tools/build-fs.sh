@@ -119,4 +119,6 @@ then
     echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
     cp "${target_dir}/release/full-service" "${WORK_DIR}"
     cp "${target_dir}/release/validator-service" "${WORK_DIR}"
+    cp "${target_dir}/release/signer" "${WORK_DIR}"
+    cp "${target_dir}/release/signer-service" "${WORK_DIR}"
 fi
