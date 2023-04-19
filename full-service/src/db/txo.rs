@@ -277,7 +277,7 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `status`                   | The status of Txos to filter on                               | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -303,8 +303,8 @@ pub trait TxoModel {
     ///
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.                                                      |
-    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.                                                      |
+    ///| `status`                   | The status of Txos to filter on                               | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -332,8 +332,8 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                                                                          |
-    ///| `status`                   | The status of Txos to filter on                             | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                    |                                                                                          |
+    ///| `status`                   | The status of Txos to filter on                               | Option in `Created`, `Orphaned`, `Pending`, `Secreted`, `Spent`, `Unspent`, `Unverified` |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
@@ -361,7 +361,7 @@ pub trait TxoModel {
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the key images and Txos from    | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the key images and Txos from      | Account must exist in the database. |
     ///| `token_id`       | The id of a supported type of token to filter on       |                                     |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     ///
@@ -379,8 +379,8 @@ pub trait TxoModel {
     ///
     ///| Name                       | Purpose                                                       | Notes                                                                                    |
     ///|----------------------------|---------------------------------------------------------------|------------------------------------------------------------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.                                                      |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                                                                          |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.                                                      |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                    |                                                                                          |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                                                                          |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                                                                          |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
@@ -408,8 +408,8 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                    |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -437,7 +437,7 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.  |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -463,8 +463,8 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                    |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -492,8 +492,8 @@ pub trait TxoModel {
     /// 
     ///| Name                       | Purpose                                                       | Notes                                |
     ///|----------------------------|---------------------------------------------------------------|--------------------------------------|
-    ///| `account_id_hex`           | The account id where the list of Txos from                  | Account must exist in the database.  |
-    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                  |                                      |
+    ///| `account_id_hex`           | The account id where the list of Txos from                    | Account must exist in the database.  |
+    ///| `assigned_subaddress_b58`  | The subaddress where the list of Txos from                    |                                      |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                      |
     ///| `min_received_block_index` | The minimum block index to query for received txos, inclusive |                                      |
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
@@ -522,9 +522,9 @@ pub trait TxoModel {
     /// 
     ///| Name                      | Purpose                                                    | Notes                               |
     ///|---------------------------|------------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex`          | The account id at which the list of Txos from            | Account must exist in the database. |
+    ///| `account_id_hex`          | The account id at which the list of Txos from              | Account must exist in the database. |
     ///| `max_spendable_value`     | The upper limit for the spendable TxOut value to filter on |                                     |
-    ///| `assigned_subaddress_b58` | The subaddress at which the list of Txos from            |                                     |
+    ///| `assigned_subaddress_b58` | The subaddress at which the list of Txos from              |                                     |
     ///| `token_id`                | The id of a supported type of token to filter on           |                                     |
     ///| `conn`                    | An reference to the pool connection of wallet database     |                                     |
     ///
@@ -547,7 +547,7 @@ pub trait TxoModel {
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the Txos from                   | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     /// 
     /// # Returns
@@ -560,7 +560,7 @@ pub trait TxoModel {
     /// 
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex` | The account id where the Txos from                   | Account must exist in the database. |
+    ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     /// 
     /// # Returns
@@ -587,7 +587,7 @@ pub trait TxoModel {
     ///
     ///| Name          | Purpose                                                | Notes |
     ///|---------------|--------------------------------------------------------|-------|
-    ///| `public_keys` | The public key where to retrieve Txos from           |       |
+    ///| `public_keys` | The public key where to retrieve Txos from             |       |
     ///| `conn`        | An reference to the pool connection of wallet database |       |
     /// 
     /// # Returns:
@@ -603,7 +603,7 @@ pub trait TxoModel {
     /// 
     ///| Name      | Purpose                                                | Notes |
     ///|-----------|--------------------------------------------------------|-------|
-    ///| `txo_ids` | The list of TxOut IDs from which to retrieve Txos    |       |
+    ///| `txo_ids` | The list of TxOut IDs from which to retrieve Txos      |       |
     ///| `conn`    | An reference to the pool connection of wallet database |       |
     ///
     /// # Returns:
@@ -616,8 +616,8 @@ pub trait TxoModel {
     ///
     ///| Name                  | Purpose                                                    | Notes                               |
     ///|-----------------------|------------------------------------------------------------|-------------------------------------|
-    ///| `account_id_hex`      | The account id where the Txos from                       | Account must exist in the database. |
-    ///| `target_value`        | The value used to filter spendable Txos on its value     |                                     |
+    ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
+    ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
@@ -660,7 +660,7 @@ pub trait TxoModel {
     /// 
     ///| Name         | Purpose                                                                               | Notes |
     ///|--------------|---------------------------------------------------------------------------------------|-------|
-    ///| `account_id` | The account id needs to be removed from all Txos at which the account associates to |       |
+    ///| `account_id` | The account id needs to be removed from all Txos at which the account associates to   |       |
     ///| `conn`       | An reference to the pool connection of wallet database                                |       |
     ///
     /// # Returns
