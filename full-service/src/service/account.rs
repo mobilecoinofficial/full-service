@@ -20,7 +20,7 @@ use crate::{
     util::{
         constants::MNEMONIC_KEY_DERIVATION_VERSION,
         encoding_helpers::{
-            hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
+            ristretto_public_to_hex, ristretto_to_hex,
         },
     },
 };
@@ -309,8 +309,7 @@ pub trait AccountService {
     ///| Name                     | Purpose                                                      | Notes                                                    |
     ///|--------------------------|--------------------------------------------------------------|----------------------------------------------------------|
     ///| `account_id`             | The account on which to perform this action.                 | Account must exist in the wallet as a view only account. |
-    ///| `txo_ids_and_key_images` | signed txos. A array of tuples (txoID, KeyImage)             |                                                          |
-    ///| `next_subaddress_index`  | The updated next subaddress index to assign for this account |                                                          |
+    ///| `synced_txos` | signed txos. A array of TxoSynced objects (txoID, KeyImage)             |                                                          |
     ///
     fn sync_account(
         &self,
