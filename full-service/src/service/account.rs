@@ -2,7 +2,7 @@
 
 //! Service for managing accounts.
 
-use std::ops::DerefMut;
+use std::{convert::TryFrom, ops::DerefMut};
 
 use crate::{
     db::{
@@ -32,7 +32,7 @@ use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_signer::types::TxoSynced;
@@ -500,10 +500,11 @@ where
             first_block_index,
         );
 
-        let view_private_key =
-            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
-        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
-            .map_err(AccountServiceError::Base64DecodeError)?;
+        let view_private_key_hex = hex::decode(view_private_key)?;
+        let view_private_key = RistrettoPrivate::try_from(view_private_key_hex.as_slice()).unwrap();
+
+        let spend_public_key_hex = hex::decode(spend_public_key)?;
+        let spend_public_key = RistrettoPublic::try_from(spend_public_key_hex.as_slice()).unwrap();
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
