@@ -142,12 +142,15 @@ impl WalletDb {
         }
     }
 
-    pub fn run_migrations(conn: &SqliteConnection) {
+    pub fn run_migrations(
+        applicable_migrations: QueryResult<Vec<Migration>>,
+        conn: &SqliteConnection,
+    ) {
         // check for and retroactively insert any missing migrations if there is a later
         // migration without the prior ones.
         // We need to perform this first check in case this is a fresh database, in
         // which case there will be no migrations table.
-        if let Ok(migrations) = __diesel_schema_migrations::table.load::<Migration>(conn) {
+        if let Ok(migrations) = applicable_migrations {
             global_log::info!("Number of migrations applied: {:?}", migrations.len());
 
             if migrations.len() == 1 && migrations[0].version == "20220613204000" {
@@ -245,6 +248,13 @@ impl WalletDb {
 
             global_log::info!("Assigned subaddress proto conversion done");
         }
+    }
+
+    fn applesauce(conn: &SqliteConnection) {
+        //                 if migrations.iter().position(|&elem| { elem.version
+        // == "20230404223347" }).is_some(){                     //
+        // Update all txos with their memo_type, address has (if it exsists),
+        // and the decrypted memo                 }
     }
 }
 

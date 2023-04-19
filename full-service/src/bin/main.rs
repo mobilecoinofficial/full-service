@@ -14,6 +14,7 @@ use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
     config::{APIConfig, NetworkConfig},
+    db::{models::Migration, schema::__diesel_schema_migrations},
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
@@ -79,7 +80,9 @@ fn rocket() -> Rocket<Build> {
                 eprintln!("Incorrect password for database {wallet_db_path:?}.");
                 exit(EXIT_WRONG_PASSWORD);
             };
-            WalletDb::run_migrations(&conn);
+
+            let applicable_migrations = __diesel_schema_migrations::table.load::<Migration>(&conn);
+            WalletDb::run_migrations(applicable_migrations, &conn);
             WalletDb::run_proto_conversions_if_necessary(&conn);
             log::info!(logger, "Connected to database.");
 
