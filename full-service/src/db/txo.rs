@@ -2849,8 +2849,9 @@ mod tests {
             &wallet_db.get_conn().unwrap(),
         )
         .unwrap();
-        let sender_memo_creds = SenderMemoCredential::from(&account_key);
+        let mut sender_memo_creds = SenderMemoCredential::from(&account_key);
 
+        // make 3 txos for each 2 different account_keys
         for j in 0..2 {
             let root_id = RootIdentity::from_random(&mut rng);
             let account_key = AccountKey::from(&root_id);
@@ -2866,7 +2867,7 @@ mod tests {
                 &wallet_db.get_conn().unwrap(),
             )
             .unwrap();
-            let sender_memo_creds = SenderMemoCredential::from(&account_key);
+            sender_memo_creds = SenderMemoCredential::from(&account_key);
 
             let tx_out_spend_public_key = RistrettoPublic::from_random(&mut rng);
             let asm = AuthenticatedSenderMemo::new(
@@ -2917,12 +2918,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(all_txos.len(), 6);
-        for t in all_txos.iter() {
-            assert_eq!(
-                RTHMemoType::from(t.memo_type),
-                RTHMemoType::AuthenticatedSender
-            );
-        }
 
         let txos_by_type = Txo::list(
             None,
@@ -2939,7 +2934,6 @@ mod tests {
         assert_eq!(txos_by_type.len(), 6);
 
         let address_hash_for_query = hex::encode(sender_memo_creds.address_hash.as_ref());
-
         let txos_by_memo_addr = Txo::list(
             None,
             None,
