@@ -51,14 +51,14 @@ get_css_file()
 
     # Get remote css
     debug "  Pulling index file from ${CSS_BASE_URL}/${CSS_JSON_FILE}"
-    json=$(curl -fsSL --retry 0 "${CSS_BASE_URL}/${CSS_JSON_FILE}")
+    json=$(curl -fsSL --retry 3 "${CSS_BASE_URL}/${CSS_JSON_FILE}")
 
     # Extract url - could we install jq?
     css_file_base=$(basename "${css_file}")
     css_url=$(echo "${json}" | grep "${css_file_base}" | awk '{print $2}' | tr -d \" | tr -d ,)
 
     debug "  Pulling css file from ${CSS_BASE_URL}/${css_url}"
-    curl -fsSL --retry 0 "${CSS_BASE_URL}/${css_url}" -o "${css_file}"
+    curl -fsSL --retry 3 "${CSS_BASE_URL}/${css_url}" -o "${css_file}"
 
     debug "  css file saved ${css_file}"
     echo "${css_file}"
