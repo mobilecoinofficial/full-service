@@ -80,18 +80,23 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
         }
         JsonCommandRequest::sign_tx {
             mnemonic,
-            unsigned_tx,
+            unsigned_tx_proposal,
         } => {
             let signed_tx = service::sign_tx(
                 &mnemonic,
-                unsigned_tx.try_into().map_err(|e: String| anyhow!(e))?,
+                unsigned_tx_proposal
+                    .try_into()
+                    .map_err(|e: String| anyhow!(e))?,
             )?;
             JsonCommandResponse::sign_tx {
                 tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
             }
         }
-        JsonCommandRequest::sync_txos { mnemonic, txos } => {
-            let txos_synced = service::sync_txos(&mnemonic, txos)?;
+        JsonCommandRequest::sync_txos {
+            mnemonic,
+            txos_unsynced,
+        } => {
+            let txos_synced = service::sync_txos(&mnemonic, txos_unsynced)?;
             JsonCommandResponse::sync_txos { txos_synced }
         }
     };

@@ -35,10 +35,10 @@ pub enum JsonCommandRequest {
     },
     sign_tx {
         mnemonic: String,
-        unsigned_tx: UnsignedTxProposal,
+        unsigned_tx_proposal: UnsignedTxProposal,
     },
     sync_txos {
         mnemonic: String,
-        txos: Vec<TxoUnsynced>,
+        txos_unsynced: Vec<TxoUnsynced>,
     },
 }
