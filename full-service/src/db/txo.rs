@@ -2825,7 +2825,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn applesauce(logger: Logger) {
+    fn test_memo_querying_in_db(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
