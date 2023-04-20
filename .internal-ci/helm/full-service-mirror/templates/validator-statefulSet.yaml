@@ -1,0 +1,73 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-validator
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.validator.replicaCount }}
+  selector:
+    matchLabels:
+      app: validator
+      {{- include "fullServiceMirror.selectorLabels" . | nindent 6 }}
+  serviceName: {{ include "fullServiceMirror.fullname" . }}-validator
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.validator.podAnnotations | nindent 8 }}
+      labels:
+        app: validator
+        {{- include "fullServiceMirror.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+      - name: validator
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        image: {{ include "fullServiceMirror.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - /usr/local/bin/validator-service
+        - --listen-uri=insecure-validator://0.0.0.0:11000/
+        - --ledger-db=/data/ledger
+        envFrom:
+        - configMapRef:
+            name: {{ include "fullServiceMirror.fullname" . }}-validator
+        ports:
+        - name: validator
+          containerPort: 11000
+          protocol: TCP
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        resources:
+          {{- toYaml .Values.validator.resources | nindent 12 }}
+      nodeSelector:
+        {{- toYaml .Values.validator.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.validator.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.validator.tolerations | nindent 8 }}
+      volumes:
+      {{- if eq .Values.validator.persistence.enabled false }}
+      - name: data
+        emptyDir: {}
+      {{- end }}
+  {{- if .Values.validator.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      {{- toYaml .Values.validator.persistence.spec | nindent 6 }}
+  {{- end }}

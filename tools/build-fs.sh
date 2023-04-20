@@ -49,7 +49,7 @@ fi
 # use main instead of legacy prod
 if [[ "${net}" == "prod" ]]
 then
-    echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+    echo "Detected 'prod' legacy network setting. Using 'main' instead."
     net=main
 fi
 
@@ -58,42 +58,71 @@ fi
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 source "${location}/.shared-functions.sh"
 
-# Setup workdir - set in .shared-functions.sh
-mkdir -p "${WORK_DIR}"
+# Setup release dir - set in .shared-functions.sh
+mkdir -p "${RELEASE_DIR}"
+
+# link workdir to release dir path
+if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
+then
+    # migrate wallet/ledger db to release_dir and remove workdir to make room
+    # for the symlink
+    if [[ ! -L "${WORK_DIR}" && -d "${WORK_DIR}" ]]
+    then
+        if [[ -d "${WORK_DIR}/wallet-db" ]]
+        then
+            mv "${WORK_DIR}/wallet-db" "${RELEASE_DIR}/wallet-db"
+        fi
+        if [[ -d "${WORK_DIR}/ledger-db" ]]
+        then
+            mv "${WORK_DIR}/ledger-db" "${RELEASE_DIR}/ledger-db"
+        fi
+        rm -rf "${WORK_DIR}"
+    fi
+
+    # create parent workdir and link release_dir to work_dir
+    mkdir -p "$(dirname "${WORK_DIR}")"
+
+    # At this point WORK_DIR can only be a symlink, remove it and create a new one.
+    rm -f "${WORK_DIR}"
+
+    # this needs to be a relative link from GIT_BASE
+    ln -s -r "${RELEASE_DIR}" "${WORK_DIR}"
+fi
 
 case ${net} in
     test)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=PROD
-        CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/consensus-enclave.css")
-        INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${WORK_DIR}/ingest-enclave.css")
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/ingest-enclave.css")
         ;;
     main)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=PROD
-        CONSENSUS_ENCLAVE_CSS=$(get_css_file prod "${WORK_DIR}/consensus-enclave.css")
-        INGEST_ENCLAVE_CSS=$(get_css_file prod "${WORK_DIR}/ingest-enclave.css")
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file prod "${RELEASE_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file prod "${RELEASE_DIR}/ingest-enclave.css")
         ;;
     alpha)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=HW
         IAS_MODE=DEV
         # User must provide their own .css files
-        CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
-        INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
+        CONSENSUS_ENCLAVE_CSS="${RELEASE_DIR}/consensus-enclave.css"
+        INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
         ;;
     local)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
 
-        INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
-        if test -f "${WORK_DIR}/consensus-enclave.css"; then
-            CONSENSUS_ENCLAVE_CSS="${WORK_DIR}/consensus-enclave.css"
+        INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
+        if [[ -f "${RELEASE_DIR}/consensus-enclave.css" ]]
+        then
+            CONSENSUS_ENCLAVE_CSS="${RELEASE_DIR}/consensus-enclave.css"
         else
-            CONSENSUS_ENCLAVE_CSS=`pwd`/mobilecoin/target/docker/release/consensus-enclave.css
+            CONSENSUS_ENCLAVE_CSS=$(pwd)/mobilecoin/target/docker/release/consensus-enclave.css
         fi
         ;;
     *)
@@ -112,11 +141,4 @@ echo "building full service..."
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options
 cargo build --release ${BUILD_OPTIONS}
 
-target_dir=${CARGO_TARGET_DIR:-"target"}
-
-if [[ "${target_dir}/release" != "${WORK_DIR}" ]]
-then
-    echo "  binaries are available in ${target_dir}/release and ${WORK_DIR}"
-    cp "${target_dir}/release/full-service" "${WORK_DIR}"
-    cp "${target_dir}/release/validator-service" "${WORK_DIR}"
-fi
+echo "  Binaries are available in ${RELEASE_DIR} and ${WORK_DIR}"

@@ -1,0 +1,13 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-full-service
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+    app: full-service
+data:
+  MC_VALIDATOR: "insecure-validator://validator:11000/"
+{{- if .Values.config.ledgerDbURL }}
+  MC_LEDGER_DB_URL: {{ .Values.config.ledgerDbURL | quote }}
+{{- end }}
