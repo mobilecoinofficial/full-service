@@ -17,12 +17,7 @@ use crate::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
-    util::{
-        constants::MNEMONIC_KEY_DERIVATION_VERSION,
-        encoding_helpers::{
-            ristretto_public_to_hex, ristretto_to_hex,
-        },
-    },
+    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
 };
 
 use base64;
@@ -547,8 +542,8 @@ where
         let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
 
         let json_command_request = JsonCommandRequest::import_view_only_account {
-            view_private_key: ristretto_to_hex(view_private_key),
-            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            view_private_key: hex::encode(view_private_key.to_bytes()),
+            spend_public_key: hex::encode(spend_public_key.to_bytes()),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
             next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
@@ -1100,8 +1095,8 @@ mod tests {
 
         let view_only_account = service
             .import_view_only_account(
-                ristretto_to_hex(view_account_key.view_private_key()),
-                ristretto_public_to_hex(view_account_key.spend_public_key()),
+                hex::encode(view_account_key.view_private_key().to_bytes()),
+                hex::encode(view_account_key.spend_public_key().to_bytes()),
                 None,
                 None,
                 None,
