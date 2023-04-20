@@ -5,7 +5,7 @@
 #
 # assume we have pre-built binary
 
-FROM ubuntu:focal-20221019
+FROM ubuntu:focal-20230308
 
 RUN  addgroup --system --gid 1000 app \
   && adduser --system --ingroup app --uid 1000 app \
@@ -15,7 +15,7 @@ RUN  addgroup --system --gid 1000 app \
 
 RUN  apt-get update \
   && apt-get upgrade -y \
-  && apt-get install -y ca-certificates \
+  && apt-get install -y ca-certificates curl \
   && apt-get clean \
   && rm -r /var/lib/apt/lists \
   && mkdir -p /usr/share/grpc \
@@ -28,8 +28,10 @@ COPY ${RUST_BIN_PATH}/validator-service /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-private /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-public /usr/local/bin/
 COPY ${RUST_BIN_PATH}/generate-rsa-keypair /usr/local/bin/
-COPY ${RUST_BIN_PATH}/*.css /usr/local/bin/
+COPY ${RUST_BIN_PATH}/ingest-enclave.css /usr/local/bin/
 COPY .internal-ci/docker/entrypoints/full-service.sh /usr/local/bin/entrypoint.sh
+# not implemented yet
+# COPY .internal-ci/docker/support/full-service/initialize-wallets.sh /usr/local/bin/initialize-wallets.sh
 
 USER app
 VOLUME /data

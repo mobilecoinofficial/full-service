@@ -1,10 +1,11 @@
-# Copyright (c) 2018-2022 The MobileCoin Foundation
+# Copyright (c) 2018-2023 The MobileCoin Foundation
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "fullService.fullname" . }}
+  name: {{ include "fullServiceMirror.fullname" . }}-validator
   labels:
-    {{- include "fullService.labels" . | nindent 4 }}
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+    app: validator
 data:
 {{- if .Values.config.chainId }}
   MC_CHAIN_ID: {{ .Values.config.chainId | quote }}
@@ -17,7 +18,4 @@ data:
 {{- end }}
 {{- if .Values.config.ledgerDbURL }}
   MC_LEDGER_DB_URL: {{ .Values.config.ledgerDbURL | quote }}
-{{- end }}
-{{- if .Values.fullService.configMap.data }}
-  {{- toYaml .Values.fullService.configMap.data | nindent 2 }}
 {{- end }}

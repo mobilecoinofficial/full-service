@@ -1,0 +1,59 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-private
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.private.replicaCount }}
+  selector:
+    matchLabels:
+      app: private
+      {{- include "fullServiceMirror.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.private.podAnnotations | nindent 8 }}
+      labels:
+        app: private
+        {{- include "fullServiceMirror.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      containers:
+      - name: private
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        image: {{ include "fullServiceMirror.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - /usr/local/bin/wallet-service-mirror-private
+        - --mirror-public-uri=insecure-wallet-service-mirror://public:10000/
+        - --wallet-service-uri=http://full-service:9090/wallet/v2
+        - --mirror-key=/secrets/mirror-private.pem
+        resources:
+          {{- toYaml .Values.private.resources | nindent 12 }}
+        volumeMounts:
+        - name: mirror-private
+          readOnly: true
+          mountPath: "/secrets"
+      nodeSelector:
+        {{- toYaml .Values.private.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.private.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.private.tolerations | nindent 8 }}
+      volumes:
+      - name: mirror-private
+        secret:
+          secretName: {{ include "fullServiceMirror.private.secret.name" . }}
