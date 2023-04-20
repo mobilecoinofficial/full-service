@@ -10,8 +10,19 @@ name = "full-service"
 path = "src/bin/main.rs"
 
 [dependencies]
-mc-validator-api = { path = "../validator/api" }
-mc-validator-connection = { path = "../validator/connection" }
+
+base64 = "0.13.1"
+chrono = { version = "0.4", default-features = false, features = ["alloc"] }
+clap = { version = "4.0", features = ["derive", "env"] }
+crossbeam-channel = "0.5"
+diesel = { version = "2.0.3", features = ["chrono", "sqlite", "r2d2"] }
+diesel-derive-enum = { version = "2", features = ["sqlite"] }
+diesel_migrations = { version = "2.0.0", features = ["sqlite"] }
+displaydoc = { version = "0.2", default-features = false }
+dotenv = "0.15.0"
+grpcio = "0.12"
+hex = { version = "0.4", default-features = false }
+libsqlite3-sys = { version = "0.25", features = ["bundled-sqlcipher"] }
 
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-api = { path = "../mobilecoin/api" }
@@ -45,21 +56,10 @@ mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
+mc-validator-api = { path = "../validator/api" }
+mc-validator-connection = { path = "../validator/connection" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
-
-base64 = "0.13.1"
-chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-clap = { version = "4.0", features = ["derive", "env"] }
-crossbeam-channel = "0.5"
-diesel = { version = "2.0.3", features = ["chrono", "sqlite", "r2d2"] }
-diesel-derive-enum = { version = "2", features = ["sqlite"] }
-diesel_migrations = { version = "2.0.0", features = ["sqlite"] }
-displaydoc = { version = "0.2", default-features = false }
-dotenv = "0.15.0"
-grpcio = "0.12"
-hex = { version = "0.4", default-features = false }
-libsqlite3-sys = { version = "0.25", features = ["bundled-sqlcipher"] }
 num_cpus = "1.15"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }

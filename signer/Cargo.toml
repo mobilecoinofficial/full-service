@@ -15,21 +15,6 @@ name = "signer-service"
 path = "src/service/bin/main.rs"
 
 [dependencies]
-mc-account-keys = { path = "../mobilecoin/account-keys" }
-mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
-mc-core = { path = "../mobilecoin/core", features = [ "serde" ] }
-mc-core-types = { path = "../mobilecoin/core/types", features = [ "serde" ] }
-mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
-mc-crypto-ring-signature = { path = "../mobilecoin/crypto/ring-signature" }
-mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
-mc-transaction-core = { path = "../mobilecoin/transaction/core" }
-mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
-mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
-mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
-mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
-mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
-
-mc-full-service = { path = "../full-service" }
 
 anyhow = "1.0.69"
 base64 = "0.13.1"
@@ -37,6 +22,21 @@ clap = { version = "4.1", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
 hex = { version = "0.4", default-features = false }
 log = "0.4.17"
+mc-account-keys = { path = "../mobilecoin/account-keys" }
+mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-core = { path = "../mobilecoin/core", features = [ "serde" ] }
+mc-core-types = { path = "../mobilecoin/core/types", features = [ "serde" ] }
+mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
+mc-crypto-ring-signature = { path = "../mobilecoin/crypto/ring-signature" }
+mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
+
+mc-full-service = { path = "../full-service" }
+mc-transaction-core = { path = "../mobilecoin/transaction/core" }
+mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
+mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
+mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
+mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_core = "0.6.4"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }

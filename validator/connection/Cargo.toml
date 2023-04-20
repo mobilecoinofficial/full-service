@@ -5,7 +5,10 @@ authors = ["MobileCoin"]
 edition = "2018"
 
 [dependencies]
-mc-validator-api = { path = "../api" }
+
+displaydoc = { version = "0.2", default-features = false }
+futures = "0.3"
+grpcio = "0.12"
 
 mc-api = { path = "../../mobilecoin/api" }
 mc-blockchain-types = { path = "../../mobilecoin/blockchain/types" }
@@ -15,8 +18,5 @@ mc-fog-report-types = { path = "../../mobilecoin/fog/report/types" }
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
-
-displaydoc = { version = "0.2", default-features = false }
-futures = "0.3"
-grpcio = "0.12"
+mc-validator-api = { path = "../api" }
 protobuf = "2.28.0"
