@@ -173,6 +173,7 @@
   * [Consensus Protocol](glossary/consensus-protocol.md)
   * [Fog](glossary/fog.md)
   * [Full Service](glossary/full-service.md)
+  * [Key Image](glossary/key-image.md)
   * [Ledger](glossary/ledger.md)
   * [MOB](glossary/mob.md)
   * [Public Address](glossary/public-address.md)
