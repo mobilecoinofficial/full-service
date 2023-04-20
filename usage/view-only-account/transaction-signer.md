@@ -1,12 +1,12 @@
 ---
-description: How to use view-only accounts with the offline transaction signer.
+description: How to use view-only accounts with the offline signer.
 ---
 
-# Transaction Signer
+# Signer
 
-The transaction signer is a secondary program built with full service that provides users the ability to generate accounts and subaddresses, sync accounts, and sign transactions that were built from an online machine.
+The signer is a secondary program built with full service that provides users the ability to generate accounts, sync accounts, and sign transactions that were built from view only accounts.
 
-There are 5 things that the transaction signer can do
+There are 5 things that the signer can do
 
 1. Create a new account
 2. Import an existing account
@@ -20,7 +20,7 @@ The first thing you will most likely want to do is to create an account and stor
 
 To create an account run the transaction signer binary with the `create` command.  You will want to run this on your offline machine so your keys are secure:
 
-`./transaction-signer create --name="My Account"`\
+`./signer create --name="My Account"`\
 `Creating account`\
 `Wrote mobilecoin_secret_mnemonic_4395e9.json`\
 `Wrote mobilecoin_view_account_import_package_4395e9.json`
@@ -31,7 +31,7 @@ This command creates two files, one of them containing the account mnemonic and 
 
 If you already have an account you would like to use, you can run the transaction signer binary with the `import` command. This command takes in an optional name parameter, and a mnemonic parameter formatted as follows:
 
-`./transaction-signer import "ranch invest renew amount twin summer opinion earth lock broken shed ghost idea genuine now seminar draw sorry hold hunt eager inhale party enable" --name="My Account"`
+`./signer import "ranch invest renew amount twin summer opinion earth lock broken shed ghost idea genuine now seminar draw sorry hold hunt eager inhale party enable" --name="My Account"`
 
 This will write the same two files as the `create` command, but with the specified mnemonic. Be sure to delete shell history logs which might contain a copy of this secret mnemonic.
 

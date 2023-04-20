@@ -131,6 +131,11 @@
     * [Get Wallet Status](api-endpoints/v1/wallet-status/get\_wallet\_status.md)
   * [Version](api-endpoints/v1/version/README.md)
     * [Get Version](api-endpoints/v1/version/version.md)
+* [Signer Service](api-endpoints/signer-service/README.md)
+  * [Create Account](api-endpoints/signer-service/create\_account.md)
+  * [Get Account](api-endpoints/signer-service/create\_account-1.md)
+  * [Sign Transaction](api-endpoints/signer-service/create\_account-2.md)
+  * [Sync Txos](api-endpoints/signer-service/create\_account-3.md)
 
 ## Usage
 
@@ -143,7 +148,8 @@
 * [Database Usage](usage/database-usage.md)
 * [API Key](usage/api-key.md)
 * [View Only Account](usage/view-only-account/README.md)
-  * [Transaction Signer](usage/view-only-account/transaction-signer.md)
+  * [Signer](usage/view-only-account/transaction-signer.md)
+  * [Signer Service](usage/view-only-account/signer-service.md)
 * [No Wallet Mode](usage/no-wallet-db.md)
 * [Validator Service](usage/validator-service/README.md)
   * [Running](usage/validator-service/running.md)
