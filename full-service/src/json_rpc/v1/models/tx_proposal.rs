@@ -7,7 +7,7 @@ use crate::{
     service::models::tx_proposal::TxProposal as TxProposalServiceModel,
 };
 use mc_common::HashMap;
-use mc_mobilecoind_json::data_types::{JsonOutlay, JsonTx, JsonUnspentTxOut};
+use mc_mobilecoind_json::data_types::{JsonOutlayV2, JsonTx, JsonUnspentTxOut};
 
 use mc_transaction_extra::TxOutConfirmationNumber;
 use serde_derive::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use std::convert::TryFrom;
 #[derive(Deserialize, Serialize, Default, Debug)]
 pub struct TxProposal {
     pub input_list: Vec<UnspentTxOut>,
-    pub outlay_list: Vec<JsonOutlay>,
+    pub outlay_list: Vec<JsonOutlayV2>,
     pub tx: JsonTx,
     pub fee: String,
     pub outlay_index_to_tx_out_index: Vec<(String, String)>,
@@ -56,7 +56,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
             })
             .collect();
 
-        let mut outlay_list: Vec<mc_mobilecoind::payments::Outlay> = Vec::new();
+        let mut outlay_list: Vec<mc_mobilecoind::payments::OutlayV2> = Vec::new();
         let mut outlay_map: HashMap<usize, usize> = HashMap::default();
         let mut confirmation_numbers: Vec<TxOutConfirmationNumber> = Vec::new();
 
@@ -74,9 +74,9 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
 
             outlay_map.insert(outlay_index, tx_out_index);
             confirmation_numbers.push(payload_txo.confirmation_number.clone());
-            outlay_list.push(mc_mobilecoind::payments::Outlay {
-                value: payload_txo.amount.value,
+            outlay_list.push(mc_mobilecoind::payments::OutlayV2 {
                 receiver: payload_txo.recipient_public_address.clone(),
+                amount: payload_txo.amount,
             });
         }
 
@@ -86,6 +86,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
             tx: src.tx.clone(),
             outlay_index_to_tx_out_index: outlay_map,
             outlay_confirmation_numbers: confirmation_numbers,
+            scis: vec![],
         };
 
         Ok(res)
@@ -146,7 +147,6 @@ impl TryFrom<&TxProposal> for mc_mobilecoind::payments::TxProposal {
     }
 }
 
-// FIXME: remove below
 impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
     type Error = String;
 

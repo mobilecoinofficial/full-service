@@ -66,7 +66,7 @@ if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
     # migrate wallet/ledger db to release_dir and remove workdir to make room
     # for the symlink
-    if [[ -d "${WORK_DIR}" ]]
+    if [[ ! -L "${WORK_DIR}" && -d "${WORK_DIR}" ]]
     then
         if [[ -d "${WORK_DIR}/wallet-db" ]]
         then

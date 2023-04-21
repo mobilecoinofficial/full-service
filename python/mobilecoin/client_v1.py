@@ -36,7 +36,7 @@ class Client:
             host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
         if port is None:
             port = os.environ.get('MC_FULL_SERVICE_PORT', DEFAULT_PORT)
-        self.url = f'{host}:{DEFAULT_PORT}' + self.REQ_PATH
+        self.url = f'{host}:{port}' + self.REQ_PATH
 
         self.verbose = verbose
         self._query_count = 0

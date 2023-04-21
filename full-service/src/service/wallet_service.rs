@@ -4,17 +4,21 @@
 
 use crate::{
     config::NetworkConfig,
-    db::{Conn, WalletDb, WalletDbError},
+    db::{WalletDb, WalletDbError},
     service::sync::SyncThread,
+};
+use diesel::{
+    r2d2::{ConnectionManager, PooledConnection},
+    SqliteConnection,
 };
 use mc_common::logger::{log, Logger};
 use mc_connection::{
     BlockchainConnection, ConnectionManager as McConnectionManager, UserTxConnection,
 };
-use mc_crypto_rand::rand_core::RngCore;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
+use mc_rand::rand_core::RngCore;
 use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
@@ -109,10 +113,12 @@ impl<
         }
     }
 
-    pub fn get_conn(&self) -> Result<Conn, WalletDbError> {
+    pub fn get_pooled_conn(
+        &self,
+    ) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>, WalletDbError> {
         self.wallet_db
             .as_ref()
             .ok_or(WalletDbError::WalletFunctionsDisabled)?
-            .get_conn()
+            .get_pooled_conn()
     }
 }

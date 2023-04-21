@@ -2,6 +2,8 @@
 
 //! Service for managing accounts.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress, WalletDbError},
     service::WalletService,
@@ -111,12 +113,13 @@ where
         amount: Amount,
         memo: Option<String>,
     ) -> Result<String, PaymentRequestServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
 
         let assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
             &account_id,
             subaddress_index.unwrap_or_default(),
-            &conn,
+            conn,
         )?;
 
         let public_address = b58_decode_public_address(&assigned_subaddress.public_address_b58)?;

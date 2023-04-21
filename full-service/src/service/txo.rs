@@ -2,6 +2,8 @@
 
 //! Service for managing Txos.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -227,7 +229,8 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
-        let conn = &self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
 
         let txos;
 
@@ -277,9 +280,10 @@ where
     }
 
     fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
-        let conn = self.get_conn()?;
-        let txo = Txo::get(&txo_id.to_string(), &conn)?;
-        let status = txo.status(&conn)?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let txo = Txo::get(&txo_id.to_string(), conn)?;
+        let status = txo.status(conn)?;
         Ok((txo, status))
     }
 
@@ -294,8 +298,9 @@ where
     ) -> Result<TxProposal, TxoServiceError> {
         use crate::service::txo::TxoServiceError::TxoNotSpendableByAnyAccount;
 
-        let conn = self.get_conn()?;
-        let txo_details = Txo::get(&txo_id.to_string(), &conn)?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let txo_details = Txo::get(&txo_id.to_string(), conn)?;
 
         let account_id_hex = txo_details
             .account_id
@@ -305,7 +310,7 @@ where
             AssignedSubaddress::get_for_account_by_index(
                 &account_id_hex,
                 subaddress_index.unwrap_or(0),
-                &conn,
+                conn,
             )?;
 
         let mut addresses_and_amounts = Vec::new();
@@ -331,7 +336,7 @@ where
             None,
         )?;
 
-        let account = Account::get(&AccountID(account_id_hex), &conn)?;
+        let account = Account::get(&AccountID(account_id_hex), conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
         let fee_map = if self.offline {
@@ -360,7 +365,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::RngCore;
+    use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 

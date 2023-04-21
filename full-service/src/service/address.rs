@@ -2,10 +2,12 @@
 
 //! Service for managing addresses.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
-        account::AccountID, assigned_subaddress::AssignedSubaddressModel,
-        models::AssignedSubaddress, transaction, WalletDbError,
+        account::AccountID, assigned_subaddress::AssignedSubaddressModel, exclusive_transaction,
+        models::AssignedSubaddress, WalletDbError,
     },
     service::WalletService,
     util::b58::{b58_decode_public_address, B58Error},
@@ -137,22 +139,24 @@ where
         account_id: &AccountID,
         metadata: Option<&str>,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
-        transaction(&conn, || {
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        exclusive_transaction(conn, |conn| {
             let (public_address_b58, _subaddress_index) =
                 AssignedSubaddress::create_next_for_account(
                     &account_id.to_string(),
                     metadata.unwrap_or(""),
                     &self.ledger_db,
-                    &conn,
+                    conn,
                 )?;
-            Ok(AssignedSubaddress::get(&public_address_b58, &conn)?)
+            Ok(AssignedSubaddress::get(&public_address_b58, conn)?)
         })
     }
 
     fn get_address(&self, address_b58: &str) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
-        Ok(AssignedSubaddress::get(address_b58, &conn)?)
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        Ok(AssignedSubaddress::get(address_b58, conn)?)
     }
 
     fn get_address_for_account(
@@ -160,11 +164,12 @@ where
         account_id: &AccountID,
         index: i64,
     ) -> Result<AssignedSubaddress, AddressServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(AssignedSubaddress::get_for_account_by_index(
             &account_id.to_string(),
             index,
-            &conn,
+            conn,
         )?)
     }
 
@@ -174,9 +179,10 @@ where
         offset: Option<u64>,
         limit: Option<u64>,
     ) -> Result<Vec<AssignedSubaddress>, AddressServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(AssignedSubaddress::list_all(
-            account_id, offset, limit, &conn,
+            account_id, offset, limit, conn,
         )?)
     }
 
@@ -200,7 +206,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_crypto_rand::rand_core::RngCore;
+    use mc_rand::rand_core::RngCore;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
@@ -212,13 +218,14 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db, logger);
-        let conn = service.get_conn().unwrap();
+        let pooled_conn = &mut service.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         // Create an account.
         let account = service
             .create_account(None, "".to_string(), "".to_string(), "".to_string())
             .unwrap();
-        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -227,7 +234,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(account.next_subaddress_index(conn).unwrap(), 3);
     }
 
     #[test_with_logger]
@@ -238,7 +245,8 @@ mod tests {
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
         let service = setup_wallet_service(ledger_db, logger);
-        let conn = service.get_conn().unwrap();
+        let pooled_conn = &mut service.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
@@ -250,7 +258,7 @@ mod tests {
         let account = service
             .import_view_only_account(vpk_hex, spk_hex, None, None, None)
             .unwrap();
-        assert_eq!(account.clone().next_subaddress_index(&conn).unwrap(), 2);
+        assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 
         let account_id = AccountID(account.id);
 
@@ -259,7 +267,7 @@ mod tests {
             .unwrap();
 
         let account = service.get_account(&account_id).unwrap();
-        assert_eq!(account.next_subaddress_index(&conn).unwrap(), 3);
+        assert_eq!(account.next_subaddress_index(conn).unwrap(), 3);
     }
 
     // A properly encoded address should verify.

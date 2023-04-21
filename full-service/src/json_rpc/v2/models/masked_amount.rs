@@ -4,7 +4,7 @@
 
 use mc_crypto_keys::ReprBytes;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum MaskedAmountVersion {
@@ -65,7 +65,9 @@ impl TryFrom<&MaskedAmount> for mc_transaction_core::MaskedAmount {
                 .map_err(|err| format!("Could not decode hex for amount commitment: {err:?}"))?,
         );
 
-        let commitment = (&commitment_bytes).into();
+        let commitment = (&commitment_bytes).try_into().map_err(|err| {
+            format!("Could not convert amount commitment to mc_crypto_keys::Commitment: {err:?}")
+        })?;
         let masked_value = src
             .masked_value
             .parse::<u64>()

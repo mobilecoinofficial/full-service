@@ -25,8 +25,8 @@ mod e2e_misc {
     };
 
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::RngCore;
     use mc_ledger_db::Ledger;
+    use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, BlockVersion, Token};
 
     use rand::{rngs::StdRng, SeedableRng};

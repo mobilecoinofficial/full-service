@@ -78,7 +78,7 @@ mod tests {
     use super::*;
     use mc_account_keys::AccountKey;
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_crypto_rand::RngCore;
+    use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
