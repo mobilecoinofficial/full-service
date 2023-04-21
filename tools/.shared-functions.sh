@@ -13,17 +13,17 @@ then
     AM_I_IN_MOB_PROMPT="yes"
 fi
 
+WORK_DIR=".mob/${net}"
+
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
     # Set cargo target dir to include the "net"
     CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}/${net}
     # CBB: Deprecate the concept of "workdir" to simplify paths/scripts.
     #      This is now a symlink to RELEASE_DIR
-    WORK_DIR=".mob/${net}"
     LISTEN_ADDR="0.0.0.0"
 else
     CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}
-    WORK_DIR=${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}
     LISTEN_ADDR="127.0.0.1"
 fi
 
