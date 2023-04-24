@@ -76,7 +76,7 @@ pub trait AssignedSubaddressModel {
     ///|------------------|--------------------------------------------------------------------|-------------------------------------------|
     ///| `account_id_hex` | The account on which to perform this action.                       | Account must exist in the wallet          |
     ///| `comment`        | A random string will be assigned to the newly assigned subaddress. |                                           |
-    ///| `ledger_db`      | A reference to the instance of the whole ledger database.          | This object HAS a connection to ledger DB |
+    ///| `ledger_db`      | A reference to the instance of the whole ledger database.          | This object has a connection to ledger DB |
     ///| `conn`           | An reference to the pool connection of wallet database             |                                           |
     ///
     /// # Returns:
