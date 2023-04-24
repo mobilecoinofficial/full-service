@@ -143,7 +143,7 @@ impl WalletDb {
     }
 
     pub fn run_migrations(
-        applicable_migrations: QueryResult<Vec<Migration>>,
+        applicable_migrations: &QueryResult<Vec<Migration>>,
         conn: &SqliteConnection,
     ) {
         // check for and retroactively insert any missing migrations if there is a later
@@ -250,11 +250,18 @@ impl WalletDb {
         }
     }
 
-    fn applesauce(conn: &SqliteConnection) {
-        //                 if migrations.iter().position(|&elem| { elem.version
-        // == "20230404223347" }).is_some(){                     //
-        // Update all txos with their memo_type, address has (if it exsists),
-        // and the decrypted memo                 }
+    fn applesauce(_applicable_migrations: &QueryResult<Vec<Migration>>, _conn: &SqliteConnection) {
+        /*
+        if let Ok(applicable_migration_vec) = applicable_migrations {
+            applicable_migration_vec.iter().any(|&elem| {
+                if (elem.version == "20230404223347") {
+                    // Update all txos with their memo_type, address has (if it exsists),
+                    // and the decrypted memo
+                    println!("Todo"); //TODO
+                }
+            })
+        }
+        */
     }
 }
 

@@ -82,7 +82,7 @@ fn rocket() -> Rocket<Build> {
             };
 
             let applicable_migrations = __diesel_schema_migrations::table.load::<Migration>(&conn);
-            WalletDb::run_migrations(applicable_migrations, &conn);
+            WalletDb::run_migrations(&applicable_migrations, &conn);
             WalletDb::run_proto_conversions_if_necessary(&conn);
             log::info!(logger, "Connected to database.");
 
