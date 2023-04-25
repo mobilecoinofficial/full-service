@@ -2840,7 +2840,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -2918,7 +2918,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service-mirror"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "boring",
  "cargo-emit",
@@ -3282,7 +3282,7 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-signer"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "base64 0.13.1",
  "hex",
@@ -3566,7 +3566,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-api"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -3582,7 +3582,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-connection"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "displaydoc",
  "futures",
@@ -3601,7 +3601,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-service"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "clap 4.2.1",
  "grpcio",
