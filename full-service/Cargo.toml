@@ -89,4 +89,4 @@ url = "2.3"
 [build-dependencies]
 anyhow = "1.0"
 # clippy fails to run without this.
-vergen = "7.5.1"
+vergen = "8.1.1"
