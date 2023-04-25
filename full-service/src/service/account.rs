@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 //! Service for managing accounts.
 
@@ -69,6 +69,9 @@ pub enum AccountServiceError {
 
     /// JSON Rpc Request was formatted incorrectly
     InvalidJsonRPCRequest,
+
+    /// Key Error: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -116,6 +119,12 @@ impl From<mc_account_keys::Error> for AccountServiceError {
 impl From<mc_util_serial::DecodeError> for AccountServiceError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::DecodePrivateKeyError(src.to_string())
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for AccountServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
     }
 }
 
@@ -495,10 +504,10 @@ where
         );
 
         let view_private_key_hex = hex::decode(view_private_key)?;
-        let view_private_key = RistrettoPrivate::try_from(view_private_key_hex.as_slice()).unwrap();
+        let view_private_key = RistrettoPrivate::try_from(view_private_key_hex.as_slice())?;
 
         let spend_public_key_hex = hex::decode(spend_public_key)?;
-        let spend_public_key = RistrettoPublic::try_from(spend_public_key_hex.as_slice()).unwrap();
+        let spend_public_key = RistrettoPublic::try_from(spend_public_key_hex.as_slice())?;
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
@@ -1238,5 +1247,31 @@ mod tests {
 
         let view_only_account = service.get_account(&account_id).unwrap();
         assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
+
+        let unverified_txos = Txo::list_unverified(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
+        assert_eq!(unverified_txos.len(), 0);
+
+        let unspent_txos = Txo::list_unspent(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
+        assert_eq!(unspent_txos.len(), 2);
     }
 }

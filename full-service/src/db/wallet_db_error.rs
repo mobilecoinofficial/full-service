@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 //! Entrypoint for Wallet API.
 

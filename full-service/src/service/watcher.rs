@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 //! Service for accessing the watcher database.
 use crate::{service::models::watcher::WatcherBlockInfo, WalletService};

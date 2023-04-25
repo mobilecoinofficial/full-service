@@ -8,7 +8,8 @@ use std::convert::TryFrom;
 use strum::{EnumIter, IntoEnumIterator};
 
 pub fn help_str() -> String {
-    let mut help_str = "Please use json data to choose api commands. For example, \n\ncurl -s localhost:9090/wallet/v2 -d '{\"method\": \"create_account\", \"params\": {\"name\": \"Alice\"}}' -X POST -H 'Content-type: application/json'\n\nAvailable commands are:\n\n".to_owned();
+    let mut help_str =
+        "Please use json data to choose api commands. Available commands are: \n".to_string();
     for e in JsonCommandRequest::iter() {
         help_str.push_str(&format!("{e:?}\n\n"));
     }

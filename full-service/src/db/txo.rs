@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 //! DB impl for the Txo model.
 
@@ -704,6 +704,19 @@ pub trait TxoModel {
     /// * TxOutMembershipProof 
     fn membership_proof(&self, ledger_db: &LedgerDB) -> Result<TxOutMembershipProof, WalletDbError>;
 
+    /// Get the membership proof from ledger DB for current TxOut
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name        | Purpose                                                   | Notes                                     |
+    ///|-------------|-----------------------------------------------------------|-------------------------------------------|
+    ///| `public_key` | The compressed ristretto public to use to search for the txo. | |
+    ///| `key_image` | The Key Image to add to the txo. | |
+    ///| `spent_block_index` | The spent block index to update for the txo. |  |
+    ///| `conn` | A reference to the connection of wallet database |  |
+    ///
+    /// # Returns
+    /// * unit 
     fn update_key_image_by_pubkey(
         public_key: &CompressedRistrettoPublic,
         key_image: &KeyImage,
