@@ -1488,7 +1488,7 @@ dependencies = [
  "libc",
  "log",
  "parking_lot",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -1497,7 +1497,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1f1abac9f330ac9ee0950220c10eea84d66479cede4836f0b924407fecf093c"
 dependencies = [
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -2190,7 +2190,7 @@ dependencies = [
  "mc-util-repr-bytes",
  "mc-util-serial",
  "mc-watcher-api",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -2227,7 +2227,7 @@ dependencies = [
  "mc-crypto-noise",
  "mc-util-build-grpc",
  "mc-util-build-script",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -2436,7 +2436,7 @@ dependencies = [
  "mc-transaction-core",
  "mc-util-build-grpc",
  "mc-util-build-script",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -2738,7 +2738,7 @@ dependencies = [
  "mc-fog-report-types",
  "mc-util-build-grpc",
  "mc-util-build-script",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -2896,7 +2896,7 @@ dependencies = [
  "mc-watcher",
  "mc-watcher-api",
  "num_cpus",
- "protobuf",
+ "protobuf 3.2.0",
  "rand 0.8.5",
  "rayon",
  "reqwest",
@@ -2933,7 +2933,7 @@ dependencies = [
  "mc-util-grpc",
  "mc-util-uri",
  "num_cpus",
- "protobuf",
+ "protobuf 3.2.0",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "rand_hc",
@@ -3007,7 +3007,7 @@ dependencies = [
  "mc-util-telemetry",
  "mc-util-uri",
  "mockall",
- "protobuf",
+ "protobuf 2.28.0",
  "rand 0.8.5",
  "reqwest",
  "retry 2.0.0",
@@ -3067,7 +3067,7 @@ dependencies = [
  "mc-watcher",
  "num_cpus",
  "prost",
- "protobuf",
+ "protobuf 2.28.0",
  "rand 0.8.5",
  "rayon",
  "reqwest",
@@ -3087,7 +3087,7 @@ dependencies = [
  "mc-util-build-grpc",
  "mc-util-build-script",
  "mc-util-uri",
- "protobuf",
+ "protobuf 2.28.0",
 ]
 
 [[package]]
@@ -3102,7 +3102,7 @@ dependencies = [
  "mc-mobilecoind-api",
  "mc-util-grpc",
  "mc-util-serial",
- "protobuf",
+ "protobuf 2.28.0",
  "rocket",
  "serde",
  "serde_derive",
@@ -3432,7 +3432,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "prometheus",
- "protobuf",
+ "protobuf 2.28.0",
  "rand 0.8.5",
  "retry 2.0.0",
  "serde",
@@ -3474,7 +3474,7 @@ dependencies = [
  "lazy_static",
  "mc-common",
  "prometheus",
- "protobuf",
+ "protobuf 2.28.0",
  "serde_json",
 ]
 
@@ -3502,7 +3502,7 @@ name = "mc-util-serial"
 version = "4.1.0-pre0"
 dependencies = [
  "prost",
- "protobuf",
+ "protobuf 2.28.0",
  "serde",
  "serde_cbor",
  "serde_with",
@@ -3577,7 +3577,7 @@ dependencies = [
  "mc-util-build-grpc",
  "mc-util-build-script",
  "mc-util-uri",
- "protobuf",
+ "protobuf 3.2.0",
 ]
 
 [[package]]
@@ -3596,7 +3596,7 @@ dependencies = [
  "mc-util-grpc",
  "mc-util-uri",
  "mc-validator-api",
- "protobuf",
+ "protobuf 3.2.0",
 ]
 
 [[package]]
@@ -4289,7 +4289,7 @@ dependencies = [
  "lazy_static",
  "memchr",
  "parking_lot",
- "protobuf",
+ "protobuf 2.28.0",
  "thiserror",
 ]
 
@@ -4323,12 +4323,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "106dd99e98437432fed6519dedecfade6a06a73bb7b2a1e019fdd2bee5778d94"
 
 [[package]]
+name = "protobuf"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b55bad9126f378a853655831eb7363b7b01b81d19f8cb1218861086ca4a1a61e"
+dependencies = [
+ "once_cell",
+ "protobuf-support",
+ "thiserror",
+]
+
+[[package]]
 name = "protobuf-codegen"
 version = "2.28.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "033460afb75cf755fcfc16dfaed20b86468082a2ea24e05ac35ab4a099a017d6"
 dependencies = [
- "protobuf",
+ "protobuf 2.28.0",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5d4d7b8601c814cfb36bcebb79f0e61e45e1e93640cf778837833bbed05c372"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
@@ -4349,7 +4369,7 @@ checksum = "980d0ed845138df84f72beb72faf6d726c70c99d0debb2b5e1e7dee61f853df7"
 dependencies = [
  "failure",
  "grpcio-compiler",
- "protobuf",
+ "protobuf 2.28.0",
  "protobuf-codegen",
  "protoc",
  "tempfile",
