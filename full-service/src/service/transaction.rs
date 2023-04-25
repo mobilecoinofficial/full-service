@@ -156,12 +156,6 @@ impl From<mc_api::ConversionError> for TransactionServiceError {
     }
 }
 
-impl From<retry::Error<mc_connection::Error>> for TransactionServiceError {
-    fn from(e: retry::Error<mc_connection::Error>) -> Self {
-        Self::Connection(e)
-    }
-}
-
 impl From<AddressServiceError> for TransactionServiceError {
     fn from(e: AddressServiceError) -> Self {
         Self::AddressService(e)
