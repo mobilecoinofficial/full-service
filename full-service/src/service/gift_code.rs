@@ -254,12 +254,6 @@ impl From<mc_util_uri::UriParseError> for GiftCodeServiceError {
     }
 }
 
-impl From<retry::Error<mc_connection::Error>> for GiftCodeServiceError {
-    fn from(e: retry::Error<mc_connection::Error>) -> Self {
-        Self::Connection(e)
-    }
-}
-
 impl From<AddressServiceError> for GiftCodeServiceError {
     fn from(src: AddressServiceError) -> Self {
         Self::AddressService(src)
