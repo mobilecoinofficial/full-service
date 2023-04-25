@@ -6,8 +6,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
+        exclusive_transaction,
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
-        transaction,
         transaction_log::TransactionLogModel,
         txo::TxoModel,
         Conn, WalletDb,
@@ -64,8 +64,8 @@ impl SyncThread {
                 .spawn(move || {
                     log::debug!(logger, "Sync thread started.");
 
-                    let conn = wallet_db
-                        .get_conn()
+                    let conn = &mut wallet_db
+                        .get_pooled_conn()
                         .expect("failed getting wallet db connection");
 
                     loop {
@@ -73,7 +73,7 @@ impl SyncThread {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        match sync_all_accounts(&ledger_db, &conn, &logger) {
+                        match sync_all_accounts(&ledger_db, conn, &logger) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
                         }
@@ -109,7 +109,7 @@ impl Drop for SyncThread {
 
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
-    conn: &Conn,
+    conn: Conn,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
@@ -137,11 +137,11 @@ pub fn sync_all_accounts(
 
 pub fn sync_account_next_chunk(
     ledger_db: &LedgerDB,
-    conn: &Conn,
+    conn: Conn,
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(), SyncError> {
-    transaction(conn, || {
+    exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -268,7 +268,8 @@ pub fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len());
+            unspent_key_images.len()
+        );
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -355,7 +356,8 @@ pub fn sync_account_next_chunk(
             duration,
             num_received_txos,
             num_spent_txos,
-            unspent_key_images.len());
+            unspent_key_images.len()
+        );
         };
 
         Ok(())
@@ -379,7 +381,7 @@ pub fn decode_amount(tx_out: &TxOut, view_private_key: &RistrettoPrivate) -> Opt
 pub fn decode_subaddress_index(
     tx_out: &TxOut,
     view_private_key: &RistrettoPrivate,
-    conn: &Conn,
+    conn: Conn,
 ) -> Option<u64> {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Ok(k) => k,
@@ -405,7 +407,7 @@ pub fn decode_subaddress_index(
 pub fn decode_subaddress_and_key_image(
     tx_out: &TxOut,
     account_key: &AccountKey,
-    conn: &Conn,
+    conn: Conn,
 ) -> (Option<u64>, Option<KeyImage>) {
     let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
         Ok(k) => k,

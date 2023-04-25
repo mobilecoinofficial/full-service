@@ -6,7 +6,7 @@ description: >-
 
 # Transaction Log
 
-Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full-service Wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
+Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full-service Wallet stores outgoing transactions in the `transaction_log` table in order to preserve transaction history.  Received transactions are instead saved as txos.
 
 ## Attributes
 

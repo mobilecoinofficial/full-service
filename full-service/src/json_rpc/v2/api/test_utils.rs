@@ -22,10 +22,10 @@ use mc_blockchain_types::BlockSignature;
 use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
 use mc_crypto_keys::Ed25519Pair;
-use mc_crypto_rand::{CryptoRng, RngCore};
 use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
+use mc_rand::{CryptoRng, RngCore};
 use mc_util_from_random::FromRandom;
 use mc_watcher::watcher_db::WatcherDB;
 

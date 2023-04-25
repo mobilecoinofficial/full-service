@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "fullService.fullname" . }}
+  name: full-service
   labels:
     {{- include "fullService.labels" . | nindent 4 }}
 spec:

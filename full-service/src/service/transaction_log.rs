@@ -2,6 +2,8 @@
 
 //! Service for managing transaction logs.
 
+use std::ops::DerefMut;
+
 use crate::{
     db::{
         models::TransactionLog,
@@ -91,7 +93,8 @@ where
         min_block_index: Option<u64>,
         max_block_index: Option<u64>,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletServiceError> {
-        let conn = &self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         Ok(TransactionLog::list_all(
             account_id,
             offset,
@@ -106,11 +109,12 @@ where
         &self,
         transaction_id_hex: &str,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap), TransactionLogServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let transaction_log =
-            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
-        let associated = transaction_log.get_associated_txos(&conn)?;
-        let value_map = transaction_log.value_map(&conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), conn)?;
+        let associated = transaction_log.get_associated_txos(conn)?;
+        let value_map = transaction_log.value_map(conn)?;
 
         Ok((transaction_log, associated, value_map))
     }
@@ -134,7 +138,7 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_crypto_rand::rand_core::RngCore;
+    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 

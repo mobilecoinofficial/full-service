@@ -55,6 +55,10 @@ pub struct Txo {
     /// A confirmation number that the sender of the Txo can provide to verify
     /// that they participated in the construction of this Txo.
     pub confirmation: Option<String>,
+
+    /// Shared secret that's used to mask the private keys associated with the
+    /// amounts in a transaction
+    pub shared_secret: Option<String>,
 }
 
 impl Txo {
@@ -73,6 +77,7 @@ impl Txo {
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
             key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
+            shared_secret: txo.shared_secret.as_ref().map(hex::encode),
         }
     }
 }
@@ -109,7 +114,7 @@ mod tests {
             "".to_string(),
             "".to_string(),
             "".to_string(),
-            &wallet_db.get_conn().unwrap(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
 
@@ -123,9 +128,11 @@ mod tests {
             &wallet_db,
         );
 
-        let txo_details = db::models::Txo::get(&txo_hex, &wallet_db.get_conn().unwrap())
+        let txo_details = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
             .expect("Could not get Txo");
-        let status = txo_details.status(&wallet_db.get_conn().unwrap()).unwrap();
+        let status = txo_details
+            .status(&mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::new(&txo_details, &status);
         assert_eq!(json_txo.value, "15625000000000000000");

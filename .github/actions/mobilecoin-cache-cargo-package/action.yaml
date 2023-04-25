@@ -12,6 +12,10 @@ inputs:
       /opt/cargo/git
       /opt/cargo/registry/index
       /opt/cargo/registry/cache
+  additional_keys:
+    description: "additional values to add to the cache key"
+    required: false
+    default: ""
 
 outputs:
   cache-hit:
@@ -28,4 +32,4 @@ runs:
       path: ${{ inputs.path }}
       # Key is a hash of all the Cargo.toml and Cargo.lock files.
       # if packages change, invalidate cache and rebuild
-      key: ${{ inputs.cache_buster }}-${{ runner.os }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}-cargo-cache
+      key: ${{ inputs.cache_buster }}${{ inputs.additional_keys }}-${{ runner.os }}-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}-cargo-cache

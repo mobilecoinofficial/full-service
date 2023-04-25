@@ -1,5 +1,4 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
-{{ if eq .Values.fullService.configMap.external false }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -7,5 +6,18 @@ metadata:
   labels:
     {{- include "fullService.labels" . | nindent 4 }}
 data:
-  {{- toYaml .Values.fullService.configMap.data | nindent 2}}
+{{- if .Values.config.chainId }}
+  MC_CHAIN_ID: {{ .Values.config.chainId | quote }}
+{{- end }}
+{{- if .Values.config.txSourceURLs }}
+  MC_TX_SOURCE_URL: {{ join "," .Values.config.txSourceURLs | quote }}
+{{- end }}
+{{- if .Values.config.peers }}
+  MC_PEER: {{ join "," .Values.config.peers | quote }}
+{{- end }}
+{{- if .Values.config.ledgerDbURL }}
+  MC_LEDGER_DB_URL: {{ .Values.config.ledgerDbURL | quote }}
+{{- end }}
+{{- if .Values.fullService.configMap.data }}
+  {{- toYaml .Values.fullService.configMap.data | nindent 2 }}
 {{- end }}

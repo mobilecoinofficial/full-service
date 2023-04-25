@@ -10,6 +10,10 @@ inputs:
     required: false
     default: |
       rust_build_artifacts
+  additional_keys:
+    description: "additional values to add to the cache key"
+    required: false
+    default: ""
 
 outputs:
   cache-hit:
@@ -26,4 +30,4 @@ runs:
       path: ${{ inputs.path }}
       # Key is a hash of all the .rs, .proto and Cargo.toml files.
       # if code changes, invalidate cache and rebuild
-      key: ${{ inputs.cache_buster }}-${{ runner.os }}-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml', '**/*.edl', '.cargo/config') }}-rust-build-artifacts
+      key: ${{ inputs.cache_buster }}${{ inputs.additional_keys }}-${{ runner.os }}-${{ hashFiles('**/*.rs', '**/*.proto', '**/Cargo.toml', '**/*.edl', '.cargo/config') }}-rust-build-artifacts

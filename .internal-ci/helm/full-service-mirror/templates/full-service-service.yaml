@@ -1,0 +1,18 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: v1
+kind: Service
+metadata:
+  name: full-service
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+    app: full-service
+spec:
+  type: ClusterIP
+  ports:
+    - name: full-service
+      port: 9090
+      targetPort: full-service
+      protocol: TCP
+  selector:
+    {{- include "fullServiceMirror.selectorLabels" . | nindent 4 }}
+    app: full-service

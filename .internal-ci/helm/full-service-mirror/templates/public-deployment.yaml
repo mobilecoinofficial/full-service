@@ -1,0 +1,58 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fullServiceMirror.fullname" . }}-public
+  labels:
+    {{- include "fullServiceMirror.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.public.replicaCount }}
+  selector:
+    matchLabels:
+      app: public
+      {{- include "fullServiceMirror.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- toYaml .Values.public.podAnnotations | nindent 8 }}
+      labels:
+        app: public
+        {{- include "fullServiceMirror.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      containers:
+      - name: public
+        securityContext:
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+        image: {{ include "fullServiceMirror.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - /usr/local/bin/wallet-service-mirror-public
+        - --client-listen-uri=http://0.0.0.0:9090/
+        - --mirror-listen-uri=insecure-wallet-service-mirror://0.0.0.0:10000/
+        ports:
+        - name: client
+          containerPort: 9090
+          protocol: TCP
+        - name: mirror
+          containerPort: 10000
+          protocol: TCP
+        resources:
+          {{- toYaml .Values.public.resources | nindent 12 }}
+      nodeSelector:
+        {{- toYaml .Values.public.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.public.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.public.tolerations | nindent 8 }}
+

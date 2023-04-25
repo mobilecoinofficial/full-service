@@ -6,7 +6,6 @@
 
 GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
-CARGO_TARGET_DIR="${GIT_BASE}/target"
 
 # Assume that if you're git directory is /tmp/mobilenode that we're in mob prompt
 if [[ "${GIT_BASE}" == "/tmp/mobilenode" ]]
@@ -16,13 +15,20 @@ fi
 
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
-    echo "I'm in mob prompt!"
-    WORK_DIR="${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}"
+    # Set cargo target dir to include the "net"
+    CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}/${net}
+    # CBB: Deprecate the concept of "workdir" to simplify paths/scripts.
+    #      This is now a symlink to RELEASE_DIR
+    WORK_DIR=".mob/${net}"
     LISTEN_ADDR="0.0.0.0"
 else
-    WORK_DIR="${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}"
+    CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}
+    WORK_DIR=${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}
     LISTEN_ADDR="127.0.0.1"
 fi
+
+RELEASE_DIR=${CARGO_TARGET_DIR}/release
+export CARGO_TARGET_DIR
 
 # debug - echo a debug message
 #  1: message

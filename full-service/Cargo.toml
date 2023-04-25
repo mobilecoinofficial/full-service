@@ -24,7 +24,6 @@ mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-core = { path = "../mobilecoin/core" }
 mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
-mc-crypto-rand = { path = "../mobilecoin/crypto/rand", default-features = false }
 mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-resolver = { path = "../mobilecoin/fog/report/resolver" }
@@ -35,6 +34,7 @@ mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
+mc-rand = "1.1.0"
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
@@ -47,25 +47,26 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
-base64 = "0.13.1"
+base64 = "0.21.0"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-clap = { version = "4.0", features = ["derive", "env"] }
+clap = { version = "4.2", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
-diesel = { version = "1.4.8", features = ["sqlcipher-bundled", "chrono"] }
+diesel = { version = "2.0.4", features = ["chrono", "sqlite", "r2d2"] }
 diesel-derive-enum = { version = "2", features = ["sqlite"] }
-diesel_migrations = { version = "1.4.0", features = ["sqlite"] }
+diesel_migrations = { version = "2.0.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.12"
 hex = { version = "0.4", default-features = false }
+libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.15"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }
 rayon = "1.7"
-reqwest = { version = "0.11.15", default-features = false, features = ["rustls-tls", "gzip"] }
-retry = "1.3"
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
-rocket_sync_db_pools = { version = "0.1.0-rc.2", features = ["diesel_sqlite_pool"] }
+reqwest = { version = "0.11.16", default-features = false, features = ["rustls-tls", "gzip"] }
+retry = "2.0"
+rocket = { version = "0.5.0-rc.3", features = ["json"] }
+rocket_sync_db_pools = { version = "0.1.0-rc.3", features = ["diesel_sqlite_pool"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 serde-big-array = "0.5.1"
 serde_derive = "1.0"
@@ -73,7 +74,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 strum = { version = "0.24.1", features = ["derive"] }
 strum_macros = "0.24.3"
 tiny-bip39 = "1.0"
-uuid = { version = "1.3.0", features = ["serde", "v4"] }
+uuid = { version = "1.3.1", features = ["serde", "v4"] }
 
 [dev-dependencies]
 bs58 = "0.4.0"
@@ -86,7 +87,4 @@ tempdir = "0.3"
 url = "2.3"
 
 [build-dependencies]
-anyhow = "1.0"
-# clippy fails to run without this.
-diesel = { version = "1.4.8", features = ["sqlcipher-bundled"] }
-vergen = "7.4.3"
+vergen = { version = "8.1.2", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }

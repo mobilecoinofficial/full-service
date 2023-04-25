@@ -4,15 +4,14 @@ import aiohttp
 import os
 import json
 import time
-from typing import Optional
-
-from mobilecoin.token import get_token, Amount
 
 
 log = logging.getLogger('client_async')
 
-DEFAULT_URL = 'http://127.0.0.1:9090/wallet/v2'
-MAX_TOMBSTONE_BLOCKS = 100
+DEFAULT_HOST = 'http://127.0.0.1'
+DEFAULT_PORT = 9090
+
+MAX_TOMBSTONE_BLOCKS = 20160
 
 
 class WalletAPIError(Exception):
@@ -21,12 +20,17 @@ class WalletAPIError(Exception):
 
 
 class ClientAsync:
-    def __init__(self, url=None):
-        if url is None:
-            url = os.environ.get('MC_FULL_SERVICE_URL', DEFAULT_URL)
-        self.url = url
-        self._query_count = 0
 
+    REQ_PATH = '/wallet/v2'
+
+    def __init__(self, host=None, port=None):
+        if host is None:
+            host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
+        if port is None:
+            port = os.environ.get('MC_FULL_SERVICE_PORT', DEFAULT_PORT)
+        self.url = f'{host}:{DEFAULT_PORT}' + self.REQ_PATH
+
+        self.api_key = os.environ.get('MC_API_KEY')
         self.session = aiohttp.ClientSession()
 
     def __enter__(self):
@@ -43,16 +47,26 @@ class ClientAsync:
         await self.session.close()
 
     async def _req(self, request_data):
+        # Assemble request.
         default_params = {
             "jsonrpc": "2.0",
             "id": 1,
         }
         request_data = {**request_data, **default_params}
         log.debug(f'POST {json.dumps(request_data, indent=4)}')
-        async with self.session.post(self.url, json=request_data) as response:
+
+        # Optionally construct API key header.
+        headers = {}
+        if self.api_key is not None:
+            headers['X-API-KEY'] = self.api_key
+
+        # Send request.
+        async with self.session.post(self.url, json=request_data, headers=headers) as response:
             r_json = await response.text()
         r = json.loads(r_json)
         log.debug(f'Response: {json.dumps(r, indent=4)}')
+
+        # Get result.
         try:
             return r['result']
         except KeyError:
@@ -353,7 +367,7 @@ class ClientAsync:
     # Polling utility functions.
 
     @staticmethod
-    async def poll(func, delay=1.0, timeout=10):
+    async def poll(func, delay=1.0, timeout=30):
         """
         Repeatedly call the given function until it returns a result.
         """
@@ -398,14 +412,14 @@ class ClientSync:
     code. Any time we call a method of this client, it constructs an inner
     asynchronous client, and calls the underlying async method.
     """
-    def __init__(self, url=None):
-        self.url = url
+    def __init__(self, host=None):
+        self.host = host
 
     def __getattr__(self, name):
         def inner(*args, **kwargs):
             result = None
             async def runner():
-                async with ClientAsync() as c:
+                async with ClientAsync(self.host) as c:
                     nonlocal result
                     method = getattr(c, name)
                     result = await method(*args, **kwargs)

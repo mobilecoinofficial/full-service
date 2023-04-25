@@ -35,7 +35,7 @@ use rand::Rng;
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::convert::TryFrom;
+use std::{convert::TryFrom, ops::DerefMut};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -314,16 +314,18 @@ where
     }
 
     fn get_transaction_object(&self, transaction_id_hex: &str) -> Result<Tx, LedgerServiceError> {
-        let conn = self.get_conn()?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
         let transaction_log =
-            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), &conn)?;
+            TransactionLog::get(&TransactionId(transaction_id_hex.to_string()), conn)?;
         let tx: Tx = mc_util_serial::decode(&transaction_log.tx)?;
         Ok(tx)
     }
 
     fn get_txo_object(&self, txo_id_hex: &str) -> Result<TxOut, LedgerServiceError> {
-        let conn = self.get_conn()?;
-        let txo_details = Txo::get(txo_id_hex, &conn)?;
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let txo_details = Txo::get(txo_id_hex, conn)?;
         let txo = self.ledger_db.get_tx_out_by_index(
             self.ledger_db
                 .get_tx_out_index_by_public_key(&txo_details.public_key()?)?,
@@ -428,6 +430,19 @@ where
     }
 
     fn get_network_block_version(&self) -> Result<BlockVersion, LedgerServiceError> {
+        // If we are in offline mode, get the last block information from the last
+        // synced block
+        if self.offline {
+            let num_blocks = self.ledger_db.num_blocks()?;
+            if num_blocks < 1 {
+                return Err(LedgerServiceError::NoLastBlockInfo);
+            }
+
+            let last_block = self.ledger_db.get_block(num_blocks - 1)?;
+            let version = Ok(BlockVersion::try_from(last_block.version)?);
+            return version;
+        }
+
         Ok(BlockVersion::try_from(
             self.get_latest_block_info()?.network_block_version,
         )?)

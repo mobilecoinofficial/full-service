@@ -1,12 +1,19 @@
 from decimal import Decimal
 import http.client
 import json
+import os
 import time
 from urllib.parse import urlparse
 
-DEFAULT_URL = 'http://127.0.0.1:9090/wallet'
+from mobilecoin.token import get_token
+
+MOB = get_token('MOB')
+
+DEFAULT_HOST = 'http://127.0.0.1:9090'
+DEFAULT_PORT = 9090
 
 MAX_TOMBSTONE_BLOCKS = 100
+
 
 
 class WalletAPIError(Exception):
@@ -15,11 +22,22 @@ class WalletAPIError(Exception):
 
 
 class Client:
+    """
+    *DEPRECATED*
+    This is a legacy implementation of the full-service API, version 1.
+    This version of the API does not support multiple token types. Please do
+    not use this for new development.
+    """
 
-    def __init__(self, url=None, verbose=False):
-        if url is None:
-            url = DEFAULT_URL
-        self.url = url
+    REQ_PATH = '/wallet'
+
+    def __init__(self, host=None, port=None, verbose=False):
+        if host is None:
+            host = os.environ.get('MC_FULL_SERVICE_HOST', DEFAULT_HOST)
+        if port is None:
+            port = os.environ.get('MC_FULL_SERVICE_PORT', DEFAULT_PORT)
+        self.url = f'{host}:{DEFAULT_PORT}' + self.REQ_PATH
+
         self.verbose = verbose
         self._query_count = 0
 
@@ -68,13 +86,20 @@ class Client:
 
         return result
 
-    def create_account(self, name=None):
-        r = self._req({
-            "method": "create_account",
-            "params": {
-                "name": name,
+    def create_account(
+        self,
+        name=None,
+        fog_report_url=None,
+        fog_authority_spki=None,
+    ):
+        params = {"name": name}
+        if fog_report_url is not None and fog_authority_spki is not None:
+            params['fog_info'] = {
+                "report_url": fog_report_url,
+                "report_id": "",
+                "authority_spki": fog_authority_spki,
             }
-        })
+        r = self._req({"method": "create_account", "params": params})
         return r['account']
 
     def import_account(self, mnemonic, key_derivation_version=2, name=None, first_block_index=None, next_subaddress_index=None, fog_keys=None):
@@ -177,12 +202,6 @@ class Client:
         })
         return r['txo']
 
-    def get_network_status(self):
-        r = self._req({
-            "method": "get_network_status",
-        })
-        return r['network_status']
-
     def get_balance_for_account(self, account_id):
         r = self._req({
             "method": "get_balance_for_account",
@@ -226,59 +245,43 @@ class Client:
         return r['address_map']
 
     def build_and_submit_transaction(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log']
-
-    def build_and_submit_transaction_with_proposal(self, account_id, amount, to_address, fee=None):
-        r = self._build_and_submit_transaction(account_id, amount, to_address, fee)
-        return r['transaction_log'], r['tx_proposal']
-
-    def _build_and_submit_transaction(self, account_id, amount, to_address, fee):
-        amount = str(mob2pmob(amount))
         params = {
             "account_id": account_id,
-            "addresses_and_values": [(to_address, amount)],
+            "addresses_and_values": [(to_address, str(amount.value))],
         }
         if fee is not None:
-            params['fee'] = str(mob2pmob(fee))
+            params['fee'] = str(fee.value)
         r = self._req({
             "method": "build_and_submit_transaction",
             "params": params,
         })
-        return r
+        return r['transaction_log'], r['tx_proposal']
 
-    def build_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
-        amount = str(mob2pmob(amount))
+    def build_transaction(
+        self,
+        account_id,
+        addresses_and_amounts,
+        tombstone_block=None,
+        fee=None,
+    ):
         params = {
             "account_id": account_id,
-            "addresses_and_values": [(to_address, amount)],
+            "addresses_and_values": [],
         }
+        for (address, amount) in addresses_and_amounts.items():
+            assert amount.token == MOB
+            params['addresses_and_values'].append((address, str(amount.value)))
+        if fee is not None:
+            params['fee_value'] = str(fee.value)
+            params['fee_token_id'] = str(fee.token.token_id)
         if tombstone_block is not None:
             params['tombstone_block'] = str(int(tombstone_block))
-        if fee is not None:
-            params['fee'] = str(mob2pmob(fee))
+
         r = self._req({
             "method": "build_transaction",
             "params": params,
         })
-        return r['tx_proposal']
-
-    def build_unsigned_transaction(self, account_id, amount, to_address, tombstone_block=None, fee=None):
-        amount = str(mob2pmob(amount))
-        params = {
-            "account_id": account_id,
-            "recipient_public_address": to_address,
-            "value_pmob": amount,
-        }
-        if tombstone_block is not None:
-            params['tombstone_block'] = str(int(tombstone_block))
-        if fee is not None:
-            params['fee'] = str(mob2pmob(fee))
-        r = self._req({
-            "method": "build_unsigned_transaction",
-            "params": params,
-        })
-        return r
+        return r['tx_proposal'], r['transaction_log_id']
 
     def submit_transaction(self, tx_proposal, account_id=None):
         r = self._req({
@@ -321,12 +324,11 @@ class Client:
         return r
 
     def build_gift_code(self, account_id, amount, memo=""):
-        amount = str(mob2pmob(amount))
         r = self._req({
             "method": "build_gift_code",
             "params": {
                 "account_id": account_id,
-                "value_pmob": amount,
+                "value_pmob": str(amount.value),
                 "memo": memo,
             },
         })
@@ -406,10 +408,29 @@ class Client:
         r = self._req({"method": "version"})
         return r
 
+    def get_network_status(self):
+        r = self._req({
+            "method": "get_network_status",
+        })
+        return r['network_status']
+
+    def get_block(self, block_index):
+        r = self._req({
+            "method": "get_block",
+            "params": {
+                "block_index": str(block_index),
+            }
+        })
+        return r['block'], r['block_contents']
+
+    def get_wallet_status(self):
+        r = self._req({"method": "get_wallet_status"})
+        return r['wallet_status']
+
     # Utility methods.
 
     @staticmethod
-    def poll(func, delay=1.0, timeout=10):
+    def poll(func, delay=1.0, timeout=30):
         """
         Repeatedly call the given function until it returns a result.
         """
@@ -443,40 +464,3 @@ class Client:
                 ):
                     return balance
         return self.poll(func, **kwargs)
-
-    def poll_gift_code_status(self, gift_code_b58, target_status, seconds=10, poll_delay=1.0):
-        for _ in range(seconds):
-            response = self.check_gift_code_status(gift_code_b58)
-            if response['gift_code_status'] == target_status:
-                return response
-            time.sleep(poll_delay)
-        else:
-            raise Exception('Gift code {} never reached status {}.'.format(gift_code_b58, target_status))
-
-    def poll_txo(self, txo_id, seconds=10, poll_delay=1.0):
-        for _ in range(10):
-            try:
-                return self.get_txo(txo_id)
-            except WalletAPIError:
-                pass
-            time.sleep(poll_delay)
-        else:
-            raise Exception('Txo {} never landed.'.format(txo_id))
-
-
-PMOB = Decimal("1e12")
-
-
-def mob2pmob(x):
-    """Convert from MOB to picoMOB."""
-    result = round(Decimal(x) * PMOB)
-    assert 0 <= result < 2**64
-    return result
-
-
-def pmob2mob(x):
-    """Convert from picoMOB to MOB."""
-    result = int(x) / PMOB
-    if result == 0:
-        result = Decimal("0")
-    return result

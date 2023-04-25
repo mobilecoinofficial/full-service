@@ -19,31 +19,35 @@ The Full-Service Node provides ledger syncing and validation, account management
 
 * [License](#license)
 * [Usage and Documentation](#usage-and-documentation)
-* [Build and Run](#build-and-run-mob)
-* [Build and Run](#build-and-run)
-* [Docker Build and Run](#docker-build-and-run)
+* [Run the wallet service](#run-the-wallet-service)
+* [Build with Docker](#build-with-docker)
+* [Build locally](#build-locally)
+* [Build your own docker image](#build-your-own-docker-image)
 * [Parameters](#parameters)
-* [Offline (Cold Wallet) Transaction Flow](#offline-cold-wallet-transaction-flow)
+* [API Key](#api-key)
+* [Exit Codes](#exit-codes)
 * [Contributing](#contributing)
 * [Database Schema](#database-schema)
 * [Running Tests](#running-tests)
 * [Linting](#linting)
 
-### License
+## License
 
 MobileCoin Full Service is available under open-source licenses. Look for the [LICENSE](./LICENSE) file for more
 information.
 
-### Usage and Documentation
+## Usage and Documentation
 
 For documentation, usage, and API specification, please see the full API documentation at: [Full Service API](https://mobilecoin.gitbook.io/full-service-api/)
 
 Database encryption features are also described in the [Database Encryption](https://mobilecoin.gitbook.io/full-service-api/usage/database-usage#database-encryption)
 section of the full API docs.
 
-## Run the wallet service directly from the official docker image.
 
-You can a pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
+## Run the wallet service
+
+You can run the wallet service directly from the official docker image.
+Get the pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
 
 Here is the command to run against test-net:
 ```sh
@@ -75,9 +79,9 @@ docker run -it -p 127.0.0.1:9090:9090 \
 
 These commands expect that you have your ledger and wallet databases located at `~/.mobilecoin/test` or `~/.mobilecoin/main`.
 
-## Build with the Docker builder container.
+## Build with Docker
 
-You can build the wallet service using the `mob` tool, which creates a docker container set up for correct compliation.
+You can build the wallet service using the `mob` tool, which creates a docker container set up for correct compliation. This is called the "builder image".
 
 **Prerequisites**
 - git
@@ -103,7 +107,7 @@ You can build the wallet service using the `mob` tool, which creates a docker co
     tools/build-fs.sh test
     ```
 
-## Build locally.
+## Build locally
 
 Note: Full-Service and mobilecoin are not currently compatible with Xcode 13 or higher (the Xcode that ships with OSX Monterey and later). Make sure you are using Xcode 12 before building and running Full-service. You can [download Xcode 12 from Apple's developer downloads page](https://developer.apple.com/download/all/?q=xcode%2012).
 
@@ -129,130 +133,111 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
 1. Install Rust from https://www.rust-lang.org/tools/install
 
-2. Install dependencies (from this top-level full-service directory).
+2. Install dependencies.
 
-   On Ubuntu:
+    On Ubuntu:
     ```sh
     sudo apt install build-essential cmake protobuf-compiler libprotobuf-dev llvm llvm-dev clang libclang-dev libsqlite3-dev libssl-dev lcov
     ```
 
-   On MacOS:
+    On Arch Linux:
+    ```sh
+    sudo pacman -S base-devel cmake protobuf llvm-libs clang sqlite sqlcipher openssl-1.1
+    ```
+
+    On MacOS:
     ```sh
     brew bundle
     ```
 
     After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
 
-   Ubuntu:
+    Ubuntu:
     ```
     PATH="/usr/local/opt/openssl@3/bin:$PATH"
     LDFLAGS="-L/usr/local/opt/openssl@3/lib"
     CPPFLAGS="-I/usr/local/opt/openssl@3/include"
     PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
     ```
-    
+
     The `ulimit` command fixes an issue related to shell resource usage. 
 
-   MacOS:
+    MacOS:
     ```sh
-   echo 'ulimit -n 4096' >> ~/.bash_profile
-   echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
-   source ~/.bash_profile
-   export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
-   export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
-   export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+    echo 'ulimit -n 4096' >> ~/.bash_profile
+    echo 'export PATH="/opt/homebrew/opt/openssl@3/bin:$PATH"' >> ~/.bash_profile
+    source ~/.bash_profile
+    export LDFLAGS="-L/opt/homebrew/opt/openssl@3/lib"
+    export CPPFLAGS="-I/opt/homebrew/opt/openssl@3/include"
+    export PKG_CONFIG_PATH="/opt/homebrew/opt/openssl@3/lib/pkgconfig"
     ```
 
-   Finally, for both:
-   ```sh
-   rustup component add llvm-tools-preview
-   ```
+    Finally, for both:
+    ```sh
+    rustup component add llvm-tools-preview
+    ```
 
-4. Pull submodule.
+3. Pull submodule.
 
     ```sh
     git submodule update --init --recursive
     ```
 
-5. Get the appropriate published enclave measurements, which will be saved to `$(pwd)/consensus-enclave.css`
-   and `$(pwd)/ingest-enclave.css`
+4. Install SGX libraries (required for linux distros; not required for MacOS).
 
-    * Note: Namespace is `test` for TestNet and `prod` for MainNet.
-
-    ```sh
-    NAMESPACE=test
-
-    CONSENSUS_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep consensus-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${CONSENSUS_SIGSTRUCT_URI}
-
-    INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-    curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI}
-    ```
-
-6. Install SGX libraries (required for linux distros; not required for MacOS).
-
-   On Ubuntu:
+    On Ubuntu:
     ```sh
     wget https://download.01.org/intel-sgx/sgx-linux/2.9.1/distro/ubuntu18.04-server/sgx_linux_x64_sdk_2.9.101.2.bin
     chmod +x sgx_linux_x64_sdk_2.9.101.2.bin
     sudo ./sgx_linux_x64_sdk_2.9.101.2.bin --prefix=/opt/intel
     ```
 
-   Put this line in your .bashrc or .zhrc:
+    Put this line in your .bashrc or .zhrc:
     ```sh
     source /opt/intel/sgxsdk/environment
     ```
+    This works on more recent Ubuntu distributions, even though it specifies 18.04.
 
-   This works on more recent Ubuntu distributions, even though it specifies 18.04.
+5. Put this line in your .bashrc or .zshrc to specify where OPENSSL is installed.
 
-7. Put this line in your .bashrc or .zhrc:
-
-   Ubuntu:
+    Ubuntu:
     ```sh
     export OPENSSL_ROOT_DIR="/usr/local/opt/openssl@3"
     ```
 
-   OSX:
-   ```sh
-   echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
-   ```
-
-8. Build
+    Arch Linux:
     ```sh
-    SGX_MODE=HW \
-    IAS_MODE=PROD \
-    CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
-    INGEST_ENCLAVE_CSS=$(pwd)/ingest-enclave.css \
-    cargo build --release -p mc-full-service
+    export OPENSSL_LIB_DIR=/usr/lib/openssl-1.1 OPENSSL_INCLUDE_DIR=/usr/include/openssl-1.1
     ```
 
-9. Set database password if using encryption.
+    OSX:
+    ```sh
+    echo 'export OPENSSL_ROOT_DIR="/opt/homebrew/opt/openssl\@3"' >> ~/.bash_profile
+    ```
+
+7. Build
+
+    ```sh
+    ./tools/build-fs.sh test
+    ```
+
+8. Set database password if using encryption.
+
     ```sh
     read -rs MC_PASSWORD
     export MC_PASSWORD=$MC_PASSWORD
     ```
-10. Run
 
-
-   TestNet Example
+9. Run
 
     ```sh
-    mkdir -p /tmp/wallet-db/
-    ./target/release/full-service \
-        --wallet-db /tmp/wallet-db/wallet.db \
-        --ledger-db /tmp/ledger-db/ \
-        --peer mc://node1.test.mobilecoin.com/ \
-        --peer mc://node2.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
-        --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-        --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
-        --chain-id test
+    ./tools/run-fs.sh test
     ```
 
-   See [Parameters](#parameters) for full list of available options.
+See [Parameters](#parameters) for full list of available options.
 
 
-## Building your own docker image.
+## Build your own docker image
 
 1. Pull submodule.
 
@@ -260,32 +245,32 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
     git submodule update --init --recursive
     ```
 
-1. Build
+    2. Build
 
-   This build takes advantage of features in Docker BuildKit use `DOCKER_BUILDKIT=1` when building this image.
+    This build takes advantage of features in Docker BuildKit use `DOCKER_BUILDKIT=1` when building this image.
 
-   See the [Dockerfile](./Dockerfile) comments for the full list of available build arguments to customize the build.
+    See the [Dockerfile](./Dockerfile) comments for the full list of available build arguments to customize the build.
 
-   **TestNet Version**
+    **TestNet Version**
 
-   Use `--build-arg NAMESPACE=test` to configure build to use TestNet enclave measurements.
+    Use `--build-arg NAMESPACE=test` to configure build to use TestNet enclave measurements.
 
     ```sh
     DOCKER_BUILDKIT=1 docker build -t mobilecoin/full-service:0.0.0-testnet --progress=plain \
-    --build-arg NAMESPACE=test \
-    --build-arg BUILD_OPTS=--no-default-features .
+        --build-arg NAMESPACE=test \
+        --build-arg BUILD_OPTS=--no-default-features .
     ```
 
-   **MainNet Version**
+    **MainNet Version**
 
-   Use `--build-arg NAMESPACE=prod` to configure build to use MainNet enclave measurements.
+    Use `--build-arg NAMESPACE=prod` to configure build to use MainNet enclave measurements.
 
     ```sh
     DOCKER_BUILDKIT=1 docker build -t mobilecoin/full-service:0.0.0 --progress=plain \
         --build-arg NAMESPACE=prod .
     ```
 
-1. Run
+3. Run
 
    **Volumes**
 
@@ -297,7 +282,11 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
 
    Then run your image as above.
 
-## Parameters to the full-service executable.
+
+
+## Parameters
+
+These are the parameters to the full-service executable.
 
 | Param            | Purpose                  | Requirements              |
 | :--------------- | :----------------------- | :------------------------ |

@@ -76,6 +76,7 @@ table! {
         received_block_index -> Nullable<BigInt>,
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
+        shared_secret -> Nullable<Binary>,
     }
 }
 

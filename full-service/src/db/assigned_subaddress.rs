@@ -26,17 +26,18 @@ use mc_ledger_db::{Ledger, LedgerDB};
 use crate::db::{Conn, WalletDbError};
 use diesel::prelude::*;
 
+#[rustfmt::skip]
 pub trait AssignedSubaddressModel {
-    /// Assign a subaddress to a contact.
-    ///
-    /// Inserts an AssignedSubaddress to the DB.
+    /// Assign a subaddress to an account.
     ///
     /// # Arguments
-    /// * `account_key` - An account's private keys.
-    /// * `address_book_entry` -
-    /// * `subaddress_index` -
-    /// * `comment` -
-    /// * `conn` -
+    /// 
+    ///| Name               | Purpose                                                                                            | Notes                                                                                                   |
+    ///|--------------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+    ///| `account_key`      | The structure that contains some information of private key.                                       | The AccountKey contains a View keypair and a Spend keypair, used to construct and receive transactions. |
+    ///| `subaddress_index` | The subaddress index assigned to the associated account, which will be inserted into the database. |                                                                                                         |
+    ///| `comment`          | A random string attached to the newly assigned subaddress.                                         |                                                                                                         |
+    ///| `conn`             | An reference to the pool connection of wallet database                                             |                                                                                                         |
     ///
     /// # Returns
     /// * public_address_b58
@@ -44,59 +45,133 @@ pub trait AssignedSubaddressModel {
         account_key: &AccountKey,
         subaddress_index: u64,
         comment: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<String, WalletDbError>;
 
+    /// Assign a subaddress to an view only account.
+    ///
+    /// # Arguments
+    ///       
+    ///| Name               | Purpose                                                                                                      | Notes                                                                                                   |
+    ///|--------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+    ///| `account_key`      | The structure that contains some information of private key.                                                 | The AccountKey contains a View keypair and a Spend keypair, used to construct and receive transactions. |
+    ///| `subaddress_index` | The subaddress index assigned to the associated view only account, which will be inserted into the database. |                                                                                                         |
+    ///| `comment`          | A random string will be assigned to the newly assigned subaddress.                                           |                                                                                                         |
+    ///| `conn`             | An reference to the pool connection of wallet database                                                       |                                                                                                         |
+    ///
+    /// # Returns
+    /// * public_address_b58
     fn create_for_view_only_account(
         account_key: &ViewAccountKey,
         subaddress_index: u64,
         comment: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<String, WalletDbError>;
 
     /// Create the next subaddress for a given account.
+    /// 
+    /// # Arguments
     ///
-    /// Returns:
+    ///| Name             | Purpose                                                            | Notes                                     |
+    ///|------------------|--------------------------------------------------------------------|-------------------------------------------|
+    ///| `account_id_hex` | The account on which to perform this action.                       | Account must exist in the wallet          |
+    ///| `comment`        | A random string will be assigned to the newly assigned subaddress. |                                           |
+    ///| `ledger_db`      | A reference to the instance of the whole ledger database.          | This object has a connection to ledger DB |
+    ///| `conn`           | An reference to the pool connection of wallet database             |                                           |
+    ///
+    /// # Returns:
     /// * (public_address_b58, subaddress_index)
     fn create_next_for_account(
         account_id_hex: &str,
         comment: &str,
         ledger_db: &LedgerDB,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(String, i64), WalletDbError>;
 
-    /// Get the AssignedSubaddress for a given public_address_b58
-    fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError>;
+    /// Get the AssignedSubaddress for a given public_address_b58.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                 | Purpose                                     | Notes |
+    ///|----------------------|---------------------------------------------|-------|
+    ///| `public_address_b58` | The public address b58 string to query for. |       |
+    ///
+    /// # Returns:
+    /// * AssignedSubaddress
+    fn get(public_address_b58: &str, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
-    /// Get the Assigned Subaddress for a given index in an account, if it
-    /// exists
+
+    /// Get the Assigned Subaddress for a given index in an account, if it exists.
+    /// 
+    /// # Arguments
+    ///| Name             | Purpose                                                | Notes                            |
+    ///|------------------|--------------------------------------------------------|----------------------------------|
+    ///| `account_id_hex` | The account on which to perform this action.           | Account must exist in the wallet |
+    ///| `index`          | The subaddress index needs to be returned.             |                                  |
+    ///| `conn`           | An reference to the pool connection of wallet database |                                  |
+    ///
+    /// # Returns:
+    /// * AssignedSubaddress
     fn get_for_account_by_index(
         account_id_hex: &str,
         index: i64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<AssignedSubaddress, WalletDbError>;
 
-    /// Find an AssignedSubaddress by the subaddress spend public key
+    /// Find an AssignedSubaddress by the subaddress spend public key.
+    ///
+    /// # Arguments
+    /// 
+    ///| Name                          | Purpose                                                            | Notes |
+    ///|-------------------------------|--------------------------------------------------------------------|-------|
+    ///| `subaddress_spend_public_key` | The spend_public_key for the subaddress that needs to be returned. |       |
     ///
     /// Returns:
     /// * (subaddress_index, public_address_b58)
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(i64, String), WalletDbError>;
 
     /// List all AssignedSubaddresses for a given account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                                   | Notes                            |
+    ///|--------------|-----------------------------------------------------------|----------------------------------|
+    ///| `account_id` | The account on which to perform this action.              | Account must exist in the wallet |
+    ///| `offset`     | The pagination offset. Results start at the offset index. | Optional, defaults to 0.         |
+    ///| `limit`      | Limit for the number of results.                          | Optional                         |
+    ///| `conn`       | An reference to the pool connection of wallet database    |                                  |
+    ///
+    /// # Returns:
+    /// * Vector of AssignedSubaddress
     fn list_all(
         account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
     /// Delete all AssignedSubaddresses for a given account.
-    fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError>;
+    /// 
+    /// # Arguments
+    ///| Name             | Purpose                                                | Notes                            |
+    ///|------------------|--------------------------------------------------------|----------------------------------|
+    ///| `account_id_hex` | The account on which to perform this action.           | Account must exist in the wallet |
+    ///| `conn`           | An reference to the pool connection of wallet database |                                  |
+    ///
+    /// # Returns:
+    /// * unit
+    fn delete_all(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError>;
 
-    /// Helper to get the public address out of the assigned subaddress
+    /// Helper to get the public address out of the assigned subaddress.
+    ///
+    /// # Arguments
+    /// * None
+    ///
+    /// # Returns:
+    /// * PublicAddress
     fn public_address(self) -> Result<PublicAddress, WalletDbError>;
 }
 
@@ -105,7 +180,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_key: &AccountKey,
         subaddress_index: u64,
         comment: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -133,7 +208,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_key: &ViewAccountKey,
         subaddress_index: u64,
         comment: &str,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<String, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -161,7 +236,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id_hex: &str,
         comment: &str,
         ledger_db: &LedgerDB,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(String, i64), WalletDbError> {
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
@@ -272,7 +347,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok((subaddress_b58, next_subaddress_index as i64))
     }
 
-    fn get(public_address_b58: &str, conn: &Conn) -> Result<AssignedSubaddress, WalletDbError> {
+    fn get(public_address_b58: &str, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
         let assigned_subaddress: AssignedSubaddress = match assigned_subaddresses::table
@@ -296,7 +371,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
     fn get_for_account_by_index(
         account_id_hex: &str,
         index: i64,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<AssignedSubaddress, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -308,7 +383,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn find_by_subaddress_spend_public_key(
         subaddress_spend_public_key: &RistrettoPublic,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<(i64, String), WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -340,7 +415,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         account_id: Option<String>,
         offset: Option<u64>,
         limit: Option<u64>,
-        conn: &Conn,
+        conn: Conn,
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
@@ -358,7 +433,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok(addresses_query.load(conn)?)
     }
 
-    fn delete_all(account_id_hex: &str, conn: &Conn) -> Result<(), WalletDbError> {
+    fn delete_all(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::assigned_subaddresses;
 
         diesel::delete(

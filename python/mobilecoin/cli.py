@@ -7,7 +7,6 @@ from textwrap import indent
 from .client import (
     ClientSync as Client,
     WalletAPIError,
-    MAX_TOMBSTONE_BLOCKS,
     log as client_log,
 )
 from .token import Amount, get_token, TOKENS
@@ -513,9 +512,9 @@ class CommandLineInterface:
         print()
 
         if build_only:
-            tx_proposal = self.client.build_transaction(
+            tx_proposal, _ = self.client.build_transaction(
                 account_id,
-                {to_address, amount},
+                {to_address: amount},
                 fee=fee,
             )
             path = Path('tx_proposal.json')

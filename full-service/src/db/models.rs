@@ -8,13 +8,15 @@ use super::schema::{
 };
 
 use mc_crypto_keys::CompressedRistrettoPublic;
+
 use serde::Serialize;
 
 /// An Account entity.
 ///
 /// Contains the account private keys, subaddress configuration, and ...
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(id)]
+#[diesel(primary_key(id))]
+#[diesel(table_name = accounts)]
 pub struct Account {
     /// Primary key, derived from the account data.
     pub id: String,
@@ -39,7 +41,7 @@ pub struct Account {
 /// A structure that can be inserted to create a new entity in the `accounts`
 /// table.
 #[derive(Insertable)]
-#[table_name = "accounts"]
+#[diesel(table_name = accounts)]
 pub struct NewAccount<'a> {
     pub id: &'a str,
     pub account_key: &'a [u8],
@@ -59,7 +61,8 @@ pub struct NewAccount<'a> {
 /// Managing these relationships and states is one of the main goals of
 /// the Full-Service wallet.
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
-#[primary_key(id)]
+#[diesel(primary_key(id))]
+#[diesel(table_name = txos)]
 pub struct Txo {
     /// Primary key derived from the contents of the ledger TxOut
     pub id: String,
@@ -82,6 +85,7 @@ pub struct Txo {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
+    pub shared_secret: Option<Vec<u8>>,
 }
 
 impl Txo {
@@ -93,7 +97,7 @@ impl Txo {
 
 /// A structure that can be inserted to create a new entity in the `txos` table.
 #[derive(Insertable)]
-#[table_name = "txos"]
+#[diesel(table_name = txos)]
 pub struct NewTxo<'a> {
     pub id: &'a str,
     pub account_id: Option<String>,
@@ -107,14 +111,15 @@ pub struct NewTxo<'a> {
     pub received_block_index: Option<i64>,
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
+    pub shared_secret: Option<&'a [u8]>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
 /// funds received from that contact.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id")]
-#[primary_key(public_address_b58)]
-#[table_name = "assigned_subaddresses"]
+#[diesel(belongs_to(Account, foreign_key = account_id))]
+#[diesel(primary_key(public_address_b58))]
+#[diesel(table_name = assigned_subaddresses)]
 pub struct AssignedSubaddress {
     pub public_address_b58: String,
     pub account_id: String,
@@ -125,7 +130,7 @@ pub struct AssignedSubaddress {
 
 /// A structure that can be inserted to create a new AssignedSubaddress entity.
 #[derive(Insertable)]
-#[table_name = "assigned_subaddresses"]
+#[diesel(table_name = assigned_subaddresses)]
 pub struct NewAssignedSubaddress<'a> {
     pub public_address_b58: &'a str,
     pub account_id: &'a str,
@@ -136,9 +141,9 @@ pub struct NewAssignedSubaddress<'a> {
 
 /// The status of a sent transaction OR a received transaction output.
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "account_id")]
-#[primary_key(id)]
-#[table_name = "transaction_logs"]
+#[diesel(belongs_to(Account, foreign_key = account_id))]
+#[diesel(primary_key(id))]
+#[diesel(table_name = transaction_logs)]
 pub struct TransactionLog {
     pub id: String,
     pub account_id: String,
@@ -154,7 +159,7 @@ pub struct TransactionLog {
 
 /// A structure that can be inserted to create a new TransactionLog entity.
 #[derive(Insertable)]
-#[table_name = "transaction_logs"]
+#[diesel(table_name = transaction_logs)]
 pub struct NewTransactionLog<'a> {
     pub id: &'a str,
     pub account_id: &'a str,
@@ -169,27 +174,27 @@ pub struct NewTransactionLog<'a> {
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
-#[belongs_to(Txo, foreign_key = "txo_id")]
-#[table_name = "transaction_input_txos"]
-#[primary_key(transaction_log_id, txo_id)]
+#[diesel(belongs_to(TransactionLog, foreign_key = transaction_log_id))]
+#[diesel(belongs_to(Txo, foreign_key = txo_id))]
+#[diesel(table_name = transaction_input_txos)]
+#[diesel(primary_key(transaction_log_id, txo_id))]
 pub struct TransactionInputTxo {
     pub transaction_log_id: String,
     pub txo_id: String,
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_input_txos"]
+#[diesel(table_name = transaction_input_txos)]
 pub struct NewTransactionInputTxo<'a> {
     pub transaction_log_id: &'a str,
     pub txo_id: &'a str,
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(TransactionLog, foreign_key = "transaction_log_id")]
-#[belongs_to(Txo, foreign_key = "txo_id")]
-#[table_name = "transaction_output_txos"]
-#[primary_key(transaction_log_id, txo_id)]
+#[diesel(belongs_to(TransactionLog, foreign_key = transaction_log_id))]
+#[diesel(belongs_to(Txo, foreign_key = txo_id))]
+#[diesel(table_name = transaction_output_txos)]
+#[diesel(primary_key(transaction_log_id, txo_id))]
 pub struct TransactionOutputTxo {
     pub transaction_log_id: String,
     pub txo_id: String,
@@ -198,7 +203,7 @@ pub struct TransactionOutputTxo {
 }
 
 #[derive(Insertable)]
-#[table_name = "transaction_output_txos"]
+#[diesel(table_name = transaction_output_txos)]
 pub struct NewTransactionOutputTxo<'a> {
     pub transaction_log_id: &'a str,
     pub txo_id: &'a str,
@@ -207,10 +212,10 @@ pub struct NewTransactionOutputTxo<'a> {
 }
 
 #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
-#[belongs_to(Account, foreign_key = "id")]
-#[belongs_to(TransactionLog, foreign_key = "id")]
-#[table_name = "gift_codes"]
-#[primary_key(id)]
+#[diesel(belongs_to(Account, foreign_key = id))]
+#[diesel(belongs_to(TransactionLog, foreign_key = id))]
+#[diesel(table_name = gift_codes)]
+#[diesel(primary_key(id))]
 pub struct GiftCode {
     pub id: i32,
     pub gift_code_b58: String,
@@ -218,21 +223,21 @@ pub struct GiftCode {
 }
 
 #[derive(Insertable)]
-#[table_name = "gift_codes"]
+#[diesel(table_name = gift_codes)]
 pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
     pub value: i64,
 }
 
 #[derive(Queryable, Insertable)]
-#[table_name = "__diesel_schema_migrations"]
+#[diesel(table_name = __diesel_schema_migrations)]
 pub struct Migration {
     pub version: String,
     pub run_on: chrono::NaiveDateTime,
 }
 
 #[derive(Insertable)]
-#[table_name = "__diesel_schema_migrations"]
+#[diesel(table_name = __diesel_schema_migrations)]
 pub struct NewMigration {
     pub version: String,
 }
