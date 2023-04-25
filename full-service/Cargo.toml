@@ -58,7 +58,7 @@ displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
 grpcio = "0.12"
 hex = { version = "0.4", default-features = false }
-libsqlite3-sys = { version = "0.25", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.15"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }
