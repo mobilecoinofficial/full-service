@@ -87,6 +87,4 @@ tempdir = "0.3"
 url = "2.3"
 
 [build-dependencies]
-anyhow = "1.0"
-# clippy fails to run without this.
-vergen = "8.1.1"
+vergen = { version = "8.1.1", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
