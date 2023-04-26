@@ -1,16 +1,16 @@
-use mc_common::logger::global_log;
-use mc_full_service::json_rpc::{
-    json_rpc_request::JsonRPCRequest,
-    json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
-};
-
-use anyhow::{anyhow, Result};
-use rocket::{get, post, serde::json::Json};
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 use crate::{
     service,
     service::api::{request::JsonCommandRequest, response::JsonCommandResponse},
 };
+use anyhow::{anyhow, Result};
+use mc_common::logger::global_log;
+use mc_full_service::json_rpc::{
+    json_rpc_request::JsonRPCRequest,
+    json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
+};
+use rocket::{get, post, serde::json::Json};
 
 pub mod request;
 pub mod response;

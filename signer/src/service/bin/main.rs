@@ -1,9 +1,9 @@
-use std::{net::IpAddr, str::FromStr};
-
-use mc_signer::service::api::{signer_service_api, version};
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 use clap::Parser;
+use mc_signer::service::api::{signer_service_api, version};
 use rocket::{self, launch, routes, Build, Rocket};
+use std::{net::IpAddr, str::FromStr};
 
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, Parser)]

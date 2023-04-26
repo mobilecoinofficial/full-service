@@ -1,6 +1,7 @@
+// Copyright (c) 2020-2023 MobileCoin Inc.
+
 use anyhow::{anyhow, Result};
 use bip39::{Language, Mnemonic, MnemonicType};
-
 use mc_account_keys::AccountKey;
 use mc_core::{account::Account, slip10::Slip10KeyGenerator};
 use mc_full_service::service::models::tx_proposal::{TxProposal, UnsignedTxProposal};

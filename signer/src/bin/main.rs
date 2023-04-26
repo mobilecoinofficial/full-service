@@ -1,20 +1,16 @@
-// Copyright (c) 2018-2022 The MobileCoin Foundation
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
-//! Offline transaction signer implementation
-//!
-//! WIP port / simplification from https://github.com/mobilecoinofficial/full-service/blob/fefe6f645d676b393ece2f607f0081304141b590/transaction-signer/src/bin/main.rs#L337
-
-use std::path::Path;
+//! transaction signer implementation
 
 use bip39::{Language, Mnemonic, MnemonicType};
 use clap::Parser;
 use log::{debug, info};
-use serde::{Deserialize, Serialize};
-
 use mc_core::{account::Account, slip10::Slip10KeyGenerator};
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_transaction_core::AccountKey;
 use mc_transaction_signer::{read_input, write_output, Operations};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Clone, PartialEq, Debug, Parser)]
 struct Args {

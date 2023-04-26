@@ -1,10 +1,10 @@
+// Copyright (c) 2020-2023 MobileCoin Inc.
+
 use mc_full_service::json_rpc::{
     json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
     v2::models::tx_proposal::TxProposal,
 };
-
 use mc_transaction_signer::types::{AccountInfo, TxoSynced};
-
 use serde::{Deserialize, Serialize};
 
 /// Responses from the Full Service Wallet.
