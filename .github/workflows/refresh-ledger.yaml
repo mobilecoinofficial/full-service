@@ -1,0 +1,90 @@
+# Copyright (c) 2018-2023 The MobileCoin Foundation
+#
+# Daily job to refresh ledger db files
+
+name: Refresh ledger
+
+on:
+  schedule:
+  - cron: '0 0 * * *'
+
+# Start full-service
+# Monitor full-service util ledger has finished syncing
+# Stop full-service
+# Copy ledger to azure blob
+
+jobs:
+  refresh-ledger:
+    runs-on: [self-hosted, Linux, small]
+    container:
+      image: mobilecoin/gha-azure-helper:latest
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - chain_id: test
+          peer: mc://node3.test.mobilecoin.com/
+          tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node3.test.mobilecoin.com/
+        - chain_id: main
+          peer: mc://node3.prod.mobilecoinww.com/
+          tx_source_url: https://ledger.mobilecoinww.com/node3.prod.mobilecoinww.com/
+    env:
+      DOWNLOAD_DIR: ./tmp
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Download latest linux release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p "${DOWNLOAD_DIR}"
+        gh release download \
+            -p '*-Linux-X64-${{ matrix.network.chain_id }}net.tar.gz' \
+            -O "${DOWNLOAD_DIR}/linux.tar.gz"
+
+    - name: Unpack full-service
+      run: |
+        cd "${DOWNLOAD_DIR}"
+        tar --skip-old-files -xvzf linux.tar.gz
+
+    - name: Run full-service - wait for ledger sync
+      shell: bash
+      env:
+        MC_LEDGER_DB: ./ledger
+        MC_WALLET_DB: ./wallet/wallet.db
+        MC_FOG_INGEST_ENCLAVE_CSS: ./ingest-enclave.css
+        MC_CHAIN_ID: ${{ matrix.network.chain_id }}
+        MC_PEER: ${{ matrix.network.peer }}
+        MC_TX_SOURCE_URL: ${{ matrix.network.tx_source_url }}
+        RUST_LOG: error
+      run: |
+        set -e
+
+        pushd "${DOWNLOAD_DIR}"
+        mkdir -p "${MC_LEDGER_DB}"
+        mkdir -p "$(dirname ${MC_WALLET_DB})"
+
+        # Start full-service
+        ./full-service &
+
+        # Capture pid
+        pid=${!}
+
+        echo "${pid}"
+        echo "wait for full-service to sync all the blocks"
+        ../.internal-ci/util/wait-for-full-service.sh
+
+        echo "ledger is in sync, stop full-service"
+        kill ${pid}
+        echo "wait for full-service to fully stop"
+        wait ${pid}
+
+        echo "full-service shutdown successfully"
+
+    - name: copy ledger data.mdb to Azure Blob Storage
+      env:
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_AZURE_STORAGE_CONNECTION_STRING }}
+      run: |
+        cd "${DOWNLOAD_DIR}/ledger"
+        az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite
