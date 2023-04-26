@@ -2,6 +2,7 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 
 # To use this script, run build-fs test or build-fs main
+# If you want to just run `cargo check` run build-fs check
 
 # Overrides and Options
 #  - DEBUG or RUNNER_DEBUG print debug messages
@@ -19,10 +20,13 @@ set -e
 usage()
 {
     echo "Usage:"
-    echo "${0} <network>"
+    echo "${0} <network>|check"
     echo "    <network> - main|prod|test|alpha|local or other"
     echo "                if other, set your own variables"
     echo "                SGX_MODE IAS_MODE CONSENSUS_ENCLAVE_CSS INGEST_ENCLAVE_CSS"
+    echo "    check"
+    echo "                Sets build parameters to those used for network=local, and"
+    echo "                runs `cargo check`"
 }
 
 while (( "$#" ))
@@ -112,7 +116,7 @@ case ${net} in
         CONSENSUS_ENCLAVE_CSS="${RELEASE_DIR}/consensus-enclave.css"
         INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
         ;;
-    local)
+    check | local)
         echo "Setting '${net}' SGX, IAS and enclave values"
         SGX_MODE=SW
         IAS_MODE=DEV
@@ -136,6 +140,13 @@ echo "  IAS_MODE: ${IAS_MODE}"
 echo "  SGX_MODE: ${SGX_MODE}"
 echo "  CONSENSUS_ENCLAVE_CSS: ${CONSENSUS_ENCLAVE_CSS}"
 echo "  INGEST_ENCLAVE_CSS: ${INGEST_ENCLAVE_CSS}"
+
+if [[ "${net}" == "check" ]]
+then
+    echo "Just doing cargo check - no binaries will be built"
+    cargo check
+    exit
+fi
 
 echo "building full service..."
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options

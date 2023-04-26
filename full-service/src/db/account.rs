@@ -15,6 +15,7 @@ use crate::{
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
+use base64::{engine::general_purpose, Engine};
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
@@ -438,7 +439,7 @@ impl AccountModel for Account {
         let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
             fog_report_id,
-            base64::decode(fog_authority_spki)?,
+            general_purpose::STANDARD.decode(fog_authority_spki)?,
         );
 
         Account::create(
@@ -471,7 +472,7 @@ impl AccountModel for Account {
             root_entropy: entropy.clone(),
             fog_report_url,
             fog_report_id,
-            fog_authority_spki: base64::decode(fog_authority_spki).expect("invalid spki"),
+            fog_authority_spki: general_purpose::STANDARD.decode(fog_authority_spki)?,
         };
         let account_key = AccountKey::from(&root_id);
 
@@ -1058,7 +1059,7 @@ mod tests {
                 "Alice's FOG Account",
                 "fog//some.fog.url".to_string(),
                 "".to_string(),
-                "DefinitelyARealFOGAuthoritySPKI".to_string(),
+                "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
                 conn,
             )
             .unwrap();
@@ -1085,8 +1086,36 @@ mod tests {
                 18, 34, 10, 32, 24, 98, 18, 92, 9, 50, 142, 184, 114, 99, 34, 125, 211, 54, 146,
                 33, 98, 71, 179, 56, 136, 67, 98, 97, 230, 228, 31, 194, 119, 169, 189, 8, 26, 17,
                 102, 111, 103, 47, 47, 115, 111, 109, 101, 46, 102, 111, 103, 46, 117, 114, 108,
-                42, 23, 13, 231, 226, 158, 43, 94, 151, 32, 17, 121, 169, 69, 56, 96, 46, 182, 26,
-                43, 138, 220, 146, 60, 162,
+                42, 166, 4, 48, 130, 2, 34, 48, 13, 6, 9, 42, 134, 72, 134, 247, 13, 1, 1, 1, 5, 0,
+                3, 130, 2, 15, 0, 48, 130, 2, 10, 2, 130, 2, 1, 0, 190, 112, 125, 193, 54, 211, 57,
+                62, 110, 162, 44, 209, 97, 166, 27, 195, 181, 200, 18, 66, 39, 151, 193, 59, 48,
+                99, 128, 66, 63, 177, 156, 47, 133, 214, 178, 23, 136, 41, 220, 254, 221, 126, 228,
+                130, 22, 141, 180, 70, 133, 108, 232, 237, 16, 48, 35, 155, 17, 106, 57, 246, 177,
+                62, 43, 70, 127, 77, 93, 179, 179, 100, 203, 200, 168, 78, 33, 154, 25, 132, 207,
+                45, 88, 64, 208, 231, 124, 2, 192, 88, 212, 62, 88, 22, 216, 25, 111, 149, 170,
+                109, 200, 149, 11, 192, 20, 88, 213, 55, 86, 24, 33, 214, 33, 108, 184, 192, 61,
+                217, 32, 121, 91, 22, 125, 194, 195, 126, 138, 199, 159, 170, 209, 221, 0, 89, 97,
+                146, 37, 72, 20, 18, 41, 19, 24, 254, 220, 176, 79, 23, 147, 10, 242, 182, 205,
+                103, 18, 210, 70, 219, 20, 251, 65, 113, 91, 97, 237, 81, 69, 84, 240, 25, 94, 19,
+                226, 247, 44, 181, 2, 249, 229, 116, 238, 167, 236, 162, 226, 186, 149, 102, 162,
+                57, 68, 50, 219, 248, 21, 9, 36, 235, 78, 39, 106, 95, 163, 253, 211, 169, 149, 48,
+                19, 87, 198, 189, 0, 144, 91, 61, 16, 89, 255, 36, 32, 231, 177, 6, 217, 141, 140,
+                70, 33, 206, 66, 39, 201, 199, 68, 185, 85, 179, 114, 50, 111, 91, 145, 47, 19, 15,
+                177, 168, 139, 159, 90, 9, 110, 142, 79, 88, 50, 122, 139, 86, 192, 184, 58, 208,
+                148, 89, 77, 252, 137, 238, 86, 22, 5, 35, 179, 135, 67, 167, 104, 44, 173, 70,
+                148, 150, 180, 214, 122, 109, 170, 207, 81, 227, 167, 126, 214, 231, 38, 209, 60,
+                172, 88, 69, 236, 206, 5, 235, 167, 173, 208, 178, 63, 114, 235, 215, 97, 231, 48,
+                87, 12, 164, 162, 241, 21, 4, 164, 69, 224, 115, 138, 244, 104, 18, 155, 94, 230,
+                64, 203, 115, 172, 62, 220, 231, 159, 19, 109, 171, 156, 57, 102, 155, 97, 29, 56,
+                186, 23, 64, 115, 123, 53, 208, 201, 46, 56, 213, 134, 211, 2, 16, 134, 2, 2, 133,
+                133, 64, 26, 113, 75, 189, 42, 105, 219, 246, 144, 18, 173, 241, 173, 20, 132, 79,
+                27, 34, 197, 66, 35, 177, 156, 150, 89, 19, 164, 184, 13, 8, 22, 119, 60, 119, 176,
+                38, 114, 117, 1, 189, 21, 187, 21, 63, 249, 182, 21, 178, 147, 150, 160, 117, 133,
+                6, 103, 238, 194, 214, 142, 189, 138, 20, 117, 99, 25, 168, 26, 30, 189, 124, 179,
+                15, 32, 67, 161, 98, 30, 123, 219, 237, 220, 146, 9, 118, 73, 165, 120, 186, 143,
+                70, 190, 76, 252, 48, 193, 145, 5, 195, 8, 50, 84, 98, 173, 44, 33, 9, 250, 51, 87,
+                100, 114, 79, 149, 167, 212, 216, 15, 167, 39, 60, 204, 146, 251, 65, 211, 161, 47,
+                180, 49, 111, 238, 86, 142, 112, 149, 173, 6, 7, 35, 103, 2, 3, 1, 0, 1,
             ]
             .to_vec(),
             entropy: Some(root_id.root_entropy.bytes.to_vec()),
