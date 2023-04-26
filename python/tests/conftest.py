@@ -94,6 +94,7 @@ async def source_account(client):
 async def account_factory(client, source_account, fees):
 
     network_status = await client.get_network_status()
+    local_block_height = int(network_status['local_block_height'])
 
     class AccountFactory:
         def __init__(self):
@@ -107,7 +108,7 @@ async def account_factory(client, source_account, fees):
             # Create the temporary account.
             temp_account = await client.import_account(
                 mnemonic=self.next_mnemonic(),
-                first_block_index=network_status['local_block_height'] - 1000,
+                first_block_index=local_block_height - 1000,
             )
             self.temp_accounts.append(temp_account)
             return temp_account
@@ -115,7 +116,7 @@ async def account_factory(client, source_account, fees):
         async def create_fog(self):
             temp_fog_account = await client.import_account(
                 mnemonic=self.next_mnemonic(),
-                first_block_index=network_status['local_block_height'] - 1000,
+                first_block_index=local_block_height - 1000,
                 fog_report_url=os.environ['MC_FOG_REPORT_URL'],
                 fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
             )
