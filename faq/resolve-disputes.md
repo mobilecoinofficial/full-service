@@ -72,7 +72,7 @@ For a successful transaction, the `status` is `succeeded`, and the `finalized_bl
 The `output_txos` for the transaction contain details about the txo itself, including the `value` and `token_id`. The `recipient_public_address_b58` specifies the address to which the amount was sent.
 
 {% hint style="info" %}
-The precision of the value of the txo depends on which token it is. To see more info about the precision of each token and what token are supported, check out our [Supported Tokens](supported-tokens.md) page.
+The precision of the value of the txo depends on which token it is. To see more info about the precision of each token and what token are supported, check out our [Supported Tokens](../usage/supported-token-metadata.md) page.
 {% endhint %}
 
 ### Confirm with the Block Explorer

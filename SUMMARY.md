@@ -146,6 +146,7 @@
   * [Sending MobileCoin](usage/getting-started/sending-mobilecoin.md)
   * [Next Steps](usage/getting-started/next-steps.md)
 * [Database Usage](usage/database-usage.md)
+* [Supported Token Metadata](usage/supported-token-metadata.md)
 * [API Key](usage/api-key.md)
 * [View Only Account](usage/view-only-account/README.md)
   * [Signer](usage/view-only-account/transaction-signer.md)
@@ -162,7 +163,6 @@
 ## FAQ
 
 * [Resolving Disputes](faq/resolve-disputes.md)
-* [Supported Tokens](faq/supported-tokens.md)
 
 ***
 
