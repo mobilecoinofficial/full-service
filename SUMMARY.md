@@ -160,13 +160,11 @@
   * [Running With TLS](usage/mirror/running-with-tls.md)
   * [Running With Encryption](usage/mirror/running-with-encryption.md)
 
-***
-
-* [How to check if Full-Service is operational](how-to-check-if-full-service-is-operational.md)
-
 ## FAQ
 
 * [Resolving Disputes](faq/resolve-disputes.md)
+* [What is the precision of MOB?](faq/what-is-the-precision-of-mob.md)
+* [How to check if Full-Service is operational](faq/how-to-check-if-full-service-is-operational.md)
 
 ***
 
