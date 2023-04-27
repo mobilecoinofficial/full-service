@@ -1,0 +1,5 @@
+DROP TABLE supported_memo_types
+DROP TABLE txo_memos
+DROP TABLE authenticated_sender_memos
+DROP TABLE authenticated_sender_with_payment_intent_id_memos
+DROP TABLE authenticated_sender_with_payment_request_id_memos
