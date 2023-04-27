@@ -3,8 +3,10 @@
 //! DB Models
 
 use super::schema::{
-    __diesel_schema_migrations, accounts, assigned_subaddresses, gift_codes,
-    transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+    __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
+    authenticated_sender_with_payment_intent_id_memos,
+    authenticated_sender_with_payment_request_id_memos, gift_codes, supported_memo_types,
+    transaction_input_txos, transaction_logs, transaction_output_txos, txo_memos, txos,
 };
 
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -112,6 +114,85 @@ pub struct NewTxo<'a> {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
     pub shared_secret: Option<&'a [u8]>,
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[diesel(primary_key(txo_id))]
+#[diesel(table_name = authenticated_sender_memos)]
+pub struct AuthenticatedSenderMemo {
+    pub txo_id: String,
+    pub address_hash: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = authenticated_sender_memos)]
+pub struct NewAuthenticatedSenderMemo<'a> {
+    pub txo_id: &'a str,
+    pub address_hash: &'a [u8],
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[diesel(primary_key(txo_id))]
+#[diesel(table_name = authenticated_sender_with_payment_intent_id_memos)]
+pub struct AuthenticatedSenderWithPaymentIntentIdMemo {
+    pub txo_id: String,
+    pub address_hash: Vec<u8>,
+    pub payment_intent_id: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = authenticated_sender_with_payment_intent_id_memos)]
+pub struct NewAuthenticatedSenderWithPaymentIntentIdMemo<'a> {
+    pub txo_id: &'a str,
+    pub address_hash: &'a [u8],
+    pub payment_intent_id: &'a [u8],
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[diesel(primary_key(txo_id))]
+#[diesel(table_name = authenticated_sender_with_payment_request_id_memos)]
+pub struct AuthenticatedSenderWithPaymentRequestIdMemo {
+    pub txo_id: String,
+    pub address_hash: Vec<u8>,
+    pub payment_request_id: Vec<u8>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = authenticated_sender_with_payment_request_id_memos)]
+pub struct NewAuthenticatedSenderWithPaymentRequestIdMemo<'a> {
+    pub txo_id: &'a str,
+    pub address_hash: &'a [u8],
+    pub payment_request_id: &'a [u8],
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[diesel(primary_key(txo_id))]
+#[diesel(table_name = txo_memos)]
+pub struct TxoMemo {
+    pub txo_id: String,
+    pub memo_type: i32,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = txo_memos)]
+pub struct NewTxoMemo<'a> {
+    pub txo_id: &'a str,
+    pub memo_type: i32,
+}
+
+#[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
+#[diesel(primary_key(classifier))]
+#[diesel(table_name = supported_memo_types)]
+pub struct SupportedMemoType {
+    pub classifier: i32,
+    pub memo_type_name: String,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = supported_memo_types)]
+pub struct NewSupportedMemoType<'a> {
+    pub classifier: i32,
+    pub memo_type_name: &'a str,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
