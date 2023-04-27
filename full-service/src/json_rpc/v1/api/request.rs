@@ -183,7 +183,6 @@ pub enum JsonCommandRequest {
     get_wallet_status,
     import_account {
         mnemonic: String,
-        key_derivation_version: String,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
