@@ -10,10 +10,6 @@ name = "validator-service"
 path = "src/bin/main.rs"
 
 [dependencies]
-
-clap = { version = "4.0", features = ["derive", "env"] }
-grpcio = "0.12"
-
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-connection = { path = "../../mobilecoin/connection" }
@@ -27,4 +23,7 @@ mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
 mc-validator-api = { path = "../api" }
+
+clap = { version = "4.0", features = ["derive", "env"] }
+grpcio = "0.12"
 rayon = "1.7"
