@@ -7,7 +7,7 @@ use mc_full_service::json_rpc::{
 use mc_transaction_signer::types::{AccountInfo, TxoSynced};
 use serde::{Deserialize, Serialize};
 
-/// Responses from the Full Service Wallet.
+/// Responses from the Signer Service.
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(untagged)]
 #[allow(non_camel_case_types)]

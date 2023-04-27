@@ -26,7 +26,7 @@ pub fn version() -> serde_json::Value {
     })
 }
 
-/// The route for the Transaction Signer Service API.
+/// The route for the Signer Service API.
 #[post("/api", format = "json", data = "<command>")]
 pub fn signer_service_api(
     command: Json<JsonRPCRequest>,

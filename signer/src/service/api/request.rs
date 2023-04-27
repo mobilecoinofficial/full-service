@@ -26,7 +26,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
     }
 }
 
-/// Requests to the Transaction Signer Service.
+/// Requests to the Signer Service.
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
