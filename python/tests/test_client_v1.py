@@ -13,7 +13,7 @@ MOB = get_token('MOB')
 
 @pytest.fixture(scope='session')
 def client():
-    yield Client()
+    yield Client(verbose=True)
 
 
 @pytest.fixture(scope='session')
