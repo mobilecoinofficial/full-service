@@ -163,8 +163,10 @@
 ## FAQ
 
 * [Resolving Disputes](faq/resolve-disputes.md)
+* [How do I check if Full-Service is operational?](faq/how-do-i-check-if-full-service-is-operational.md)
+* [Where are logs stored?](faq/where-are-logs-stored.md)
+* [How do I speed up account import?](faq/how-do-i-speed-up-account-import.md)
 * [What is the precision of MOB?](faq/what-is-the-precision-of-mob.md)
-* [How to check if Full-Service is operational](faq/how-to-check-if-full-service-is-operational.md)
 
 ***
 
