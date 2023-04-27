@@ -90,7 +90,7 @@ async def source_account(client):
     return status['account']
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 async def account_factory(client, source_account, fees):
 
     network_status = await client.get_network_status()

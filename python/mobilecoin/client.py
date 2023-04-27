@@ -47,6 +47,9 @@ class ClientAsync:
         await self.session.close()
 
     async def _req(self, request_data):
+        # Disable showing sensitive data from within this function during unittests.
+        __tracebackhide__ = True
+
         # Assemble request.
         default_params = {
             "jsonrpc": "2.0",
