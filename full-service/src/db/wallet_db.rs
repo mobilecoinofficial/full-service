@@ -1,4 +1,5 @@
 use crate::db::{
+    memo::ensure_all_supported_memo_types_in_db,
     models::{AssignedSubaddress, Migration, NewMigration},
     schema::{__diesel_schema_migrations, assigned_subaddresses},
     WalletDbError,
@@ -78,6 +79,12 @@ impl WalletDb {
             .test_on_check_out(true)
             .build(manager)?;
         Ok(Self::new(pool))
+    }
+
+    pub fn ensure_all_supported_memo_types_in_db(
+        conn: &mut SqliteConnection,
+    ) -> Result<(), WalletDbError> {
+        ensure_all_supported_memo_types_in_db(conn)
     }
 
     pub fn get_pooled_conn(

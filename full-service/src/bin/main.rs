@@ -88,6 +88,9 @@ fn rocket() -> Rocket<Build> {
                 .expect("failed enabling foreign keys");
             WalletDb::run_proto_conversions_if_necessary(conn);
             log::info!(logger, "Connected to database.");
+            if WalletDb::ensure_all_supported_memo_types_in_db(conn).is_err() {
+                eprintln!("Failed to update supported memo types in db");
+            };
 
             Some(WalletDb::new_from_url(wallet_db_path, 10).expect("Could not access wallet db"))
         }
