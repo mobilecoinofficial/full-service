@@ -64,8 +64,6 @@ pub fn signer_service_api(
 }
 
 fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandResponse> {
-    global_log::info!("Running command {:?}", command);
-
     let response = match command {
         JsonCommandRequest::create_account {} => {
             let (mnemonic, account_info) = service::create_account();
