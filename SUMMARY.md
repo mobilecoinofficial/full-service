@@ -159,6 +159,10 @@
   * [Running](usage/mirror/running.md)
   * [Running With TLS](usage/mirror/running-with-tls.md)
   * [Running With Encryption](usage/mirror/running-with-encryption.md)
+* [Logging](usage/logging/README.md)
+  * [Text Logs (syslog style)](usage/logging/text-logs.md)
+  * [Crash Reports](usage/logging/crash-reports.md)
+
 
 ## FAQ
 
