@@ -3103,7 +3103,7 @@ version = "5.0.0-pre0"
 
 [[package]]
 name = "mc-signer"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
