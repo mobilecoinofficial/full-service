@@ -4,7 +4,7 @@
 
 use bip39::{Language, Mnemonic};
 use clap::Parser;
-use mc_common::logger::global_log;
+use mc_common::logger::{create_app_logger, log, o};
 use mc_core::{account::Account, slip10::Slip10KeyGenerator};
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_signer::service;
@@ -46,6 +46,8 @@ fn main() -> anyhow::Result<()> {
     // Parse command line arguments
     let args = Args::parse();
 
+    let (logger, _global_logger_guard) = create_app_logger(o!());
+
     // Run commands
     match &args.action {
         Actions::Create { output } => {
@@ -66,7 +68,7 @@ fn main() -> anyhow::Result<()> {
             // Otherwise write out new secrets
             write_output(output, &account_secrets)?;
 
-            global_log::info!("Account secrets written to '{}'", output);
+            log::info!(logger, "Account secrets written to '{}'", output);
         }
         Actions::Signer(operation) => {
             // Load account secrets
