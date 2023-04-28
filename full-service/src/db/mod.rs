@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 MobileCoin Inc.
+// Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! Persistence layer for wallet data types (as opposed to the blockchain which
 //! is stored in LMDB).

@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 MobileCoin Inc.
+// Copyright (c) 2020-2021 MobileCoin Inc.
 
 //! A subaddress assigned to a particular contact for the purpose of tracking
 //! funds received from that contact.

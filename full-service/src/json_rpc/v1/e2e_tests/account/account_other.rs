@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 MobileCoin Inc.
+// Copyright (c) 2020-2022 MobileCoin Inc.
 
 //! End-to-end tests for the Full Service Wallet API.
 
