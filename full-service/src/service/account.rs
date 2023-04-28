@@ -313,7 +313,7 @@ pub trait AccountService {
     ///| Name                     | Purpose                                                      | Notes                                                    |
     ///|--------------------------|--------------------------------------------------------------|----------------------------------------------------------|
     ///| `account_id`             | The account on which to perform this action.                 | Account must exist in the wallet as a view only account. |
-    ///| `synced_txos` | signed txos. A array of TxoSynced objects (txoID, KeyImage)             |                                                          |
+    ///| `synced_txos` | An array of TxoSynced objects (TxOutPublic, KeyImage)             |                                                          |
     ///
     fn sync_account(
         &self,

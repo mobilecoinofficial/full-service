@@ -704,7 +704,7 @@ pub trait TxoModel {
     /// * TxOutMembershipProof 
     fn membership_proof(&self, ledger_db: &LedgerDB) -> Result<TxOutMembershipProof, WalletDbError>;
 
-    /// Get the membership proof from ledger DB for current TxOut
+    /// Update the key image and spent block index for a txo by its public key.
     /// 
     /// # Arguments
     /// 
