@@ -9,13 +9,14 @@ description: >-
 ## Parameters
 
 | Required Param | Purpose | Requirements |
-| -------------- | ------- | ------------ |
+|----------------|---------|--------------|
 | `tx_proposal`  |         |              |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "create_receiver_receipts",
@@ -203,9 +204,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "create_receiver_receipts",
@@ -229,5 +232,6 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

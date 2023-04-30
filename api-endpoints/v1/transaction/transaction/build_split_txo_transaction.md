@@ -9,12 +9,12 @@ description: >-
 ## Parameters
 
 | Required Param  | Purpose                                 | Requirements                 |
-| --------------- | --------------------------------------- | ---------------------------- |
+|-----------------|-----------------------------------------|------------------------------|
 | `txo_id`        | The TXO on which to perform this action | TXO must exist in the wallet |
 | `output_values` | The output values of the generated TXOs |                              |
 
 | Optional Param                 | Purpose | Requirements |
-| ------------------------------ | ------- | ------------ |
+|--------------------------------|---------|--------------|
 | `destination_subaddress_index` |         |              |
 | `fee`                          |         |              |
 | `tombstone_block`              |         |              |
@@ -23,6 +23,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "build_split_txo_transaction",
@@ -37,9 +38,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "build_split_txo_transaction",
@@ -226,6 +229,7 @@ description: >-
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -238,5 +242,6 @@ description: >-
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your TXOs may not all be updated to their spent status.
+Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than
+the `local_block_height` value, then your TXOs may not all be updated to their spent status.
 {% endhint %}

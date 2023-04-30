@@ -6,17 +6,18 @@ description: Get TXOs for a given account with offset and limit parameters
 
 ## Parameters
 
-| Parameter    | Purpose                                                                                                                                                              | Requirements                      |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `account_id` | The account on which to perform this action.                                                                                                                         | Account must exist in the wallet. |
-| `offset`     | The pagination offset. Results start at the offset index. Optional, defaults to 0.                                                                                   |                                   |
-| `limit`      | Limit for the number of results. Optional, defaults to 100                                                                                                           |                                   |
-| `status`     | Optional txo status filer. Available status: "txo\_status\_unspent", "txo\_status\_spent", "txo\_status\_orphaned", "txo\_status\_pending", "txo\_status\_secreted", |                                   |
+| Parameter    | Purpose                                                                                                                                                    | Requirements                      |
+|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| `account_id` | The account on which to perform this action.                                                                                                               | Account must exist in the wallet. |
+| `offset`     | The pagination offset. Results start at the offset index. Optional, defaults to 0.                                                                         |                                   |
+| `limit`      | Limit for the number of results. Optional, defaults to 100                                                                                                 |                                   |
+| `status`     | Optional txo status filer. Available status: "txo_status_unspent", "txo_status_spent", "txo_status_orphaned", "txo_status_pending", "txo_status_secreted", |                                   |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_txos_for_account",
@@ -29,9 +30,11 @@ description: Get TXOs for a given account with offset and limit parameters
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_txos_for_account",
@@ -144,5 +147,6 @@ description: Get TXOs for a given account with offset and limit parameters
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

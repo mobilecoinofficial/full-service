@@ -4,18 +4,19 @@ description: Check the type of the b58 code
 
 # Check B58 Type
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L75)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L75)
 
 | Required Param | Purpose           | Requirements |
-| -------------- | ----------------- | ------------ |
+|----------------|-------------------|--------------|
 | `b58_code`     | The code to check | `String`     |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L58)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L58)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "check_b58_type",
@@ -26,9 +27,11 @@ description: Check the type of the b58 code
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "check_b58_code",
@@ -45,5 +48,6 @@ description: Check the type of the b58 code
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -7,16 +7,22 @@ description: >-
 
 # Address
 
-Addresses in the Full-service Wallet are useful to help distinguish incoming transactions from each other. Due to MobileCoin's privacy properties, without using "subaddresses," the wallet would be unable to disambiguate which transactions were from which sender. By creating a new address for each contact, and sharing the address with only that contact, you can be certain that when you receive funds at that address, it is from the assigned contact.
+Addresses in the Full-service Wallet are useful to help distinguish incoming transactions from each other. Due to
+MobileCoin's privacy properties, without using "subaddresses," the wallet would be unable to disambiguate which
+transactions were from which sender. By creating a new address for each contact, and sharing the address with only that
+contact, you can be certain that when you receive funds at that address, it is from the assigned contact.
 
-The way this works under the hood is by using the "subaddress index" to perform a cryptographic operation to generate a new subaddress.
+The way this works under the hood is by using the "subaddress index" to perform a cryptographic operation to generate a
+new subaddress.
 
-Important: If you receive funds at a subaddress that has not yet been assigned, you will not be able to spend the funds until you assign the address. We call those funds "orphaned" until they have been "recovered" by assigning the subaddress in the wallet to which they were sent.
+Important: If you receive funds at a subaddress that has not yet been assigned, you will not be able to spend the funds
+until you assign the address. We call those funds "orphaned" until they have been "recovered" by assigning the
+subaddress in the wallet to which they were sent.
 
 ## Attributes
 
 | Name               | Type                       | Description                                                                           |
-| ------------------ | -------------------------- | ------------------------------------------------------------------------------------- |
+|--------------------|----------------------------|---------------------------------------------------------------------------------------|
 | `object`           | string, value is "address" | String representing the object's type. Objects of the same type share the same value. |
 | `public_address`   | string                     | A shareable B58-encoded string representing the address.                              |
 | `account_id`       | string                     | A unique identifier for the assigned associated account.                              |

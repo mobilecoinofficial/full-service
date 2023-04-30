@@ -9,13 +9,14 @@ description: >-
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_account_status",
@@ -26,9 +27,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_account_status",
@@ -60,5 +63,6 @@ description: >-
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

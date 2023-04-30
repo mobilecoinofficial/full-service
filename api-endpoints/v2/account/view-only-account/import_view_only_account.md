@@ -7,25 +7,26 @@ description: >-
 
 # Import View Only Account
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param     | Purpose                              | Requirements |
-| ------------------ | ------------------------------------ | ------------ |
+|--------------------|--------------------------------------|--------------|
 | `view_private_key` | The view private key of this account |              |
 | `spend_public_key` | The spend public key of this account |              |
 
 | Optional Param          | Purpose | Requirements |
-| ----------------------- | ------- | ------------ |
+|-------------------------|---------|--------------|
 | `name`                  |         |              |
 | `first_block_index`     |         |              |
 | `next_subaddress_index` |         |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "import_view_only_account",
@@ -40,9 +41,11 @@ description: >-
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"import_view_only_account",
@@ -64,5 +67,6 @@ description: >-
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -4,24 +4,25 @@ description: Create a payment request b58 code to give to someone else
 
 # Create Payment Request
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L86)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L86)
 
-| Required Param | Purpose                                                                                                                                               | Requirements                      |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `account_id`   | The account on which to perform this action.                                                                                                          | Account must exist in the wallet. |
-| `amount`       | The [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/models/amount.rs) to send in this transaction |                                   |
+| Required Param | Purpose                                                                                                                                              | Requirements                      |
+|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| `account_id`   | The account on which to perform this action.                                                                                                         | Account must exist in the wallet. |
+| `amount`       | The [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/models/amount.rs) to send in this transaction |                                   |
 
 | Optional Param     | Purpose                                                          | Requirements |
-| ------------------ | ---------------------------------------------------------------- | ------------ |
+|--------------------|------------------------------------------------------------------|--------------|
 | `subaddress_index` | The subaddress index on the account to generate the request with | `i64`        |
 | `memo`             | Memo for the payment request                                     |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "create_payment_request",
@@ -35,9 +36,11 @@ description: Create a payment request b58 code to give to someone else
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "create_payment_request",
@@ -48,5 +51,6 @@ description: Create a payment request b58 code to give to someone else
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

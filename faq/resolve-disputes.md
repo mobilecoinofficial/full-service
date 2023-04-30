@@ -6,11 +6,14 @@ description: >-
 
 # Resolving Disputes
 
-In some cases when sending a transaction, the recipient will report not having received the transaction. Please use the following steps to triage and resolve disputes.
+In some cases when sending a transaction, the recipient will report not having received the transaction. Please use the
+following steps to triage and resolve disputes.
 
 ## Verify Transaction Success
 
-First, verify whether the transaction was a success by examining the `transaction_log` for the transaction using the [`get_transaction_log`](../api-endpoints/v2/transaction/transaction-log/get\_transaction\_log.md) endpoint, which will provide an example result as below:
+First, verify whether the transaction was a success by examining the `transaction_log` for the transaction using
+the [`get_transaction_log`](../api-endpoints/v2/transaction/transaction-log/get_transaction_log.md) endpoint, which
+will provide an example result as below:
 
 ```json
 {
@@ -69,15 +72,18 @@ For a successful transaction, the `status` is `succeeded`, and the `finalized_bl
 
 ### Confirm Recipient Address
 
-The `output_txos` for the transaction contain details about the txo itself, including the `value` and `token_id`. The `recipient_public_address_b58` specifies the address to which the amount was sent.
+The `output_txos` for the transaction contain details about the txo itself, including the `value` and `token_id`.
+The `recipient_public_address_b58` specifies the address to which the amount was sent.
 
 {% hint style="info" %}
-The precision of the value of the txo depends on which token it is. To see more info about the precision of each token and what token are supported, check out our [Supported Tokens](../usage/supported-token-metadata.md) page.
+The precision of the value of the txo depends on which token it is. To see more info about the precision of each token
+and what token are supported, check out our [Supported Tokens](../usage/supported-token-metadata.md) page.
 {% endhint %}
 
 ### Confirm with the Block Explorer
 
-You can use the `txo_id` from the `output_txos` to get more information about the specific txo over which there may be a dispute, with the [`get_txo`](../api-endpoints/v2/transaction/txo/get\_txo.md) endpoint.
+You can use the `txo_id` from the `output_txos` to get more information about the specific txo over which there may be a
+dispute, with the [`get_txo`](../api-endpoints/v2/transaction/txo/get_txo.md) endpoint.
 
 ```json
 {
@@ -104,21 +110,30 @@ You can use the `txo_id` from the `output_txos` to get more information about th
 }
 ```
 
-You can use the `public_key` to confirm with the block explorer. The MobileCoin Foundation hosts a public block explorer at [https://block-explorer.mobilecoin.foundation/](https://block-explorer.mobilecoin.foundation/).
+You can use the `public_key` to confirm with the block explorer. The MobileCoin Foundation hosts a public block explorer
+at [https://block-explorer.mobilecoin.foundation/](https://block-explorer.mobilecoin.foundation/).
 
-For the example above, we can go to the block index indicated in the `transaction_log`: `318163`, here: [https://block-explorer.mobilecoin.foundation/blocks/318163](https://block-explorer.mobilecoin.foundation/block/318163), and scroll down to the Transaction Outputs section, where we see the public key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
+For the example above, we can go to the block index indicated in the `transaction_log`: `318163`,
+here: [https://block-explorer.mobilecoin.foundation/blocks/318163](https://block-explorer.mobilecoin.foundation/block/318163),
+and scroll down to the Transaction Outputs section, where we see the public
+key `8e279a2326d585a9c8b24c0b3c9d356e63f1c4276b22bb97f25b45bb58ec810d` (with the prefix `0a20` removed)
 
 ## Provide Confirmation Receipt to the Receiver
 
-After you have confirmed that the `transaction_log` indicates that you sent the transaction to the correct recipient, and you confirmed that the transaction outputs are in the blockchain, the next step of dispute resolution involves providing a cryptographic proof that you created the transaction, called a _confirmation_. You can follow the steps below to create a confirmation:
+After you have confirmed that the `transaction_log` indicates that you sent the transaction to the correct recipient,
+and you confirmed that the transaction outputs are in the blockchain, the next step of dispute resolution involves
+providing a cryptographic proof that you created the transaction, called a _confirmation_. You can follow the steps
+below to create a confirmation:
 
 ### Sender Provides the TXO Confirmations
 
-1. Using the `transaction_log_id` obtained from the previous step, call [`get_confirmations`](../api-endpoints/v2/transaction/transaction-confirmation/get\_confirmations.md)
+1. Using the `transaction_log_id` obtained from the previous step,
+   call [`get_confirmations`](../api-endpoints/v2/transaction/transaction-confirmation/get_confirmations.md)
 2. This will return a response that has an array of confirmations.&#x20;
 
 {% hint style="info" %}
-In most cases, there will only be 1 confirmation, but if you created a multi-output transaction there will be more (1 for each output txo).
+In most cases, there will only be 1 confirmation, but if you created a multi-output transaction there will be more (1
+for each output txo).
 {% endhint %}
 
 ```json
@@ -138,10 +153,13 @@ In most cases, there will only be 1 confirmation, but if you created a multi-out
 }
 ```
 
-3. For the TXO that you wish to confirm, this is where you would send the recipient the `txo_id` `txo_index` and `confirmation` for each txo you wish to have them validate.
+3. For the TXO that you wish to confirm, this is where you would send the recipient the `txo_id` `txo_index`
+   and `confirmation` for each txo you wish to have them validate.
 
 ### Receiver Validates the TXO Confirmation
 
-1. For each of the confirmations generated in the previous step, call [`validate_confirmation`](../api-endpoints/v2/transaction/transaction-confirmation/validate\_confirmation.md) using the `account_id` of receiving account.
+1. For each of the confirmations generated in the previous step,
+   call [`validate_confirmation`](../api-endpoints/v2/transaction/transaction-confirmation/validate_confirmation.md)
+   using the `account_id` of receiving account.
 
 If all is successful, you should have gotten a response with a result of `"validated": true`

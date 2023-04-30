@@ -7,12 +7,12 @@ description: Create a payment request b58 code to give to someone else
 ## Parameters
 
 | Required Param | Purpose                                         | Requirements                      |
-| -------------- | ----------------------------------------------- | --------------------------------- |
+|----------------|-------------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action.    | Account must exist in the wallet. |
 | `amount_pmob`  | The amount of pMOB to send in this transaction. | `u64`                             |
 
 | Optional Param     | Purpose                                                          | Requirements |
-| ------------------ | ---------------------------------------------------------------- | ------------ |
+|--------------------|------------------------------------------------------------------|--------------|
 | `subaddress_index` | The subaddress index on the account to generate the request with | `i64`        |
 | `memo`             | Memo for the payment request                                     |              |
 
@@ -20,6 +20,7 @@ description: Create a payment request b58 code to give to someone else
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "create_payment_request",
@@ -33,9 +34,11 @@ description: Create a payment request b58 code to give to someone else
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "create_payment_request",
@@ -47,5 +50,6 @@ description: Create a payment request b58 code to give to someone else
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

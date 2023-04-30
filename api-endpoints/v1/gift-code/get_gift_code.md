@@ -7,13 +7,14 @@ description: Recall a gift code's entropy, value, and memo from the database.
 ## Parameters
 
 | Required Param  | Purpose                                | Requirements                           |
-| --------------- | -------------------------------------- | -------------------------------------- |
+|-----------------|----------------------------------------|----------------------------------------|
 | `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_gift_code",
@@ -24,9 +25,11 @@ description: Recall a gift code's entropy, value, and memo from the database.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_gift_code",
@@ -46,5 +49,6 @@ description: Recall a gift code's entropy, value, and memo from the database.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

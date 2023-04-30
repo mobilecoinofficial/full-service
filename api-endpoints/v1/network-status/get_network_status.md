@@ -8,6 +8,7 @@ description: Get the current status of the network.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_network_status",
@@ -15,9 +16,11 @@ description: Get the current status of the network.
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_network_status",
@@ -35,5 +38,6 @@ description: Get the current status of the network.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

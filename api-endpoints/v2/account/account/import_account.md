@@ -7,12 +7,12 @@ description: Import an existing account from the secret entropy.
 ## Request
 
 | Required Param           | Purpose                                                                                                              | Requirements                   |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+|--------------------------|----------------------------------------------------------------------------------------------------------------------|--------------------------------|
 | `mnemonic`               | The secret mnemonic to recover the account.                                                                          | The mnemonic must be 24 words. |
 | `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. The current version is 2. |                                |
 
 | Optional Param          | Purpose                                                                                                                                                                                            | Requirements                                            |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+|-------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------|
 | `name`                  | A label for this account.                                                                                                                                                                          | A label can have duplicates, but it is not recommended. |
 | `next_subaddress_index` | <p>The next known unused subaddress index for the account. All subaddresses below this index will be created.<br>This can be used to create a large number of subaddresses as a batch request.</p> |                                                         |
 | `first_block_index`     | The block from which to start scanning the ledger.                                                                                                                                                 |                                                         |
@@ -26,6 +26,7 @@ description: Import an existing account from the secret entropy.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "import_account",
@@ -40,9 +41,11 @@ description: Import an existing account from the secret entropy.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"import_account",
@@ -64,6 +67,7 @@ description: Import an existing account from the secret entropy.
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -85,4 +89,5 @@ description: Import an existing account from the secret entropy.
   "id":1
 }
 ```
+
 {% endhint %}

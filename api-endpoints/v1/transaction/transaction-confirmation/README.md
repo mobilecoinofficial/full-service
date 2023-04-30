@@ -6,12 +6,13 @@ description: >-
 
 # Confirmation
 
-The confirmation number can be delivered to the recipient to prove that they received the TXO from that particular sender.
+The confirmation number can be delivered to the recipient to prove that they received the TXO from that particular
+sender.
 
 ## Attributes
 
 | _Name_         | _Type_                          | _Description_                                                                                                                                                   |
-| -------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|----------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `object`       | string, value is "confirmation" | String representing the object's type. Objects of the same type share the same value.                                                                           |
 | `txo_id`       | string                          | Unique identifier for the TXO.                                                                                                                                  |
 | `txo_index`    | string                          | The index of the TXO in the ledger.                                                                                                                             |

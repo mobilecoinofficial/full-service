@@ -14,6 +14,8 @@ Full-service is MobileCoin's wallet backend. With full-service you can:
 
 ## Integrating full-service
 
-* Get started with the full-service API by following the [Getting Started guide](usage/getting-started/).
-* For detailed information on how full-service stores data, check out the guide to [database usage](usage/database-usage.md).
-* If you are having issues sending or receiving MOB, check out the guide to [resolving disputes](faq/resolve-disputes.md).
+* Get started with the full-service API by following the [Getting Started guide](usage/getting-started/README.md).
+* For detailed information on how full-service stores data, check out the guide
+  to [database usage](usage/database-usage.md).
+* If you are having issues sending or receiving MOB, check out the guide
+  to [resolving disputes](faq/resolve-disputes.md).

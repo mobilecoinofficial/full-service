@@ -1,19 +1,20 @@
 # Sync View Only Account
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param          | Purpose                                                      | Requirements                                             |
-| ----------------------- | ------------------------------------------------------------ | -------------------------------------------------------- |
+|-------------------------|--------------------------------------------------------------|----------------------------------------------------------|
 | `account_id`            | The account on which to perform this action.                 | Account must exist in the wallet as a view only account. |
 | `completed_txos`        | signed txos. A array of tuples (txoID, KeyImage)             |                                                          |
 | `next_subaddress_index` | The updated next subaddress index to assign for this account |                                                          |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request" %}
+
 ```
 {
     "method": "sync_view_only_account",
@@ -26,9 +27,11 @@
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
     "method": "sync_view_only_account",
@@ -36,5 +39,6 @@
     "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -8,12 +8,15 @@ description: >-
 
 ## Transaction Log
 
-Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full-service Wallet stores outgoing transactions in the `transaction_log` table in order to preserve transaction history. Received transactions are instead saved as txos.
+Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they
+only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the
+Full-service Wallet stores outgoing transactions in the `transaction_log` table in order to preserve transaction
+history. Received transactions are instead saved as txos.
 
 ### Attributes
 
 | _Name_                  | _Type_               | _Description_                                                                                                                                                                                                    |
-| ----------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|-------------------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `id`                    | integer              | Unique identifier for the transaction log. This value is not associated to the ledger.                                                                                                                           |
 | `account_id`            | string               | Unique identifier for the assigned associated account. If the transaction is outgoing, this account is from whence the TXO came. If received, this is the receiving account.                                     |
 | `value_map`             | map (string, uint64) | Total value per token associated to this transaction log.                                                                                                                                                        |
@@ -35,25 +38,26 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 
 ### Attributes
 
-| _Name_   | _Type_                                                                                                                | _Description_                  |
-| -------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| `txo_id` | string                                                                                                                | Unique identifier for the txo. |
-| `amount` | [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/models/amount.rs) | Amount of this txo.            |
+| _Name_   | _Type_                                                                                                               | _Description_                  |
+|----------|----------------------------------------------------------------------------------------------------------------------|--------------------------------|
+| `txo_id` | string                                                                                                               | Unique identifier for the txo. |
+| `amount` | [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/models/amount.rs) | Amount of this txo.            |
 
 ## Output Txo
 
 ### Attributes
 
-| _Name_                         | _Type_                                                                                                                | _Description_                                    |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `txo_id`                       | string                                                                                                                | Unique identifier for the txo.                   |
-| `amount`                       | [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/models/amount.rs) | Amount of this txo.                              |
-| `recipient_public_address_b58` | string                                                                                                                | Public address b58 of the recipient of this txo. |
+| _Name_                         | _Type_                                                                                                               | _Description_                                    |
+|--------------------------------|----------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| `txo_id`                       | string                                                                                                               | Unique identifier for the txo.                   |
+| `amount`                       | [Amount](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/models/amount.rs) | Amount of this txo.                              |
+| `recipient_public_address_b58` | string                                                                                                               | Public address b58 of the recipient of this txo. |
 
 ### Example
 
 {% tabs %}
 {% tab title="Sent - Pending" %}
+
 ```
 {
   "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
@@ -95,9 +99,11 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "failure_message": null
 }
 ```
+
 {% endtab %}
 
 {% tab title="Sent - Failed" %}
+
 ```
 {
   "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
@@ -139,9 +145,11 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "failure_message:": "Contains spent key image."
 }
 ```
+
 {% endtab %}
 
 {% tab title="Sent - Success" %}
+
 ```
 {
   "id": "ab447d73553309ccaf60aedc1eaa67b47f65bee504872e4358682d76df486a87",
@@ -183,5 +191,6 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
   "failure_message": null
 }
 ```
+
 {% endtab %}
 {% endtabs %}

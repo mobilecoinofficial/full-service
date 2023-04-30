@@ -4,18 +4,19 @@ description: Get details of a given TXO.
 
 # Get TXO
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Parameter | Purpose                              | Requirements |
-| --------- | ------------------------------------ | ------------ |
+|-----------|--------------------------------------|--------------|
 | `txo_id`  | The TXO ID for which to get details. |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_txo",
@@ -26,9 +27,11 @@ description: Get details of a given TXO.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_txo",
@@ -53,5 +56,6 @@ description: Get details of a given TXO.
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

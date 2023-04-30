@@ -8,13 +8,13 @@ description: >-
 
 ## Attributes
 
-| _Name_            | _Type_                               | _Description_                                                                                                                                        |
-| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `object`          | string, value is "receiver\_receipt" | String representing the object's type. Objects of the same type share the same value.                                                                |
-| `public_key`      | string                               | Hex-encoded public key for the TXO.                                                                                                                  |
-| `tombstone_block` | string                               | The block index after which this TXO would be rejected by consensus.                                                                                 |
-| `confirmation`    | string                               | Hex-encoded confirmation that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
-| `amount`          | string                               | The encrypted amount in the TXO referenced by this receipt.                                                                                          |
+| _Name_            | _Type_                              | _Description_                                                                                                                                        |
+|-------------------|-------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `object`          | string, value is "receiver_receipt" | String representing the object's type. Objects of the same type share the same value.                                                                |
+| `public_key`      | string                              | Hex-encoded public key for the TXO.                                                                                                                  |
+| `tombstone_block` | string                              | The block index after which this TXO would be rejected by consensus.                                                                                 |
+| `confirmation`    | string                              | Hex-encoded confirmation that can be validated to confirm that another party constructed or had knowledge of the construction of the associated TXO. |
+| `amount`          | string                              | The encrypted amount in the TXO referenced by this receipt.                                                                                          |
 
 ## Example
 

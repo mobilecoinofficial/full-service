@@ -7,17 +7,18 @@ description: Assign an address to a given account.
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                          |
-| -------------- | -------------------------------------------- | ------------------------------------- |
+|----------------|----------------------------------------------|---------------------------------------|
 | `account_id`   | The account on which to perform this action. | The account must exist in the wallet. |
 
 | Optional Param | Purpose                        | Requirements                          |
-| -------------- | ------------------------------ | ------------------------------------- |
+|----------------|--------------------------------|---------------------------------------|
 | ​`metadata`    | The metadata for this address. | String; can contain stringified JSON. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "assign_address_for_account",
@@ -29,9 +30,11 @@ description: Assign an address to a given account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "assign_address_for_account",
@@ -49,5 +52,6 @@ description: Assign an address to a given account.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

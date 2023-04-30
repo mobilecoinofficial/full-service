@@ -4,22 +4,23 @@ description: Get the JSON representation of multiple "Block" objects in the ledg
 
 # Get Blocks
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param      | Purpose                          | Requirements                    |
-| ------------------- | -------------------------------- | ------------------------------- |
+|---------------------|----------------------------------|---------------------------------|
 | `first_block_index` | The first block index to return. | Block must exist in the ledger. |
 
 | Optional Param | Purpose                        | Requirements |
-| -------------- | ------------------------------ | ------------ |
+|----------------|--------------------------------|--------------|
 | `limit`        | The number of blocks to return |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
   "method": "get_blocks",
@@ -31,9 +32,11 @@ description: Get the JSON representation of multiple "Block" objects in the ledg
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_blocks",
@@ -140,5 +143,6 @@ description: Get the JSON representation of multiple "Block" objects in the ledg
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

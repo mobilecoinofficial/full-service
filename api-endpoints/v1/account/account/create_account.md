@@ -7,11 +7,12 @@ description: Create a new account in the wallet.
 Parameters
 
 | Optional Param | Purpose                   | Requirements                                            |
-| -------------- | ------------------------- | ------------------------------------------------------- |
+|----------------|---------------------------|---------------------------------------------------------|
 | `name`         | A label for this account. | A label can have duplicates, but it is not recommended. |
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "create_account",
@@ -22,9 +23,11 @@ Parameters
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "create_account",
@@ -45,5 +48,6 @@ Parameters
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}

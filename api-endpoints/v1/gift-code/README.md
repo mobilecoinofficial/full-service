@@ -10,7 +10,7 @@ description: >-
 ## Attributes
 
 | Name         | Type   | Description                                           |
-| ------------ | ------ | ----------------------------------------------------- |
+|--------------|--------|-------------------------------------------------------|
 | `gift_code`  | string | The base58-encoded gift code string to share.         |
 | `entropy`    | string | The entropy for the account in this gift code.        |
 | `value_pmob` | string | The amount of MOB contained in the gift code account. |

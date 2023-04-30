@@ -2,7 +2,8 @@
 
 ### Generate TLS Credentials
 
-In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate pair. For testing, you can generate these with
+In order to have a tls connection between the public and private sides of the mirror, you need to use a certificate
+pair. For testing, you can generate these with
 
 ```bash
 $ openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout server.key -out server.crt
@@ -29,7 +30,8 @@ Email Address []:test@test.com
 ```
 
 {% hint style="info" %}
-Note that the `Common Name` needs to match the hostname which you would be using to connect to the public side (that has the GRPC listening port).
+Note that the `Common Name` needs to match the hostname which you would be using to connect to the public side (that has
+the GRPC listening port).
 {% endhint %}
 
 ### Start the Public Mirror

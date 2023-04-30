@@ -8,6 +8,7 @@ description: Get the details of all accounts in a given wallet.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_all_accounts",
@@ -15,9 +16,11 @@ description: Get the details of all accounts in a given wallet.
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_all_accounts",
@@ -54,5 +57,6 @@ description: Get the details of all accounts in a given wallet.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -7,15 +7,18 @@ description: Get all transaction logs for a given block.
 ## Parameters
 
 | Required Param | Purpose                                    | Requirements                    |
-| -------------- | ------------------------------------------ | ------------------------------- |
+|----------------|--------------------------------------------|---------------------------------|
 | `block_index`  | The block on which to perform this action. | Block must exist in the wallet. |
 
 ## Example
 
-In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one sent `transaction_log` in the block, and two received (one for the change, and one for the output TXO sent to the same account that constructed the transaction).
+In the below example, the account in the wallet sent a transaction to itself. Therefore, there is one
+sent `transaction_log` in the block, and two received (one for the change, and one for the output TXO sent to the same
+account that constructed the transaction).
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_all_transaction_logs_for_block",
@@ -26,9 +29,11 @@ In the below example, the account in the wallet sent a transaction to itself. Th
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_all_transaction_logs_for_block",
@@ -120,5 +125,6 @@ In the below example, the account in the wallet sent a transaction to itself. Th
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

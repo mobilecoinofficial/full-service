@@ -7,13 +7,14 @@ description: Get the JSON representation of the "Block" object in the ledger.
 ## Parameters
 
 | Required Param | Purpose                                    | Requirements                    |
-| -------------- | ------------------------------------------ | ------------------------------- |
+|----------------|--------------------------------------------|---------------------------------|
 | `block_index`  | The block on which to perform this action. | Block must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
   "method": "get_block",
@@ -24,9 +25,11 @@ description: Get the JSON representation of the "Block" object in the ledger.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_block",
@@ -87,5 +90,6 @@ description: Get the JSON representation of the "Block" object in the ledger.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

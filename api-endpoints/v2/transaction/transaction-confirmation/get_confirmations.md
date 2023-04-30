@@ -7,13 +7,13 @@ description: >-
 
 # Get Confirmations
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Param                | Purpose                                                       | Requirements                                  |
-| -------------------- | ------------------------------------------------------------- | --------------------------------------------- |
+|----------------------|---------------------------------------------------------------|-----------------------------------------------|
 | `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
@@ -21,6 +21,7 @@ When calling `get_confirmations` for a transaction, only the confirmation number
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_confirmations",
@@ -31,9 +32,11 @@ When calling `get_confirmations` for a transaction, only the confirmation number
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_confirmations",
@@ -50,5 +53,6 @@ When calling `get_confirmations` for a transaction, only the confirmation number
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -9,7 +9,7 @@ description: >-
 ## Parameters
 
 | Required Param    | Purpose                                      | Requirement                            |
-| ----------------- | -------------------------------------------- | -------------------------------------- |
+|-------------------|----------------------------------------------|----------------------------------------|
 | `gift_code_b58`   | The base58-encoded gift code contents.       | Must be a valid b58-encoded gift code. |
 | `from_account_id` | The account on which to perform this action. | Account must exist in the wallet.      |
 | `tx_proposal`     | Transaction proposal to submit.              | Created with`build_gift_code.`         |
@@ -18,6 +18,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "submit_gift_code",
@@ -207,9 +208,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "submit_gift_code",
@@ -229,5 +232,6 @@ description: >-
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

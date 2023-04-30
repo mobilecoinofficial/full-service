@@ -4,10 +4,10 @@ description: Get TXOs for a given account with offset and limit parameters
 
 # Get TXOs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param             | Purpose                                                                                                  | Requirements                      |
-| -------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------- |
+|----------------------------|----------------------------------------------------------------------------------------------------------|-----------------------------------|
 | `account_id`               | The account on which to perform this action.                                                             | Account must exist in the wallet. |
 | `address`                  | The address b58 on which to perform this action.                                                         | Address must exist in the wallet. |
 | `status`                   | Txo status filer. Available status: "unverified", "unspent", "spent", "orphaned", "pending", "secreted", |                                   |
@@ -16,12 +16,13 @@ description: Get TXOs for a given account with offset and limit parameters
 | `offset`                   | The pagination offset. Results start at the offset index.                                                |                                   |
 | `limit`                    | Limit for the number of results.                                                                         |                                   |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_txos",
@@ -36,9 +37,11 @@ description: Get TXOs for a given account with offset and limit parameters
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_txos",
@@ -100,5 +103,6 @@ description: Get TXOs for a given account with offset and limit parameters
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

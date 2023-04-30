@@ -8,6 +8,7 @@ description: Get the version number of the software.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "version",
@@ -15,9 +16,11 @@ description: Get the version number of the software.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "version",
@@ -30,5 +33,6 @@ description: Get the version number of the software.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

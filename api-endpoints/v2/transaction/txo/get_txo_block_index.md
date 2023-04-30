@@ -5,7 +5,7 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
 ## Request
 
 | Param        | Description                |                                 |
-| ------------ | -------------------------- | ------------------------------- |
+|--------------|----------------------------|---------------------------------|
 | `public_key` | The public key of the txo. | public key is hex encoded bytes |
 
 ## Response
@@ -14,6 +14,7 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_txo_block_index",
@@ -24,9 +25,11 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response Success" %}
+
 ```
 {
     "method": "get_txo_block_index",
@@ -37,9 +40,11 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response Failed" %}
+
 ```
 {
     "method": "get_txo_block_index",
@@ -55,5 +60,6 @@ Allows the public key of a tx out to be checked against the ledger, and if it ex
     "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

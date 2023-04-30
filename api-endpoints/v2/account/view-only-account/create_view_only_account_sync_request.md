@@ -1,15 +1,16 @@
 # Create View Only Account Sync Request
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                      | Requirements                                             |
-| -------------- | -------------------------------------------- | -------------------------------------------------------- |
+|----------------|----------------------------------------------|----------------------------------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 {% tabs %}
 {% tab title="Request" %}
+
 ```
 {
     "method": "create_view_only_account_sync_request",
@@ -20,9 +21,11 @@
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
     "method": "create_view_only_account_sync_request",
@@ -36,5 +39,6 @@
     "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

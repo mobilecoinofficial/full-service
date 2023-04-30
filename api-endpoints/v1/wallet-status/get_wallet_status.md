@@ -10,6 +10,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
     "method": "get_wallet_status",
@@ -17,9 +18,11 @@ description: >-
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_wallet_status",
@@ -79,5 +82,6 @@ description: >-
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

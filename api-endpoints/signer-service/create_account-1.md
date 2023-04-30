@@ -7,13 +7,14 @@ description: Get account info from an existing mnemonic
 ## Request
 
 | Param      | Requirements                     |
-| ---------- | -------------------------------- |
+|------------|----------------------------------|
 | `mnemonic` | Must be a valid 24 word mnemonic |
 
 ## Response
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```json
 {
   "method": "get_account",
@@ -24,9 +25,11 @@ description: Get account info from an existing mnemonic
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```json
 {
     "method": "get_account",
@@ -41,5 +44,6 @@ description: Get account info from an existing mnemonic
     "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

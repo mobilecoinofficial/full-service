@@ -8,6 +8,7 @@ description: Get all the gift codes currently in the database.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_all_gift_codes",
@@ -15,9 +16,11 @@ description: Get all the gift codes currently in the database.
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_all_gift_codes",
@@ -48,5 +51,6 @@ description: Get all the gift codes currently in the database.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -4,19 +4,20 @@ description: Get the JSON representation of the "Block" object in the ledger.
 
 # Get Block
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param   | Purpose                                                              | Requirements                         |
-| ---------------- | -------------------------------------------------------------------- | ------------------------------------ |
+|------------------|----------------------------------------------------------------------|--------------------------------------|
 | `block_index`    | The block on which to perform this action.                           | Block must exist in the ledger.      |
 | `txo_public_key` | The public key on which to perform this action, as hex encoded bytes | Public key must exist in the ledger. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
   "method": "get_block",
@@ -27,9 +28,11 @@ description: Get the JSON representation of the "Block" object in the ledger.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_block",
@@ -90,5 +93,6 @@ description: Get the JSON representation of the "Block" object in the ledger.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

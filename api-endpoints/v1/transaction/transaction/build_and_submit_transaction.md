@@ -9,11 +9,11 @@ description: >-
 ## Parameters
 
 | Required Param | Purpose                                     | Requirements                     |
-| -------------- | ------------------------------------------- | -------------------------------- |
+|----------------|---------------------------------------------|----------------------------------|
 | `account_id`   | The account on which to perform this action | Account must exist in the wallet |
 
 | Optional Param             | Purpose                                                           | Requirements                                                 |
-| -------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------ |
+|----------------------------|-------------------------------------------------------------------|--------------------------------------------------------------|
 | `recipient_public_address` | The recipient for this transaction                                | b58-encoded public address bytes                             |
 | `value_pmob`               | The amount of MOB to send in this transaction                     |                                                              |
 | `addresses_and_values`     | An array of public addresses and value tuples                     | addresses are b58-encoded public addresses, value is in pmob |
@@ -27,6 +27,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "build_and_submit_transaction",
@@ -39,9 +40,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "build_and_submit_transaction",
@@ -258,6 +261,7 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -270,5 +274,6 @@ description: >-
 }
 ```
 
-Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than the `local_block_height` value, then your TXOs may not all be updated to their spent status.
+Call `check_balance` for the account, and note the `synced_blocks` value. If that value is less than
+the `local_block_height` value, then your TXOs may not all be updated to their spent status.
 {% endhint %}

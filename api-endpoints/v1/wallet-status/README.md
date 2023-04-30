@@ -8,14 +8,14 @@ description: >-
 
 ## Attributes
 
-| _Name_                 | _Type_                | _Description_                                                                                                                                                                                                         |
-| ---------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `network_block_height` | string (uint64)       | The block count of MobileCoin's distributed ledger.                                                                                                                                                                   |
-| `local_block_height`   | string (uint64)       | The local block count downloaded from the ledger. The local database is synced when the `local_block_height` reaches the `network_block_height`. The account\_block\_height can only sync up to `local_block_height`. |
-| `is_synced_all`        | Boolean               | Whether ALL accounts are synced with the `network_block_height`. Balances may not appear correct if any account is still syncing.                                                                                     |
-| `balance_per_token`    | map (string, Balance) | Map of balances for each token that is present in the wallet                                                                                                                                                          |
-| `account_ids`          | list                  | A list of all `account_ids` imported into the wallet in order of import.                                                                                                                                              |
-| `account_map`          | hash map              | A normalized hash mapping `account_id` to account objects.                                                                                                                                                            |
+| _Name_                 | _Type_                | _Description_                                                                                                                                                                                                       |
+|------------------------|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `network_block_height` | string (uint64)       | The block count of MobileCoin's distributed ledger.                                                                                                                                                                 |
+| `local_block_height`   | string (uint64)       | The local block count downloaded from the ledger. The local database is synced when the `local_block_height` reaches the `network_block_height`. The account_block_height can only sync up to `local_block_height`. |
+| `is_synced_all`        | Boolean               | Whether ALL accounts are synced with the `network_block_height`. Balances may not appear correct if any account is still syncing.                                                                                   |
+| `balance_per_token`    | map (string, Balance) | Map of balances for each token that is present in the wallet                                                                                                                                                        |
+| `account_ids`          | list                  | A list of all `account_ids` imported into the wallet in order of import.                                                                                                                                            |
+| `account_map`          | hash map              | A normalized hash mapping `account_id` to account objects.                                                                                                                                                          |
 
 ## ​Example
 
