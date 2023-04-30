@@ -18,11 +18,8 @@ use crate::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
-    util::{
-        constants::MNEMONIC_KEY_DERIVATION_VERSION,
-        encoding_helpers::{
-            hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
-        },
+    util::encoding_helpers::{
+        hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
     },
 };
 
@@ -154,7 +151,6 @@ pub trait AccountService {
     ///| Name                     | Purpose                                                                                    | Notes                                                            |
     ///|--------------------------|--------------------------------------------------------------------------------------------|------------------------------------------------------------------|
     ///| `mnemonic_phrase`        | The secret mnemonic to recover the account.                                                | A label can have duplicates, but it is not recommended.          |
-    ///| `key_derivation_version` | The version number of the key derivation used to derive an account key from this mnemonic. | The current version is 2.                                        |
     ///| `name`                   | A Optional label for this account.                                                         |                                                                  |
     ///| `first_block_index`      | The block from which to start scanning the ledger.                                         | All subaddresses below this index will be created.               |
     ///| `next_subaddress_index`  | The next known unused subaddress index for the account.                                    |                                                                  |
@@ -165,7 +161,6 @@ pub trait AccountService {
     fn import_account(
         &self,
         mnemonic_phrase: String,
-        key_derivation_version: u8,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -394,7 +389,6 @@ where
     fn import_account(
         &self,
         mnemonic_phrase: String,
-        key_derivation_version: u8,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -408,12 +402,6 @@ where
             name,
             first_block_index,
         );
-
-        if key_derivation_version != MNEMONIC_KEY_DERIVATION_VERSION {
-            return Err(AccountServiceError::UnknownKeyDerivation(
-                key_derivation_version,
-            ));
-        }
 
         // Get mnemonic from phrase
         let mnemonic = match Mnemonic::from_phrase(&mnemonic_phrase, Language::English) {
