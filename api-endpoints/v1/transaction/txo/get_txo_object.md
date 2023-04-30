@@ -7,13 +7,14 @@ description: Get the JSON representation of the "TXO" object in the ledger.
 ## Parameters
 
 | Parameter | Purpose                                      | Requirements |
-| --------- | -------------------------------------------- | ------------ |
+|-----------|----------------------------------------------|--------------|
 | `address` | The address on which to perform this action. |              |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_all_txos_for_address",
@@ -24,9 +25,11 @@ description: Get the JSON representation of the "TXO" object in the ledger.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_txo_object",
@@ -35,5 +38,6 @@ description: Get the JSON representation of the "TXO" object in the ledger.
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}

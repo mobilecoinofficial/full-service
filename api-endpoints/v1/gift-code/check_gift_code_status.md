@@ -7,13 +7,14 @@ description: Check the status of a gift code, which may be pending, available, o
 ## Parameters
 
 | Required Param  | Purpose                                | Requirements                           |
-| --------------- | -------------------------------------- | -------------------------------------- |
+|-----------------|----------------------------------------|----------------------------------------|
 | `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "check_gift_code_status",
@@ -24,9 +25,11 @@ description: Check the status of a gift code, which may be pending, available, o
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "check_gift_code_status",
@@ -52,5 +55,6 @@ description: Check the status of a gift code, which may be pending, available, o
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -7,13 +7,14 @@ description: Get details of a given TXO.
 ## Parameters
 
 | Parameter | Purpose                              | Requirements |
-| --------- | ------------------------------------ | ------------ |
+|-----------|--------------------------------------|--------------|
 | `txo_id`  | The TXO ID for which to get details. |              |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_txo",
@@ -24,9 +25,11 @@ description: Get details of a given TXO.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_txo",
@@ -57,5 +60,6 @@ description: Get details of a given TXO.
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}

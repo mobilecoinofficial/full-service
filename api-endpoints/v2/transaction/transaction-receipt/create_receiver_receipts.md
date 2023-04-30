@@ -6,18 +6,19 @@ description: >-
 
 # Create Receiver Receipts
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose | Requirements |
-| -------------- | ------- | ------------ |
+|----------------|---------|--------------|
 | `tx_proposal`  |         |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method":"create_receiver_receipts",
@@ -68,9 +69,11 @@ description: >-
   "id":1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"create_receiver_receipts",
@@ -93,5 +96,6 @@ description: >-
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

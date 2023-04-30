@@ -7,13 +7,14 @@ description: Get the details of a given account.
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_account",
@@ -24,9 +25,11 @@ description: Get the details of a given account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_account",
@@ -47,6 +50,7 @@ description: Get the details of a given account.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -59,4 +63,5 @@ If the account is not in the database, you will receive the following error mess
   "details": "Error interacting with the database: Account Not Found: a4db032dcedc14e39608fe6f26deadf57e306e8c03823b52065724fb4d274c10"
 }
 ```
+
 {% endhint %}

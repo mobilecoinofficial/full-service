@@ -1,17 +1,18 @@
 # Create View Only Account Import Request
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "create_view_only_account_import_request",
@@ -22,9 +23,11 @@
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"create_view_only_account_import_request",
@@ -46,5 +49,6 @@
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

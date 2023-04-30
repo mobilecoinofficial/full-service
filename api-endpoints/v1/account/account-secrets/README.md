@@ -9,13 +9,13 @@ description: >-
 
 ## Attributes
 
-| Name                     | Type                                | Description                                                                                                                              |
-| ------------------------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `object`                 | string, value is "account\_secrets" | String representing the object's type. Objects of the same type share the same value.                                                    |
-| `account_id`             | string                              | The unique identifier for the account.                                                                                                   |
-| `mnemonic`               | string                              | A BIP39-encoded mnemonic phrase used to generate the account key.                                                                        |
-| `key_derivation_version` | string (uint64)                     | The version number of the key derivation path used to generate the account key from the mnemonic.                                        |
-| `account_key`            | account\_key                        | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
+| Name                     | Type                               | Description                                                                                                                              |
+|--------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `object`                 | string, value is "account_secrets" | String representing the object's type. Objects of the same type share the same value.                                                    |
+| `account_id`             | string                             | The unique identifier for the account.                                                                                                   |
+| `mnemonic`               | string                             | A BIP39-encoded mnemonic phrase used to generate the account key.                                                                        |
+| `key_derivation_version` | string (uint64)                    | The version number of the key derivation path used to generate the account key from the mnemonic.                                        |
+| `account_key`            | account_key                        | The view and spend keys used to transact on the MobileCoin network. Also may contain keys to connect to the Fog ledger scanning service. |
 
 ## Example
 

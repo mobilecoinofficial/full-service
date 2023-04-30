@@ -7,18 +7,19 @@ description: Claim a gift code to an account in the wallet.
 ## Parameters
 
 | Required Param  | Purpose                                      | Requirements                           |
-| --------------- | -------------------------------------------- | -------------------------------------- |
+|-----------------|----------------------------------------------|----------------------------------------|
 | `gift_code_b58` | The base58-encoded gift code contents.       | Must be a valid b58-encoded gift code. |
 | `account_id`    | The account on which to perform this action. | Account must exist in the wallet.      |
 
 | Optional Param | Purpose                            | Requirements |
-| -------------- | ---------------------------------- | ------------ |
+|----------------|------------------------------------|--------------|
 | `address`      | The public address of the account. |              |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "claim_gift_code",
@@ -31,9 +32,11 @@ description: Claim a gift code to an account in the wallet.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "claim_gift_code",
@@ -45,5 +48,6 @@ description: Claim a gift code to an account in the wallet.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

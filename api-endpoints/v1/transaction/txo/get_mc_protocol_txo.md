@@ -7,13 +7,14 @@ description: Get the MobileCoin transaction TXO
 ## Parameters
 
 | Required Param | Purpose            | Requirements                  |
-| -------------- | ------------------ | ----------------------------- |
+|----------------|--------------------|-------------------------------|
 | `txo_id`       | The id of the TXO. | Must be a valid id for a TXO. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_mc_protocol_txo",
@@ -24,9 +25,11 @@ description: Get the MobileCoin transaction TXO
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_mc_protocol_txo",
@@ -60,5 +63,6 @@ description: Get the MobileCoin transaction TXO
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

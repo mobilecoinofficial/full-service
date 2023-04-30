@@ -10,6 +10,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_all_transaction_logs_ordered_by_block",
@@ -17,9 +18,11 @@ description: >-
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_all_transaction_logs_ordered_by_block",
@@ -106,5 +109,6 @@ description: >-
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

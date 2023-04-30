@@ -4,19 +4,20 @@ description: Check the status of a receiver receipt.
 
 # Check Receiver Receipt Status
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L78)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L78)
 
 | Required Param     | Purpose                                    | Requirements                     |
-| ------------------ | ------------------------------------------ | -------------------------------- |
+|--------------------|--------------------------------------------|----------------------------------|
 | `address`          | The account's public address.              | Must be a valid account address. |
 | `receiver_receipt` | The receipt whose status is being checked. |                                  |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L61)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L61)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method":"check_receiver_receipt_status",
@@ -38,9 +39,11 @@ description: Check the status of a receiver receipt.
   "id":1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"check_receiver_receipt_status",
@@ -66,5 +69,6 @@ description: Check the status of a receiver receipt.
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

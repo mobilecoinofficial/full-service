@@ -7,13 +7,14 @@ description: Get the current balance for a given account.
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_balance_for_account",
@@ -24,9 +25,11 @@ description: Get the current balance for a given account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_balance_for_account",
@@ -50,5 +53,6 @@ description: Get the current balance for a given account.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

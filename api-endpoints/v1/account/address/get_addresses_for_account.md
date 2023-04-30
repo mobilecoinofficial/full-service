@@ -7,7 +7,7 @@ description: Get assigned addresses for an account.
 ## Parameters
 
 | Required Param | Purpose                                                                            | Requirements                          |
-| -------------- | ---------------------------------------------------------------------------------- | ------------------------------------- |
+|----------------|------------------------------------------------------------------------------------|---------------------------------------|
 | `account_id`   | The account on which to perform this action.                                       | The account must exist in the wallet. |
 | `offset`       | The pagination offset. Results start at the offset index. Optional, defaults to 0. |                                       |
 | `limit`        | Limit for the number of results. Optional, defaults to 100                         |                                       |
@@ -16,6 +16,7 @@ description: Get assigned addresses for an account.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_addresses_for_account",
@@ -28,9 +29,11 @@ description: Get assigned addresses for an account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_addresses_for_account",
@@ -52,5 +55,6 @@ description: Get assigned addresses for an account.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -6,14 +6,16 @@ description: >-
 
 # Transaction
 
-Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full Service wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
+Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they
+only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full
+Service wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
 
 ## Attributes
 
 ### Transaction Log
 
 | Name                    | Type              | Description                                                                                                                                                                                                                         |
-| ----------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+|-------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | object                  | string            | String representing the object's type. Objects of the same type share the same value                                                                                                                                                |
 | `transaction_log_id`    | string            | Unique identifier for the transaction log. This value is not associated to the ledger                                                                                                                                               |
 | `direction`             | string            | A string that identifies if this transaction log was sent or received. Valid values are "sent" or "received"                                                                                                                        |
@@ -36,7 +38,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 ### TxoAbbrev
 
 | Name                   | Type   | Description                                                                              |
-| ---------------------- | ------ | ---------------------------------------------------------------------------------------- |
+|------------------------|--------|------------------------------------------------------------------------------------------|
 | `txo_id_hex`           | string | Unique identifier for the txo                                                            |
 | `recipient_address_id` | string | Unique identifier for the recipient associated account. Blank unless direction is `sent` |
 | `value_pmob`           | string | Available pico MOB for this Txo. If the account is syncing, this value may change        |

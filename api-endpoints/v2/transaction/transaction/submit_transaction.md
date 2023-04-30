@@ -6,18 +6,18 @@ description: >-
 
 # Submit Transaction
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                        | Requirements                     |
-| -------------- | ------------------------------ | -------------------------------- |
+|----------------|--------------------------------|----------------------------------|
 | `tx_proposal`  | Transaction proposal to submit | Created with `build_transaction` |
 
 | Optional Param | Purpose                                                                                                                                                                                                                                                | Requirements |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|
 | `account_id`   | Account ID for which to log the transaction. If omitted, the transaction is not logged and therefor the txos used will not be set to pending, if they exist. This could inadvertently cause an attempt to spend the same txo in multiple transactions. |              |
 | `comment`      | Comment to annotate this transaction in the transaction log                                                                                                                                                                                            |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Examples
 
@@ -25,6 +25,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "submit_transaction",
@@ -213,9 +214,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"submit_transaction",
@@ -273,6 +276,7 @@ description: >-
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -280,6 +284,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "submit_transaction",
@@ -290,9 +295,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "submit_transaction",
@@ -304,5 +311,6 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -6,14 +6,16 @@ description: >-
 
 # Transaction
 
-Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full Service wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
+Due to the privacy properties of the MobileCoin ledger, transactions are ephemeral. Once they have been created, they
+only exist until they are validated, and then only the outputs are written to the ledger. For this reason, the Full
+Service wallet stores transactions in the `transaction_log` table in order to preserve transaction history.
 
 ## Attributes
 
 ### Transaction Proposal
 
 | Name                    | Type         | Description                                                                                   |
-| ----------------------- | ------------ | --------------------------------------------------------------------------------------------- |
+|-------------------------|--------------|-----------------------------------------------------------------------------------------------|
 | `input_txos`            | \[InputTxo]  | The collection of txos used as inputs                                                         |
 | `payload_txos`          | \[OutputTxo] | The collection of txos used as payload outputs                                                |
 | `change_txos`           | \[OutputTxo] | The collection of txos used as change outputs                                                 |
@@ -25,7 +27,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 ### InputTxo
 
 | Name           | Type   | Description                   |
-| -------------- | ------ | ----------------------------- |
+|----------------|--------|-------------------------------|
 | `tx_out_proto` | string | Unique identifier for the txo |
 | `value`        | string | The value of this txo         |
 | `token_id`     | string | The tokenId of this txo       |
@@ -34,7 +36,7 @@ Due to the privacy properties of the MobileCoin ledger, transactions are ephemer
 ### OutputTxo
 
 | Name                           | Type   | Description                                                                         |
-| ------------------------------ | ------ | ----------------------------------------------------------------------------------- |
+|--------------------------------|--------|-------------------------------------------------------------------------------------|
 | `tx_out_proto`                 | string | Unique identifier for the txo                                                       |
 | `value`                        | string | The value of this txo                                                               |
 | `token_id`                     | string | The tokenId of this txo                                                             |

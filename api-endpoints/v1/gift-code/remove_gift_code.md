@@ -7,13 +7,14 @@ description: Remove a gift code from the database.
 ## Parameters
 
 | Required Param  | Purpose                                | Requirements                           |
-| --------------- | -------------------------------------- | -------------------------------------- |
+|-----------------|----------------------------------------|----------------------------------------|
 | `gift_code_b58` | The base58-encoded gift code contents. | Must be a valid b58-encoded gift code. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "remove_gift_code",
@@ -24,9 +25,11 @@ description: Remove a gift code from the database.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "remove_gift_code",
@@ -38,5 +41,6 @@ description: Remove a gift code from the database.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

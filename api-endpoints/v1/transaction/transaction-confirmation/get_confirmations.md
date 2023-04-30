@@ -10,7 +10,7 @@ description: >-
 ## Parameters
 
 | Param                | Purpose                                                       | Requirements                                  |
-| -------------------- | ------------------------------------------------------------- | --------------------------------------------- |
+|----------------------|---------------------------------------------------------------|-----------------------------------------------|
 | `transaction_log_id` | The transaction log ID for which to get confirmation numbers. | The transaction log must exist in the wallet. |
 
 ## Example
@@ -19,6 +19,7 @@ When calling `get_confirmations` for a transaction, only the confirmation number
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_confirmations",
@@ -29,9 +30,11 @@ When calling `get_confirmations` for a transaction, only the confirmation number
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_confirmations",
@@ -50,5 +53,6 @@ When calling `get_confirmations` for a transaction, only the confirmation number
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}

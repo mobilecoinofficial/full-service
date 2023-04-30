@@ -7,13 +7,14 @@ description: Get the JSON representation of the TXO object in the transaction lo
 ## Parameters
 
 | Required Param       | Purpose                        | Requirement                               |
-| -------------------- | ------------------------------ | ----------------------------------------- |
+|----------------------|--------------------------------|-------------------------------------------|
 | `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_transaction_object",
@@ -24,9 +25,11 @@ description: Get the JSON representation of the TXO object in the transaction lo
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_transaction_object",
@@ -35,5 +38,6 @@ description: Get the JSON representation of the TXO object in the transaction lo
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}

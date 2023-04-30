@@ -3,11 +3,11 @@
 ## Parameters
 
 | Required Param | Purpose                                     | Requirement                        |
-| -------------- | ------------------------------------------- | ---------------------------------- |
+|----------------|---------------------------------------------|------------------------------------|
 | `account_id`   | The account id to scan for transaction logs | Account must exist in the database |
 
 | Optional Param    | Purpose                                                                  | Requirement |
-| ----------------- | ------------------------------------------------------------------------ | ----------- |
+|-------------------|--------------------------------------------------------------------------|-------------|
 | `offset`          | The pagination offset. Results start at the offset index. Defaults to 0. |             |
 | `limit`           | Limit for the number of results. Defaults to 100                         |             |
 | `min_block_index` | The minimum block index to find transaction logs from                    |             |
@@ -17,6 +17,7 @@
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_transaction_logs_for_account",
@@ -29,9 +30,11 @@
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_transaction_logs_for_account",
@@ -122,5 +125,6 @@
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

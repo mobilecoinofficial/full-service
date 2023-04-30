@@ -1,6 +1,8 @@
 # Running
 
-In the examples below we assume that full-service, and both the public and private sides are all running on the same machine. In a real-world scenario the public and private sides would run on separate machines. The following TCP ports are in play:
+In the examples below we assume that full-service, and both the public and private sides are all running on the same
+machine. In a real-world scenario the public and private sides would run on separate machines. The following TCP ports
+are in play:
 
 * 9090: The port full-service listens on for incoming connections.
 * 9091: The default port `wallet-service-mirror-public` listens on for incoming HTTP client requests.
@@ -8,7 +10,8 @@ In the examples below we assume that full-service, and both the public and priva
 
 ### Start Full Service
 
-The first step in running the mirror is to have a full-service instance running, and accessible from where the private side of the mirror would be running.
+The first step in running the mirror is to have a full-service instance running, and accessible from where the private
+side of the mirror would be running.
 
 ### Start the Public Mirror
 
@@ -31,7 +34,8 @@ To start the private mirror, run the following:
 ```
 
 {% hint style="info" %}
-Notice the --wallet-service-uri flag is targeting wallet/v2. If you would rather target v1 endpoints, remove `/v2` from the end. ie: `http://localhost:9090/wallet`.
+Notice the --wallet-service-uri flag is targeting wallet/v2. If you would rather target v1 endpoints, remove `/v2` from
+the end. ie: `http://localhost:9090/wallet`.
 {% endhint %}
 
 ### Test Request

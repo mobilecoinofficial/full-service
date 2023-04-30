@@ -4,19 +4,20 @@ description: Sample a desired number of mixins from the ledger, excluding a list
 
 # Sample Mixins
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param     | Purpose                        | Requirements                                                                        |
-| ------------------ | ------------------------------ | ----------------------------------------------------------------------------------- |
+|--------------------|--------------------------------|-------------------------------------------------------------------------------------|
 | `num_mixins`       | The number of mixins to sample | Must be less than the number of txos in the ledger minus number of excluded outputs |
 | `excluded_outputs` | Txos to exclude from sampling  | Txo must exist in the ledger                                                        |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```json
 {
     "method": "sample_mixins",
@@ -38,9 +39,11 @@ description: Sample a desired number of mixins from the ledger, excluding a list
     "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```json
 {
   "method":"sample_mixins",
@@ -412,5 +415,6 @@ description: Sample a desired number of mixins from the ledger, excluding a list
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

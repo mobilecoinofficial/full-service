@@ -7,13 +7,14 @@ description: Check the type of the b58 code
 ## Parameters
 
 | Required Param | Purpose           | Requirements |
-| -------------- | ----------------- | ------------ |
+|----------------|-------------------|--------------|
 | `b58_code`     | The code to check | `String`     |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "check_b58_type",
@@ -24,9 +25,11 @@ description: Check the type of the b58 code
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "check_b58_code",
@@ -43,5 +46,6 @@ description: Check the type of the b58 code
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

@@ -4,18 +4,19 @@ description: Get the JSON representation of the last recent "Block" objects in t
 
 # Get Recent Blocks
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose                        | Requirements |
-| -------------- | ------------------------------ | ------------ |
+|----------------|--------------------------------|--------------|
 | `limit`        | The number of blocks to return |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
   "method": "get_recent_blocks",
@@ -26,9 +27,11 @@ description: Get the JSON representation of the last recent "Block" objects in t
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "get_recent_blocks",
@@ -172,5 +175,6 @@ description: Get the JSON representation of the last recent "Block" objects in t
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

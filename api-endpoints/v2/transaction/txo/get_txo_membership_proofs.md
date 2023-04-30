@@ -4,18 +4,19 @@ description: Get the Tx Out Membership Proof for a selection of Tx Outs
 
 # Get TXO Membership Proofs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                   | Requirements                 |
-| -------------- | ----------------------------------------- | ---------------------------- |
+|----------------|-------------------------------------------|------------------------------|
 | `outputs`      | The TXOs to get the membership proofs for | TXO must exist in the ledger |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```json
 {
   "method": "get_txo_membership_proofs",
@@ -38,9 +39,11 @@ description: Get the Tx Out Membership Proof for a selection of Tx Outs
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```json
 {
   "method":"get_txo_membership_proofs",
@@ -233,5 +236,6 @@ description: Get the Tx Out Membership Proof for a selection of Tx Outs
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

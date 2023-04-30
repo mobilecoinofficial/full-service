@@ -9,11 +9,11 @@ description: >-
 ## Parameters
 
 | Required Param | Purpose                                     | Requirements                     |
-| -------------- | ------------------------------------------- | -------------------------------- |
+|----------------|---------------------------------------------|----------------------------------|
 | `account_id`   | The account on which to perform this action | Account must exist in the wallet |
 
 | Optional Param             | Purpose                                                                                                                                                                                                                            | Requirements                                                 |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
 | `recipient_public_address` | The recipient for this transaction                                                                                                                                                                                                 | b58-encoded public address bytes                             |
 | `value_pmob`               | The amount of MOB to send in this transaction                                                                                                                                                                                      |                                                              |
 | `addresses_and_values`     | An array of public addresses and value tuples                                                                                                                                                                                      | addresses are b58-encoded public addresses, value is in pmob |
@@ -27,6 +27,7 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "build_transaction",
@@ -40,9 +41,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "build_transaction",
@@ -229,11 +232,13 @@ description: >-
   }
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
 {% hint style="info" %}
-Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in the `submit_transaction` call, such as:
+Since the `tx_proposal`JSON object is quite large, you may wish to write the result to a file for use in
+the `submit_transaction` call, such as:
 
 ```
 {
@@ -247,4 +252,5 @@ Since the `tx_proposal`JSON object is quite large, you may wish to write the res
   "id": 1
 }
 ```
+
 {% endhint %}

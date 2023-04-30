@@ -7,7 +7,7 @@ description: Get the details of all accounts in a given wallet.
 ## Request
 
 | Optional Param | Purpose | Requirements |
-| -------------- | ------- | ------------ |
+|----------------|---------|--------------|
 | `offset`       |         |              |
 | `limit`        |         |              |
 
@@ -17,6 +17,7 @@ description: Get the details of all accounts in a given wallet.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
     "method": "get_accounts",
@@ -25,9 +26,11 @@ description: Get the details of all accounts in a given wallet.
     "params": {}
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_accounts",
@@ -67,5 +70,6 @@ description: Get the details of all accounts in a given wallet.
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

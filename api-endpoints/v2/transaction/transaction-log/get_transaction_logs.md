@@ -1,21 +1,22 @@
 # Get Transaction Logs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Optional Param    | Purpose                                                   | Requirement                        |
-| ----------------- | --------------------------------------------------------- | ---------------------------------- |
+|-------------------|-----------------------------------------------------------|------------------------------------|
 | `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |
 | `min_block_index` | The minimum block index to find transaction logs from     |                                    |
 | `max_block_index` | The maximum block index to find transaction logs from     |                                    |
 | `offset`          | The pagination offset. Results start at the offset index. |                                    |
 | `limit`           | Limit for the number of results.                          |                                    |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_transaction_logs",
@@ -28,9 +29,11 @@
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_transaction_logs",
@@ -289,5 +292,6 @@
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

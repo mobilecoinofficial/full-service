@@ -9,13 +9,14 @@ description: >-
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "export_account_secrets",
@@ -26,9 +27,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "export_account_secrets",
@@ -54,6 +57,7 @@ description: >-
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -61,4 +65,5 @@ description: >-
 
 If the account was generated using version 1 of the key derivation, entropy will be provided as a hex-encoded string.
 
-If the account was generated using version 2 of the key derivation, mnemonic will be provided as a 24-word mnemonic string.
+If the account was generated using version 2 of the key derivation, mnemonic will be provided as a 24-word mnemonic
+string.

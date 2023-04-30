@@ -4,26 +4,27 @@ description: Assign an address to a given account.
 
 # Assign Address For Account
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40-L43)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40-L43)
 
 ### Required Params
 
 | Param        | Purpose                                      | Requirements                          |
-| ------------ | -------------------------------------------- | ------------------------------------- |
+|--------------|----------------------------------------------|---------------------------------------|
 | `account_id` | The account on which to perform this action. | The account must exist in the wallet. |
 
 ### Optional Params
 
-| Param       | Purpose                        | Requirements                          |
-| ----------- | ------------------------------ | ------------------------------------- |
-| ​`metadata` | The metadata for this address. | String; can contain stringified JSON. |
+| Param      | Purpose                        | Requirements                          |
+|------------|--------------------------------|---------------------------------------|
+| `metadata` | The metadata for this address. | String; can contain stringified JSON. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41-L43)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41-L43)
 
 ## Examples
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "assign_address_for_account",
@@ -35,9 +36,11 @@ description: Assign an address to a given account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"assign_address_for_account",
@@ -53,5 +56,6 @@ description: Assign an address to a given account.
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

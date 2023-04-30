@@ -1,12 +1,14 @@
 # How do I check if Full-Service is operational?
 
-Using the [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get\_network\_status) API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.&#x20;
-
-
+Using
+the [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status)
+API is the cleanest way to determine if FullService is successfully able to communicate with the blockchain.&#x20;
 
 ### Sucess
 
-A successful response to [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get\_network\_status) will look like this:
+A successful response
+to [`get_network_status`](https://mobilecoin.gitbook.io/full-service-api/api-endpoints/v2/network-status/get_network_status)
+will look like this:
 
 ```
 "method": "get_network_status",
@@ -34,11 +36,10 @@ A successful response to [`get_network_status`](https://mobilecoin.gitbook.io/fu
                     ]
 ```
 
-
-
 ### Error States
 
-In the situation that Full Service is unable to decipher blocks after a mobilecoin-core update, the reponse will look like this:
+In the situation that Full Service is unable to decipher blocks after a mobilecoin-core update, the reponse will look
+like this:
 
 ```
 "method": "get_network_status",

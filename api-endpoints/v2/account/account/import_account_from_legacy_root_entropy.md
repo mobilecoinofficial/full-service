@@ -7,11 +7,11 @@ description: Import an existing account from the secret entropy.
 ## Request
 
 | Required Param | Purpose                  | Requirements                         |
-| -------------- | ------------------------ | ------------------------------------ |
+|----------------|--------------------------|--------------------------------------|
 | `entropy`      | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
 
 | Optional Param          | Purpose                                                 | Requirements                                            |
-| ----------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+|-------------------------|---------------------------------------------------------|---------------------------------------------------------|
 | `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended. |
 | `next_subaddress_index` | The next known unused subaddress index for the account. |                                                         |
 | `first_block_index`     | The block from which to start scanning the ledger.      |                                                         |
@@ -25,6 +25,7 @@ description: Import an existing account from the secret entropy.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "import_account_from_legacy_root_entropy",
@@ -38,9 +39,11 @@ description: Import an existing account from the secret entropy.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "import_account",
@@ -60,6 +63,7 @@ description: Import an existing account from the secret entropy.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}
 
@@ -69,4 +73,5 @@ description: Import an existing account from the secret entropy.
 ```
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
+
 {% endhint %}

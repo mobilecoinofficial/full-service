@@ -7,12 +7,12 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
 ## Parameters
 
 | Required Param | Purpose                                        | Requirements                      |
-| -------------- | ---------------------------------------------- | --------------------------------- |
+|----------------|------------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action.   | Account must exist in the wallet. |
 | `value_pmob`   | The amount of MOB to send in this transaction. |                                   |
 
 | Optional Param        | Purpose                                                            | Requirements                                   |
-| --------------------- | ------------------------------------------------------------------ | ---------------------------------------------- |
+|-----------------------|--------------------------------------------------------------------|------------------------------------------------|
 | `input_txo_ids`       | The specific TXOs to use as inputs to this transaction.            | TXO IDs (obtain from `get_txos_for_account`)   |
 | `fee`                 | The fee amount to submit with this transaction.                    | If not provided, uses `MINIMUM_FEE` = .01 MOB. |
 | `tombstone_block`     | The block after which this transaction expires.                    | If not provided, uses `cur_height` + 10.       |
@@ -23,6 +23,7 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "build_gift_code",
@@ -35,9 +36,11 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "build_gift_code",
@@ -50,5 +53,6 @@ description: Build a gift code in a tx_proposal that you can fund and submit to 
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

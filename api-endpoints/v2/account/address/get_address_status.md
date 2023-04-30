@@ -7,21 +7,22 @@ description: >-
 
 # Get Address Status
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                      | Requirements                                           |
-| -------------- | -------------------------------------------- | ------------------------------------------------------ |
+|----------------|----------------------------------------------|--------------------------------------------------------|
 | `address`      | The address on which to perform this action. | Address must be assigned for an account in the wallet. |
 
 | Optional Param    | Purpose                                            | Requirements |
-| ----------------- | -------------------------------------------------- | ------------ |
+|-------------------|----------------------------------------------------|--------------|
 | `min_block_index` | The minimum block index to filter on txos received |              |
 | `max_block_index` | The maximum block index to filter on txos received |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_address_status",
@@ -32,9 +33,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_address_status",
@@ -64,5 +67,6 @@ description: >-
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

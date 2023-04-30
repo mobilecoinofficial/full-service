@@ -1,17 +1,18 @@
 # Get Transaction Log
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Required Param       | Purpose                        | Requirement                               |
-| -------------------- | ------------------------------ | ----------------------------------------- |
+|----------------------|--------------------------------|-------------------------------------------|
 | `transaction_log_id` | The transaction log ID to get. | Transaction log must exist in the wallet. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "get_transaction_log",
@@ -22,9 +23,11 @@
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method":"get_transaction_log",
@@ -82,5 +85,6 @@
   "id":1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

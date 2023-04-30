@@ -7,7 +7,7 @@ description: Rename an account.
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements                      |
-| -------------- | -------------------------------------------- | --------------------------------- |
+|----------------|----------------------------------------------|-----------------------------------|
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 | `name`         | The new name for this account.               |                                   |
 
@@ -15,6 +15,7 @@ description: Rename an account.
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "update_account_name",
@@ -26,9 +27,11 @@ description: Rename an account.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "update_account_name",
@@ -48,5 +51,6 @@ description: Rename an account.
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

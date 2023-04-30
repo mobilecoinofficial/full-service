@@ -6,18 +6,19 @@ description: >-
 
 # Search Ledger
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
 
 | Param   | Purpose                     | Requirements                                                                                                     |
-| ------- | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+|---------|-----------------------------|------------------------------------------------------------------------------------------------------------------|
 | `query` | Query string to search for. | Currently the supported queries are a block index, or hex representations of a tx out public key or a key image. |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
+
 ```
 {
   "method": "search_ledger",
@@ -28,9 +29,11 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "search_ledger",
@@ -109,5 +112,6 @@ description: >-
   "id": 1
 }
 ```
+
 {% endtab %}
 {% endtabs %}

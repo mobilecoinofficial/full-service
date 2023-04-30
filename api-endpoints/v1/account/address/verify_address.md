@@ -7,13 +7,14 @@ description: Verify whether an address is correctly b58-encoded.
 ## Parameters
 
 | Required Param | Purpose                                      | Requirements |
-| -------------- | -------------------------------------------- | ------------ |
+|----------------|----------------------------------------------|--------------|
 | `address`      | The address on which to perform this action. |              |
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
+
 ```
 {
   "method": "verify_address",
@@ -24,9 +25,11 @@ description: Verify whether an address is correctly b58-encoded.
   "id": 1
 }
 ```
+
 {% endtab %}
 
 {% tab title="Response" %}
+
 ```
 {
   "method": "verify_address",
@@ -38,5 +41,6 @@ description: Verify whether an address is correctly b58-encoded.
   "id": 1,
 }
 ```
+
 {% endtab %}
 {% endtabs %}
