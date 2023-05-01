@@ -6,7 +6,7 @@
 mod e2e_account {
     use crate::{
         db::account::AccountID,
-        json_rpc::v2::api::test_utils::{dispatch, dispatch_expect_error, setup},
+        json_rpc::v2::api::test_utils::{dispatch, setup},
         test_utils::{add_block_to_ledger_db, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
@@ -52,42 +52,6 @@ mod e2e_account {
         );
         assert_eq!(account_obj.get("next_subaddress_index").unwrap(), "2");
         assert_eq!(account_obj.get("fog_enabled").unwrap(), false);
-    }
-
-    #[test_with_logger]
-    fn test_e2e_import_account_unknown_version(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "import_account",
-            "params": {
-                "mnemonic": "sheriff odor square mistake huge skate mouse shoot purity weapon proof stuff correct concert blanket neck own shift clay mistake air viable stick group",
-                "key_derivation_version": "3",
-                "name": "",
-            }
-        });
-        dispatch_expect_error(
-            &client,
-            body,
-            &logger,
-            json!({
-                "method": "import_account",
-                "error": json!({
-                    "code": -32603,
-                    "message": "InternalError",
-                    "data": json!({
-                        "server_error": "UnknownKeyDerivation(3)",
-                        "details": "Unknown key version version: 3",
-                    })
-                }),
-                "jsonrpc": "2.0",
-                "id": 1,
-            })
-            .to_string(),
-        );
     }
 
     #[test_with_logger]

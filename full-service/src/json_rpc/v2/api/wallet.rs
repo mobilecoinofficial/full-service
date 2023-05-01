@@ -1024,7 +1024,6 @@ where
         },
         JsonCommandRequest::import_account {
             mnemonic,
-            key_derivation_version,
             name,
             first_block_index,
             next_subaddress_index,
@@ -1038,14 +1037,12 @@ where
                 .map(|ns| ns.parse::<u64>())
                 .transpose()
                 .map_err(format_error)?;
-            let kdv = key_derivation_version.parse::<u8>().map_err(format_error)?;
 
             let fog_info = fog_info.unwrap_or_default();
 
             let account = service
                 .import_account(
                     mnemonic,
-                    kdv,
                     name,
                     fb,
                     ns,
