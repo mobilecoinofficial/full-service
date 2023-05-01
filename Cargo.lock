@@ -2063,7 +2063,7 @@ dependencies = [
  "libc",
  "libz-sys",
  "quote",
- "syn 2.0.13",
+ "syn 2.0.15",
 ]
 
 [[package]]
