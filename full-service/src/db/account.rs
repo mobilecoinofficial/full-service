@@ -28,7 +28,7 @@ use mc_core::{
 };
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_transaction_core::TokenId;
+use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
