@@ -9,7 +9,7 @@ from mobilecoin.token import get_token
 
 MOB = get_token('MOB')
 
-DEFAULT_HOST = 'http://127.0.0.1:9090'
+DEFAULT_HOST = 'http://127.0.0.1'
 DEFAULT_PORT = 9090
 
 MAX_TOMBSTONE_BLOCKS = 100
