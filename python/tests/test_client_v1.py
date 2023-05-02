@@ -170,6 +170,11 @@ async def test_send_transaction_subaddress(client_v1, source_account, account_fa
     address = client_v1.assign_address_for_account(temp_account['id'])
     address = address['public_address']
 
+    # Start with zero balance in the subaddress.
+    balance = client_v1.get_balance_for_address(address)
+    subaddress_balance = Amount.from_storage_units(balance['unspent_pmob'], MOB)
+    assert subaddress_balance == Amount.from_display_units(0, MOB)
+
     # Send a transaction to the temporary account.
     transaction_log, _ = client_v1.build_and_submit_transaction(
         source_account['id'],
