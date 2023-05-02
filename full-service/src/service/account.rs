@@ -15,14 +15,16 @@ use crate::{
     },
     json_rpc::{json_rpc_request::JsonRPCRequest, v2::api::request::JsonCommandRequest},
     service::{
-        hardware_wallet::{get_view_only_account_keys, get_view_only_subaddress_keys},
+        hardware_wallet::{
+            get_view_only_account_keys, get_view_only_subaddress_keys, HardwareWalletServiceError,
+        },
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
     util::encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
 };
 
-use base64;
+use base64::{engine::general_purpose, Engine};
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
@@ -78,6 +80,9 @@ pub enum AccountServiceError {
 
     /// JSON Rpc Request was formatted incorrectly
     InvalidJsonRPCRequest,
+
+    /// Error with the HardwareWalletService: {0}
+    HardwareWalletService(HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -125,6 +130,12 @@ impl From<mc_account_keys::Error> for AccountServiceError {
 impl From<mc_util_serial::DecodeError> for AccountServiceError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::DecodePrivateKeyError(src.to_string())
+    }
+}
+
+impl From<HardwareWalletServiceError> for AccountServiceError {
+    fn from(src: HardwareWalletServiceError) -> Self {
+        Self::HardwareWalletService(src)
     }
 }
 
@@ -533,12 +544,11 @@ where
         fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
-        let fog_authority_spki = hex::decode(fog_authority_spki).unwrap();
+        let fog_authority_spki = general_purpose::STANDARD.decode(fog_authority_spki)?;
 
-        let view_account = get_view_only_account_keys().await.unwrap();
+        let view_account = get_view_only_account_keys().await?;
         let default_subaddress_keys = get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX)
-            .await
-            .unwrap();
+            .await?;
 
         let default_public_address = get_public_fog_address(
             &default_subaddress_keys,

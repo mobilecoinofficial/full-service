@@ -8,23 +8,19 @@ use crate::{
         account::{AccountID, AccountModel},
         models::{Account, AssignedSubaddress, NewAssignedSubaddress, Txo},
         txo::TxoModel,
+        Conn, WalletDbError,
     },
-    util::b58::b58_decode_public_address,
+    util::b58::{b58_decode_public_address, b58_encode_public_address},
 };
-
-use crate::util::b58::b58_encode_public_address;
-
+use core::convert::TryFrom;
+use diesel::prelude::*;
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
 };
-
-use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
-use mc_ledger_db::{Ledger, LedgerDB};
-
-use crate::db::{Conn, WalletDbError};
-use diesel::prelude::*;
 
 #[rustfmt::skip]
 pub trait AssignedSubaddressModel {
@@ -481,6 +477,15 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn public_address(self) -> Result<PublicAddress, WalletDbError> {
         let public_address = b58_decode_public_address(&self.public_address_b58)?;
+        Ok(public_address)
+    }
+}
+
+impl TryFrom<&AssignedSubaddress> for PublicAddress {
+    type Error = WalletDbError;
+
+    fn try_from(assigned_subaddress: &AssignedSubaddress) -> Result<Self, Self::Error> {
+        let public_address = b58_decode_public_address(&assigned_subaddress.public_address_b58)?;
         Ok(public_address)
     }
 }
