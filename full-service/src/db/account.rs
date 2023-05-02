@@ -660,7 +660,7 @@ impl AccountModel for Account {
             name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
-            managed_by_hardware_wallet: managed_by_hardware_wallet,
+            managed_by_hardware_wallet,
         };
 
         diesel::insert_into(accounts::table)
@@ -668,21 +668,21 @@ impl AccountModel for Account {
             .execute(conn)?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
             conn,
         )?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             LEGACY_CHANGE_SUBADDRESS_INDEX,
             "Legacy Change",
             conn,
         )?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             CHANGE_SUBADDRESS_INDEX,
             "Change",
             conn,
@@ -690,7 +690,7 @@ impl AccountModel for Account {
 
         for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
             AssignedSubaddress::create_for_view_only_account(
-                &view_account_key,
+                view_account_key,
                 subaddress_index,
                 "",
                 conn,

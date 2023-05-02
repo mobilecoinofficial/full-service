@@ -523,10 +523,8 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let view_account_key = ViewAccountKey::new(
-            view_private_key.as_ref().clone(),
-            spend_public_key.as_ref().clone(),
-        );
+        let view_account_key =
+            ViewAccountKey::new(*view_private_key.as_ref(), *spend_public_key.as_ref());
 
         exclusive_transaction(conn, |conn| {
             Ok(Account::import_view_only(
@@ -550,8 +548,8 @@ where
         let view_account = get_view_only_account_keys().await?;
 
         let view_account_keys = ViewAccountKey::new(
-            view_account.view_private_key().as_ref().clone(),
-            view_account.spend_public_key().as_ref().clone(),
+            *view_account.view_private_key().as_ref(),
+            *view_account.spend_public_key().as_ref(),
         );
 
         let mut pooled_conn = self.get_pooled_conn()?;
