@@ -250,14 +250,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .import_view_only_account(
-                &view_private_key,
-                &spend_public_key,
-                None,
-                None,
-                None,
-                false,
-            )
+            .import_view_only_account(&view_private_key, &spend_public_key, None, None, None)
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 

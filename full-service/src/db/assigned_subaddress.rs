@@ -68,6 +68,14 @@ pub trait AssignedSubaddressModel {
         conn: Conn,
     ) -> Result<String, WalletDbError>;
 
+    fn create_for_view_only_fog_account(
+        account_key: &ViewAccountKey,
+        subaddress_index: u64,
+        public_address: &PublicAddress,
+        comment: &str,
+        conn: Conn,
+    ) -> Result<String, WalletDbError>;
+
     /// Create the next subaddress for a given account.
     /// 
     /// # Arguments
@@ -223,6 +231,33 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             subaddress_index: subaddress_index as i64,
             comment,
             spend_public_key: &subaddress.spend_public_key().to_bytes(),
+        };
+
+        diesel::insert_into(assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(conn)?;
+
+        Ok(public_address_b58)
+    }
+
+    fn create_for_view_only_fog_account(
+        account_key: &ViewAccountKey,
+        subaddress_index: u64,
+        public_address: &PublicAddress,
+        comment: &str,
+        conn: Conn,
+    ) -> Result<String, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+        let account_id = AccountID::from(account_key);
+
+        let public_address_b58 = b58_encode_public_address(public_address)?;
+
+        let subaddress_entry = NewAssignedSubaddress {
+            public_address_b58: &public_address_b58,
+            account_id: &account_id.to_string(),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            spend_public_key: &public_address.spend_public_key().to_bytes(),
         };
 
         diesel::insert_into(assigned_subaddresses::table)

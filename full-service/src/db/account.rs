@@ -252,6 +252,15 @@ pub trait AccountModel {
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
+    fn import_view_only_from_hardware_wallet(
+        view_account_key: &ViewAccountKey,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        default_public_address: &PublicAddress,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError>;
+
     /// List all accounts from wallet DB.
     ///
     /// # Arguments
@@ -694,6 +703,61 @@ impl AccountModel for Account {
                 conn,
             )?;
         }
+
+        Account::get(&account_id, conn)
+    }
+
+    fn import_view_only_from_hardware_wallet(
+        view_account_key: &ViewAccountKey,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        default_public_address: &PublicAddress,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let account_id = AccountID::from(view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
+        let next_block_index = first_block_index;
+
+        let new_account = NewAccount {
+            id: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(view_account_key),
+            entropy: None,
+            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+            first_block_index,
+            next_block_index,
+            import_block_index: Some(import_block_index as i64),
+            name: &name.unwrap_or_default(),
+            fog_enabled: true,
+            view_only: true,
+            managed_by_hardware_wallet: true,
+        };
+
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
+
+        AssignedSubaddress::create_for_view_only_fog_account(
+            view_account_key,
+            DEFAULT_SUBADDRESS_INDEX,
+            default_public_address,
+            "Main",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            view_account_key,
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
 
         Account::get(&account_id, conn)
     }
@@ -1221,5 +1285,18 @@ mod tests {
             managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, account);
+    }
+
+    #[test]
+    fn test_import_view_only_from_hardware_wallet() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random(&mut rng);
+        let account_key = account_key.with_fog("fog//some.fog.url".to_string(),
+        "".to_string(),
+        "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string());
     }
 }

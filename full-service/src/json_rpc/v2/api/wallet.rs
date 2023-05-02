@@ -1122,40 +1122,18 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            let (view_private_key, spend_public_key, managed_by_hardware_wallet) =
-                match (view_private_key, spend_public_key) {
-                    (Some(view_private_key), Some(spend_public_key)) => {
-                        let view_private_key =
-                            hex_to_ristretto(&view_private_key).map_err(format_error)?;
-                        let spend_public_key =
-                            hex_to_ristretto_public(&spend_public_key).map_err(format_error)?;
-
-                        (view_private_key.into(), spend_public_key.into(), false)
-                    }
-                    (None, None) => {
-                        let view_account =
-                            get_view_only_account_keys().await.map_err(format_error)?;
-                        (
-                            view_account.view_private_key().clone(),
-                            view_account.spend_public_key().clone(),
-                            true,
-                        )
-                    }
-                    _ => {
-                        return Err(format_error(
-                            "Must provide both view_private_key and spend_public_key, or neither",
-                        ))
-                    }
-                };
+            // TODO: change this to convert from raw bytes not protobuf
+            let view_private_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
+            let spend_public_key =
+                hex_to_ristretto_public(&spend_public_key).map_err(format_error)?;
 
             let account = service
                 .import_view_only_account(
-                    &view_private_key,
-                    &spend_public_key,
+                    &view_private_key.into(),
+                    &spend_public_key.into(),
                     name,
                     fb,
                     ns,
-                    managed_by_hardware_wallet,
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1164,6 +1142,33 @@ where
             let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account { account }
+        }
+        JsonCommandRequest::import_view_only_account_from_hardware_wallet {
+            name,
+            first_block_index,
+            fog_info,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            let account = service
+                .import_view_only_account_from_hardware_wallet(
+                    name,
+                    fb,
+                    fog_info.report_url,
+                    fog_info.report_id,
+                    fog_info.authority_spki,
+                )
+                .await
+                .map_err(format_error)?;
+
+            let next_subaddress_index = 1;
+
+            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+
+            JsonCommandResponse::import_view_only_account_from_hardware_wallet { account }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
