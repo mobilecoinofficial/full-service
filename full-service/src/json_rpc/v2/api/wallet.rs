@@ -1211,13 +1211,7 @@ where
                 .map_err(format_error)?;
 
             let account = service
-                .import_view_only_account_from_hardware_wallet(
-                    name,
-                    fb,
-                    fog_info.report_url,
-                    fog_info.report_id,
-                    fog_info.authority_spki,
-                )
+                .import_view_only_account_from_hardware_wallet(name, fb, Some(fog_info))
                 .await
                 .map_err(format_error)?;
 

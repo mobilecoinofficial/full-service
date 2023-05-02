@@ -13,7 +13,10 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    json_rpc::{json_rpc_request::JsonRPCRequest, v2::api::request::JsonCommandRequest},
+    json_rpc::{
+        json_rpc_request::JsonRPCRequest,
+        v2::{api::request::JsonCommandRequest, models::account_key::FogInfo},
+    },
     service::{
         hardware_wallet::{
             get_view_only_account_keys, get_view_only_subaddress_keys, HardwareWalletServiceError,
@@ -238,9 +241,7 @@ pub trait AccountService {
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-        fog_report_url: String,
-        fog_report_id: String,
-        fog_authority_spki: String,
+        fog_info: Option<FogInfo>,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -522,10 +523,14 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
+        let view_account_key = ViewAccountKey::new(
+            view_private_key.as_ref().clone(),
+            spend_public_key.as_ref().clone(),
+        );
+
         exclusive_transaction(conn, |conn| {
             Ok(Account::import_view_only(
-                view_private_key,
-                spend_public_key,
+                &view_account_key,
                 name,
                 import_block_index,
                 first_block_index,
@@ -540,22 +545,9 @@ where
         &self,
         name: Option<String>,
         first_block_index: Option<u64>,
-        fog_report_url: String,
-        fog_report_id: String,
-        fog_authority_spki: String,
+        fog_info: Option<FogInfo>,
     ) -> Result<Account, AccountServiceError> {
-        let fog_authority_spki = general_purpose::STANDARD.decode(fog_authority_spki)?;
-
         let view_account = get_view_only_account_keys().await?;
-        let default_subaddress_keys = get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX)
-            .await?;
-
-        let default_public_address = get_public_fog_address(
-            &default_subaddress_keys,
-            fog_report_url,
-            fog_report_id,
-            fog_authority_spki.as_slice(),
-        );
 
         let view_account_keys = ViewAccountKey::new(
             view_account.view_private_key().as_ref().clone(),
@@ -566,16 +558,42 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        exclusive_transaction(conn, |conn| {
-            Ok(Account::import_view_only_from_hardware_wallet(
-                &view_account_keys,
-                name,
-                import_block_index,
-                first_block_index,
-                &default_public_address,
-                conn,
-            )?)
-        })
+        match fog_info {
+            Some(fog_info) => {
+                let fog_authority_spki =
+                    general_purpose::STANDARD.decode(fog_info.authority_spki)?;
+                let default_subaddress_keys =
+                    get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX).await?;
+
+                let default_public_address = get_public_fog_address(
+                    &default_subaddress_keys,
+                    fog_info.report_url,
+                    fog_info.report_id,
+                    &fog_authority_spki,
+                );
+                exclusive_transaction(conn, |conn: &mut diesel::SqliteConnection| {
+                    Ok(Account::import_view_only_from_hardware_wallet_with_fog(
+                        &view_account_keys,
+                        name,
+                        import_block_index,
+                        first_block_index,
+                        &default_public_address,
+                        conn,
+                    )?)
+                })
+            }
+            None => exclusive_transaction(conn, |conn: &mut diesel::SqliteConnection| {
+                Ok(Account::import_view_only(
+                    &view_account_keys,
+                    name,
+                    import_block_index,
+                    first_block_index,
+                    None,
+                    true,
+                    conn,
+                )?)
+            }),
+        }
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {

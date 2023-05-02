@@ -22,10 +22,7 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_core::{
-    keys::{RootSpendPublic, RootViewPrivate},
-    slip10::Slip10KeyGenerator,
-};
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
@@ -242,8 +239,7 @@ pub trait AccountModel {
     /// * Account
     #[allow(clippy::too_many_arguments)]
     fn import_view_only(
-        view_private_key: &RootViewPrivate,
-        spend_public_key: &RootSpendPublic,
+        view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
@@ -252,7 +248,7 @@ pub trait AccountModel {
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
-    fn import_view_only_from_hardware_wallet(
+    fn import_view_only_from_hardware_wallet_with_fog(
         view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
@@ -631,8 +627,7 @@ impl AccountModel for Account {
     }
 
     fn import_view_only(
-        view_private_key: &RootViewPrivate,
-        spend_public_key: &RootSpendPublic,
+        view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
@@ -642,9 +637,7 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let view_account_key =
-            ViewAccountKey::new(*view_private_key.as_ref(), *spend_public_key.as_ref());
-        let account_id = AccountID::from(&view_account_key);
+        let account_id = AccountID::from(view_account_key);
 
         if Account::get(&account_id, conn).is_ok() {
             return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
@@ -658,7 +651,7 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             id: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(&view_account_key),
+            account_key: &mc_util_serial::encode(view_account_key),
             entropy: None,
             key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
             first_block_index,
@@ -667,7 +660,7 @@ impl AccountModel for Account {
             name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
-            managed_by_hardware_wallet,
+            managed_by_hardware_wallet: managed_by_hardware_wallet,
         };
 
         diesel::insert_into(accounts::table)
@@ -707,7 +700,7 @@ impl AccountModel for Account {
         Account::get(&account_id, conn)
     }
 
-    fn import_view_only_from_hardware_wallet(
+    fn import_view_only_from_hardware_wallet_with_fog(
         view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
@@ -1241,13 +1234,14 @@ mod tests {
         let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
         let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
 
+        let view_account_key = ViewAccountKey::new(view_private_key, spend_public_key);
+
         let account = {
             let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
             let conn = pooled_conn.deref_mut();
 
             Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
+                &view_account_key,
                 Some("View Only Account".to_string()),
                 12,
                 None,
@@ -1288,7 +1282,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_import_view_only_from_hardware_wallet(logger: Logger) {
+    fn test_import_view_only_from_hardware_wallet_with_fog(logger: Logger) {
         // Test Setup
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -1309,7 +1303,7 @@ mod tests {
             let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
             let conn = pooled_conn.deref_mut();
 
-            Account::import_view_only_from_hardware_wallet(
+            Account::import_view_only_from_hardware_wallet_with_fog(
                 &view_account_key,
                 Some("View Only Account".to_string()),
                 12,
