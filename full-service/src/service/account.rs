@@ -27,8 +27,7 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
-    DEFAULT_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -36,7 +35,7 @@ use mc_core::{
     account::{RingCtAddress, ViewSubaddress},
     keys::{RootSpendPublic, RootViewPrivate},
 };
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_fog_sig_authority::Signer;
 use mc_ledger_db::Ledger;
@@ -744,7 +743,6 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
-    use mc_core::account::{Account, ViewAccount};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token};

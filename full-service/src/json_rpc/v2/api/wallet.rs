@@ -36,7 +36,6 @@ use crate::{
         address::AddressService,
         balance::BalanceService,
         confirmation_number::ConfirmationService,
-        hardware_wallet::get_view_only_account_keys,
         ledger::LedgerService,
         models::tx_proposal::TxProposal,
         payment_request::PaymentRequestService,
