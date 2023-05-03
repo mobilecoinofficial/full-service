@@ -9,7 +9,7 @@ use diesel::{
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, KeyError, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
@@ -24,7 +24,11 @@ use mc_transaction_extra::{
     RegisteredMemoType, TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
-use std::{convert::TryFrom, fmt, str::FromStr};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt,
+    str::FromStr,
+};
 
 use crate::{
     db::{
@@ -748,6 +752,13 @@ pub trait TxoModel {
     fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError>;
 }
 
+impl Txo {
+    pub fn public_key(&self) -> Result<CompressedRistrettoPublic, KeyError> {
+        let public_key: CompressedRistrettoPublic = self.public_key.as_slice().try_into()?;
+        Ok(public_key)
+    }
+}
+
 impl TxoModel for Txo {
     fn create_received(
         txo: TxOut,
@@ -785,7 +796,7 @@ impl TxoModel for Txo {
                     account_id_hex,
                     amount,
                     &mc_util_serial::encode(&txo.target_key),
-                    &mc_util_serial::encode(&txo.public_key),
+                    txo.public_key.as_bytes(),
                     &txo.e_fog_hint.to_bytes(),
                     Some(&shared_secret_vec),
                     memo_type,
@@ -801,7 +812,7 @@ impl TxoModel for Txo {
                     value: amount.value as i64,
                     token_id: *amount.token_id as i64,
                     target_key: &mc_util_serial::encode(&txo.target_key),
-                    public_key: &mc_util_serial::encode(&txo.public_key),
+                    public_key: txo.public_key.as_bytes(),
                     e_fog_hint: &txo.e_fog_hint.to_bytes(),
                     subaddress_index: subaddress_index.map(|i| i as i64),
                     key_image: key_image_bytes.as_deref(),
@@ -863,7 +874,7 @@ impl TxoModel for Txo {
             value: output_txo.amount.value as i64,
             token_id: *output_txo.amount.token_id as i64,
             target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
-            public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
+            public_key: output_txo.tx_out.public_key.as_bytes(),
             e_fog_hint: &output_txo.tx_out.e_fog_hint.to_bytes(),
             subaddress_index: None,
             key_image: None,
@@ -1760,10 +1771,8 @@ impl TxoModel for Txo {
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let public_key_blobs: Vec<Vec<u8>> = public_keys
-            .iter()
-            .map(|p| mc_util_serial::encode(*p))
-            .collect();
+        let public_key_blobs: Vec<Vec<u8>> =
+            public_keys.iter().map(|p| p.as_bytes().to_vec()).collect();
         let selected = txos::table
             .filter(txos::public_key.eq_any(public_key_blobs))
             .load(conn)?;
@@ -1951,7 +1960,7 @@ impl TxoModel for Txo {
         conn: Conn,
     ) -> Result<bool, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
-        let public_key: RistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
+        let public_key: RistrettoPublic = txo.public_key.as_slice().try_into()?;
         let account = Account::get(account_id, conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
@@ -2525,7 +2534,7 @@ mod tests {
             value: 1000 * MOB as i64,
             token_id: 0,
             target_key: mc_util_serial::encode(&for_alice_txo.target_key),
-            public_key: mc_util_serial::encode(&for_alice_txo.public_key),
+            public_key: for_alice_txo.public_key.as_bytes().to_vec(),
             e_fog_hint: for_alice_txo.e_fog_hint.to_bytes().to_vec(),
             subaddress_index: Some(0),
             key_image: Some(mc_util_serial::encode(&for_alice_key_image)),

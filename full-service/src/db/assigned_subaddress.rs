@@ -3,6 +3,8 @@
 //! A subaddress assigned to a particular contact for the purpose of tracking
 //! funds received from that contact.
 
+use std::convert::TryInto;
+
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -294,8 +296,9 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
                     mc_util_serial::decode(&orphaned_txo.target_key)?;
-                let tx_public_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.public_key)?;
+                let tx_public_key_compressed: CompressedRistrettoPublic =
+                    orphaned_txo.public_key.as_slice().try_into()?;
+                let tx_public_key: RistrettoPublic = (&tx_public_key_compressed).try_into()?;
 
                 let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
                     view_account_key.view_private_key(),
@@ -328,9 +331,9 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
                     mc_util_serial::decode(&orphaned_txo.target_key)?;
-                let tx_public_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.public_key)?;
-                let txo_public_key = CompressedRistrettoPublic::from(tx_public_key);
+                let tx_public_key_compressed: CompressedRistrettoPublic =
+                    orphaned_txo.public_key.as_slice().try_into()?;
+                let tx_public_key: RistrettoPublic = (&tx_public_key_compressed).try_into()?;
 
                 let txo_subaddress_spk: RistrettoPublic = recover_public_subaddress_spend_key(
                     account_key.view_private_key(),
@@ -349,7 +352,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
                     if ledger_db.contains_key_image(&key_image)? {
                         let txo_index =
-                            ledger_db.get_tx_out_index_by_public_key(&txo_public_key)?;
+                            ledger_db.get_tx_out_index_by_public_key(&tx_public_key_compressed)?;
                         let block_index = ledger_db.get_block_index_by_tx_out_index(txo_index)?;
                         diesel::update(orphaned_txo)
                             .set(

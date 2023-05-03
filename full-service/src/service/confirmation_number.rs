@@ -2,7 +2,7 @@
 
 //! Service for managing confirmation numbers.
 
-use std::ops::DerefMut;
+use std::{convert::TryInto, ops::DerefMut};
 
 use crate::{
     db::{
@@ -51,6 +51,9 @@ pub enum ConfirmationServiceError {
 
     /// Error with the TxoService: {0}
     TransactionLogService(TransactionLogServiceError),
+
+    /// Error with mc_crypto_keys: {0}
+    CryptoKeys(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for ConfirmationServiceError {
@@ -92,6 +95,12 @@ impl From<TxoServiceError> for ConfirmationServiceError {
 impl From<TransactionLogServiceError> for ConfirmationServiceError {
     fn from(src: TransactionLogServiceError) -> Self {
         Self::TransactionLogService(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for ConfirmationServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::CryptoKeys(src)
     }
 }
 
@@ -155,8 +164,7 @@ where
             let txo_info = self.get_txo(&TxoID(associated_txo.id.clone()))?;
             if let Some(confirmation) = txo_info.txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
-                let pubkey: CompressedRistrettoPublic =
-                    mc_util_serial::decode(&txo_info.txo.public_key)?;
+                let pubkey: CompressedRistrettoPublic = txo.public_key.as_slice().try_into()?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;
                 results.push(Confirmation {
                     txo_id: TxoID(txo_info.txo.id),

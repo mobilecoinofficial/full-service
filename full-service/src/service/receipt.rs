@@ -323,6 +323,7 @@ mod tests {
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::convert::TryInto;
 
     // The receipt should convert between the rust and proto representations.
     #[test]
@@ -489,7 +490,11 @@ mod tests {
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
+        let txo_pubkey = txos_and_statuses[0]
+            .0
+            .public_key
+            .as_slice()
+            .try_into()
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
