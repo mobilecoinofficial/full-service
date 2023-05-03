@@ -362,7 +362,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
                             .execute(conn)?;
                     }
 
-                    let key_image_bytes = mc_util_serial::encode(&key_image);
+                    let key_image_bytes = key_image.to_vec();
 
                     // Update the account status mapping.
                     diesel::update(orphaned_txo)

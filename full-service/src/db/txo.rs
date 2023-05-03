@@ -806,7 +806,8 @@ impl TxoModel for Txo {
 
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
-                let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+                let key_image_bytes = key_image.as_ref().map(|k| k.as_ref());
+
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
@@ -815,7 +816,7 @@ impl TxoModel for Txo {
                     public_key: txo.public_key.as_bytes(),
                     e_fog_hint: &txo.e_fog_hint.to_bytes(),
                     subaddress_index: subaddress_index.map(|i| i as i64),
-                    key_image: key_image_bytes.as_deref(),
+                    key_image: key_image_bytes,
                     received_block_index: Some(received_block_index as i64),
                     spent_block_index: None,
                     confirmation: None,
@@ -926,12 +927,12 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
+        let key_image_bytes = received_key_image.map(|k| k.as_bytes().to_vec());
 
         diesel::update(self)
             .set((
                 txos::subaddress_index.eq(subaddress_index.map(|i| i as i64)),
-                txos::key_image.eq(encoded_key_image),
+                txos::key_image.eq(key_image_bytes),
                 txos::received_block_index.eq(Some(block_index as i64)),
                 txos::account_id.eq(Some(account_id_hex)),
                 txos::value.eq(amount.value as i64),
@@ -967,11 +968,11 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let encoded_key_image = mc_util_serial::encode(key_image);
+        let key_image_bytes = key_image.as_bytes().to_vec();
 
         diesel::update(txos::table.filter(txos::id.eq(txo_id_hex)))
             .set((
-                txos::key_image.eq(Some(encoded_key_image)),
+                txos::key_image.eq(Some(key_image_bytes)),
                 txos::spent_block_index.eq(spent_block_index.map(|i| i as i64)),
             ))
             .execute(conn)?;
@@ -1585,16 +1586,14 @@ impl TxoModel for Txo {
             .order(txos::received_block_index.desc())
             .load(conn)?;
 
-        Ok(results
-            .into_iter()
-            .filter_map(|(key_image, txo_id_hex)| match key_image {
-                Some(key_image_encoded) => {
-                    let key_image = mc_util_serial::decode(key_image_encoded.as_slice()).ok()?;
-                    Some((key_image, txo_id_hex))
-                }
-                None => None,
-            })
-            .collect())
+        let mut map = HashMap::default();
+        for (key_image, txo_id_hex) in results {
+            if let Some(key_image) = key_image {
+                let key_image = key_image.as_slice().try_into()?;
+                map.insert(key_image, txo_id_hex);
+            }
+        }
+        Ok(map)
     }
 
     fn list_spent(
@@ -2537,7 +2536,7 @@ mod tests {
             public_key: for_alice_txo.public_key.as_bytes().to_vec(),
             e_fog_hint: for_alice_txo.e_fog_hint.to_bytes().to_vec(),
             subaddress_index: Some(0),
-            key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
+            key_image: Some(for_alice_key_image.to_vec()),
             received_block_index: Some(12),
             spent_block_index: None,
             confirmation: None,
@@ -2710,10 +2709,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(spent.len(), 1);
-        assert_eq!(
-            spent[0].key_image,
-            Some(mc_util_serial::encode(&for_alice_key_image))
-        );
+        assert_eq!(spent[0].key_image, Some(for_alice_key_image.to_vec()));
         assert_eq!(spent[0].spent_block_index.unwrap(), 13);
 
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
@@ -2749,8 +2745,13 @@ mod tests {
         assert_eq!(unspent.len(), 1);
         assert_eq!(unspent[0].received_block_index.unwrap(), 13);
         // Store the key image for when we spend this Txo below
-        let for_bob_key_image: KeyImage =
-            mc_util_serial::decode(&unspent[0].key_image.clone().unwrap()).unwrap();
+        let for_bob_key_image: KeyImage = unspent[0]
+            .key_image
+            .as_ref()
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
 
         // Note: To receive at Subaddress 4, we need to add an assigned subaddress
         // (currently this Txo is be orphaned). We add thrice, because currently
