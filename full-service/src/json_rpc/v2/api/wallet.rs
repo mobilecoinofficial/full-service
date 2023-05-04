@@ -1252,7 +1252,7 @@ where
                 env!("CARGO_PKG_VERSION_PATCH").to_string(),
                 env!("CARGO_PKG_VERSION_PRE").to_string(),
             ),
-            commit: env!("VERGEN_GIT_DESCRIBE").to_string(),
+            commit: env!("VERGEN_GIT_SHA").to_string(),
         },
     };
 
