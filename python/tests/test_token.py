@@ -77,3 +77,17 @@ def test_token_hash():
     d = {MOB: 3, EUSD: 4}
     assert d[MOB] == 3
     assert d[EUSD] == 4
+
+
+def test_repr_str():
+    mob_amount = Amount.from_display_units(3, MOB)
+    eusd_amount = Amount.from_display_units(4, EUSD)
+
+    assert repr(mob_amount) == "Amount.from_display_units(3, 'MOB')"
+    assert repr(eusd_amount) == "Amount.from_display_units(4, 'eUSD')"
+
+    assert eval(repr(mob_amount)) == mob_amount
+    assert eval(repr(eusd_amount)) == eusd_amount
+
+    assert str(mob_amount) == '3.0000 MOB'
+    assert str(eusd_amount) == '4.00 eUSD'

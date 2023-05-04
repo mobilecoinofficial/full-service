@@ -25,7 +25,7 @@ use mc_account_keys::{
 use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_transaction_core::TokenId;
+use mc_transaction_core::{ring_signature::get_tx_out_shared_secret, TokenId};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -128,9 +128,9 @@ pub trait AccountModel {
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Create an account from either mnemonic phrase (v2) or root entropy (v1).
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                     | Purpose                                                                                           | Notes                                                                 |
     ///|--------------------------|---------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
     ///| `entropy`                | Either a BIP39-encoded mnemonic phrase or a secret root entropy used to generate the account key. | Depends on the `key_derivation_version` parameter                     |
@@ -159,9 +159,9 @@ pub trait AccountModel {
     ) -> Result<(AccountID, String), WalletDbError>;
 
     /// Import account from a mnemonic phrase (v2).
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                                 | Notes                                                                 |
     ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
     ///| `mnemonic`              | A BIP39-encoded mnemonic phrase used to generate the account key.       |                                                                       |
@@ -190,7 +190,7 @@ pub trait AccountModel {
     ) -> Result<Account, WalletDbError>;
 
     /// Import account from a root entropy (v1).
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name                    | Purpose                                                                 | Notes                                                                 |
@@ -221,9 +221,9 @@ pub trait AccountModel {
     ) -> Result<Account, WalletDbError>;
 
     /// Import a view only account.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                                 | Notes                                                                 |
     ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
     ///| `view_private_key`      | The view private key of this import candidate.                          | Grant view only permission                                            |
@@ -249,7 +249,7 @@ pub trait AccountModel {
     /// List all accounts from wallet DB.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name     | Purpose                                                   | Notes                    |
     ///|----------|-----------------------------------------------------------|--------------------------|
     ///| `conn`   | An reference to the pool connection of wallet database    |                          |
@@ -267,16 +267,16 @@ pub trait AccountModel {
     /// Get a specific account.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name         | Purpose                                                | Notes                             |
     ///|--------------|--------------------------------------------------------|-----------------------------------|
     ///| `account_id` | The account ID used to perform this GET action.        | Account must exist in the wallet. |
     ///| `conn`       | An reference to the pool connection of wallet database |                                   |
-    /// 
+    ///
     /// # Returns:
     /// * Account
     fn get(
-        account_id: &AccountID, 
+        account_id: &AccountID,
         conn: Conn
     ) -> Result<Account, WalletDbError>;
 
@@ -288,17 +288,17 @@ pub trait AccountModel {
     ///|--------------|----------------------------------------------------------------------|-------|
     ///| `txo_id_hex` | The txo ID for which to get all accounts associate with this txo ID. |       |
     ///| `conn`       | An reference to the pool connection of wallet database               |       |
-    /// 
+    ///
     /// # Returns:
     /// *  Vector of all Accounts associated with the given Txo
     fn get_by_txo_id(
-        txo_id_hex: &str, 
+        txo_id_hex: &str,
         conn: Conn
     ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update the account name for current account.
     /// * The only updatable field is the name. Any other desired update requires adding a new account, and deleting the existing if desired.
-    /// 
+    ///
     /// # Arguments
     ///| Name       | Purpose                                                  | Notes |
     ///|------------|----------------------------------------------------------|-------|
@@ -308,15 +308,15 @@ pub trait AccountModel {
     /// # Returns:
     /// * unit
     fn update_name(
-        &self, 
-        new_name: String, 
+        &self,
+        new_name: String,
         conn: Conn
     ) -> Result<(), WalletDbError>;
 
     /// Update the next block index in current account that needs to sync.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `next_block_index` | The next block index in current account that needs to sync. |       |
@@ -331,9 +331,9 @@ pub trait AccountModel {
     ) -> Result<(), WalletDbError>;
 
     /// Delete the current account.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `conn`             | An reference to the pool connection of wallet database      |       |
@@ -343,9 +343,9 @@ pub trait AccountModel {
     fn delete(self, conn: Conn) -> Result<(), WalletDbError>;
 
     /// Get subaddress for the current account where funds are returned when the input txos exceed the amount spent.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `conn`             | An reference to the pool connection of wallet database      |       |
@@ -355,9 +355,9 @@ pub trait AccountModel {
     fn change_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get main public address for the current account
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `conn`             | An reference to the pool connection of wallet database      |       |
@@ -367,41 +367,41 @@ pub trait AccountModel {
     fn main_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get all of the token ids present for the current account.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `conn`             | An reference to the pool connection of wallet database      |       |
     ///
     /// # Returns:
-    /// * Vector of all TokenIds 
+    /// * Vector of all TokenIds
     fn get_token_ids(self, conn: Conn) -> Result<Vec<TokenId>, WalletDbError>;
 
     /// Get the next sequentially unassigned subaddress index for the account
     /// * reserved addresses are not included
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                     | Notes |
     ///|--------------------|-------------------------------------------------------------|-------|
     ///| `conn`             | An reference to the pool connection of wallet database      |       |
     ///
     /// # Returns:
-    /// * Vector of all TokenIds 
+    /// * Vector of all TokenIds
     fn next_subaddress_index(self, conn: Conn) -> Result<u64, WalletDbError>;
 
     /// Get the account key for the current account.
-    /// 
+    ///
     /// # Arguments
     /// * None
     ///
     /// # Returns:
-    /// * Either an AccountKey or None 
+    /// * Either an AccountKey or None
     fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
 
     /// Get the view only account key for the current account.
-    /// 
+    ///
     /// # Arguments
     /// * None
     ///
@@ -411,13 +411,25 @@ pub trait AccountModel {
 
     /// Get the view private account key for the current account.
     /// * A wrapper function to get view_private_key from a ViewAccountKey instance for current
-    /// 
+    ///
     /// # Arguments
     /// * None
     ///
     /// # Returns:
     /// * RistrettoPrivate
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError>;
+
+
+    /// Get the shared secret for the account and the tx_public_key
+    ///
+    /// # Arguments
+    ///| Name               | Purpose                                                     | Notes |
+    ///|--------------------|-------------------------------------------------------------|-------|
+    ///| `tx_public_key`    | A cryptographic key that is part of a tx_out on a block     |       |
+    ///
+    /// # Returns:
+    /// * RistrettoPublic
+    fn get_shared_secret(&self, tx_public_key: &RistrettoPublic) -> Result<RistrettoPublic, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -824,6 +836,16 @@ impl AccountModel for Account {
     fn view_private_key(&self) -> Result<RistrettoPrivate, WalletDbError> {
         Ok(*self.view_account_key()?.view_private_key())
     }
+
+    fn get_shared_secret(
+        &self,
+        tx_public_key: &RistrettoPublic,
+    ) -> Result<RistrettoPublic, WalletDbError> {
+        Ok(get_tx_out_shared_secret(
+            &self.view_private_key()?,
+            tx_public_key,
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -1062,7 +1084,7 @@ mod tests {
                 "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
                 conn,
             )
-            .unwrap();
+                .unwrap();
             account_id_hex
         };
 
