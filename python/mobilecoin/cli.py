@@ -694,7 +694,7 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
         print(indent(
-            '{} {}'.format(address['public_address'], address['metadata']),
+            '{} {}'.format(address['public_address_b58'], address['metadata']),
             ' '*2,
         ))
         print()
@@ -781,7 +781,12 @@ class CommandLineInterface:
         )
 
     def gift(self, action, **args):
-        getattr(self, 'gift_' + action)(**args)
+        try:
+            func = getattr(self, 'gift_' + action)(**args)
+        except TypeError:
+            self.gift_args.print_help()
+        else:
+            func(**args)
 
     def gift_list(self):
         gift_codes = self.client.get_all_gift_codes()
