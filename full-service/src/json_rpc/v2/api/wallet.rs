@@ -846,10 +846,11 @@ where
             )
             .map_err(format_error)?,
         },
-        JsonCommandRequest::get_token_metadata => JsonCommandResponse::get_token_metadata {
-            verified: false,
-            metadata: "".to_string(),
-        },
+        JsonCommandRequest::get_token_metadata => {
+            let verified = false;
+            let metadata = "".to_string();
+            JsonCommandResponse::get_token_metadata { verified, metadata }
+        }
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             let (transaction_log, associated_txos, value_map) = service
                 .get_transaction_log(&transaction_log_id)
