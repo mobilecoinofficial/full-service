@@ -1,8 +1,9 @@
 CREATE TABLE txo_memos (
    txo_id varchar NOT NULL,
    memo_type SMALLINT NOT NULL,
-   PRIMARY KEY  (txo_id, memo_type), 
+   PRIMARY KEY  (txo_id, memo_type),
    FOREIGN KEY (txo_id) references txos(id)
+      ON DELETE CASCADE
 );
 
 CREATE TABLE authenticated_sender_memos (
@@ -12,6 +13,7 @@ CREATE TABLE authenticated_sender_memos (
    memo_type SMALLINT generated always as (0x0100),
    PRIMARY KEY (txo_id),
    FOREIGN KEY (txo_id, memo_type) REFERENCES txo_memos(txo_id, memo_type)
+      ON DELETE CASCADE
 );
 
 
@@ -23,6 +25,7 @@ CREATE TABLE authenticated_sender_with_payment_intent_id_memos (
    memo_type SMALLINT generated always as (0x0101),
    PRIMARY KEY (txo_id),
    FOREIGN KEY (txo_id, memo_type) REFERENCES txo_memos(txo_id, memo_type)
+      ON DELETE CASCADE
 );
 
 CREATE TABLE authenticated_sender_with_payment_request_id_memos (
@@ -33,5 +36,5 @@ CREATE TABLE authenticated_sender_with_payment_request_id_memos (
    memo_type SMALLINT generated always as (0x0102),
    PRIMARY KEY (txo_id),
    FOREIGN KEY (txo_id, memo_type) REFERENCES txo_memos(txo_id, memo_type)
+      ON DELETE CASCADE
 );
- 
