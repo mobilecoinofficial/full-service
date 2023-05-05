@@ -2775,6 +2775,7 @@ version = "2.5.0"
 dependencies = [
  "base64 0.21.0",
  "bs58",
+ "byteorder",
  "chrono",
  "clap 4.2.1",
  "crossbeam-channel",
