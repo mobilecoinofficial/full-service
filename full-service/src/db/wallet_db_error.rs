@@ -3,6 +3,7 @@
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
 
 use displaydoc::Display;
+use mc_transaction_extra::MemoDecodingError;
 
 #[derive(Display, Debug)]
 pub enum WalletDbError {
@@ -88,6 +89,9 @@ pub enum WalletDbError {
     /// AssignedSubaddress Not Found: {0}
     AssignedSubaddressNotFound(String),
 
+    /// TxoMemo Not Found: {0}
+    TxoMemoNotFound(String),
+
     /// Txo Not Found: {0}
     TxoNotFound(String),
 
@@ -152,6 +156,9 @@ pub enum WalletDbError {
 
     /// Expected to find a key image for a txo with id: {0}
     MissingKeyImageForInputTxo(String),
+
+    /// Unable to decode the error:
+    MemoDecodingError(mc_transaction_extra::MemoDecodingError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -217,5 +224,11 @@ impl From<base64::DecodeError> for WalletDbError {
 impl From<mc_crypto_keys::KeyError> for WalletDbError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::KeyError(src)
+    }
+}
+
+impl From<MemoDecodingError> for WalletDbError {
+    fn from(src: MemoDecodingError) -> Self {
+        Self::MemoDecodingError(src)
     }
 }
