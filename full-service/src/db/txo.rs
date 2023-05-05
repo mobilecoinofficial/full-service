@@ -25,7 +25,11 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
+        memo,
+        models::{
+            Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, NewTxoMemo, Txo, TxoMemo,
+        },
+        schema::txo_memos,
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
@@ -752,6 +756,27 @@ impl TxoModel for Txo {
                 return Err(e);
             }
         };
+
+        // TODO: we can make this better
+        let mut memo_classifier = 0;
+        if let Some(e_memo) = txo.e_memo {
+            let memo_payload = e_memo.decrypt(&shared_secret);
+            let memo_type_bytes = memo_payload.get_memo_type();
+            memo_classifier = memo::get_memo_type_as_i16_from_bytes(memo_type_bytes);
+        };
+        if let Err(WalletDbError::TxoMemoNotFound(_)) =
+            TxoMemo::get(&txo_id.to_string(), memo_classifier, conn)
+        {
+            let new_txo_memo = NewTxoMemo {
+                txo_id: &txo_id.to_string(),
+                memo_type: memo_classifier,
+            };
+
+            diesel::insert_into(txo_memos::table)
+                .values(&new_txo_memo)
+                .execute(conn)?;
+        }
+
         Ok(txo_id.to_string())
     }
 
