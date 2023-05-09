@@ -10,6 +10,7 @@ from .client import (
     WalletAPIError,
     log as client_log,
 )
+from .fog import FOG_INFO
 from .token import Amount, get_token, TOKENS
 
 
@@ -63,9 +64,8 @@ class CommandLineInterface:
         # Create account.
         self.create_args = command_sp.add_parser('create', help='Create a new account.')
         self.create_args.add_argument('-n', '--name', help='Account name.')
-        self.create_args.add_argument('--fog-report-url', help='Fog report server URL.')
-        self.create_args.add_argument('--fog-authority-spki',
-                                      help='Fog authority subject public key info')
+        self.create_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service.')
 
         # Rename account.
         self.rename_args = command_sp.add_parser('rename', help='Change account name.')
@@ -76,15 +76,15 @@ class CommandLineInterface:
         self.import_args = command_sp.add_parser('import', help='Import an account.')
         self.import_args.add_argument('backup', help='Account backup file, mnemonic recovery phrase, or legacy root entropy in hexadecimal.')
         self.import_args.add_argument('-n', '--name', help='Account name.')
-        self.import_args.add_argument('-b', '--block', type=int,
-                                      help='Block index at which to start the account. No transactions before this block will be loaded.')
-        self.import_args.add_argument('--key_derivation_version', type=int, default=2,
-                                      help='The version number of the key derivation path which the mnemonic was created with.')
+        self.import_args.add_argument('-b', '--block', type=int, help='Block index at which to start the account. No transactions before this block will be loaded.')
+        self.import_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service for this account.')
 
         # Import hardware wallet account.
         self.import_hardware_args = command_sp.add_parser('import-hardware', help='Import an account from a hardware wallet.')
         self.import_hardware_args.add_argument('-n', '--name', help='Account name.')
-
+        self.import_hardware_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service.')
 
         # Verify transactions for hardware wallet account.
         self.verify_args = command_sp.add_parser('verify', help='Verify unverified transactions on hardware wallet.')
@@ -266,8 +266,15 @@ class CommandLineInterface:
             print()
             _print_account(status)
 
-    def create(self, hardware=False, **args):
-        account = self.client.create_account(**args)
+    def create(self, name=None, disable_fog=False):
+        if disable_fog:
+            fog_info = None
+        else:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            fog_info = FOG_INFO[chain_id]
+
+        account = self.client.create_account(name=name, fog_info=fog_info)
         print('Created a new account.')
         print(_format_account_header(account))
 
@@ -284,13 +291,17 @@ class CommandLineInterface:
         print(_format_account_header(account))
         print()
 
-    def import_(self, backup, name=None, block=None, key_derivation_version=2):
-        account = None
+    def import_(
+        self,
+        backup,
+        name=None,
+        block=None,
+        disable_fog=False,
+    ):
+        params = {}
         if backup.endswith('.json'):
             with open(backup) as f:
                 data = json.load(f)
-
-            params = {}
 
             if name is not None:
                 params['name'] = name
@@ -306,44 +317,47 @@ class CommandLineInterface:
                     params[field] = value
 
             if 'account_key' in data:
-                for field in [
-                    'fog_report_url',
-                    'fog_authority_spki',
-                ]:
-                    value = data['account_key'].get(field)
-                    if value is not None:
-                        params[field] = value
+                fog_info = {
+                    "report_url": data['account_key'].get('fog_report_url'),
+                    "authority_spki": data['account_key'].get('fog_authority_spki'),
+                }
+                if any(fog_info.values()):
+                    params['fog_info'] = fog_info
 
-            account = self.client.import_account(**params)
+        else:  # Assume that this is just a mnemonic phrase written to the command line.
+            params['mnemonic'] = backup
 
-        else:
-            # Try to use the legacy import system, treating the string as hexadecimal root entropy.
-            root_entropy = None
-            try:
-                b = bytes.fromhex(backup)
-                if len(b) == 32:
-                    root_entropy = b.hex()
-            except ValueError:
-                pass
-            if root_entropy is not None:
-                account = self.client.import_account_from_legacy_root_entropy(root_entropy)
-            else:
-                # Lastly, assume that this is just a mnemonic phrase written to the command line.
-                account = self.client.import_account(backup)
+        # Override fields from the .json file from command line arguments.
+        if name is not None:
+            params['name'] = name
+        if block is not None:
+            params['first_block_index'] = block
 
-        if account is None:
-            print('Could not import account.')
-            return
+        if disable_fog:
+            params['fog_info'] = None
+        elif 'fog_info' not in params:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            params['fog_info'] = FOG_INFO[chain_id]
+
+        account = self.client.import_account(**params)
 
         print('Imported account.')
         print(_format_account_header(account))
         print()
 
-    def import_hardware(self, name=None):
+    def import_hardware(self, name=None, disable_fog=False):
+        if disable_fog:
+            fog_info = None
+        else:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            fog_info = FOG_INFO[chain_id]
+
         print('Importing view keys from hardware wallet, please approve on device.')
         print()
         with handle_ledger_error():
-            account = self.client.import_view_only_account({'name': name})
+            account = self.client.import_view_only_account_from_hardware_wallet(name=name, fog_info=fog_info)
         print('Imported account.')
         print(_format_account_header(account))
 
