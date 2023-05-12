@@ -78,7 +78,6 @@ pub trait AccountModel {
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
-    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///
     /// # Returns:
@@ -91,7 +90,6 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
@@ -108,7 +106,6 @@ pub trait AccountModel {
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
-    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
@@ -122,7 +119,6 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
@@ -170,7 +166,6 @@ pub trait AccountModel {
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
-    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
@@ -184,7 +179,6 @@ pub trait AccountModel {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
@@ -201,7 +195,6 @@ pub trait AccountModel {
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
-    ///| `fog_report_id`         | Fog Report Key.                                                         | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
@@ -215,7 +208,6 @@ pub trait AccountModel {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
@@ -440,7 +432,6 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
@@ -450,7 +441,7 @@ impl AccountModel for Account {
         let account_key: AccountKey = slip_10_key.into();
         let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
-            fog_report_id,
+            "".to_string(),
             general_purpose::STANDARD.decode(fog_authority_spki)?,
         );
 
@@ -474,7 +465,6 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
@@ -483,7 +473,7 @@ impl AccountModel for Account {
         let root_id = RootIdentity {
             root_entropy: entropy.clone(),
             fog_report_url,
-            fog_report_id,
+            fog_report_id: "".to_string(),
             fog_authority_spki: general_purpose::STANDARD.decode(fog_authority_spki)?,
         };
         let account_key = AccountKey::from(&root_id);
@@ -571,7 +561,6 @@ impl AccountModel for Account {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
@@ -582,7 +571,6 @@ impl AccountModel for Account {
             next_subaddress_index,
             &name.unwrap_or_default(),
             fog_report_url,
-            fog_report_id,
             fog_authority_spki,
             conn,
         )?;
@@ -596,7 +584,6 @@ impl AccountModel for Account {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
@@ -607,7 +594,6 @@ impl AccountModel for Account {
             next_subaddress_index,
             &name.unwrap_or_default(),
             fog_report_url,
-            fog_report_id,
             fog_authority_spki,
             conn,
         )?;
@@ -878,7 +864,6 @@ mod tests {
                 "Alice's Main Account",
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
                 conn,
             )
             .unwrap();
@@ -1043,7 +1028,6 @@ mod tests {
                 None,
                 None,
                 "Alice's Main Account",
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
                 conn,

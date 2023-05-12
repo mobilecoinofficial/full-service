@@ -133,14 +133,12 @@ pub trait AccountService {
     ///|----------------------|----------------------------------------|------------------------------------------------------------------|
     ///| `name`               | A label for this account.              | A label can have duplicates, but it is not recommended.          |
     ///| `fog_report_url`     | Fog Report server url.                 | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `fog_report_id`      | Fog Report Key.                        | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki` | Fog Authority Subject Public Key Info. | Applicable only if user has Fog service, empty string otherwise. |
     ///
     fn create_account(
         &self,
         name: Option<String>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -165,7 +163,6 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -180,7 +177,6 @@ pub trait AccountService {
     ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.               |
     ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
     ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `fog_report_id`         | Fog Report Key.                                         | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
     ///
     #[allow(clippy::too_many_arguments)]
@@ -191,7 +187,6 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -339,7 +334,6 @@ where
         &self,
         name: Option<String>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
@@ -377,7 +371,6 @@ where
                 None,
                 &name.unwrap_or_default(),
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?;
@@ -393,7 +386,6 @@ where
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
@@ -427,7 +419,6 @@ where
                 first_block_index,
                 next_subaddress_index,
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?)
@@ -441,7 +432,6 @@ where
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
@@ -468,7 +458,6 @@ where
                 first_block_index,
                 next_subaddress_index,
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?)

@@ -469,7 +469,6 @@ where
                 .create_account(
                     name,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
@@ -1047,7 +1046,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
@@ -1085,7 +1083,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
