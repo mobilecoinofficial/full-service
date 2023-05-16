@@ -15,7 +15,6 @@ DEFAULT_PORT = 9090
 MAX_TOMBSTONE_BLOCKS = 100
 
 
-
 class WalletAPIError(Exception):
     def __init__(self, response):
         self.response = response

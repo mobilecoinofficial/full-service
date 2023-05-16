@@ -89,6 +89,7 @@ class CommandLineInterface:
         # Remove account.
         self.remove_args = command_sp.add_parser('remove', help='Remove an account from local storage.')
         self.remove_args.add_argument('account_id', help='ID of the account to remove.')
+
         # Show transaction history.
         self.history_args = command_sp.add_parser('history', help='Show account transaction history.')
         self.history_args.add_argument('account_id', help='Account ID.')
