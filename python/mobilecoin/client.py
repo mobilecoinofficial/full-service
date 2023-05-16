@@ -114,6 +114,14 @@ class ClientAsync:
             },
         })
 
+    async def get_balance(self, account_id):
+        return await self._req({
+            "method": "get_balance",
+            "params": {
+                "account_id": account_id,
+            },
+        })
+
     async def create_account(
         self,
         name=None,
@@ -140,6 +148,9 @@ class ClientAsync:
         fog_report_url=None,
         fog_authority_spki=None,
     ):
+        # Disable showing sensitive data from within this function during unittests.
+        __tracebackhide__ = True
+
         params = {
             'mnemonic': mnemonic,
             'key_derivation_version': str(int(key_derivation_version)),
@@ -433,6 +444,7 @@ class ClientSync:
 
 
 def censored(d):
+
     """Censor any values in the dictionary containing seed mnemonics or proto data."""
 
     if not isinstance(d, dict):

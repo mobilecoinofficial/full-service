@@ -688,6 +688,22 @@ where
                 balance_per_token,
             }
         }
+        JsonCommandRequest::get_balance { account_id } => {
+            let balance = service
+                .get_balance_for_account(&AccountID(account_id))
+                .map_err(format_error)?;
+
+            let balance_formatted = BalanceMap(
+                balance
+                    .iter()
+                    .map(|(k, v)| (k.to_string(), Balance::from(v)))
+                    .collect(),
+            );
+
+            JsonCommandResponse::get_balance {
+                balance_per_token: balance_formatted,
+            }
+        }
         JsonCommandRequest::get_block {
             block_index,
             txo_public_key,

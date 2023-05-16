@@ -83,6 +83,14 @@ async def test_account_status(client, source_account):
     ]
 
 
+async def test_get_balance(client, source_account):
+    status = await client.get_balance(source_account['id'])
+    assert sorted(status.keys()) == [
+        'balance_per_token',
+    ]
+    assert sorted(status['balance_per_token'].keys()) == ['0', '1']
+
+
 async def test_create_account(client):
     account = await client.create_account(name='test_account')
     assert account['name'] == 'test_account'

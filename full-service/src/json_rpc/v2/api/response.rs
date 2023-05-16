@@ -120,6 +120,9 @@ pub enum JsonCommandResponse {
         local_block_height: String,
         balance_per_token: BalanceMap,
     },
+    get_balance {
+        balance_per_token: BalanceMap,
+    },
     get_block {
         block: Block,
         block_contents: BlockContents,

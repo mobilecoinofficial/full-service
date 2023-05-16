@@ -159,6 +159,9 @@ pub enum JsonCommandRequest {
         offset: Option<u64>,
         limit: Option<u64>,
     },
+    get_balance {
+        account_id: String,
+    },
     get_block {
         block_index: Option<String>,
         txo_public_key: Option<String>,
