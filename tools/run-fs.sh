@@ -164,6 +164,7 @@ echo "  MC_LISTEN_HOST: ${MC_LISTEN_HOST}"
 if [[ -n "${build}" ]]
 then
     "${location}/build-fs.sh" "${net}"
+    WORK_DIR="${location}/../target/release"
 fi
 
 # start validator and unset envs for full-service

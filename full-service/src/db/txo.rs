@@ -8,7 +8,6 @@ use diesel::{
 };
 use mc_account_keys::AccountKey;
 use mc_common::{logger::global_log, HashMap};
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
@@ -101,8 +100,7 @@ pub struct TxoID(pub String);
 
 impl From<&TxOut> for TxoID {
     fn from(src: &TxOut) -> TxoID {
-        let digest: [u8; 32] = src.digest32::<MerlinTranscript>(b"txo_data");
-        Self(hex::encode(digest))
+        Self(hex::encode(src.hash()))
     }
 }
 
