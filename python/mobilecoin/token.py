@@ -30,6 +30,7 @@ class Token:
         return int(round(display_value * self.conversion_factor()))
 
 
+# FauxUSD is on TestNet and AlphaNet only. Not on MainNet.
 TOKENS = [
     Token(0, 'MobileCoin', 'MOB', 12, 4),
     Token(1, 'Electronic Dollar', 'eUSD', 6, 2),
