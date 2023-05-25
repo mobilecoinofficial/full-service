@@ -33,6 +33,7 @@ class Token:
 TOKENS = [
     Token(0, 'MobileCoin', 'MOB', 12, 4),
     Token(1, 'Electronic Dollar', 'eUSD', 6, 2),
+    Token(8192, 'Fauxble Dollar', 'FauxUSD', 6, 2),
 ]
 TOKENS_BY_ID = { t.token_id: t for t in TOKENS }
 TOKENS_BY_SHORT_CODE = { t.short_code.lower(): t for t in TOKENS }
