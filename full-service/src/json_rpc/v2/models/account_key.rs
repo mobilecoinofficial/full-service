@@ -3,8 +3,8 @@
 //! API definition for the Account Key object.
 
 use crate::util::encoding_helpers::{
-    hex_to_ristretto, hex_to_ristretto_public, hex_to_vec, ristretto_public_to_hex,
-    ristretto_to_hex, vec_to_hex,
+    hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex,
+    ristretto_to_hex, vec_to_base64, base64_to_vec,
 };
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -37,7 +37,7 @@ impl From<&mc_account_keys::AccountKey> for AccountKey {
             spend_private_key: ristretto_to_hex(src.spend_private_key()),
             fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
             fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
-            fog_authority_spki: vec_to_hex(src.fog_authority_spki().unwrap_or(&[])),
+            fog_authority_spki: vec_to_base64(src.fog_authority_spki().unwrap_or(&[])),
         }
     }
 }
@@ -48,7 +48,7 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     fn try_from(src: &AccountKey) -> Result<mc_account_keys::AccountKey, String> {
         let view_private_key = hex_to_ristretto(&src.view_private_key)?;
         let spend_private_key = hex_to_ristretto(&src.spend_private_key)?;
-        let fog_authority_spki = hex_to_vec(&src.fog_authority_spki)?;
+        let fog_authority_spki = base64_to_vec(&src.fog_authority_spki)?;
 
         Ok(mc_account_keys::AccountKey::new_with_fog(
             &spend_private_key,
