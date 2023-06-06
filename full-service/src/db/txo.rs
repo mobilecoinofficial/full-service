@@ -1262,7 +1262,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1328,7 +1330,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1499,7 +1503,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1596,7 +1602,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1700,7 +1708,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(account_id_hex) = account_id_hex {
