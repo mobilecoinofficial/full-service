@@ -50,7 +50,7 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
-ledger-mob = { path = "../ledger-mob/lib" }
+ledger-mob = "0.11.0"
 
 async-trait = "0.1.59"
 base64 = "0.21.0"

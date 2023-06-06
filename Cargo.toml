@@ -25,6 +25,7 @@ lto = false
 debug-assertions = false
 overflow-checks = false
 strip = "symbols"
+panic = "unwind"
 
 [patch.crates-io]
 # Fork and rename to use "OG" dalek-cryptography with latest dependencies.
@@ -49,8 +50,9 @@ schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git"
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "4fbaa3343301c62cfdbc3023c9f485257e6b718a" }
 
 # Override ledger requirements with local versions
-ledger-apdu = { path = "./ledger-mob/vendor/rs/ledger-apdu" }
-ledger-transport = { path = "./ledger-mob/vendor/rs/ledger-transport" }
+ledger-lib = { path = "../ledger/lib" }
+ledger-proto = { path = "../ledger/proto" }
+ledger-mob = { path = "../ledger-mob/lib" }
 
 # Patch mc lib for git dependencies in ledger-mob
 mc-core = { path = "./mobilecoin/core" }

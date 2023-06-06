@@ -4,7 +4,7 @@
 
 use std::convert::{TryFrom, TryInto};
 
-use ledger_mob::{transport::GenericTransport, Connect, DeviceHandle, LedgerProvider};
+use ledger_mob::{DeviceHandle, LedgerHandle, LedgerProvider, Transport as _};
 
 use mc_common::logger::global_log;
 use mc_core::account::{ViewAccount, ViewSubaddress};
@@ -45,9 +45,10 @@ impl From<ledger_mob::Error> for HardwareWalletServiceError {
     }
 }
 
-async fn get_device_handle() -> Result<DeviceHandle<GenericTransport>, HardwareWalletServiceError> {
-    let ledger_provider = LedgerProvider::new().unwrap();
-    let devices = ledger_provider.list_devices(ledger_mob::Filter::Hid).await;
+async fn get_device_handle() -> Result<DeviceHandle<LedgerHandle>, HardwareWalletServiceError> {
+    let mut ledger_provider = LedgerProvider::init().await;
+    let devices = ledger_provider.list(ledger_mob::Filters::Hid).await
+        .map_err(|e| HardwareWalletServiceError::LedgerMob(e.into()))?;
 
     if devices.is_empty() {
         return Err(HardwareWalletServiceError::NoHardwareWalletsFound);
@@ -59,13 +60,16 @@ async fn get_device_handle() -> Result<DeviceHandle<GenericTransport>, HardwareW
     //
     // This CBB - we should iterate through each device if signing fails on the
     // current one and more are available
-    Ok(Connect::<GenericTransport>::connect(&ledger_provider, &devices[0]).await?)
+    let device = ledger_provider.connect(devices[0].clone()).await
+        .map_err(|e| HardwareWalletServiceError::LedgerMob(e.into()))?;
+
+    Ok(device.into())
 }
 
 pub async fn sync_txos(
     unsynced_txos: Vec<(TxOut, u64)>,
 ) -> Result<Vec<TxoSynced>, HardwareWalletServiceError> {
-    let device_handle = get_device_handle().await?;
+    let mut device_handle = get_device_handle().await?;
 
     let mut synced_txos = vec![];
     for unsynced_txo in unsynced_txos {
@@ -84,21 +88,21 @@ pub async fn sync_txos(
 }
 
 pub async fn get_view_only_account_keys() -> Result<ViewAccount, HardwareWalletServiceError> {
-    let device_handle = get_device_handle().await?;
+    let mut device_handle = get_device_handle().await?;
     Ok(device_handle.account_keys(0).await?)
 }
 
 pub async fn get_view_only_subaddress_keys(
     subaddress_index: u64,
 ) -> Result<ViewSubaddress, HardwareWalletServiceError> {
-    let device_handle = get_device_handle().await?;
+    let mut device_handle = get_device_handle().await?;
     Ok(device_handle.subaddress_keys(0, subaddress_index).await?)
 }
 
 pub async fn sign_tx_proposal(
     unsigned_tx_proposal: UnsignedTxProposal,
 ) -> Result<TxProposal, HardwareWalletServiceError> {
-    let device_handle = get_device_handle().await?;
+    let mut device_handle = get_device_handle().await?;
 
     global_log::debug!("Signing tx proposal with hardware device");
     let (tx, txos_synced) = device_handle
