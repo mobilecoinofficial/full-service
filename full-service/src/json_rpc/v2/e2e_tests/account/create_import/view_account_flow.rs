@@ -183,12 +183,9 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let unverified_txos = result
-            .get("incomplete_txos_encoded")
-            .unwrap()
-            .as_array()
-            .unwrap();
-        assert_eq!(unverified_txos.len(), 1);
+        let txo_sync_request = result.get("txo_sync_request").unwrap();
+        let txos_unsynced = txo_sync_request.get("txos").unwrap().as_array().unwrap();
+        assert_eq!(txos_unsynced.len(), 1);
 
         // test remove
         let body = json!({
