@@ -1,4 +1,5 @@
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64_ENGINE};
 
 pub fn ristretto_to_vec(key: &RistrettoPrivate) -> Vec<u8> {
     mc_util_serial::encode(key)
@@ -40,4 +41,13 @@ pub fn ristretto_to_hex(key: &RistrettoPrivate) -> String {
 
 pub fn ristretto_public_to_hex(key: &RistrettoPublic) -> String {
     vec_to_hex(&ristretto_public_to_vec(key))
+}
+
+pub fn vec_to_base64(data: &[u8]) -> String {
+    BASE64_ENGINE.encode(data)
+}
+
+pub fn base64_to_vec(data: &str) -> Result<Vec<u8>, String> {
+    BASE64_ENGINE.decode(data.as_bytes())
+        .map_err(|err| format!("Could not decode base64 to vector: {err:?}"))
 }
