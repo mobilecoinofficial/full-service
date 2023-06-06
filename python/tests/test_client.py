@@ -29,7 +29,7 @@ async def test_network_status(client):
 
 
 async def test_network_status_fees(fees):
-    assert sorted( t.short_code for t in fees.keys() ) == ['MOB', 'eUSD']
+    assert sorted( t.short_code for t in fees.keys() ) == ['FauxUSD', 'MOB', 'eUSD']
     assert all( isinstance(a, Amount) for a in fees.values() )
 
 

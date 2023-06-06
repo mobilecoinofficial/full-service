@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-service"
-version = "2.5.0"
+version = "2.6.0"
 authors = ["MobileCoin"]
 edition = "2018"
 license = "GPL-3.0"
@@ -10,20 +10,19 @@ name = "validator-service"
 path = "src/bin/main.rs"
 
 [dependencies]
-mc-full-service = { path = "../../full-service" }
-mc-validator-api = { path = "../api" }
-
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
 mc-connection = { path = "../../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../../mobilecoin/consensus/enclave/measurement" }
 mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }
+mc-full-service = { path = "../../full-service" }
 mc-ledger-db = { path = "../../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../../mobilecoin/ledger/sync" }
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
+mc-validator-api = { path = "../api" }
 
 clap = { version = "4.2", features = ["derive", "env"] }
 grpcio = "0.12"

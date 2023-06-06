@@ -2450,6 +2450,7 @@ dependencies = [
  "mc-core-types",
  "mc-crypto-hashes",
  "mc-crypto-keys",
+ "serde",
  "sha2",
  "slip10_ed25519",
  "tiny-bip39",
@@ -2462,6 +2463,7 @@ version = "2.0.0"
 dependencies = [
  "curve25519-dalek",
  "mc-crypto-keys",
+ "serde",
  "subtle",
  "zeroize",
 ]
@@ -2771,8 +2773,9 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
+ "anyhow",
  "base64 0.21.0",
  "bs58",
  "chrono",
@@ -2816,6 +2819,7 @@ dependencies = [
  "mc-transaction-builder",
  "mc-transaction-core",
  "mc-transaction-extra",
+ "mc-transaction-signer",
  "mc-transaction-types",
  "mc-util-from-random",
  "mc-util-parse",
@@ -2848,7 +2852,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service-mirror"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "boring",
  "cargo-emit",
@@ -3096,6 +3100,44 @@ name = "mc-sgx-types"
 version = "4.1.0-pre0"
 
 [[package]]
+name = "mc-signer"
+version = "2.6.0"
+dependencies = [
+ "anyhow",
+ "base64 0.13.1",
+ "clap 4.2.1",
+ "displaydoc",
+ "hex",
+ "log",
+ "mc-account-keys",
+ "mc-common",
+ "mc-core",
+ "mc-core-types",
+ "mc-crypto-keys",
+ "mc-crypto-ring-signature",
+ "mc-crypto-ring-signature-signer",
+ "mc-full-service",
+ "mc-transaction-core",
+ "mc-transaction-extra",
+ "mc-transaction-signer",
+ "mc-transaction-summary",
+ "mc-util-repr-bytes",
+ "mc-util-serial",
+ "rand 0.8.5",
+ "rand_core 0.6.4",
+ "rocket",
+ "serde",
+ "serde_json",
+ "structopt",
+ "strum",
+ "strum_macros",
+ "subtle",
+ "tiny-bip39",
+ "vergen",
+ "zeroize",
+]
+
+[[package]]
 name = "mc-transaction-builder"
 version = "4.1.0-pre0"
 dependencies = [
@@ -3212,25 +3254,31 @@ dependencies = [
 
 [[package]]
 name = "mc-transaction-signer"
-version = "2.5.0"
+version = "4.1.0-pre0"
 dependencies = [
- "base64 0.21.0",
+ "anyhow",
+ "clap 4.2.1",
+ "displaydoc",
  "hex",
+ "log",
  "mc-account-keys",
  "mc-common",
  "mc-core",
+ "mc-core-types",
  "mc-crypto-keys",
+ "mc-crypto-ring-signature",
  "mc-crypto-ring-signature-signer",
- "mc-full-service",
- "mc-transaction-builder",
  "mc-transaction-core",
  "mc-transaction-extra",
+ "mc-transaction-summary",
+ "mc-util-repr-bytes",
  "mc-util-serial",
- "rand 0.8.5",
+ "rand_core 0.6.4",
  "serde",
  "serde_json",
- "structopt",
+ "subtle",
  "tiny-bip39",
+ "zeroize",
 ]
 
 [[package]]
@@ -3496,7 +3544,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-api"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -3512,7 +3560,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-connection"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "displaydoc",
  "futures",
@@ -3531,7 +3579,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-service"
-version = "2.5.0"
+version = "2.6.0"
 dependencies = [
  "clap 4.2.1",
  "grpcio",
