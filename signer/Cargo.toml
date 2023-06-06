@@ -30,16 +30,10 @@ mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
-<<<<<<< HEAD:transaction-signer/Cargo.toml
-mc-full-service = { path = "../full-service" }
-
-base64 = "0.21.0"
-=======
 anyhow = "1.0.69"
 base64 = "0.13.1"
 clap = { version = "4.1", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
->>>>>>> v2.6:signer/Cargo.toml
 hex = { version = "0.4", default-features = false }
 log = "0.4.17"
 rand = { version = "0.8", default-features = false }

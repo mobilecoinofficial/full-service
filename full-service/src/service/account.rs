@@ -17,10 +17,6 @@ use crate::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
-    util::encoding_helpers::{
-        hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
-    },
-    util::constants::MNEMONIC_KEY_DERIVATION_VERSION,
 };
 
 use base64;
