@@ -1,0 +1,53 @@
+[package]
+name = "mc-signer"
+authors = ["MobileCoin"]
+version = "2.6.0"
+edition = "2021"
+build = "build.rs"
+
+[[bin]]
+name = "signer"
+path = "src/bin/main.rs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "signer-service"
+path = "src/service/bin/main.rs"
+
+[dependencies]
+mc-account-keys = { path = "../mobilecoin/account-keys" }
+mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-core = { path = "../mobilecoin/core", features = [ "serde" ] }
+mc-core-types = { path = "../mobilecoin/core/types", features = [ "serde" ] }
+mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
+mc-crypto-ring-signature = { path = "../mobilecoin/crypto/ring-signature" }
+mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
+mc-full-service = { path = "../full-service" }
+mc-transaction-core = { path = "../mobilecoin/transaction/core" }
+mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
+mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
+mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
+mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
+
+anyhow = "1.0.69"
+base64 = "0.13.1"
+clap = { version = "4.3", features = [ "derive" ] }
+displaydoc = { version = "0.2", default-features = false }
+hex = { version = "0.4", default-features = false }
+log = "0.4.17"
+rand = { version = "0.8", default-features = false }
+rand_core = "0.6.4"
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+structopt = "0.3"
+strum = { version = "0.24.1", features = ["derive"] }
+strum_macros = "0.24.3"
+subtle = { version = "2.4.1", default-features = false, features = ["i128"] }
+tiny-bip39 = "1.0"
+zeroize = { version = "1", default-features = false }
+
+[build-dependencies]
+anyhow = "1.0"
+vergen = { version = "8.2.1", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
