@@ -24,6 +24,6 @@ mc-util-parse = { path = "../../mobilecoin/util/parse" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
 mc-validator-api = { path = "../api" }
 
-clap = { version = "4.2", features = ["derive", "env"] }
+clap = { version = "4.3", features = ["derive", "env"] }
 grpcio = "0.12"
 rayon = "1.7"
