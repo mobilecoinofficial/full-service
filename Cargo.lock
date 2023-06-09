@@ -417,6 +417,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
+name = "bs58"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
 name = "bulletproofs-og"
 version = "3.0.0-pre.1"
 source = "git+https://github.com/mobilecoinfoundation/bulletproofs.git?rev=9abfdc054d9ba65f1e185ea1e6eff3947ce879dc#9abfdc054d9ba65f1e185ea1e6eff3947ce879dc"
@@ -2101,7 +2110,7 @@ dependencies = [
 name = "mc-api"
 version = "4.1.0-pre0"
 dependencies = [
- "bs58",
+ "bs58 0.4.0",
  "cargo-emit",
  "crc",
  "curve25519-dalek",
@@ -2777,7 +2786,7 @@ version = "2.6.0"
 dependencies = [
  "anyhow",
  "base64 0.21.0",
- "bs58",
+ "bs58 0.5.0",
  "chrono",
  "clap 4.2.1",
  "crossbeam-channel",
