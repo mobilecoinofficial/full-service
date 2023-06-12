@@ -30,7 +30,6 @@ description: >-
     "view_private_key": "0a20be48e147741246f09adb195b110c4ec39302778c4554cd3c9ff877f8392ce605",
     "spend_private_key": "0a201f33b194e13176341b4e696b70be5ba5c4e0021f5a79664ab9a8b128f0d6d40d",
     "fog_report_url": "",
-    "fog_report_id": "",
     "fog_authority_spki": ""
   }
 }

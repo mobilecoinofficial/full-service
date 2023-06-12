@@ -100,7 +100,7 @@ pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
         fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
+        fog_report_id: Option<String>, // Deprecated
         fog_authority_spki: Option<String>,
     },
     create_payment_request {
@@ -187,7 +187,7 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
+        fog_report_id: Option<String>, // Deprecated
         fog_authority_spki: Option<String>,
     },
     import_account_from_legacy_root_entropy {
@@ -196,7 +196,7 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_report_url: Option<String>,
-        fog_report_id: Option<String>,
+        fog_report_id: Option<String>, // Deprecated
         fog_authority_spki: Option<String>,
     },
     remove_account {

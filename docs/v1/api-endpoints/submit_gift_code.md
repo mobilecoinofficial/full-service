@@ -68,7 +68,6 @@ description: >-
             "spend_public_key": "aaf2937c73ef657a529d0f10aaaba394f41bf6f67d8da5ae13284afdb5bc657b",
             "fog_report_url": "",
             "fog_authority_fingerprint_sig": "",
-            "fog_report_id": ""
           }
         }
       ],

@@ -44,7 +44,6 @@ description: >-
         "view_private_key":"0a2078062debfa72270373d13d52e228b2acc7e3d55790447e7a58905b986fc3780a",
         "spend_private_key":"0a201f4ba0099acc804e09b011deeabc6c5e1ce6f9a8fd626dcccb0dfd4142c63209",
         "fog_report_url":"",
-        "fog_report_id":"",
         "fog_authority_spki":""
       }
     }
