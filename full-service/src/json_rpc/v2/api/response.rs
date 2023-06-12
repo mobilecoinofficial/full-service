@@ -122,6 +122,8 @@ pub enum JsonCommandResponse {
     },
     get_balance {
         balance_per_token: BalanceMap,
+        account_block_height: String,
+        network_block_height: String,
     },
     get_block {
         block: Block,

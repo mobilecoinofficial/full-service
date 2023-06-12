@@ -695,8 +695,9 @@ where
             }
         }
         JsonCommandRequest::get_balance { account_id } => {
+            let account_id = AccountID(account_id);
             let balance = service
-                .get_balance_for_account(&AccountID(account_id))
+                .get_balance_for_account(&account_id)
                 .map_err(format_error)?;
 
             let balance_formatted = BalanceMap(
@@ -706,8 +707,13 @@ where
                     .collect(),
             );
 
+            let account = service.get_account(&account_id).map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
+
             JsonCommandResponse::get_balance {
                 balance_per_token: balance_formatted,
+                account_block_height: account.next_block_index.to_string(),
+                network_block_height: network_status.network_block_height.to_string(),
             }
         }
         JsonCommandRequest::get_block {

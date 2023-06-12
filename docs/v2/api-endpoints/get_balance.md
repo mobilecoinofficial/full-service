@@ -44,7 +44,9 @@ description: >-
         "secreted":"0",
         "orphaned":"0"
       }
-    }
+    },
+    "account_block_height": "1747773",
+    "network_block_height": "1747773"
   },
   "jsonrpc":"2.0",
   "id":1
