@@ -932,11 +932,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // Add a transaction, with transaction status.
@@ -992,11 +988,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // Even though we don't have a network connection, it sets the block indices
@@ -1028,11 +1020,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // The block indices are set to zero because we have no ledger information
