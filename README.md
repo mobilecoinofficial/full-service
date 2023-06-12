@@ -47,33 +47,37 @@ section of the full API docs.
 ## Run the wallet service
 
 You can run the wallet service directly from the official docker image.
-Get the pre-built executable from our official docker image. Check the [MobileCoin dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) for which pre-built image has the most recent version, and update the `docker run` command accordingly.
+Lookup the latest release tag (vX.Y.Z-testnet or vX.Y.Z-mainnet) on the [full-service dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=testnet) and update the `docker pull` and `docker run` commands below accordingly.
 
-Here is the command to run against test-net:
+Here are the commands to run a testnet full-service:
 ```sh
+docker pull mobilecoin/full-service:v2.5.0-testnet
+mkdir -p -m go+w ~/.mobilecoin/test
 docker run -it -p 127.0.0.1:9090:9090 \
    --volume ~/.mobilecoin/test:/data \
-   mobilecoin/full-service:v2.3.2-testnet \
+   mobilecoin/full-service:v2.5.0-testnet \
    --peer mc://node1.test.mobilecoin.com/ \
    --peer mc://node2.test.mobilecoin.com/ \
    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
    --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
-   --ledger-db /data/ledger-db \
-   --wallet-db /data/wallet-db/wallet.db \
+   --ledger-db /data/ledger \
+   --wallet-db /data/wallet/wallet.db \
    --chain-id test
 ```
 
-And here is the command for main-net:
+And here is the mainnet [full-service dockerhub page](https://hub.docker.com/r/mobilecoin/full-service/tags?page=1&name=mainnet) and commands to run:
 ```sh
+docker pull mobilecoin/full-service:v2.5.0-mainnet
+mkdir -p -m go+w ~/.mobilecoin/main
 docker run -it -p 127.0.0.1:9090:9090 \
    --volume ~/.mobilecoin/main:/data \
-   mobilecoin/full-service:v2.3.2-mainnet \
+   mobilecoin/full-service:v2.5.0-mainnet \
    --peer mc://node1.prod.mobilecoinww.com/ \
    --peer mc://node2.prod.mobilecoinww.com/ \
    --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
    --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
-   --ledger-db /data/ledger-db \
-   --wallet-db /data/wallet-db/wallet.db \
+   --ledger-db /data/ledger \
+   --wallet-db /data/wallet/wallet.db \
    --chain-id main
 ```
 
