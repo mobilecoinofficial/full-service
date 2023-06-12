@@ -685,7 +685,6 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
         let account_id = AccountID(account.id);
@@ -713,7 +712,7 @@ mod tests {
 
         // create an account that has its first_block_index set to later in the ledger
         let account2 = service
-            .create_account(None, "".to_string(), "".to_string(), "".to_string())
+            .create_account(None, "".to_string(), "".to_string())
             .unwrap();
         assert_eq!(
             account2.first_block_index as u64,
@@ -784,7 +783,6 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
         let account_a_id = AccountID(account_a.id.clone());
@@ -795,7 +793,6 @@ mod tests {
                 None,
                 None,
                 None,
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
             )
@@ -939,7 +936,6 @@ mod tests {
                 Some("A".to_string()),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
 
@@ -1000,7 +996,6 @@ mod tests {
                 Some("A".to_string()),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
 
@@ -1035,7 +1030,6 @@ mod tests {
         let account = service
             .create_account(
                 Some("A".to_string()),
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
             )

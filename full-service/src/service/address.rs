@@ -198,10 +198,7 @@ mod tests {
         db::account::AccountModel,
         service::account::AccountService,
         test_utils::{get_test_ledger, setup_wallet_service},
-        util::{
-            b58::b58_encode_public_address,
-            encoding_helpers::{ristretto_public_to_hex, ristretto_to_hex},
-        },
+        util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{test_with_logger, Logger};
@@ -223,7 +220,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(None, "".to_string(), "".to_string(), "".to_string())
+            .create_account(None, "".to_string(), "".to_string())
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 

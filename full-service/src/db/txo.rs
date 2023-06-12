@@ -2038,7 +2038,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2380,7 +2379,6 @@ mod tests {
             "Bob's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2485,7 +2483,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -2556,7 +2553,6 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2673,7 +2669,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2739,7 +2734,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2795,7 +2789,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2870,7 +2863,6 @@ mod tests {
             None,
             None,
             "Alice",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3030,7 +3022,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3080,7 +3071,6 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3174,7 +3164,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -3231,7 +3220,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -3283,7 +3271,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             conn,
@@ -3373,7 +3360,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3474,7 +3460,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
