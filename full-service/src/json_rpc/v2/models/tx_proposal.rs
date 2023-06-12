@@ -32,7 +32,7 @@ pub struct OutputTxo {
     pub confirmation_number: String,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Default)]
 pub struct UnsignedTxProposal {
     pub unsigned_tx_proto_bytes_hex: String,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,

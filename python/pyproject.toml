@@ -14,6 +14,7 @@ segno = "^1.5.2"
 base58 = "^2.1.1"
 protobuf = "^4.21.12"
 aiohttp = "^3.8.3"
+mnemonic = "^0.20"
 
 [tool.poetry.group.dev.dependencies]
 pytest-asyncio = "^0.21.0"
