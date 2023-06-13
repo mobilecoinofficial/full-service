@@ -38,6 +38,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         ledger::LedgerService,
         models::tx_proposal::TxProposal,
+        network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::{TransactionMemo, TransactionService},
@@ -847,6 +848,13 @@ where
             )
             .map_err(format_error)?,
         },
+        JsonCommandRequest::get_token_metadata => {
+            let metadata_info = get_token_metadata().map_err(format_error)?;
+            JsonCommandResponse::get_token_metadata {
+                verified: metadata_info.verified,
+                metadata: metadata_info.metadata,
+            }
+        }
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             let (transaction_log, associated_txos, value_map) = service
                 .get_transaction_log(&transaction_log_id)
