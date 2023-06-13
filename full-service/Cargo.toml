@@ -85,7 +85,7 @@ mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validat
 
 bs58 = "0.5.0"
 tempdir = "0.3"
-url = "2.3"
+url = "2.4"
 
 [build-dependencies]
 anyhow = "1.0"

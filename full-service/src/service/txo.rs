@@ -382,7 +382,6 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
 
@@ -431,7 +430,6 @@ mod tests {
         let bob = service
             .create_account(
                 Some("Bob's Main Account".to_string()),
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
             )

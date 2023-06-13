@@ -237,7 +237,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
