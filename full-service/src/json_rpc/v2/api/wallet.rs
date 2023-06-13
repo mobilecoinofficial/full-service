@@ -468,12 +468,7 @@ where
             let fog_info = fog_info.unwrap_or_default();
 
             let account = service
-                .create_account(
-                    name,
-                    fog_info.report_url,
-                    fog_info.report_id,
-                    fog_info.authority_spki,
-                )
+                .create_account(name, fog_info.report_url, fog_info.authority_spki)
                 .map_err(format_error)?;
 
             let next_subaddress_index = service
@@ -1053,7 +1048,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
@@ -1091,7 +1085,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
