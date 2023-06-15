@@ -1,7 +1,6 @@
 use crate::db::WalletDbError;
-use base64;
+use base64::{engine::general_purpose, Engine};
 use ed25519_dalek::{PublicKey, Signature, Verifier};
-use std::error::Error;
 
 const META_DATA_URL: &str = "https://config.mobilecoin.foundation/token_metadata.json";
 const SIGNATURE_URL: &str = "https://config.mobilecoin.foundation/token_metadata.sig";
@@ -19,7 +18,7 @@ pub fn get_token_metadata() -> Result<TokenMetadata, WalletDbError> {
 
     let sig = reqwest::blocking::get(SIGNATURE_URL)?.text()?;
     if let Ok(sig) = Signature::from_bytes(sig.as_bytes()) {
-        let der_bytes = base64::decode(VERIFIER_KEY)?;
+        let der_bytes = general_purpose::STANDARD.decode(VERIFIER_KEY)?;
         let der_bytes = der_bytes.as_slice();
         let public_key = PublicKey::from_bytes(der_bytes)?;
 

@@ -155,7 +155,7 @@ pub enum WalletDbError {
     MissingKeyImageForInputTxo(String),
 
     /// Reqwest library errors
-    ReqwestError,
+    ReqwestError(reqwest::Error),
 
     /// ed25519-dalek error
     Dalek(ed25519_dalek::ed25519::Error),
@@ -229,7 +229,7 @@ impl From<mc_crypto_keys::KeyError> for WalletDbError {
 
 impl From<reqwest::Error> for WalletDbError {
     fn from(src: reqwest::Error) -> Self {
-        Self::ReqwestError
+        Self::ReqwestError(src)
     }
 }
 
