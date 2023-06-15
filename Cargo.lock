@@ -2598,8 +2598,8 @@ name = "mc-crypto-keys"
 version = "4.1.0-pre0"
 dependencies = [
  "base64 0.21.2",
- "curve25519-dalek",
- "digest",
+ "curve25519-dalek 4.0.0-rc.1",
+ "digest 0.10.7",
  "displaydoc",
  "ed25519 2.2.1",
  "ed25519-dalek 2.0.0-pre.0",
