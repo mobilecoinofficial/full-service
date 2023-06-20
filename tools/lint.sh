@@ -8,7 +8,7 @@ if [[ ! -z "$1" ]]; then
     cd "$1"
 fi
 
-for toml in $(grep --exclude-dir cargo --exclude-dir rust-mbedtls --exclude-dir mobilecoin --include=Cargo.toml -r . -e '\[workspace\]' | cut -d: -f1); do
+for toml in $(grep --exclude-dir cargo --exclude-dir rust-mbedtls --exclude-dir mobilecoin --exclude-dir ledger-mob --include=Cargo.toml -r . -e '\[workspace\]' | cut -d: -f1); do
   pushd $(dirname $toml) >/dev/null
   echo "Linting in $PWD"
   cargo fmt -- --unstable-features --check
