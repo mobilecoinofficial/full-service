@@ -22,9 +22,7 @@ pub struct AccountKey {
     /// Fog Report server url (if user has Fog service), empty string otherwise.
     pub fog_report_url: String,
 
-    /// Fog Report Key (if user has Fog service), empty otherwise
-    /// The key labelling the report to use, from among the several reports
-    /// which might be served by the fog report server.
+    /// Unused, always empty string.
     pub fog_report_id: String,
 
     /// Fog Authority Subject Public Key Info (if user has Fog service),
@@ -68,10 +66,8 @@ pub struct FogInfo {
     /// Fog Report server url (if user has Fog service), empty string otherwise.
     pub report_url: String,
 
-    /// Fog Report Key (if user has Fog service), empty otherwise
-    /// The key labelling the report to use, from among the several reports
-    /// which might be served by the fog report server.
-    pub report_id: String,
+    /// Unused
+    pub report_id: Option<String>,
 
     /// Fog Authority Subject Public Key Info (if user has Fog service),
     /// empty string otherwise.

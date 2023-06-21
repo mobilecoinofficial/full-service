@@ -30,6 +30,7 @@ use crate::{
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
+use mc_transaction_signer::types::TxoSyncReq;
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::HashMap;
@@ -84,8 +85,7 @@ pub enum JsonCommandResponse {
         json_rpc_request: JsonRPCRequest,
     },
     create_view_only_account_sync_request {
-        account_id: String,
-        incomplete_txos_encoded: Vec<String>,
+        txo_sync_request: TxoSyncReq,
     },
     export_account_secrets {
         account_secrets: AccountSecrets,
@@ -147,6 +147,10 @@ pub enum JsonCommandResponse {
     },
     get_network_status {
         network_status: NetworkStatus,
+    },
+    get_token_metadata {
+        verified: bool,
+        metadata: String,
     },
     get_transaction_log {
         transaction_log: TransactionLog,

@@ -1,139 +1,12 @@
 import asyncio
 import os
-import json
-import re
-import pytest
+import pytest  # Fixtures are in conftest.py
 
-from mobilecoin.client import (
-    ClientAsync,
-    WalletAPIError,
-    log as client_log,
-)
+from mobilecoin.client import WalletAPIError
 from mobilecoin.token import get_token, Amount
 
 MOB = get_token('MOB')
 EUSD = get_token('EUSD')
-
-# Enable debug logging during unittests.
-client_log.setLevel('DEBUG')
-
-
-@pytest.fixture(scope='session')
-async def client():
-    async with ClientAsync() as client:
-        yield client
-
-@pytest.fixture(scope='session')
-async def fees(client):
-    """Get the default fee amounts."""
-    fees = {}
-    network_status = await client.get_network_status()
-    for token_id, value in network_status['fees'].items():
-        try:
-            amount = Amount.from_storage_units(value, token_id)
-            fees[amount.token] = amount
-        except KeyError:
-            pass  # Ignore unknown tokens.
-    return fees
-
-
-@pytest.fixture(scope='session')
-async def source_account(client):
-    """
-    Import the account specified by the MC_WALLET_FILE environment variable,
-    and return its account id.
-    """
-    wallet_file = os.environ['MC_WALLET_FILE']
-    with open(wallet_file) as f:
-        data = json.load(f)
-
-    account_id = None
-    try:
-        # Import an account.
-        account = await client.import_account(
-            mnemonic=data['mnemonic'],
-            first_block_index=data['first_block_index'],
-        )
-        account_id = account['id']
-
-    except WalletAPIError as e:
-        # If we have already imported this account, get the account id from the
-        # server error text with a regex, and load the account.
-        error_text = e.response['error']['data']['server_error']
-        match = re.search(r'AccountAlreadyExists\("(.*?)"\)', error_text)
-        if match is not None:
-            account_id = match.group(1)
-        else:
-            raise
-
-    assert account_id is not None
-
-    # Wait for the account to sync, and check that it has sufficient balance.
-    status = await client.poll_account_status(account_id, timeout=60)
-    initial_balance = Amount.from_storage_units(
-        status['balance_per_token'][str(MOB.token_id)]['unspent'],
-        MOB,
-    )
-    assert initial_balance >= Amount.from_display_units(0.1, MOB)
-
-    return status['account']
-
-
-@pytest.fixture
-async def account_factory(client, source_account, fees):
-    class AccountFactory:
-        def __init__(self):
-            self.temp_accounts = []
-
-        async def create(self):
-            temp_account = await client.create_account()
-            self.temp_accounts.append(temp_account)
-            return temp_account
-
-        async def create_fog(self):
-            temp_fog_account = await client.create_account(
-                fog_report_url=os.environ['MC_FOG_REPORT_URL'],
-                fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
-            )
-            self.temp_accounts.append(temp_fog_account)
-            return temp_fog_account
-
-        async def cleanup(self):
-            await asyncio.gather(*(
-                _clean_up_temp_account(client, source_account, temp_account, fees)
-                for temp_account in self.temp_accounts
-            ))
-
-    account_factory = AccountFactory()
-
-    yield account_factory
-
-    await account_factory.cleanup()
-
-
-async def _clean_up_temp_account(client, source_account, temp_account, fees):
-    # Send all funds back to the main account.
-    tx_index = None
-    status = await client.get_account_status(temp_account['id'])
-    for token_id, value in status['balance_per_token'].items():
-        amount = Amount.from_storage_units(value['unspent'], token_id)
-        if amount >= fees[amount.token]:
-            send_amount = amount - fees[amount.token]
-            transaction_log, _ = await client.build_and_submit_transaction(
-                temp_account['id'],
-                send_amount,
-                source_account['main_address'],
-            )
-            tx_index = int(transaction_log['submitted_block_index'])
-
-    # Ensure the temporary account has no funds remaining.
-    if tx_index is not None:
-        status = await client.poll_account_status(temp_account['id'], tx_index + 1)
-        for balance in status['balance_per_token'].values():
-            assert int(balance['unspent']) == 0
-
-    # Delete the temporary account.
-    await client.remove_account(temp_account['id'])
 
 
 async def test_version(client):
@@ -156,7 +29,7 @@ async def test_network_status(client):
 
 
 async def test_network_status_fees(fees):
-    assert sorted( t.short_code for t in fees.keys() ) == ['MOB', 'eUSD']
+    assert sorted( t.short_code for t in fees.keys() ) == ['FauxUSD', 'MOB', 'eUSD']
     assert all( isinstance(a, Amount) for a in fees.values() )
 
 
@@ -208,6 +81,14 @@ async def test_account_status(client, source_account):
         'recovery_mode',
         'view_only',
     ]
+
+
+async def test_create_account(client):
+    account = await client.create_account(name='test_account')
+    assert account['name'] == 'test_account'
+    await client.remove_account(account['id'])
+    with pytest.raises(WalletAPIError):
+        await client.get_account_status(account['id'])
 
 
 async def test_send_transaction_self(client, source_account, fees):
