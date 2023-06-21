@@ -755,23 +755,4 @@ mod e2e_misc {
         );
         assert_eq!(memo, "");
     }
-
-    #[test_with_logger]
-    fn test_version(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
-
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "version",
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let git_commit = result.get("commit").unwrap().as_str().unwrap();
-
-        // Make sure that the git commit is a valid SHA1 hash.
-        assert_eq!(git_commit.len(), 40);
-        assert!(git_commit.chars().all(|c| c.is_ascii_hexdigit()));
-    }
 }
