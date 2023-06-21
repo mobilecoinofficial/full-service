@@ -565,7 +565,8 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::get_account_status { account_id } => {
+        JsonCommandRequest::get_account_status { account_id }
+        | JsonCommandRequest::get_balance { account_id } => {
             let account = service
                 .get_account(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
@@ -688,28 +689,6 @@ where
                 network_block_height: network_status.network_block_height.to_string(),
                 local_block_height: network_status.local_block_height.to_string(),
                 balance_per_token,
-            }
-        }
-        JsonCommandRequest::get_balance { account_id } => {
-            let account_id = AccountID(account_id);
-            let balance = service
-                .get_balance_for_account(&account_id)
-                .map_err(format_error)?;
-
-            let balance_formatted = BalanceMap(
-                balance
-                    .iter()
-                    .map(|(k, v)| (k.to_string(), Balance::from(v)))
-                    .collect(),
-            );
-
-            let account = service.get_account(&account_id).map_err(format_error)?;
-            let network_status = service.get_network_status().map_err(format_error)?;
-
-            JsonCommandResponse::get_balance {
-                balance_per_token: balance_formatted,
-                account_block_height: account.next_block_index.to_string(),
-                network_block_height: network_status.network_block_height.to_string(),
             }
         }
         JsonCommandRequest::get_block {

@@ -114,14 +114,6 @@ class ClientAsync:
             },
         })
 
-    async def get_balance(self, account_id):
-        return await self._req({
-            "method": "get_balance",
-            "params": {
-                "account_id": account_id,
-            },
-        })
-
     async def create_account(
         self,
         name=None,
@@ -444,7 +436,6 @@ class ClientSync:
 
 
 def censored(d):
-
     """Censor any values in the dictionary containing seed mnemonics or proto data."""
 
     if not isinstance(d, dict):
