@@ -2,14 +2,13 @@
 
 //! Service for managing accounts.
 
-use std::ops::DerefMut;
+use std::{convert::TryFrom, ops::DerefMut};
 
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
-        models::{Account, AssignedSubaddress, Txo},
+        models::{Account, Txo},
         txo::TxoModel,
         WalletDbError,
     },
@@ -17,9 +16,6 @@ use crate::{
     service::{
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
-    },
-    util::encoding_helpers::{
-        hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex, ristretto_to_hex,
     },
 };
 
@@ -30,10 +26,10 @@ use displaydoc::Display;
 use mc_account_keys::{AccountKey, RootEntropy};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::RistrettoPublic;
+use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
-use mc_transaction_core::ring_signature::KeyImage;
+use mc_transaction_signer::types::TxoSynced;
 
 #[derive(Display, Debug)]
 pub enum AccountServiceError {
@@ -72,6 +68,9 @@ pub enum AccountServiceError {
 
     /// JSON Rpc Request was formatted incorrectly
     InvalidJsonRPCRequest,
+
+    /// Key Error: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -122,6 +121,12 @@ impl From<mc_util_serial::DecodeError> for AccountServiceError {
     }
 }
 
+impl From<mc_crypto_keys::KeyError> for AccountServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
+    }
+}
+
 /// AccountService trait defining the ways in which the wallet can interact with and manage
 #[rustfmt::skip]
 pub trait AccountService {
@@ -133,14 +138,12 @@ pub trait AccountService {
     ///|----------------------|----------------------------------------|------------------------------------------------------------------|
     ///| `name`               | A label for this account.              | A label can have duplicates, but it is not recommended.          |
     ///| `fog_report_url`     | Fog Report server url.                 | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `fog_report_id`      | Fog Report Key.                        | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki` | Fog Authority Subject Public Key Info. | Applicable only if user has Fog service, empty string otherwise. |
     ///
     fn create_account(
         &self,
         name: Option<String>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -165,7 +168,6 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -180,7 +182,6 @@ pub trait AccountService {
     ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.               |
     ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
     ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `fog_report_id`         | Fog Report Key.                                         | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
     ///
     #[allow(clippy::too_many_arguments)]
@@ -191,7 +192,6 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError>;
 
@@ -305,14 +305,12 @@ pub trait AccountService {
     ///| Name                     | Purpose                                                      | Notes                                                    |
     ///|--------------------------|--------------------------------------------------------------|----------------------------------------------------------|
     ///| `account_id`             | The account on which to perform this action.                 | Account must exist in the wallet as a view only account. |
-    ///| `txo_ids_and_key_images` | signed txos. A array of tuples (txoID, KeyImage)             |                                                          |
-    ///| `next_subaddress_index`  | The updated next subaddress index to assign for this account |                                                          |
+    ///| `synced_txos` | An array of TxoSynced objects (TxOutPublic, KeyImage)             |                                                          |
     ///
     fn sync_account(
         &self,
         account_id: &AccountID,
-        txo_ids_and_key_images: Vec<(String, String)>,
-        next_subaddress_index: u64,
+        synced_txos: Vec<TxoSynced>,
     ) -> Result<(), AccountServiceError>;
 
     /// Remove an account from the wallet.
@@ -339,7 +337,6 @@ where
         &self,
         name: Option<String>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
@@ -377,7 +374,6 @@ where
                 None,
                 &name.unwrap_or_default(),
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?;
@@ -393,7 +389,6 @@ where
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
@@ -427,7 +422,6 @@ where
                 first_block_index,
                 next_subaddress_index,
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?)
@@ -441,7 +435,6 @@ where
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
-        fog_report_id: String,
         fog_authority_spki: String,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
@@ -468,7 +461,6 @@ where
                 first_block_index,
                 next_subaddress_index,
                 fog_report_url,
-                fog_report_id,
                 fog_authority_spki,
                 conn,
             )?)
@@ -490,10 +482,11 @@ where
             first_block_index,
         );
 
-        let view_private_key =
-            hex_to_ristretto(&view_private_key).map_err(AccountServiceError::Base64DecodeError)?;
-        let spend_public_key = hex_to_ristretto_public(&spend_public_key)
-            .map_err(AccountServiceError::Base64DecodeError)?;
+        let view_private_key_hex = hex::decode(view_private_key)?;
+        let view_private_key = RistrettoPrivate::try_from(view_private_key_hex.as_slice())?;
+
+        let spend_public_key_hex = hex::decode(spend_public_key)?;
+        let spend_public_key = RistrettoPublic::try_from(spend_public_key_hex.as_slice())?;
 
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
@@ -537,8 +530,8 @@ where
         let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
 
         let json_command_request = JsonCommandRequest::import_view_only_account {
-            view_private_key: ristretto_to_hex(view_private_key),
-            spend_public_key: ristretto_public_to_hex(&spend_public_key),
+            view_private_key: hex::encode(view_private_key.to_bytes()),
+            spend_public_key: hex::encode(spend_public_key.to_bytes()),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
             next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
@@ -602,8 +595,7 @@ where
     fn sync_account(
         &self,
         account_id: &AccountID,
-        txo_ids_and_key_images: Vec<(String, String)>,
-        next_subaddress_index: u64,
+        synced_txos: Vec<TxoSynced>,
     ) -> Result<(), AccountServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
@@ -615,17 +607,13 @@ where
             ));
         }
 
-        for (txo_id_hex, key_image_encoded) in txo_ids_and_key_images {
-            let key_image: KeyImage = mc_util_serial::decode(&hex::decode(key_image_encoded)?)?;
-            let spent_block_index = self.ledger_db.check_key_image(&key_image)?;
-            Txo::update_key_image(&txo_id_hex, &key_image, spent_block_index, conn)?;
-        }
-
-        for _ in account.next_subaddress_index(conn)?..next_subaddress_index {
-            AssignedSubaddress::create_next_for_account(
-                &account_id.to_string(),
-                "Recovered In Account Sync",
-                &self.ledger_db,
+        for synced_txo in synced_txos {
+            let spent_block_index = self.ledger_db.check_key_image(&synced_txo.key_image)?;
+            let ristretto_public: &RistrettoPublic = synced_txo.tx_out_public_key.as_ref();
+            Txo::update_key_image_by_pubkey(
+                &ristretto_public.into(),
+                &synced_txo.key_image,
+                spent_block_index,
                 conn,
             )?;
         }
@@ -651,6 +639,7 @@ mod tests {
     use super::*;
     use crate::{
         db::{models::Txo, txo::TxoModel},
+        service::address::AddressService,
         test_utils::{
             add_block_to_ledger_db, create_test_received_txo, generate_n_blocks_on_ledger,
             get_empty_test_ledger, get_test_ledger, manually_sync_account, setup_wallet_service,
@@ -661,10 +650,10 @@ mod tests {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_rand::RngCore;
-    use mc_transaction_core::{tokens::Mob, Amount, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::convert::TryInto;
+    use std::convert::{TryFrom, TryInto};
 
     #[test_with_logger]
     fn test_resync_account(logger: Logger) {
@@ -696,7 +685,6 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
         let account_id = AccountID(account.id);
@@ -724,7 +712,7 @@ mod tests {
 
         // create an account that has its first_block_index set to later in the ledger
         let account2 = service
-            .create_account(None, "".to_string(), "".to_string(), "".to_string())
+            .create_account(None, "".to_string(), "".to_string())
             .unwrap();
         assert_eq!(
             account2.first_block_index as u64,
@@ -795,7 +783,6 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
         let account_a_id = AccountID(account_a.id.clone());
@@ -806,7 +793,6 @@ mod tests {
                 None,
                 None,
                 None,
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
             )
@@ -946,12 +932,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // Add a transaction, with transaction status.
@@ -1007,12 +988,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // Even though we don't have a network connection, it sets the block indices
@@ -1044,12 +1020,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(
-                Some("A".to_string()),
-                "".to_string(),
-                "".to_string(),
-                "".to_string(),
-            )
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
             .unwrap();
 
         // The block indices are set to zero because we have no ledger information
@@ -1094,8 +1065,8 @@ mod tests {
 
         let view_only_account = service
             .import_view_only_account(
-                ristretto_to_hex(view_account_key.view_private_key()),
-                ristretto_public_to_hex(view_account_key.spend_public_key()),
+                hex::encode(view_account_key.view_private_key().to_bytes()),
+                hex::encode(view_account_key.spend_public_key().to_bytes()),
                 None,
                 None,
                 None,
@@ -1151,28 +1122,19 @@ mod tests {
         let view_only_account = service.get_account(&account_id).unwrap();
         assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 2);
 
-        let key_image_1 = KeyImage::from(rng.next_u64());
-        let key_image_2 = KeyImage::from(rng.next_u64());
-
-        let key_image_1_hex = hex::encode(mc_util_serial::encode(&key_image_1));
-        let key_image_2_hex = hex::encode(mc_util_serial::encode(&key_image_2));
-
-        let txo_id_hex_1 = unverified_txos[0].id.clone();
-        let txo_id_hex_2 = orphaned_txos[0].id.clone();
+        let txo_synced_1 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&unverified_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
 
         service
-            .sync_account(
-                &account_id,
-                vec![
-                    (txo_id_hex_1, key_image_1_hex),
-                    (txo_id_hex_2, key_image_2_hex),
-                ],
-                3,
-            )
+            .sync_account(&account_id, vec![txo_synced_1])
             .unwrap();
 
         let view_only_account = service.get_account(&account_id).unwrap();
-        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 2);
 
         let unverified_txos = Txo::list_unverified(
             Some(&account_id.to_string()),
@@ -1199,7 +1161,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(orphaned_txos.len(), 0);
+        assert_eq!(orphaned_txos.len(), 1);
 
         let unspent_txos = Txo::list_unspent(
             Some(&account_id.to_string()),
@@ -1213,6 +1175,64 @@ mod tests {
         )
         .unwrap();
 
+        assert_eq!(unspent_txos.len(), 1);
+
+        service
+            .assign_address_for_account(&account_id, None)
+            .unwrap();
+
+        let unverified_txos = Txo::list_unverified(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
+
+        assert_eq!(unverified_txos.len(), 1);
+
+        let txo_synced_2 = TxoSynced {
+            tx_out_public_key: RistrettoPublic::try_from(&orphaned_txos[0].public_key().unwrap())
+                .unwrap()
+                .into(),
+            key_image: KeyImage::from(rng.next_u64()),
+        };
+
+        service
+            .sync_account(&account_id, vec![txo_synced_2])
+            .unwrap();
+
+        let view_only_account = service.get_account(&account_id).unwrap();
+        assert_eq!(view_only_account.next_subaddress_index(conn).unwrap(), 3);
+
+        let unverified_txos = Txo::list_unverified(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
+        assert_eq!(unverified_txos.len(), 0);
+
+        let unspent_txos = Txo::list_unspent(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        )
+        .unwrap();
         assert_eq!(unspent_txos.len(), 2);
     }
 }

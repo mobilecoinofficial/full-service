@@ -47,13 +47,17 @@ class ClientAsync:
         await self.session.close()
 
     async def _req(self, request_data):
+        # Disable showing sensitive data from within this function during unittests.
+        __tracebackhide__ = True
+
         # Assemble request.
         default_params = {
             "jsonrpc": "2.0",
             "id": 1,
         }
         request_data = {**request_data, **default_params}
-        log.debug(f'POST {json.dumps(request_data, indent=4)}')
+
+        log.debug(f'POST {json.dumps(censored(request_data), indent=4)}')
 
         # Optionally construct API key header.
         headers = {}
@@ -64,7 +68,7 @@ class ClientAsync:
         async with self.session.post(self.url, json=request_data, headers=headers) as response:
             r_json = await response.text()
         r = json.loads(r_json)
-        log.debug(f'Response: {json.dumps(r, indent=4)}')
+        log.debug(f'Response: {json.dumps(censored(r), indent=4)}')
 
         # Get result.
         try:
@@ -426,3 +430,24 @@ class ClientSync:
             asyncio.run(runner())
             return result
         return inner
+
+
+def censored(d):
+    """Censor any values in the dictionary containing seed mnemonics or proto data."""
+
+    if not isinstance(d, dict):
+        return d
+
+    censored_substrings = ['mnemonic', 'proto']
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            v = censored(v)
+        elif isinstance(v, list):
+            v = [censored(x) for x in v]
+        else:
+            for s in censored_substrings:
+                if s in k:
+                    v = '...'
+        result[k] = v
+    return result

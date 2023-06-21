@@ -1,6 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
+use reqwest;
 
 use displaydoc::Display;
 
@@ -152,6 +153,12 @@ pub enum WalletDbError {
 
     /// Expected to find a key image for a txo with id: {0}
     MissingKeyImageForInputTxo(String),
+
+    /// Reqwest library errors
+    ReqwestError(reqwest::Error),
+
+    /// ed25519-dalek error
+    Dalek(ed25519_dalek::ed25519::Error),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -217,5 +224,17 @@ impl From<base64::DecodeError> for WalletDbError {
 impl From<mc_crypto_keys::KeyError> for WalletDbError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::KeyError(src)
+    }
+}
+
+impl From<reqwest::Error> for WalletDbError {
+    fn from(src: reqwest::Error) -> Self {
+        Self::ReqwestError(src)
+    }
+}
+
+impl From<ed25519_dalek::ed25519::Error> for WalletDbError {
+    fn from(src: ed25519_dalek::ed25519::Error) -> Self {
+        Self::Dalek(src)
     }
 }

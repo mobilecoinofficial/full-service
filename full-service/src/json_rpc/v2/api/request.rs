@@ -11,6 +11,7 @@ use crate::json_rpc::{
 };
 
 use mc_mobilecoind_json::data_types::JsonTxOut;
+use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -180,6 +181,7 @@ pub enum JsonCommandRequest {
         txo_id: String,
     },
     get_network_status,
+    get_token_metadata,
     get_transaction_log {
         transaction_log_id: String,
     },
@@ -251,8 +253,7 @@ pub enum JsonCommandRequest {
     },
     sync_view_only_account {
         account_id: String,
-        completed_txos: Vec<(String, String)>,
-        next_subaddress_index: String,
+        synced_txos: Vec<TxoSynced>,
     },
     update_account_name {
         account_id: String,

@@ -38,6 +38,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         ledger::LedgerService,
         models::tx_proposal::TxProposal,
+        network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         transaction::{TransactionMemo, TransactionService},
@@ -51,15 +52,17 @@ use crate::{
         PrintableWrapperType,
     },
 };
+
 use mc_account_keys::burn_address;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::CompressedRistrettoPublic;
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
 use mc_transaction_extra::BurnRedemptionMemo;
+use mc_transaction_signer::types::{AccountId, TxoSyncReq, TxoUnsynced};
 use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{
@@ -466,12 +469,7 @@ where
             let fog_info = fog_info.unwrap_or_default();
 
             let account = service
-                .create_account(
-                    name,
-                    fog_info.report_url,
-                    fog_info.report_id,
-                    fog_info.authority_spki,
-                )
+                .create_account(name, fog_info.report_url, fog_info.authority_spki)
                 .map_err(format_error)?;
 
             let next_subaddress_index = service
@@ -522,7 +520,7 @@ where
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
-                    Some(account_id.clone()),
+                    Some(account_id),
                     None,
                     Some(TxoStatus::Unverified),
                     None,
@@ -533,27 +531,31 @@ where
                 )
                 .map_err(format_error)?;
 
-            let unverified_tx_results: Result<Vec<mc_transaction_core::tx::TxOut>, JsonRPCError> =
-                unverified_txos
-                    .iter()
-                    .map(
-                        |(txo, _)| -> Result<mc_transaction_core::tx::TxOut, JsonRPCError> {
-                            service.get_txo_object(&txo.id).map_err(format_error)
-                        },
-                    )
-                    .collect::<Result<Vec<_>, JsonRPCError>>();
-
-            let unverified_tx_results = unverified_tx_results?;
-
-            let unverified_txos_encoded: Vec<String> = unverified_tx_results
-                .iter()
-                .map(|txo_obj| hex::encode(mc_util_serial::encode(txo_obj)))
-                .collect();
-
-            JsonCommandResponse::create_view_only_account_sync_request {
-                account_id,
-                incomplete_txos_encoded: unverified_txos_encoded,
+            let mut unsynced_txos = vec![];
+            for (txo, _) in unverified_txos {
+                let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
+                    .try_into()
+                    .map_err(format_error)?;
+                // We can guarantee that subaddress index will exist because the query for
+                // unverified txos only returns txos that have a subaddress
+                // index but not a key image.
+                let subaddress_index = txo.subaddress_index.unwrap() as u64;
+                unsynced_txos.push(TxoUnsynced {
+                    subaddress: subaddress_index,
+                    tx_out_public_key: txo_pubkey.into(),
+                });
             }
+
+            // let account_id: AccountId =
+            // account_id.as_str().try_into().map_err(format_error)?;
+            let account_id = AccountId::from([0u8; 32]);
+
+            let txo_sync_request = TxoSyncReq {
+                account_id,
+                txos: unsynced_txos,
+            };
+
+            JsonCommandResponse::create_view_only_account_sync_request { txo_sync_request }
         }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
@@ -846,6 +848,13 @@ where
             )
             .map_err(format_error)?,
         },
+        JsonCommandRequest::get_token_metadata => {
+            let metadata_info = get_token_metadata().map_err(format_error)?;
+            JsonCommandResponse::get_token_metadata {
+                verified: metadata_info.verified,
+                metadata: metadata_info.metadata,
+            }
+        }
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             let (transaction_log, associated_txos, value_map) = service
                 .get_transaction_log(&transaction_log_id)
@@ -1047,7 +1056,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
@@ -1085,7 +1093,6 @@ where
                     fb,
                     ns,
                     fog_info.report_url,
-                    fog_info.report_id,
                     fog_info.authority_spki,
                 )
                 .map_err(format_error)?;
@@ -1207,15 +1214,10 @@ where
         }
         JsonCommandRequest::sync_view_only_account {
             account_id,
-            completed_txos,
-            next_subaddress_index,
+            synced_txos,
         } => {
             service
-                .sync_account(
-                    &AccountID(account_id),
-                    completed_txos,
-                    next_subaddress_index.parse::<u64>().map_err(format_error)?,
-                )
+                .sync_account(&AccountID(account_id), synced_txos)
                 .map_err(format_error)?;
 
             JsonCommandResponse::sync_view_only_account

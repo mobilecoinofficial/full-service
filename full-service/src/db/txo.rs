@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021 MobileCoin Inc.
+// Copyright (c) 2020-2023 MobileCoin Inc.
 
 //! DB impl for the Txo model.
 
@@ -687,6 +687,26 @@ pub trait TxoModel {
     /// # Returns
     /// * TxOutMembershipProof 
     fn membership_proof(&self, ledger_db: &LedgerDB) -> Result<TxOutMembershipProof, WalletDbError>;
+
+    /// Update the key image and spent block index for a txo by its public key.
+    /// 
+    /// # Arguments
+    /// 
+    ///| Name        | Purpose                                                   | Notes                                     |
+    ///|-------------|-----------------------------------------------------------|-------------------------------------------|
+    ///| `public_key` | The compressed ristretto public to use to search for the txo. | |
+    ///| `key_image` | The Key Image to add to the txo. | |
+    ///| `spent_block_index` | The spent block index to update for the txo. |  |
+    ///| `conn` | A reference to the connection of wallet database |  |
+    ///
+    /// # Returns
+    /// * unit 
+    fn update_key_image_by_pubkey(
+        public_key: &CompressedRistrettoPublic,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: Conn,
+    ) -> Result<(), WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -1229,7 +1249,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1295,7 +1317,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1466,7 +1490,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1563,7 +1589,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(token_id) = token_id {
@@ -1667,7 +1695,9 @@ impl TxoModel for Txo {
 
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
-            query = query.filter(txos::subaddress_index.eq(subaddress.subaddress_index));
+            query = query
+                .filter(txos::subaddress_index.eq(subaddress.subaddress_index))
+                .filter(txos::account_id.eq(subaddress.account_id));
         }
 
         if let Some(account_id_hex) = account_id_hex {
@@ -1930,6 +1960,26 @@ impl TxoModel for Txo {
 
         Ok(membership_proof)
     }
+
+    fn update_key_image_by_pubkey(
+        public_key: &CompressedRistrettoPublic,
+        key_image: &KeyImage,
+        spent_block_index: Option<u64>,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        let pubkey = &mc_util_serial::encode(public_key);
+
+        let txo = txos::table
+            .filter(txos::public_key.eq(pubkey))
+            .first::<Txo>(conn)?;
+
+        let txo = Txo::get(&txo.id, conn)?;
+        Self::update_key_image(&txo.id, key_image, spent_block_index, conn)?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1986,7 +2036,6 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2330,7 +2379,6 @@ mod tests {
             "Bob's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2435,7 +2483,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -2506,7 +2553,6 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2623,7 +2669,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2689,7 +2734,6 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2745,7 +2789,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2820,7 +2863,6 @@ mod tests {
             None,
             None,
             "Alice",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -2980,7 +3022,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3030,7 +3071,6 @@ mod tests {
             None,
             None,
             "Alice's Main Account",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3124,7 +3164,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -3181,7 +3220,6 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
-            "".to_string(),
             conn,
         )
         .unwrap();
@@ -3233,7 +3271,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             conn,
@@ -3323,7 +3360,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3424,7 +3460,6 @@ mod tests {
             None,
             None,
             "",
-            "".to_string(),
             "".to_string(),
             "".to_string(),
             &mut wallet_db.get_pooled_conn().unwrap(),

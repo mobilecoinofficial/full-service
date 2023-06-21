@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service-mirror"
-version = "2.5.0"
+version = "2.6.0"
 authors = ["MobileCoin"]
 edition = "2018"
 resolver = "2"
@@ -43,11 +43,10 @@ rand_core = { version = "0.6", default-features = false }
 rand_hc = "0.3"
 
 [build-dependencies]
-# Even though this is unused, it needs to be here otherwise Cargo brings in some weird mixture of packages/features that refuses to compile.
-# Go figure ¯\_(ツ)_/¯
-serde = { version = "1", default-features = false, features = ["alloc", "derive"] }
-
 mc-util-build-grpc = { path = "../mobilecoin/util/build/grpc" }
 mc-util-build-script = { path = "../mobilecoin/util/build/script" }
 
 cargo-emit = "0.2.1"
+# Even though this is unused, it needs to be here otherwise Cargo brings in some weird mixture of packages/features that refuses to compile.
+# Go figure ¯\_(ツ)_/¯
+serde = { version = "1", default-features = false, features = ["alloc", "derive"] }

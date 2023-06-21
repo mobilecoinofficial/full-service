@@ -11,7 +11,7 @@ Using the `--validator` command line argument for `full-service`, this allows ru
 1. The first step is to build `full-service`, follow the instructions [here](../README.md#build-and-run).
 Note that when building full-service you need to change the build command (`cargo build --release -p mc-full-service`) to `cargo build --release -p mc-full-service --no-default-features` if you are going to run it on a machine that cannot create outgoing TCP connections to the internet.
 
-1. Build the validator:
+1. Build the validator (for Mainnet):
 ```sh
     SGX_MODE=HW \
     IAS_MODE=PROD \
@@ -25,7 +25,7 @@ Note that when building full-service you need to change the build command (`carg
 TestNet example
 
 ```sh
-./target/release/mc-validator-service \
+./target/release/validator-service \
         --ledger-db /tmp/ledger-db/ \
         --peer mc://node1.test.mobilecoin.com/ \
         --peer mc://node2.test.mobilecoin.com/ \
