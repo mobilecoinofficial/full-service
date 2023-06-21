@@ -357,14 +357,13 @@ where
         JsonCommandRequest::create_account {
             name,
             fog_report_url,
-            fog_report_id,
+            fog_report_id: _, // Deprecated
             fog_authority_spki,
         } => {
             let account = service
                 .create_account(
                     name,
                     fog_report_url.unwrap_or_default(),
-                    fog_report_id.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
                 )
                 .map_err(format_error)?;
@@ -933,7 +932,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_report_url,
-            fog_report_id,
+            fog_report_id: _, // Deprecated
             fog_authority_spki,
         } => {
             let fb = first_block_index
@@ -952,7 +951,6 @@ where
                     fb,
                     ns,
                     fog_report_url.unwrap_or_default(),
-                    fog_report_id.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
                 )
                 .map_err(format_error)?;
@@ -974,7 +972,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_report_url,
-            fog_report_id,
+            fog_report_id: _, // Deprecated
             fog_authority_spki,
         } => {
             let fb = first_block_index
@@ -993,7 +991,6 @@ where
                     fb,
                     ns,
                     fog_report_url.unwrap_or_default(),
-                    fog_report_id.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
                 )
                 .map_err(format_error)?;

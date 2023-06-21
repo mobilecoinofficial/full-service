@@ -890,7 +890,6 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
 
@@ -1006,7 +1005,6 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                "".to_string(),
             )
             .unwrap();
         manually_sync_account(
@@ -1070,7 +1068,6 @@ mod tests {
         let alice = service
             .create_account(
                 Some("Alice's Main Account".to_string()),
-                "".to_string(),
                 "".to_string(),
                 "".to_string(),
             )
