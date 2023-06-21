@@ -148,6 +148,10 @@ pub enum JsonCommandResponse {
     get_network_status {
         network_status: NetworkStatus,
     },
+    get_token_metadata {
+        verified: bool,
+        metadata: String,
+    },
     get_transaction_log {
         transaction_log: TransactionLog,
     },

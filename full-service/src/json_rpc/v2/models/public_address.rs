@@ -16,7 +16,8 @@ pub struct PublicAddress {
     /// The fog report url for this address.
     pub fog_report_url: Option<String>,
 
-    /// The fog report id for this address.
+    /// Deprecated. Still accepted on input for backward compatibility.
+    #[serde(skip)]
     pub fog_report_id: Option<String>,
 
     /// The fog authority signature over the report id.
@@ -29,7 +30,7 @@ impl From<&mc_account_keys::PublicAddress> for PublicAddress {
             view_public_key: hex::encode(src.view_public_key().to_bytes()),
             spend_public_key: hex::encode(src.spend_public_key().to_bytes()),
             fog_report_url: src.fog_report_url().map(|url| url.to_string()),
-            fog_report_id: src.fog_report_id().map(|id| id.to_string()),
+            fog_report_id: None, // Deprecated.
             fog_authority_sig: src.fog_authority_sig().map(hex::encode),
         }
     }

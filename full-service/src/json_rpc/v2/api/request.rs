@@ -181,6 +181,7 @@ pub enum JsonCommandRequest {
         txo_id: String,
     },
     get_network_status,
+    get_token_metadata,
     get_transaction_log {
         transaction_log_id: String,
     },
