@@ -71,7 +71,7 @@ async fn get_device_handle() -> Result<DeviceHandle<LedgerHandle>, HardwareWalle
 pub async fn sync_txos(
     unsynced_txos: Vec<(TxOut, u64)>,
 ) -> Result<Vec<TxoSynced>, HardwareWalletServiceError> {
-    let device_handle = get_device_handle().await?;
+    let mut device_handle = get_device_handle().await?;
 
     let mut synced_txos = vec![];
     for unsynced_txo in unsynced_txos {
