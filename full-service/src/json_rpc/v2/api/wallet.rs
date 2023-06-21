@@ -565,7 +565,8 @@ where
                 account_secrets: AccountSecrets::try_from(&account).map_err(format_error)?,
             }
         }
-        JsonCommandRequest::get_account_status { account_id } => {
+        JsonCommandRequest::get_account_status { account_id }
+        | JsonCommandRequest::get_balance { account_id } => {
             let account = service
                 .get_account(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
