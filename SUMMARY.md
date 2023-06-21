@@ -13,6 +13,7 @@
       * [Import Account Legacy](api-endpoints/v2/account/account/import\_account\_from\_legacy\_root\_entropy.md)
       * [Get Accounts](api-endpoints/v2/account/account/get\_accounts.md)
       * [Get Account Status](api-endpoints/v2/account/account/get\_account\_status.md)
+      * [Get Balance](v2/api-endpoints/get_balance.md)
       * [Update Account Name](api-endpoints/v2/account/account/update\_account\_name.md)
       * [Remove Account](api-endpoints/v2/account/account/remove\_account.md)
     * [Account Secrets](api-endpoints/v2/account/account-secrets/README.md)
