@@ -765,7 +765,6 @@ mod e2e_misc {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "version",
-            "params": {}
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
