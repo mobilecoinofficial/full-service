@@ -140,6 +140,9 @@ class ClientAsync:
         fog_report_url=None,
         fog_authority_spki=None,
     ):
+        # Disable showing sensitive data from within this function during unittests.
+        __tracebackhide__ = True
+
         params = {
             'mnemonic': mnemonic,
             'key_derivation_version': str(int(key_derivation_version)),
