@@ -741,14 +741,39 @@ where
             .map_err(format_error)?,
         },
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
-            let (transaction_log, associated_txos, _) = service
-                .get_transaction_log(&transaction_log_id)
-                .map_err(format_error)?;
+            // Check whether the transaction_log_id actually refers to the txo_id of a
+            // received transaction.
+            let txo_id = TxoID(transaction_log_id.clone());
+            let json_tx_log = if let Ok((txo, _)) = service.get_txo(&txo_id) {
+                // A txo was found, determine which address it was received at, if any.
+                let subaddress_b58 = if let Some(subaddress_index) = txo.subaddress_index {
+                    if let Some(ref account_id) = txo.account_id {
+                        let account_id = AccountID(account_id.clone());
+                        service.get_address_for_account(
+                            &account_id,
+                            subaddress_index,
+                        )
+                        .map(|assigned_sub| assigned_sub.public_address_b58)
+                        .ok()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
 
-            let json_tx_log = json_rpc::v1::models::transaction_log::TransactionLog::new(
-                &transaction_log,
-                &associated_txos,
-            );
+                TransactionLog::new_from_received_txo(&txo, subaddress_b58)
+                    .map_err(format_error)?
+            } else {
+                // Txo ID did not match, check whether this is a real transaction log ID.
+                let (transaction_log, associated_txos, _) = service
+                    .get_transaction_log(&transaction_log_id)
+                    .map_err(format_error)?;
+                json_rpc::v1::models::transaction_log::TransactionLog::new(
+                    &transaction_log,
+                    &associated_txos,
+                )
+            };
 
             JsonCommandResponse::get_transaction_log {
                 transaction_log: json_tx_log,
@@ -776,16 +801,7 @@ where
             let mut transaction_log_map: Map<String, serde_json::Value> = Map::new();
             let mut transaction_log_ids: Vec<String> = Vec::new();
 
-            let transaction_logs_and_txos = service
-                .list_transaction_logs(
-                    Some(account_id.clone()),
-                    None,
-                    None,
-                    min_block_index,
-                    max_block_index,
-                )
-                .map_err(format_error)?;
-
+            // Add txo ids for received transactions.
             let received_txos = service
                 .list_txos(
                     Some(account_id.clone()),
@@ -824,6 +840,17 @@ where
                 transaction_log_ids.push(received_tx_log.transaction_log_id.clone());
             }
 
+            // Add transaction log objects for sent transactions.
+            let transaction_logs_and_txos = service
+                .list_transaction_logs(
+                    Some(account_id.clone()),
+                    None,
+                    None,
+                    min_block_index,
+                    max_block_index,
+                )
+                .map_err(format_error)?;
+
             for (tx_log, associated_txos, _status) in transaction_logs_and_txos {
                 let tx_log_json =
                     serde_json::json!(json_rpc::v1::models::transaction_log::TransactionLog::new(
@@ -834,19 +861,18 @@ where
                 transaction_log_ids.push(tx_log.id.clone());
             }
 
+            // Handle ordering, offset and limit.
             transaction_log_ids.sort();
 
-            let transaction_log_ids_limitted;
-
-            if l - o < transaction_log_ids.len() as u64 {
+            let transaction_log_ids_limitted = if l - o < transaction_log_ids.len() as u64 {
                 let mut max = (o + l) as usize;
                 if max > transaction_log_ids.len() {
                     max = transaction_log_ids.len();
                 }
-                transaction_log_ids_limitted = transaction_log_ids[o as usize..max].to_vec();
+                transaction_log_ids[o as usize..max].to_vec()
             } else {
-                transaction_log_ids_limitted = transaction_log_ids.clone();
-            }
+                transaction_log_ids.clone()
+            };
 
             JsonCommandResponse::get_transaction_logs_for_account {
                 transaction_log_ids: transaction_log_ids_limitted,
