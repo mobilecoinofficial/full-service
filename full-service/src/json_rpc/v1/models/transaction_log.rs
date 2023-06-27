@@ -145,11 +145,6 @@ impl TransactionLog {
         txo: &db::models::Txo,
         assigned_address: Option<String>,
     ) -> Result<Self, String> {
-        let public_key_hex = match txo.public_key() {
-            Ok(pk) => hex::encode(pk.as_bytes()),
-            Err(_) => "".to_string(),
-        };
-
         Ok(TransactionLog {
             object: "transaction_log".to_string(),
             transaction_log_id: txo.id.clone(),
@@ -164,7 +159,11 @@ impl TransactionLog {
                 txo_id_hex: txo.id.to_string(),
                 recipient_address_id: "".to_string(),
                 value_pmob: txo.value.to_string(),
-                public_key: public_key_hex,
+                public_key: hex::encode(
+                    txo.public_key()
+                        .map_err(|_| "failed to decode txo public key")?
+                        .as_bytes(),
+                ),
             }],
             change_txos: vec![],
             assigned_address_id: assigned_address,
