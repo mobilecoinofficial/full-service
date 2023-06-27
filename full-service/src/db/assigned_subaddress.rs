@@ -264,7 +264,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.target_key)?;
+                    orphaned_txo.target_key.as_slice().try_into()?;
                 let tx_public_key_compressed: CompressedRistrettoPublic =
                     orphaned_txo.public_key.as_slice().try_into()?;
                 let tx_public_key: RistrettoPublic = (&tx_public_key_compressed).try_into()?;
@@ -299,7 +299,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
             for orphaned_txo in orphaned_txos.iter() {
                 let tx_out_target_key: RistrettoPublic =
-                    mc_util_serial::decode(&orphaned_txo.target_key)?;
+                    orphaned_txo.target_key.as_slice().try_into()?;
                 let tx_public_key_compressed: CompressedRistrettoPublic =
                     orphaned_txo.public_key.as_slice().try_into()?;
                 let tx_public_key: RistrettoPublic = (&tx_public_key_compressed).try_into()?;
