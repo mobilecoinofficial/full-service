@@ -2141,10 +2141,10 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let pubkey = &mc_util_serial::encode(public_key);
+        let pubkey = public_key.as_bytes().to_vec();
 
         let txo = txos::table
-            .filter(txos::public_key.eq(pubkey))
+            .filter(txos::public_key.eq(&pubkey))
             .first::<Txo>(conn)?;
 
         let txo = Txo::get(&txo.id, conn)?;
