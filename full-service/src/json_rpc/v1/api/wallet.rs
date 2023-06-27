@@ -746,22 +746,18 @@ where
             let txo_id = TxoID(transaction_log_id.clone());
             let json_tx_log = if let Ok((txo, _)) = service.get_txo(&txo_id) {
                 // A txo was found, determine which address it was received at, if any.
-                let subaddress_b58 = if let Some(subaddress_index) = txo.subaddress_index {
-                    if let Some(ref account_id) = txo.account_id {
+                let subaddress_b58 = match (&txo.subaddress_index, &txo.account_id) {
+                    (Some(subaddress_index), Some(account_id)) => {
                         let account_id = AccountID(account_id.clone());
                         service.get_address_for_account(
                             &account_id,
-                            subaddress_index,
+                            *subaddress_index,
                         )
                         .map(|assigned_sub| assigned_sub.public_address_b58)
                         .ok()
-                    } else {
-                        None
-                    }
-                } else {
-                    None
+                    },
+                    _ => None,
                 };
-
                 TransactionLog::new_from_received_txo(&txo, subaddress_b58)
                     .map_err(format_error)?
             } else {
