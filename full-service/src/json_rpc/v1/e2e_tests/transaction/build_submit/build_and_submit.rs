@@ -14,6 +14,7 @@ mod e2e_transaction {
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_ledger_db::Ledger;
+    use mc_mobilecoind_json::data_types::JsonTx;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
@@ -94,6 +95,29 @@ mod e2e_transaction {
         let tx_proposal = result.get("tx_proposal").unwrap();
         let tx = tx_proposal.get("tx").unwrap();
         let tx_prefix = tx.get("prefix").unwrap();
+
+        // Assert that the output txo has the correct public key
+        let transaction_log = result.get("transaction_log").unwrap();
+        let output_txo = transaction_log
+            .get("output_txos")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .first()
+            .unwrap();
+        let output_txo_public_key_from_tx_log =
+            output_txo.get("public_key").unwrap().as_str().unwrap();
+
+        // We cannot be sure which order the public keys will be for the output and
+        // change, so we can just check that it appears in the outputs list
+        let tx_from_proposal = serde_json::from_value::<JsonTx>(tx.clone()).unwrap();
+        assert!(tx_from_proposal
+            .prefix
+            .outputs
+            .iter()
+            .map(|o| o.public_key.clone())
+            .collect::<Vec<String>>()
+            .contains(&output_txo_public_key_from_tx_log.to_string()));
 
         // Assert the fee is correct in both places
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
