@@ -292,6 +292,15 @@ class Client:
         })
         return r['transaction_log']
 
+    def get_transaction_log(self, transaction_log_id):
+        r = self._req({
+            "method": "get_transaction_log",
+            "params": {
+                "transaction_log_id": transaction_log_id,
+            },
+        })
+        return r['transaction_log']
+
     def get_transaction_logs_for_account(self, account_id, offset=0, limit=100):
         r = self._req({
             "method": "get_transaction_logs_for_account",

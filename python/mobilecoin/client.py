@@ -4,9 +4,12 @@ import aiohttp
 import os
 import json
 import time
+from contextlib import contextmanager
 
 
-log = logging.getLogger('client_async')
+log = logging.getLogger('client')
+# log.setLevel(logging.DEBUG)
+
 
 DEFAULT_HOST = 'http://127.0.0.1'
 DEFAULT_PORT = 9090
@@ -454,3 +457,13 @@ def censored(d):
                     v = '...'
         result[k] = v
     return result
+
+
+@contextmanager
+def logged(level=logging.DEBUG):
+    """Turn on debug logging for the duration of this block."""
+    global log
+    old_level = log.getEffectiveLevel()
+    log.setLevel(level)
+    yield
+    log.setLevel(old_level)
