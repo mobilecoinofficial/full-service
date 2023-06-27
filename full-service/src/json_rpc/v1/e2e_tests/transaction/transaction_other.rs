@@ -11,14 +11,20 @@ mod e2e_transaction {
             api::test_utils::{dispatch, setup},
             models::transaction_log::{TransactionLog, TxoAbbrev},
         },
-        test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account, MOB},
+        test_utils::{
+            add_block_to_ledger_db, add_block_with_tx, add_block_with_tx_outs,
+            manually_sync_account, MOB,
+        },
         util::b58::b58_decode_public_address,
     };
 
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPrivate;
     use mc_ledger_db::Ledger;
     use mc_rand::rand_core::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
+    use mc_transaction_types::BlockVersion;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use serde_json::json;
 
@@ -234,11 +240,19 @@ mod e2e_transaction {
         let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
         let public_address = b58_decode_public_address(b58_public_address).unwrap();
 
-        // Add some transactions.
-        add_block_to_ledger_db(
+        let tx_out = TxOut::new(
+            // TODO: allow for subaddress index!
+            BlockVersion::MAX,
+            Amount::new(100, Mob::ID),
+            &public_address,
+            &RistrettoPrivate::from_random(&mut rng),
+            Default::default(),
+        )
+        .unwrap();
+
+        add_block_with_tx_outs(
             &mut ledger_db,
-            &vec![public_address],
-            100,
+            &vec![tx_out.clone()],
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
@@ -281,6 +295,7 @@ mod e2e_transaction {
             txo_id_hex: tx_log_id.to_string(),
             recipient_address_id: "".to_string(),
             value_pmob: 100.to_string(),
+            public_key: hex::encode(tx_out.public_key.as_bytes()),
         };
 
         let tx_log_expected = TransactionLog {

@@ -159,6 +159,7 @@ impl TransactionLog {
                 txo_id_hex: txo.id.to_string(),
                 recipient_address_id: "".to_string(),
                 value_pmob: txo.value.to_string(),
+                public_key: hex::encode(txo.public_key().unwrap().as_bytes()),
             }],
             change_txos: vec![],
             assigned_address_id: assigned_address,
@@ -241,6 +242,10 @@ pub struct TxoAbbrev {
     /// Available pico MOB for this Txo.
     /// If the account is syncing, this value may change.
     pub value_pmob: String,
+
+    /// Hex encoded bytes of the public key of this txo, which can be found on
+    /// the blockchain.
+    pub public_key: String,
 }
 
 impl TxoAbbrev {
@@ -249,6 +254,7 @@ impl TxoAbbrev {
             txo_id_hex: txo.id.clone(),
             recipient_address_id,
             value_pmob: (txo.value as u64).to_string(),
+            public_key: hex::encode(txo.public_key().unwrap().as_bytes()),
         }
     }
 }
