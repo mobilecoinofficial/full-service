@@ -749,17 +749,14 @@ where
                 let subaddress_b58 = match (&txo.subaddress_index, &txo.account_id) {
                     (Some(subaddress_index), Some(account_id)) => {
                         let account_id = AccountID(account_id.clone());
-                        service.get_address_for_account(
-                            &account_id,
-                            *subaddress_index,
-                        )
-                        .map(|assigned_sub| assigned_sub.public_address_b58)
-                        .ok()
-                    },
+                        service
+                            .get_address_for_account(&account_id, *subaddress_index)
+                            .map(|assigned_sub| assigned_sub.public_address_b58)
+                            .ok()
+                    }
                     _ => None,
                 };
-                TransactionLog::new_from_received_txo(&txo, subaddress_b58)
-                    .map_err(format_error)?
+                TransactionLog::new_from_received_txo(&txo, subaddress_b58).map_err(format_error)?
             } else {
                 // Txo ID did not match, check whether this is a real transaction log ID.
                 let (transaction_log, associated_txos, _) = service
