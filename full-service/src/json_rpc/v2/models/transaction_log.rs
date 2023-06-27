@@ -138,10 +138,15 @@ pub struct OutputTxo {
 
 impl OutputTxo {
     pub fn new(txo: &db::models::Txo, recipient_public_address_b58: String) -> Self {
+        let public_key_hex = match txo.public_key() {
+            Ok(pk) => hex::encode(pk.as_bytes()),
+            Err(_) => "".to_string(),
+        };
+
         Self {
             txo_id: txo.id.clone(),
             txo_id_hex: txo.id.clone(),
-            public_key: hex::encode(txo.public_key().unwrap().as_bytes()),
+            public_key: public_key_hex,
             amount: Amount::from(&txo.amount()),
             recipient_public_address_b58,
         }
