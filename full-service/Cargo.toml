@@ -60,7 +60,7 @@ ed25519-dalek = "1.0.1"
 grpcio = "0.12"
 hex = { version = "0.4", default-features = false }
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
-num_cpus = "1.15"
+num_cpus = "1.16"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }
 rayon = "1.7"
