@@ -90,4 +90,4 @@ url = "2.4"
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "8.2.1", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+vergen = { version = "8.2.4", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
