@@ -30,7 +30,7 @@ mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
-anyhow = "1.0.71"
+anyhow = "1.0.72"
 base64 = "0.21.2"
 clap = { version = "4.3", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
@@ -43,11 +43,11 @@ serde = { version = "1.0", default-features = false, features = ["alloc", "deriv
 serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
 strum = { version = "0.25.0", features = ["derive"] }
-strum_macros = "0.25.0"
+strum_macros = "0.25.1"
 subtle = { version = "2.5.0", default-features = false, features = ["i128"] }
 tiny-bip39 = "1.0"
 zeroize = { version = "1", default-features = false }
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "8.2.1", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+vergen = { version = "8.2.4", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
