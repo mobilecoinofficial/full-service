@@ -4,10 +4,10 @@ description: Get TXOs for a given account with offset and limit parameters
 
 # Get TXOs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
 
 | Optional Param             | Purpose                                                                                                  | Requirements                      |
-|----------------------------|----------------------------------------------------------------------------------------------------------|-----------------------------------|
+| -------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | `account_id`               | The account on which to perform this action.                                                             | Account must exist in the wallet. |
 | `address`                  | The address b58 on which to perform this action.                                                         | Address must exist in the wallet. |
 | `status`                   | Txo status filer. Available status: "unverified", "unspent", "spent", "orphaned", "pending", "secreted", |                                   |
@@ -16,20 +16,19 @@ description: Get TXOs for a given account with offset and limit parameters
 | `offset`                   | The pagination offset. Results start at the offset index.                                                |                                   |
 | `limit`                    | Limit for the number of results.                                                                         |                                   |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "get_txos",
   "params": {
-    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
-    "min_received_block_index": "128567",
-    "max_received_block_index": "128567",
+    "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+    "min_received_block_index": "1769500",
+    "max_received_block_index": "1769600",
     "offset": 2,
     "limit": 8
   },
@@ -37,72 +36,69 @@ description: Get TXOs for a given account with offset and limit parameters
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
-  "method":"get_txos",
-  "result":{
-    "txo_ids":[
-      "fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
-      "454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
-      "490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84"
+  "method": "get_txos",
+  "result": {
+    "txo_ids": [
+      "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+      "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+      "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b"
     ],
-    "txo_map":{
-      "fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542":{
-        "id":"fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
-        "value":"1234600000000",
-        "token_id":"0",
-        "received_block_index":"1352857",
-        "spent_block_index":null,
-        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
-        "status":"unspent",
-        "target_key":"0a20269a33ccc56fc4e17e8be492638d4160e2a20e067e876f31068ae8ac7ddcda73",
-        "public_key":"0a2052d89fc3cfd035bf2162f03bbf44139613fab7151d7cddc6d0ef44910edbd975",
-        "e_fog_hint":"0a542ed0bc15d1395f54a4077c7a08f1eb0e713aab700a18fe55a66419c6b5abf250e0be3098f317b1f948e8f3c5dcfe800870c8150f386f732a850e4ef8bd2fd0bd5124ad78f2d4799fbb1e0e82a05d6002e2c30100",
-        "subaddress_index":"0",
-        "key_image":"0a204269ee4734aa5fa9b029b39fdb39f0f493c538aaefabb7e6290be56e402a2174",
-        "confirmation":"0a20bf46e135b4eeb5c45fcc8ee69a5e564469fd3985269010f6738a96f832992afe"
+    "txo_map": {
+      "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d": {
+        "id": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+        "value": "240800000000",
+        "token_id": "0",
+        "received_block_index": "1769541",
+        "spent_block_index": "1769546",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "status": "spent",
+        "target_key": "0a20c441698796282c4147dc3f7e6ec07c9479ed8dbfcafb71929adc97bafb38080e",
+        "public_key": "0a20aadf8bd1437b52177d290c33ce5602e63ba3efc0cc006cb55545d333cded9f0b",
+        "e_fog_hint": "0a544df264ab0cb8c9490774fe6242cd2e2951dafe92f976e0ec84698d39b5ce1b19c68be029c5aed4c327fde66917e8e907a19643c1c3d37bca5b0a460b59829d236f2aeafaa924184cbd4637b0af8dd408885e0100",
+        "subaddress_index": "18446744073709551614",
+        "key_image": "0a209ec60610aa59dee42f74e7d3b9b513614d0720a0147f91c521a841a02130f835",
+        "confirmation": "0a207fad0212bc57c75731e247930ba1fd6f3c6b08181171eb55243d721f9c96e3cd"
       },
-      "454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f":{
-        "id":"454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
-        "value":"1234600000000",
-        "token_id":"0",
-        "received_block_index":"1352852",
-        "spent_block_index":null,
-        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
-        "status":"unspent",
-        "target_key":"0a20807982b36edcb72ff9b61630ffdb7949bfe1778798708f80d6c349fc0672e011",
-        "public_key":"0a20728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
-        "e_fog_hint":"0a54c4f56d207fbd86401c6f8bcf2dfb344aba7f8f8dcf542da046c92ed62f9582b281068872044ca71b8c70e9a8c5b3e2c134fb36a570293ceff55d3555eb8710fbb6635cc58242ff9b2383ae832881dca8698f0100",
-        "subaddress_index":"0",
-        "key_image":"0a2062a2cd3c08f4ff68f46ce7ba50afb8e1e441ac21e5e9d3ae9f7016c89a2cac23",
-        "confirmation":"0a20013e277d63f9223f37dace93974b5cff87257b7d413d66638155af89345016d0"
+      "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb": {
+        "id": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+        "value": "470400000000",
+        "token_id": "0",
+        "received_block_index": "1769533",
+        "spent_block_index": "1769541",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "status": "spent",
+        "target_key": "0a20bcaa42886171e60c50f0a4527663507a890fbecb5016f6d9042ce6be1cd7fb52",
+        "public_key": "0a20cecc879afd79153210ff79b58947416a883d4f68253d415533c0e8898e09f045",
+        "e_fog_hint": "0a54643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d90100",
+        "subaddress_index": "18446744073709551614",
+        "key_image": "0a20fafbf66b4da787c3a7d0c6a12d67620efcb47c3299ab4382627e468c718d4d1e",
+        "confirmation": "0a207e8073157c3c938cc06c10c17094ba6940ec6ea15985df4760e43aaddd9bdccb"
       },
-      "490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84":{
-        "id":"490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84",
-        "value":"1929999999798",
-        "token_id":"0",
-        "received_block_index":"1352847",
-        "spent_block_index":null,
-        "account_id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
-        "status":"unspent",
-        "target_key":"0a20dce16f8febe0dc3b4d7f7e47755030fe7204b03eb070b4dd0ccb6aead37a4d33",
-        "public_key":"0a20ea6f11280167408088cff1aa92eecf8e3268bc2480609681f07569c1ac5e8c79",
-        "e_fog_hint":"0a544df6b851a3d7684e0a88e9b1be2b1df9b69afc9af44310bed49750c5482cc860d87cdc7eb18187807f9288e43b5ce9aad1b08ba7472d639f1abbe1ab3e713cb6f509367787687bcf9e2a1b72ed0e944e42c70100",
-        "subaddress_index":"0",
-        "key_image":"0a206683694c35b4126247079d31811a7ff0b5fe7e5a5412b85a20b9d48595788321",
-        "confirmation":"0a2057cdcc39a113f09e40968e9b5ff18060288bf55c5be16b4e798370a8432f64dc"
+      "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b": {
+        "id": "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b",
+        "value": "1000000000000",
+        "token_id": "0",
+        "received_block_index": "1769524",
+        "spent_block_index": "1769533",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "status": "spent",
+        "target_key": "0a203e90849059e97196b92784842abaadd273efc21669a188949242f3f2059fb87d",
+        "public_key": "0a20e84d5ecd87acba366f731c2865085e5dba2d15f8c7f69b36bfd0b4ff21c4cd02",
+        "e_fog_hint": "0a54ca6975a5fafa891973e0a2ff03875b01fe891bf32be9e9480d8b0c8421679799c9944efa497a1b3b561c6df053c58351e5f8dbebe0f55b05f88986472cc3fc3fd6157e110cf47fd1c7bff07bba1bd05cd5e50100",
+        "subaddress_index": "0",
+        "key_image": "0a20a08be966b837b31e306de665ccc3cfb2e0b515ddc3d959e7858114bae0069d16",
+        "confirmation": "0a208f9ded89e086fbf3e6d6b18cb73a797490ba4d45d182e6ba8ae907534be9dd11"
       }
     }
   },
-  "jsonrpc":"2.0",
-  "id":1
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

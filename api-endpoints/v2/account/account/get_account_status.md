@@ -9,7 +9,7 @@ description: >-
 ## Request
 
 | Required Param | Purpose                                      | Requirements                      |
-|----------------|----------------------------------------------|-----------------------------------|
+| -------------- | -------------------------------------------- | --------------------------------- |
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Response
@@ -18,34 +18,31 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "get_account_status",
   "params": {
-     "account_id": "b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c"
+     "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa"
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method":"get_account_status",
   "result":{
     "account":{
-      "id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
-      "name":"Bob",
+      "id":"60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+      "name":"Alice",
       "key_derivation_version":"2",
-      "main_address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+      "main_address":"8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x",
       "next_subaddress_index":"2",
-      "first_block_index":"1352037",
-      "next_block_index":"1352685",
+      "first_block_index": "1769454",
+      "next_block_index": "1769496",
       "recovery_mode":false,
       "fog_enabled":false,
       "view_only":false
@@ -68,6 +65,5 @@ description: >-
   "id":1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

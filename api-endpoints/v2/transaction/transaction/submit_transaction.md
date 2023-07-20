@@ -6,18 +6,18 @@ description: >-
 
 # Submit Transaction
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                        | Requirements                     |
-|----------------|--------------------------------|----------------------------------|
+| -------------- | ------------------------------ | -------------------------------- |
 | `tx_proposal`  | Transaction proposal to submit | Created with `build_transaction` |
 
 | Optional Param | Purpose                                                                                                                                                                                                                                                | Requirements |
-|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
 | `account_id`   | Account ID for which to log the transaction. If omitted, the transaction is not logged and therefor the txos used will not be set to pending, if they exist. This could inadvertently cause an attempt to spend the same txo in multiple transactions. |              |
 | `comment`      | Comment to annotate this transaction in the transaction log                                                                                                                                                                                            |              |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
 ## Examples
 
@@ -25,258 +25,120 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "submit_transaction",
   "params": {
+    "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
     "tx_proposal": {
-      "input_list": [
+      "input_txos": [
         {
-          "tx_out": {
-            "amount": {
-              "commitment": "629abf4112819dadfa27947e04ce37d279f568350506e4060e310a14131d3f69",
-              "masked_value": "17560205508454890368"
-            },
-            "target_key": "eec9700ee08358842e16d43fe3df6e346c163b7f6007de4fcf3bafc954847174",
-            "public_key": "3209d365b449b577721430d6e0534f5a188dc4bdcefa02be2eeef45b2925bc1b",
-            "e_fog_hint": "ae39a969db8ef10daa4f70fa4859829e294ec704b0eb0a15f43ae91bb62bd9ff58ba622e5820b5cdfe28dde6306a6941d538d14c807f9045504619acaafbb684f2040107eb6868c8c99943d02077fa2d090d0100"
+          "tx_out_proto": "32370a220a20a8b9496bfe9a95a3cfbae1fda980ce2a1fa7e2827da6916de204ae12d094210a11d3771dafeecf86471a083db375a7f674e6cc12220a20bcaa42886171e60c50f0a4527663507a890fbecb5016f6d9042ce6be1cd7fb521a220a20cecc879afd79153210ff79b58947416a883d4f68253d415533c0e8898e09f04522560a54643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d901002a440a4213d173c60b40cfe99de248d38166f99e5cfcd45327b03dc46b1dd0147e78f4c19f881afe2f56e50da8743597d6eec8c6e44336e606dd235e8b7edca15a5d7a0c9c08",
+          "amount": {
+            "value": "470400000000",
+            "token_id": "0"
           },
-          "subaddress_index": "0",
-          "key_image": "2a14381de88c3fe2b827f6adaa771f620873009f55cc7743dca676b188508605",
-          "value": "1",
-          "attempted_spend_height": "0",
-          "attempted_spend_tombstone": "0",
-          "monitor_id": ""
-        },
-        {
-          "tx_out": {
-            "amount": {
-              "commitment": "8ccbeaf28bad17ac6c64940aab010fedfdd44fb43c50c594c8fa6e8574b9b147",
-              "masked_value": "8257145351360856463"
-            },
-            "target_key": "2c73db6b914847d124a93691884d2fb181dfcf4d9182686e53c0464cf1c9a711",
-            "public_key": "ce43370def13a97830cf6e2e73020b5190d673bd75e0692cd18c850030cc3f06",
-            "e_fog_hint": "6b24ceb038ed5c31bfa8f69c73be59eca46612ba8bfea7f53bc52c97cdf549c419fa5a0b2219b1434848197fdbac7880b3a20d92c59c67ec570c7d60e263b4c7c61164f0517c8f774321435c3ec600593d610100"
-          },
-          "subaddress_index": "0",
-          "key_image": "a66fa1c3c35e2c2a56109a901bffddc1129625e4c4b381389f6be1b5bb3c7056",
-          "value": "97580449900010990",
-          "attempted_spend_height": "0",
-          "attempted_spend_tombstone": "0",
-          "monitor_id": ""
+          "subaddress_index": "18446744073709551614",
+          "key_image": "fafbf66b4da787c3a7d0c6a12d67620efcb47c3299ab4382627e468c718d4d1e"
         }
       ],
-      "outlay_list": [
+      "payload_txos": [
         {
-          "value": "42000000000000",
-          "receiver": {
-            "view_public_key": "5c04cc0de88725f811625b56844aacd789815d43d6df30354939aafd6e683d1a",
-            "spend_public_key": "aaf2937c73ef657a529d0f10aaaba394f41bf6f67d8da5ae13284afdb5bc657b",
-            "fog_report_url": "",
-            "fog_authority_fingerprint_sig": "",
-            "fog_report_id": ""
-          }
+          "tx_out_proto": "32370a220a20ea71b9404e5dd41be2dfb7c2692fa667551fb8384f583b920ee77440d7cc4c27112446099e9c4d73d31a08529039b52d15e8ca12220a20f0eb6416c6da0dfd22c16f4d94de0a7606556b556ed7f5d080baa34a0714f67f1a220a20167628bd36b6c70aed289cdb3d61d22eb4b40a48f304c484a8f8de781ab5456522560a54c6a878bc8d6da36a47903332336f59b5af7fcfec635c4b914051e762141f5060b52b4e634533904675a289f870faf70dd75f012cafeec0e809fee8d71e831369077d4fd028d7a3f4b9b540f8abe19c62936b01002a440a42f6e678abdcf001450b706ab2ac855969bf7abecd1da2ecebad018eb6443cdff4872f44bc5f53beabeaa2ae332c696cf30a4c1ce1cc45ef5092c07466bca3e02ad32c",
+          "amount": {
+            "value": "229200000000",
+            "token_id": "0"
+          },
+          "recipient_public_address_b58": "3FDsgJgz4mtGpDFL5cibrKZJgTPcwA8bw4kTDT1j64A6kgPbxgW2QfUS3TbNsjaeBc9wzYyNhcCabtuEjbKhfSc8oLoJLUi9QzomiVBq778",
+          "confirmation_number": "d0257c93a691dba8e9aa136e9edb7d6882470e92645ed3e08ea43d8570f0182e"
         }
       ],
-      "tx": {
-        "prefix": {
-          "inputs": [
-            {
-              "ring": [
-                {
-                  "amount": {
-                    "commitment": "3c90eb914a5fe5eb11fab745c9bebfd988de71fa777521099bd442d0eecb765a",
-                    "masked_value": "5446626203987095523"
-                  },
-                  "target_key": "f23c5dd112e5f453cf896294be705f52ee90e3cd15da5ea29a0ca0be410a592b",
-                  "public_key": "084c6c6861146672eb2929a0dfc9b9087a49b6531964ca1892602a4e4d2b6d59",
-                  "e_fog_hint": "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
-                },
-                ...
-              ],
-              "proofs": [
-                {
-                  "index": "24296",
-                  "highest_index": "335531",
-                  "elements": [
-                    {
-                      "range": {
-                        "from": "24296",
-                        "to": "24296"
-                      },
-                      "hash": "f7217a219665b1dfa3f216191de1c79e7d62f520e83afe256b6b43c64ead7d3f"
-                    },
-                  }
-                  ...
-                  ]
-                },
-                ...
-              ]
-            },
-            {
-              "ring": [
-                {
-                  "amount": {
-                    "commitment": "50b46eef8d223824f87316e6f446d50530929c8a758195005fbe9d41ec7fc227",
-                    "masked_value": "11687342289991185016"
-                  },
-                  "target_key": "241d533daf32ed1523561c96c618808a2db9635075776ef42da32b34e7586058",
-                  "public_key": "24725d8e47e4b03f6cb893369cc7582ea565dbd5e1914a5ecb3f4ed7910c5a03",
-                  "e_fog_hint": "3fba73a6271141aae115148196ad59412b4d703847e0738c460c4d1831c6d44004c4deee4fabf6407c5f801703a31a13f1c70ed18a43a0d0a071b863a529dfbab51634fdf127ba2e7a7d426731ba59dbe3660100"
-                },
-                ...
-              ],
-              "proofs": [
-                {
-                  "index": "173379",
-                  "highest_index": "335531",
-                  "elements": [
-                    {
-                      "range": {
-                        "from": "173379",
-                        "to": "173379"
-                      },
-                      "hash": "bcb26ff5d1104b8c0d7c9aed9b326c824151461257737e0fc4533d1a39e3a876"
-                    },
-                    ...
-                  ]
-                },
-                ...
-              ]
-            }
-          ],
-          "outputs": [
-            {
-              "amount": {
-                "commitment": "147113bbd5d4fdc5f9266ccdec6d6e6148e8dbc979d7d3bab1a91e99ab256518",
-                "masked_value": "3431426060591787774"
-              },
-              "target_key": "2c6a9c23810e91d8c504dd4fe59f07c2872a8a866c160a58928750eab7328c64",
-              "public_key": "0049281368c270eb5a7291fb012e95e776a07c1ff4336be1aa6a61abb1868229",
-              "e_fog_hint": "eb5b104677df5bbc22f70027646a448dcffb61eb31580d50f41cb487a87a9545d507d4c5e13a22f7fe3b2daea3f951b8d9901e73794d24650176faca3251dd904d7cac97ee73f50a84701cb4c297b31cbdf80100"
-            },
-            {
-              "amount": {
-                "commitment": "78083af2c1682f765c332c1c69af4260a410914962bddb9a30857a36aed75837",
-                "masked_value": "17824177895224156943"
-              },
-              "target_key": "68a193eeb7614e3dec6e980dfab2b14aa9b2c3dcaaf1c52b077fbbf259081d36",
-              "public_key": "6cdfd36e11042adf904d89bcf9b2eba950ad25f48ed6e877589c40caa1a0d50d",
-              "e_fog_hint": "c0c9fe3a43e237ad2f4ab055532831b95f82141c69c75bc6e913d0f37633cb224ce162e59240ffab51054b13e451bfeccb5a09fa5bfbd477c5a8e809297a38a0cb5233cc5d875067cbd832947ae48555fbc00100"
-            }
-          ],
-          "fee": "10000000000",
-          "tombstone_block": "0"
-        },
-        "signature": {
-          "ring_signatures": [
-            {
-              "c_zero": "27a97dbbcf36257b31a1d64a6d133a5c246748c29e839c0f1661702a07a4960f",
-              "responses": [
-                "bc703776fd8b6b1daadf7e4df7ca4cb5df2d6498a55e8ff15a4bceb0e808ca06",
-                ...
-              ],
-              "key_image": "a66fa1c3c35e2c2a56109a901bffddc1129625e4c4b381389f6be1b5bb3c7056"
-            },
-            {
-              "c_zero": "421cc5527eae6519a8f20871996db99ffd91522ae7ed34e401249e262dfb2702",
-              "responses": [
-                "322852fd40d5bbd0113a6e56d8d6692200bcedbc4a7f32d9911fae2e5170c50e",
-                ...
-              ],
-              "key_image": "2a14381de88c3fe2b827f6adaa771f620873009f55cc7743dca676b188508605"
-            }
-          ],
-          "pseudo_output_commitments": [
-            "1a79f311e74027bdc11fb479ce3a5c8feed6794da40e6ccbe45d3931cb4a3239",
-            "5c3406600fbf8e93dbf5b7268dfc43273f93396b2d4976b73cb935d5619aed7a"
-          ],
-          "range_proofs": [
-            ...
-          ]
+      "change_txos": [
+        {
+          "tx_out_proto": "32370a220a20d007cecbca4ea2a2b6d0fb0d95470470a75c07d6c4496a9c8a065d170b07fd3a1111766004d70ac6271a084927c0f6ce61b60012220a20c441698796282c4147dc3f7e6ec07c9479ed8dbfcafb71929adc97bafb38080e1a220a20aadf8bd1437b52177d290c33ce5602e63ba3efc0cc006cb55545d333cded9f0b22560a544df264ab0cb8c9490774fe6242cd2e2951dafe92f976e0ec84698d39b5ce1b19c68be029c5aed4c327fde66917e8e907a19643c1c3d37bca5b0a460b59829d236f2aeafaa924184cbd4637b0af8dd408885e01002a440a424eb126875a5430560d942da3995aea5fc1a4feb68b19d8742519894d38bf6ccd50f4b321a7816ff5ce651971380af7e2b943a17c35a9a34280ee85b1b04617a41ee8",
+          "amount": {
+            "value": "240800000000",
+            "token_id": "0"
+          },
+          "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8",
+          "confirmation_number": "7fad0212bc57c75731e247930ba1fd6f3c6b08181171eb55243d721f9c96e3cd"
         }
+      ],
+      "fee_amount": {
+        "value": "400000000",
+        "token_id": "0"
       },
-      "fee": "10000000000",
-      "outlay_index_to_tx_out_index": [
-        [
-          "0",
-          "0"
-        ]
-      ],
-      "outlay_confirmation_numbers": [
-        [...]
-      ]
-    },
-    "account_id": "a8c9c7acb96cf4ad9154eec9384c09f2c75a340b441924847fe5f60a41805bde"
+      "tombstone_block_index": "1769546",
+      "tx_proto": "0abc81010aeb7c0a9f020a370a220a20fe7aed88b2e6..."
+    }
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
-  "method":"submit_transaction",
-  "result":{
-    "transaction_log":{
-      "id":"01cf3c1a5ac2a6b884ef81c1bdd2191a3860d59158118b08f1f8f61ec3e09567",
-      "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-      "input_txos":[
+  "method": "submit_transaction",
+  "result": {
+    "transaction_log": {
+      "id": "daf0c1439633d1d53a13b9bf086946032c20bef882d5bd7735b4a99816c24657",
+      "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+      "input_txos": [
         {
-          "txo_id":"fa737a8e65e480fc7f75dbc17e6875b75cf4b14f3cde02b49b8cd8921fdf7dbb",
-          "amount":{
-            "value":"5999600000000",
-            "token_id":"0"
+          "txo_id": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+          "txo_id_hex": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+          "amount": {
+            "value": "470400000000",
+            "token_id": "0"
           }
         }
       ],
-      "output_txos":[
+      "output_txos": [
         {
-          "txo_id":"454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
-          "public_key":"728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
-          "amount":{
-            "value":"1234600000000",
-            "token_id":"0"
+          "txo_id": "245669e1ced312bfe5a1a7e99c77918acf7bb5b4e69eb21d8ef74961b8dcc07e",
+          "txo_id_hex": "245669e1ced312bfe5a1a7e99c77918acf7bb5b4e69eb21d8ef74961b8dcc07e",
+          "public_key": "167628bd36b6c70aed289cdb3d61d22eb4b40a48f304c484a8f8de781ab54565",
+          "amount": {
+            "value": "229200000000",
+            "token_id": "0"
           },
-          "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk"
+          "recipient_public_address_b58": "3FDsgJgz4mtGpDFL5cibrKZJgTPcwA8bw4kTDT1j64A6kgPbxgW2QfUS3TbNsjaeBc9wzYyNhcCabtuEjbKhfSc8oLoJLUi9QzomiVBq778"
         }
       ],
-      "change_txos":[
+      "change_txos": [
         {
-          "txo_id":"34f8a29a2fdd2446694bf175e533c6bf0cd4ecac9d52cd793ef06fc011661b89",
-          "public_key":"3c0225fab2d6df245887b7acebf22c238ffafa54842ab2663ac27833975a2212",
-          "amount":{
-            "value":"4764600000000",
-            "token_id":"0"
+          "txo_id": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+          "txo_id_hex": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+          "public_key": "aadf8bd1437b52177d290c33ce5602e63ba3efc0cc006cb55545d333cded9f0b",
+          "amount": {
+            "value": "240800000000",
+            "token_id": "0"
           },
-          "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
+          "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8"
         }
       ],
-      "value_map":{
-        "0":"1234600000000"
+      "value_map": {
+        "0": "229200000000"
       },
-      "fee_amount":{
-        "value":"400000000",
-        "token_id":"0"
+      "fee_amount": {
+        "value": "400000000",
+        "token_id": "0"
       },
-      "submitted_block_index":"1352852",
-      "tombstone_block_index":"1352860",
-      "finalized_block_index":null,
-      "status":"pending",
-      "sent_time":null,
-      "comment":""
+      "submitted_block_index": "1769541",
+      "tombstone_block_index": "1769546",
+      "finalized_block_index": null,
+      "status": "pending",
+      "sent_time": null,
+      "comment": ""
     }
   },
-  "jsonrpc":"2.0",
-  "id":1
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -284,7 +146,6 @@ description: >-
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "submit_transaction",
@@ -295,11 +156,9 @@ description: >-
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method": "submit_transaction",
@@ -311,6 +170,5 @@ description: >-
   "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

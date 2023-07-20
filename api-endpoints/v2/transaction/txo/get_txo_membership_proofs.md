@@ -4,19 +4,18 @@ description: Get the Tx Out Membership Proof for a selection of Tx Outs
 
 # Get TXO Membership Proofs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
 
 | Required Param | Purpose                                   | Requirements                 |
-|----------------|-------------------------------------------|------------------------------|
+| -------------- | ----------------------------------------- | ---------------------------- |
 | `outputs`      | The TXOs to get the membership proofs for | TXO must exist in the ledger |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Body Request" %}
-
 ```json
 {
   "method": "get_txo_membership_proofs",
@@ -24,218 +23,223 @@ description: Get the Tx Out Membership Proof for a selection of Tx Outs
     "outputs": [
       {
         "masked_amount": {
-          "commitment": "f6207c1952489634384434c230bac7eb72427d15742e2b43ce40fa9be21f6044",
-          "masked_value": "778515034541258781",
-          "masked_token_id": ""
+          "commitment": "a8b9496bfe9a95a3cfbae1fda980ce2a1fa7e2827da6916de204ae12d094210a",
+          "masked_value": "5154035447619221459",
+          "masked_token_id": "3db375a7f674e6cc",
+          "version": 2
         },
-        "target_key": "94f722c735c5d2ada2561717d7ce83a1ebf161d66d5ab0e13c8a189048629241",
-        "public_key": "eaaf989840dba9de8f825f7d11c01523ad46f7f581bafc5f9d2a37d35b4b9e2f",
-        "e_fog_hint": "7d806ff43d1b4ead24e63263932ef820e7ca5bc72c3b6a01eee42c5e814769eac6b78c72f7fe9cbe4b65dd0f3b70a63b1dcb5f3223430eb5890e388dfa6c8acf7c73f8eeeb3def9a6dd5b4b4a7d3150f8c1e0100",
-        "e_memo": ""
+        "target_key": "bcaa42886171e60c50f0a4527663507a890fbecb5016f6d9042ce6be1cd7fb52",
+        "public_key": "cecc879afd79153210ff79b58947416a883d4f68253d415533c0e8898e09f045",
+        "e_fog_hint": "643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d90100",
+        "e_memo": "13d173c60b40cfe99de248d38166f99e5cfcd45327b03dc46b1dd0147e78f4c19f881afe2f56e50da8743597d6eec8c6e44336e606dd235e8b7edca15a5d7a0c9c08"
       }
-    ],
+    ]
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```json
 {
-  "method":"get_txo_membership_proofs",
-  "result":{
-    "outputs":[
+  "method": "get_txo_membership_proofs",
+  "result": {
+    "outputs": [
       {
-        "masked_amount":{
-          "commitment":"c29cbaee8f6e1e824bf3e4a010a4a4479b61432082c890fc7481ddecff5e4d3d",
-          "masked_value":"1242678427782368707",
-          "masked_token_id":"4aee541399075d50",
-          "version":null
+        "masked_amount": {
+          "commitment": "a8b9496bfe9a95a3cfbae1fda980ce2a1fa7e2827da6916de204ae12d094210a",
+          "masked_value": "5154035447619221459",
+          "masked_token_id": "3db375a7f674e6cc",
+          "version": 2
         },
-        "target_key":"58020dbb7e6047ba3ebd701f760066a8fde253932c02cfed125459aa0f45fa27",
-        "public_key":"3c0225fab2d6df245887b7acebf22c238ffafa54842ab2663ac27833975a2212",
-        "e_fog_hint":"d572db8d9d8df79884eb8334c6e8ece9a7f268d1643307760206a95b9198360140845214e93c373f5401da3efb2be0357a30a8d3e590e7360ec124230ea628c4820568c302270be4f6dfcc6263a657164a590100",
-        "e_memo":"e236aa212d0f726f44d3f257934ff59dbf0ff79a3a37e51efb4fe740ee547a8e2948bf0fe2620c1c573ccb4b176c86af178f71eaa2bc88308e6ec82bfc4d519f9a88"
+        "target_key": "bcaa42886171e60c50f0a4527663507a890fbecb5016f6d9042ce6be1cd7fb52",
+        "public_key": "cecc879afd79153210ff79b58947416a883d4f68253d415533c0e8898e09f045",
+        "e_fog_hint": "643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d90100",
+        "e_memo": "13d173c60b40cfe99de248d38166f99e5cfcd45327b03dc46b1dd0147e78f4c19f881afe2f56e50da8743597d6eec8c6e44336e606dd235e8b7edca15a5d7a0c9c08"
       }
     ],
-    "membership_proofs":[
+    "membership_proofs": [
       {
-        "index":"4061754",
-        "highest_index":"4061885",
-        "elements":[
+        "index": "5367170",
+        "highest_index": "5367257",
+        "elements": [
           {
-            "range":{
-              "from":"4061754",
-              "to":"4061754"
+            "range": {
+              "from": "5367170",
+              "to": "5367170"
             },
-            "hash":"9580ebd0aae878a5f0c7c275c89563b4fbf4bbb6ebc9f52eb797a7cc365f8d63"
+            "hash": "453da08e60e4e0985665d17c07c6a5bdf39912cfb87fe92e3278bca821ca1e70"
           },
           {
-            "range":{
-              "from":"4061755",
-              "to":"4061755"
+            "range": {
+              "from": "5367171",
+              "to": "5367171"
             },
-            "hash":"3efd20e1369706f1050d274fc41f6d07ce1eafb0448865f332dcfd1acd57fea0"
+            "hash": "06f3b74bebb339589abaeea49c0ddea6a7858293ff4c5dee503ddb583303054a"
           },
           {
-            "range":{
-              "from":"4061752",
-              "to":"4061753"
+            "range": {
+              "from": "5367168",
+              "to": "5367169"
             },
-            "hash":"f80f53aa151b6483da0bc54e64529d5759063d09d9d7290711dd6f74b4c441b7"
+            "hash": "719654cafaf9076a1e7ea16f6664ce44377ee15b9a587ef6877c1016ee7c4d17"
           },
           {
-            "range":{
-              "from":"4061756",
-              "to":"4061759"
+            "range": {
+              "from": "5367172",
+              "to": "5367175"
             },
-            "hash":"eb0739a0bf274b0fe076230ce65971bccfeba43df60c32c64916f3c820722d22"
+            "hash": "f383827a0fb9c086ca3581dd2be4e72c2d3b97e57fc26efc8e27fffb86da95a8"
           },
           {
-            "range":{
-              "from":"4061744",
-              "to":"4061751"
+            "range": {
+              "from": "5367176",
+              "to": "5367183"
             },
-            "hash":"6bcdeb6165e08bbba2260760343fe9106b1b050f079f92f4833568e03f8d52e3"
+            "hash": "ea069a668579c8b4e55c453ebe69447a7fd3ebf344339f6d99ad93072b951307"
           },
           {
-            "range":{
-              "from":"4061728",
-              "to":"4061743"
+            "range": {
+              "from": "5367184",
+              "to": "5367199"
             },
-            "hash":"be41497d280906e1ec9eb3f066e4899de47c15b2c9353d0fec522392a0798b4d"
+            "hash": "e72724396282ddc0794b8f8f3ad9382675ba50836598f89761d3dd32b57ebe11"
           },
           {
-            "range":{
-              "from":"4061696",
-              "to":"4061727"
+            "range": {
+              "from": "5367200",
+              "to": "5367231"
             },
-            "hash":"53ea20108e4200dbbe74a1280b416edcaafd5332c1dbbe9625c8d3af0383d843"
+            "hash": "1aac72f9374b5f68fd70269df3017358200579e1d2b1c5268dffc41e39f33c12"
           },
           {
-            "range":{
-              "from":"4061760",
-              "to":"4061823"
+            "range": {
+              "from": "5367232",
+              "to": "5367295"
             },
-            "hash":"3906dd527c1d13e15a13b22d14126bf1a6d10a4416a01445771ad6734b2aa521"
+            "hash": "d40a086473a7e7bfdbdc14bbe71df0978c1790d1307b2fc04c908bac90fed366"
           },
           {
-            "range":{
-              "from":"4061824",
-              "to":"4061951"
+            "range": {
+              "from": "5367040",
+              "to": "5367167"
             },
-            "hash":"b30e9b17e15423a9e0ee0f594b84114ca396857089e1462342ce4788f8b5f31f"
+            "hash": "39eaad9dc0d36dc04b8080156d3dde4ffae67e522d46ee1837462f1645d46e5e"
           },
           {
-            "range":{
-              "from":"4061952",
-              "to":"4062207"
+            "range": {
+              "from": "5366784",
+              "to": "5367039"
             },
-            "hash":"ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
+            "hash": "454de105fb908a627034dc6c292f08ccbfc6aafc373995e210e15130de1886c2"
           },
           {
-            "range":{
-              "from":"4061184",
-              "to":"4061695"
+            "range": {
+              "from": "5367296",
+              "to": "5367807"
             },
-            "hash":"c3dd76b5d70b50d933919fc4c2719ed53e133d699d34777e0c31800468c22471"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"4062208",
-              "to":"4063231"
+            "range": {
+              "from": "5365760",
+              "to": "5366783"
             },
-            "hash":"ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
+            "hash": "65c1db6db311e2d758b9d0acdb76c40341a1e9c4c0f8dc2d06da277d3107d8fa"
           },
           {
-            "range":{
-              "from":"4059136",
-              "to":"4061183"
+            "range": {
+              "from": "5367808",
+              "to": "5369855"
             },
-            "hash":"a7fba61baf9e6c74a2df7e5622bfa2bdea50c96791d35cc9b9bb749370698a17"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"4055040",
-              "to":"4059135"
+            "range": {
+              "from": "5369856",
+              "to": "5373951"
             },
-            "hash":"a4d60358e9f569993f9ce9eba2fa817c236051b1ff79250c9dd4f8b7be254a00"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"4046848",
-              "to":"4055039"
+            "range": {
+              "from": "5357568",
+              "to": "5365759"
             },
-            "hash":"12034c89aa3483c60731cbe3eb512fa942496d8c9584bf4074d228d8759dd718"
+            "hash": "e47090d9a03d2c652248c088fceb23382013a05d9abb462773f3b608724449db"
           },
           {
-            "range":{
-              "from":"4030464",
-              "to":"4046847"
+            "range": {
+              "from": "5341184",
+              "to": "5357567"
             },
-            "hash":"6fc9e8c2c26fdffad7be49f7b0644064cff011a148043a39c224577e95a019c5"
+            "hash": "7f3777cf110065701885a4e94f25b7c2ce45410aec2194d52b8c3efce7aeb2e3"
           },
           {
-            "range":{
-              "from":"3997696",
-              "to":"4030463"
+            "range": {
+              "from": "5308416",
+              "to": "5341183"
             },
-            "hash":"de4c330c949c1f8c5c521cb589f755a6e8a1638672e858aa0cea1b5582406e92"
+            "hash": "75859635c16a276891d94be8150483ec998c57c0c0acf4be2c96b6584257c8c3"
           },
           {
-            "range":{
-              "from":"3932160",
-              "to":"3997695"
+            "range": {
+              "from": "5242880",
+              "to": "5308415"
             },
-            "hash":"57bcdc77e2ed2d595e31c1099e09e15c956de42d2f2be3f99a4bca593d594038"
+            "hash": "1df926505475ea25dd83c58dff977f9b7d3681a8db660e82e693d2afe86a0772"
           },
           {
-            "range":{
-              "from":"4063232",
-              "to":"4194303"
+            "range": {
+              "from": "5373952",
+              "to": "5505023"
             },
-            "hash":"ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"3670016",
-              "to":"3932159"
+            "range": {
+              "from": "5505024",
+              "to": "5767167"
             },
-            "hash":"3cfff30c9faf47c886f9fed5f8650690f8fc4f059b63175984bf6765c1355414"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"3145728",
-              "to":"3670015"
+            "range": {
+              "from": "5767168",
+              "to": "6291455"
             },
-            "hash":"7ab34a14306b1f80a1e2587f17586462e75f1f2be2d9afa0c1caa41b6d13682f"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
           },
           {
-            "range":{
-              "from":"2097152",
-              "to":"3145727"
+            "range": {
+              "from": "4194304",
+              "to": "5242879"
             },
-            "hash":"8a4cd94c536573c79e6c451d101067ce98310e0a82fe04a2a2d4572529062614"
+            "hash": "6f300f82a0003395e4e6b40875bad1b624e1176f17738242c06999de5c36ee63"
           },
           {
-            "range":{
-              "from":"0",
-              "to":"2097151"
+            "range": {
+              "from": "6291456",
+              "to": "8388607"
             },
-            "hash":"f16256b5f5e635de8e230ad587df3f3d578bc5ba515c77e54d9bedee36e4435b"
+            "hash": "ffdaaf4305e365c4c30ca1e5fbf4f5e62b081441ee94eb2d0980470b5e705968"
+          },
+          {
+            "range": {
+              "from": "0",
+              "to": "4194303"
+            },
+            "hash": "e5284a509264a61a2c65e2a060d5aa6745c69c8b62bc9f05cd878dc9f5a46b89"
           }
         ]
       }
     ]
   },
-  "jsonrpc":"2.0",
-  "id":1
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

@@ -4,26 +4,25 @@ description: Get assigned addresses for an account.
 
 # Get Addresses
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
 
 | Optional Param | Purpose                                                  | Requirements                          |
-|----------------|----------------------------------------------------------|---------------------------------------|
+| -------------- | -------------------------------------------------------- | ------------------------------------- |
 | `account_id`   | The account on which to perform this action.             | The account must exist in the wallet. |
 | `offset`       | The pagination offset. Results start at the offset index |                                       |
 | `limit`        | Limit for the number of results                          |                                       |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "get_addresses",
   "params": {
-    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
+    "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
     "offset": 1,
     "limit": 1
   },
@@ -31,25 +30,22 @@ description: Get assigned addresses for an account.
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method": "get_addresses",
   "result": {
     "public_addresses": [
-      "7RvvDmRa9CuB5Uf1aDeyKuyhjKtQhxHroAuDh8NFuwfRdQd1QvAhgA8E6Tg34nRo4sM6B1SbPEC8ffz86oYfDKziBw7xYVPKzZ4dvL8p961"
+      "8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x"
     ],
     "address_map": {
-      "7RvvDmRa9CuB5Uf1aDeyKuyhjKtQhxHroAuDh8NFuwfRdQd1QvAhgA8E6Tg34nRo4sM6B1SbPEC8ffz86oYfDKziBw7xYVPKzZ4dvL8p961": {
-        "object": "address",
-        "public_address": "7RvvDmRa9CuB5Uf1aDeyKuyhjKtQhxHroAuDh8NFuwfRdQd1QvAhgA8E6Tg34nRo4sM6B1SbPEC8ffz86oYfDKziBw7xYVPKzZ4dvL8p961",
-        "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
-        "metadata": "Change",
-        "subaddress_index": "1"
+      "8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x": {
+        "public_address_b58": "8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "metadata": "Main",
+        "subaddress_index": "0"
       }
     }
   },
@@ -57,6 +53,5 @@ description: Get assigned addresses for an account.
   "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

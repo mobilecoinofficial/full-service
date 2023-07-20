@@ -1,297 +1,264 @@
 # Get Transaction Logs
 
-## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/request.rs#L40)
+## [Request](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/request.rs#L40)
 
 | Optional Param    | Purpose                                                   | Requirement                        |
-|-------------------|-----------------------------------------------------------|------------------------------------|
+| ----------------- | --------------------------------------------------------- | ---------------------------------- |
 | `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |
 | `min_block_index` | The minimum block index to find transaction logs from     |                                    |
 | `max_block_index` | The maximum block index to find transaction logs from     |                                    |
 | `offset`          | The pagination offset. Results start at the offset index. |                                    |
 | `limit`           | Limit for the number of results.                          |                                    |
 
-## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json_rpc/v2/api/response.rs#L41)
+## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
 ## Example
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "get_transaction_logs",
   "params": {
-    "account_id": "b59b3d0efd6840ace19cdc258f035cc87e6a63b6c24498763c478c417c1f44ca",
-    "offset": 2,
-    "limit": 1
+    "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+    "offset": 0,
+    "limit": 10
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
-  "method":"get_transaction_logs",
-  "result":{
-    "transaction_log_ids":[
-      "987c84c38351321572151e3fdd0643f1531fa536c531310bfd4840aed9dd4f75",
-      "01cf3c1a5ac2a6b884ef81c1bdd2191a3860d59158118b08f1f8f61ec3e09567",
-      "830d59e6562562df0791b9434cb2cda867c5387e0d89bd4b487929ec764182e3",
-      "7a26fed20c9d43f2626022b97ba998360ed7da7c82d733cde765e6afd63563c8",
-      "4e89d5a3641452d394c13a87aae13a57a836b16104e394f89a5c743b00771b81"
+  "method": "get_transaction_logs",
+  "result": {
+    "transaction_log_ids": [
+      "0eb20db5c176928fd9a9a4678eaa982ca1d5d7b34c1013148a40e538f28a34cd",
+      "daf0c1439633d1d53a13b9bf086946032c20bef882d5bd7735b4a99816c24657",
+      "204f812f021c0ef3d8f2121926f3e98dadae248bc7c43002d7d76c383809ba25",
+      "aff47d0eba40c2a4e63c68d47e3e0a6b7e29e9e84159b760c9f027ac72c8c602"
     ],
-    "transaction_log_map":{
-      "987c84c38351321572151e3fdd0643f1531fa536c531310bfd4840aed9dd4f75":{
-        "id":"987c84c38351321572151e3fdd0643f1531fa536c531310bfd4840aed9dd4f75",
-        "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-        "input_txos":[
+    "transaction_log_map": {
+      "0eb20db5c176928fd9a9a4678eaa982ca1d5d7b34c1013148a40e538f28a34cd": {
+        "id": "0eb20db5c176928fd9a9a4678eaa982ca1d5d7b34c1013148a40e538f28a34cd",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "input_txos": [
           {
-            "txo_id":"34f8a29a2fdd2446694bf175e533c6bf0cd4ecac9d52cd793ef06fc011661b89",
-            "amount":{
-              "value":"4764600000000",
-              "token_id":"0"
+            "txo_id": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+            "txo_id_hex": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+            "amount": {
+              "value": "240800000000",
+              "token_id": "0"
+            }
+          },
+          {
+            "txo_id": "a47a4f72efe0ec3234608d4671586b0c8777a1104fe6ee23050eefee76060496",
+            "txo_id_hex": "a47a4f72efe0ec3234608d4671586b0c8777a1104fe6ee23050eefee76060496",
+            "amount": {
+              "value": "1000000000000",
+              "token_id": "0"
             }
           }
         ],
-        "output_txos":[
+        "output_txos": [
           {
-            "txo_id":"fa9b95605688898f2d6bca52fb39608bd80eca74a342e3033f6dc0eef1c4e542",
-            "public_key":"52d89fc3cfd035bf2162f03bbf44139613fab7151d7cddc6d0ef44910edbd975",
-            "amount":{
-              "value":"1234600000000",
-              "token_id":"0"
+            "txo_id": "8344dd2ec3470241c8f721e08aa5ace49befa9d9934c7063bd326eb1a0f2355c",
+            "txo_id_hex": "8344dd2ec3470241c8f721e08aa5ace49befa9d9934c7063bd326eb1a0f2355c",
+            "public_key": "0230b9782c6016ee830e618efc4a1316f374296015bb738821803b0508a3433a",
+            "amount": {
+              "value": "240800000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk"
+            "recipient_public_address_b58": "3FDsgJgz4mtGpDFL5cibrKZJgTPcwA8bw4kTDT1j64A6kgPbxgW2QfUS3TbNsjaeBc9wzYyNhcCabtuEjbKhfSc8oLoJLUi9QzomiVBq778"
           }
         ],
-        "change_txos":[
+        "change_txos": [
           {
-            "txo_id":"63bc8d402b68241a1274162420607f0040523e0973cf1d6cb50fa0e5156dac1a",
-            "public_key":"2096698ed95eb52caa4932e73085efa9f74adafdbf48001019882e1484714f3b",
-            "amount":{
-              "value":"3529600000000",
-              "token_id":"0"
+            "txo_id": "7d548234542dcc2ebd1691c694663539cca9a2a469eb7a58361d92a97bde3d24",
+            "txo_id_hex": "7d548234542dcc2ebd1691c694663539cca9a2a469eb7a58361d92a97bde3d24",
+            "public_key": "3076178eb5375ee208fc84cfe607d246469d8ee620496e6549257205ef3cbd75",
+            "amount": {
+              "value": "999600000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
+            "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8"
           }
         ],
-        "value_map":{
-          "0":"1234600000000"
+        "value_map": {
+          "0": "240800000000"
         },
-        "fee_amount":{
-          "value":"400000000",
-          "token_id":"0"
+        "fee_amount": {
+          "value": "400000000",
+          "token_id": "0"
         },
-        "submitted_block_index":"1352857",
-        "tombstone_block_index":"1352867",
-        "finalized_block_index":"1352857",
-        "status":"succeeded",
-        "sent_time":null,
-        "comment":""
+        "submitted_block_index": "1769546",
+        "tombstone_block_index": "1769556",
+        "finalized_block_index": "1769546",
+        "status": "succeeded",
+        "sent_time": null,
+        "comment": ""
       },
-      "01cf3c1a5ac2a6b884ef81c1bdd2191a3860d59158118b08f1f8f61ec3e09567":{
-        "id":"01cf3c1a5ac2a6b884ef81c1bdd2191a3860d59158118b08f1f8f61ec3e09567",
-        "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-        "input_txos":[
+      "daf0c1439633d1d53a13b9bf086946032c20bef882d5bd7735b4a99816c24657": {
+        "id": "daf0c1439633d1d53a13b9bf086946032c20bef882d5bd7735b4a99816c24657",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "input_txos": [
           {
-            "txo_id":"fa737a8e65e480fc7f75dbc17e6875b75cf4b14f3cde02b49b8cd8921fdf7dbb",
-            "amount":{
-              "value":"5999600000000",
-              "token_id":"0"
+            "txo_id": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+            "txo_id_hex": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+            "amount": {
+              "value": "470400000000",
+              "token_id": "0"
             }
           }
         ],
-        "output_txos":[
+        "output_txos": [
           {
-            "txo_id":"454c511ddab33edccc4b686b67d1f9a6c4eb101c28386e0f4e21c994ea35aa2f",
-            "public_key":"728e73bd8675562ab44dea5c2b0edd4bfdf037a73d4afd42267442337c60f73b",
-            "amount":{
-              "value":"1234600000000",
-              "token_id":"0"
+            "txo_id": "245669e1ced312bfe5a1a7e99c77918acf7bb5b4e69eb21d8ef74961b8dcc07e",
+            "txo_id_hex": "245669e1ced312bfe5a1a7e99c77918acf7bb5b4e69eb21d8ef74961b8dcc07e",
+            "public_key": "167628bd36b6c70aed289cdb3d61d22eb4b40a48f304c484a8f8de781ab54565",
+            "amount": {
+              "value": "229200000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk"
+            "recipient_public_address_b58": "3FDsgJgz4mtGpDFL5cibrKZJgTPcwA8bw4kTDT1j64A6kgPbxgW2QfUS3TbNsjaeBc9wzYyNhcCabtuEjbKhfSc8oLoJLUi9QzomiVBq778"
           }
         ],
-        "change_txos":[
+        "change_txos": [
           {
-            "txo_id":"34f8a29a2fdd2446694bf175e533c6bf0cd4ecac9d52cd793ef06fc011661b89",
-            "public_key":"3c0225fab2d6df245887b7acebf22c238ffafa54842ab2663ac27833975a2212",
-            "amount":{
-              "value":"4764600000000",
-              "token_id":"0"
+            "txo_id": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+            "txo_id_hex": "9832a72bf474e9e7bb105a12110919be8d2f9d5ec34fc195271480935244a64d",
+            "public_key": "aadf8bd1437b52177d290c33ce5602e63ba3efc0cc006cb55545d333cded9f0b",
+            "amount": {
+              "value": "240800000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
+            "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8"
           }
         ],
-        "value_map":{
-          "0":"1234600000000"
+        "value_map": {
+          "0": "229200000000"
         },
-        "fee_amount":{
-          "value":"400000000",
-          "token_id":"0"
+        "fee_amount": {
+          "value": "400000000",
+          "token_id": "0"
         },
-        "submitted_block_index":"1352852",
-        "tombstone_block_index":"1352860",
-        "finalized_block_index":"1352852",
-        "status":"succeeded",
-        "sent_time":null,
-        "comment":""
+        "submitted_block_index": "1769541",
+        "tombstone_block_index": "1769546",
+        "finalized_block_index": "1769541",
+        "status": "succeeded",
+        "sent_time": null,
+        "comment": ""
       },
-      "830d59e6562562df0791b9434cb2cda867c5387e0d89bd4b487929ec764182e3":{
-        "id":"830d59e6562562df0791b9434cb2cda867c5387e0d89bd4b487929ec764182e3",
-        "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-        "input_txos":[
+      "204f812f021c0ef3d8f2121926f3e98dadae248bc7c43002d7d76c383809ba25": {
+        "id": "204f812f021c0ef3d8f2121926f3e98dadae248bc7c43002d7d76c383809ba25",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "input_txos": [
           {
-            "txo_id":"6c3699b850ebbef8cb36b579b5e53b8b235e3f74943ab4d7fe9048a99926ede0",
-            "amount":{
-              "value":"7929999999798",
-              "token_id":"0"
+            "txo_id": "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b",
+            "txo_id_hex": "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b",
+            "amount": {
+              "value": "1000000000000",
+              "token_id": "0"
             }
           }
         ],
-        "output_txos":[
+        "output_txos": [
           {
-            "txo_id":"5822eb19ba672761693d2c4d33d3582e74e387f8257d16e58d04b858816c4247",
-            "public_key":"3032638202641633b143236f6ebc3deeb37b35e0f792ea092bbbb0f914e6f006",
-            "amount":{
-              "value":"929999999798",
-              "token_id":"0"
+            "txo_id": "c5b1f16523c9f8c8e8a043ba5b974bd38049035eed8cedbec021a6c8c537f5a2",
+            "txo_id_hex": "c5b1f16523c9f8c8e8a043ba5b974bd38049035eed8cedbec021a6c8c537f5a2",
+            "public_key": "685f9bc824abacab084aa9aa686e6c21fc0ad0c7552443c5b06cc3b4169ac236",
+            "amount": {
+              "value": "529200000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk"
+            "recipient_public_address_b58": "3FDsgJgz4mtGpDFL5cibrKZJgTPcwA8bw4kTDT1j64A6kgPbxgW2QfUS3TbNsjaeBc9wzYyNhcCabtuEjbKhfSc8oLoJLUi9QzomiVBq778"
           }
         ],
-        "change_txos":[
+        "change_txos": [
           {
-            "txo_id":"bc9ed2b93ab96504f8faf2a30aa39afee43e7fe59b6722df049b8746b8e2e54b",
-            "public_key":"329263983954fce9d68284ca031089f5c706dff4d8d51144444a4b335041bf1c",
-            "amount":{
-              "value":"6999600000000",
-              "token_id":"0"
+            "txo_id": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+            "txo_id_hex": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
+            "public_key": "cecc879afd79153210ff79b58947416a883d4f68253d415533c0e8898e09f045",
+            "amount": {
+              "value": "470400000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
+            "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8"
           }
         ],
-        "value_map":{
-          "0":"929999999798"
+        "value_map": {
+          "0": "529200000000"
         },
-        "fee_amount":{
-          "value":"400000000",
-          "token_id":"0"
+        "fee_amount": {
+          "value": "400000000",
+          "token_id": "0"
         },
-        "submitted_block_index":null,
-        "tombstone_block_index":"1352830",
-        "finalized_block_index":null,
-        "status":"failed",
-        "sent_time":null,
-        "comment":""
+        "submitted_block_index": "1769533",
+        "tombstone_block_index": "1769539",
+        "finalized_block_index": "1769533",
+        "status": "succeeded",
+        "sent_time": null,
+        "comment": ""
       },
-      "7a26fed20c9d43f2626022b97ba998360ed7da7c82d733cde765e6afd63563c8":{
-        "id":"7a26fed20c9d43f2626022b97ba998360ed7da7c82d733cde765e6afd63563c8",
-        "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-        "input_txos":[
+      "aff47d0eba40c2a4e63c68d47e3e0a6b7e29e9e84159b760c9f027ac72c8c602": {
+        "id": "aff47d0eba40c2a4e63c68d47e3e0a6b7e29e9e84159b760c9f027ac72c8c602",
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "input_txos": [
           {
-            "txo_id":"6c3699b850ebbef8cb36b579b5e53b8b235e3f74943ab4d7fe9048a99926ede0",
-            "amount":{
-              "value":"7929999999798",
-              "token_id":"0"
+            "txo_id": "7d548234542dcc2ebd1691c694663539cca9a2a469eb7a58361d92a97bde3d24",
+            "txo_id_hex": "7d548234542dcc2ebd1691c694663539cca9a2a469eb7a58361d92a97bde3d24",
+            "amount": {
+              "value": "999600000000",
+              "token_id": "0"
             }
           }
         ],
-        "output_txos":[
+        "output_txos": [
           {
-            "txo_id":"490dd001d240f9c9fddcbeef0790eaf78d5732fa96e3e11a3f7dd94e994eeb84",
-            "public_key":"ea6f11280167408088cff1aa92eecf8e3268bc2480609681f07569c1ac5e8c79",
-            "amount":{
-              "value":"1929999999798",
-              "token_id":"0"
+            "txo_id": "38b17285a2b9d31deee4a903962f8c5607f3c71ef7bb5e8947c0a9b5b32f95fc",
+            "txo_id_hex": "38b17285a2b9d31deee4a903962f8c5607f3c71ef7bb5e8947c0a9b5b32f95fc",
+            "public_key": "4a9ddb9347d55bd22459b3cbb7cc861b86447dd682733f61ff853bcb0429fb62",
+            "amount": {
+              "value": "240800000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk"
+            "recipient_public_address_b58": "3cn4Y8V6p5u51z8AEEQsdUvFWcQKYwv25q6SaXeiXyz8kp19g7rLkuxu6rgefYWdZzun2RNrVPsMkM4djfhNzxC8LKKFmZXptcsxqndvbd9"
           }
         ],
-        "change_txos":[
+        "change_txos": [
           {
-            "txo_id":"fa737a8e65e480fc7f75dbc17e6875b75cf4b14f3cde02b49b8cd8921fdf7dbb",
-            "public_key":"c487a4e3dc82fbfed9546e50e1d631711f6ffc42546ebef0b9e1d79c088ace33",
-            "amount":{
-              "value":"5999600000000",
-              "token_id":"0"
+            "txo_id": "21787db374127da3a1fe25e91106a7319892f320e440dc6fa47f9c31f28ebc90",
+            "txo_id_hex": "21787db374127da3a1fe25e91106a7319892f320e440dc6fa47f9c31f28ebc90",
+            "public_key": "cce568654604eb34bdc3794908b166ee577bd7ae0702c22c8165be4b2dd1de78",
+            "amount": {
+              "value": "758400000000",
+              "token_id": "0"
             },
-            "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
+            "recipient_public_address_b58": "2vdjN4LDGbxhrpQ4jT777Wc2jaCszLZ98kAwf8jvonb6NjBdoWTBMnNTZfBw3LK9NGA4uAUkcBmQAHXZHV54sVN9bc8Te7pnnR1YtQpwcU8"
           }
         ],
-        "value_map":{
-          "0":"1929999999798"
+        "value_map": {
+          "0": "240800000000"
         },
-        "fee_amount":{
-          "value":"400000000",
-          "token_id":"0"
+        "fee_amount": {
+          "value": "400000000",
+          "token_id": "0"
         },
-        "submitted_block_index":null,
-        "tombstone_block_index":"1352857",
-        "finalized_block_index":"1352847",
-        "status":"succeeded",
-        "sent_time":null,
-        "comment":""
-      },
-      "4e89d5a3641452d394c13a87aae13a57a836b16104e394f89a5c743b00771b81":{
-        "id":"4e89d5a3641452d394c13a87aae13a57a836b16104e394f89a5c743b00771b81",
-        "account_id":"d43197097fd50aa944dd1b1025d4818668a812f794f4fb4dcf2cab890d3430ee",
-        "input_txos":[
-          {
-            "txo_id":"63bc8d402b68241a1274162420607f0040523e0973cf1d6cb50fa0e5156dac1a",
-            "amount":{
-              "value":"3529600000000",
-              "token_id":"0"
-            }
-          }
-        ],
-        "output_txos":[
-          {
-            "txo_id":"4631f7f4466a523544d579918f2bf878a94a741219a4e2496c05c4a68a319dc3",
-            "public_key":"5ebaa9d4b5e8e666b162614f031d2263b3df68c40015220fafc62a882d397c19",
-            "amount":{
-              "value":"12346000",
-              "token_id":"0"
-            },
-            "recipient_public_address_b58":"3cn4Y8V6p5u51z8AEEQsdUvFWcQKYwv25q6SaXeiXyz8kp19g7rLkuxu6rgefYWdZzun2RNrVPsMkM4djfhNzxC8LKKFmZXptcsxqndvbd9"
-          }
-        ],
-        "change_txos":[
-          {
-            "txo_id":"d51075b42a9210280702f19786d205ba9b5cc24a3bbde53499abad5ecc1dcb70",
-            "public_key":"841b9626db8c3046ce34bb74b8cc629ce9332d560198a5a513d0ea9a3a007a64",
-            "amount":{
-              "value":"3529187654000",
-              "token_id":"0"
-            },
-            "recipient_public_address_b58":"f7YRA3PsMRNtGaPnxXqGE8Z6eaaCyeAvZtvpkze86aWxcF7a4Kcz1t7p827GHRqM93iWHvqqrp2poG1QxX4xVidAXNuBGzwpCsEoAouq5h"
-          }
-        ],
-        "value_map":{
-          "0":"12346000"
-        },
-        "fee_amount":{
-          "value":"400000000",
-          "token_id":"0"
-        },
-        "submitted_block_index":null,
-        "tombstone_block_index":"1352876",
-        "finalized_block_index":null,
-        "status":"failed",
-        "sent_time":null,
-        "comment":""
+        "submitted_block_index": null,
+        "tombstone_block_index": "1769559",
+        "finalized_block_index": null,
+        "status": "failed",
+        "sent_time": null,
+        "comment": ""
       }
     }
   },
-  "jsonrpc":"2.0",
-  "id":1
+  "jsonrpc": "2.0",
+  "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

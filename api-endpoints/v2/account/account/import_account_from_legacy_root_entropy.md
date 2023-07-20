@@ -7,17 +7,17 @@ description: Import an existing account from the secret entropy.
 ## Request
 
 | Required Param | Purpose                  | Requirements                         |
-|----------------|--------------------------|--------------------------------------|
+| -------------- | ------------------------ | ------------------------------------ |
 | `entropy`      | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
 
-| Optional Param          | Purpose                                                 | Requirements                                            |
-|-------------------------|---------------------------------------------------------|---------------------------------------------------------|
-| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended. |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                         |
-| `first_block_index`     | The block from which to start scanning the ledger.      |                                                         |
-| `fog_report_url`        |                                                         |                                                         |
-| `fog_report_id`         |                                                         |                                                         |
-| `fog_authority_spki`    |                                                         |                                                         |
+| Optional Param          | Purpose                                                 | Requirements                                                     |
+| ----------------------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
+| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended.          |
+| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
+| `first_block_index`     | The block from which to start scanning the ledger.      |                                                                  |
+| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
+| `fog_report_id`         | Fog Report server ID                                    | Unused                                                           |
+| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
 
 ## Response
 
@@ -25,13 +25,12 @@ description: Import an existing account from the secret entropy.
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "import_account_from_legacy_root_entropy",
   "params": {
     "entropy": "c593274dc6f6eb94242e34ae5f0ab16bc3085d45d49d9e18b8a8c6f057e6b56b",
-    "name": "Bob",
+    "name": "Alice",
     "next_subaddress_index": 2,
     "first_block_index": "3500",
   },
@@ -39,20 +38,18 @@ description: Import an existing account from the secret entropy.
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method": "import_account",
   "result": {
     "account": {
       "object": "account",
-      "account_id": "6ed6b79004032fcfcfa65fa7a307dd004b8ec4ed77660d36d44b67452f62b470",
-      "name": "Bob",
-      "main_address": "CaE5bdbQxLG2BqAYAz84mhND79iBSs13ycQqN8oZKZtHdr6KNr1DzoX93c6LQWYHEi5b7YLiJXcTRzqhDFB563Kr1uxD6iwERFbw7KLWA6",
+      "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+      "name": "Alice",
+      "main_address": "8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x",
       "next_subaddress_index": "2",
       "first_block_index": "3500",
       "recovery_mode": false
@@ -63,7 +60,6 @@ description: Import an existing account from the secret entropy.
   "id": 1,
 }
 ```
-
 {% endtab %}
 {% endtabs %}
 
@@ -73,5 +69,4 @@ description: Import an existing account from the secret entropy.
 ```
 {"error": "Database(Diesel(DatabaseError(UniqueViolation, "UNIQUE constraint failed: accounts.account_id_hex")))"}
 ```
-
 {% endhint %}

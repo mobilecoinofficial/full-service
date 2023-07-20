@@ -6,10 +6,10 @@ description: Rename an account.
 
 ## Request
 
-| Required Param | Purpose                                      | Requirements                      |
-|----------------|----------------------------------------------|-----------------------------------|
-| `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
-| `name`         | The new name for this account.               |                                   |
+| Required Param | Purpose                                      | Requirements                                            |
+| -------------- | -------------------------------------------- | ------------------------------------------------------- |
+| `account_id`   | The account on which to perform this action. | Account must exist in the wallet.                       |
+| `name`         | The new name for this account.               | A label can have duplicates, but it is not recommended. |
 
 ## Response
 
@@ -17,35 +17,32 @@ description: Rename an account.
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
-  "method": "update_account_name",
-  "params": {
-    "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52",
-    "name": "Carol"
-  },
-  "jsonrpc": "2.0",
-  "id": 1
+    "method": "update_account_name",
+    "params": {
+        "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
+        "name": "Carol"
+    },
+    "jsonrpc": "2.0",
+    "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method":"update_account_name",
   "result":{
     "account":{
-      "id":"b504409093f5707d63f24c9ce64ca461101478757d691f2e949fa2d87a35d02c",
+      "id":"60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
       "name":"Carol",
       "key_derivation_version":"2",
-      "main_address":"41mZTnbwQ3E73ZrPQnYPdU7G6Dj3ZrYaBkrcAYPNgm61P7gBvzUke94HQB8ztPaAu1y1NCFyUAoRyYsCMixeKpUvMK64QYC1NDd7YneACJk",
+      "main_address":"8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x",
       "next_subaddress_index":"2",
-      "first_block_index":"1352037",
-      "next_block_index":"1352691",
+      "first_block_index":"1769454",
+      "next_block_index":"1769454",
       "recovery_mode":false,
       "fog_enabled":false,
       "view_only":false
@@ -55,6 +52,5 @@ description: Rename an account.
   "id":1
 }
 ```
-
 {% endtab %}
 {% endtabs %}

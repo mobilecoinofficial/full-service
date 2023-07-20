@@ -7,7 +7,7 @@ description: Remove an account from a given wallet.
 ## Request
 
 | Required Param | Purpose                                      | Requirements                      |
-|----------------|----------------------------------------------|-----------------------------------|
+| -------------- | -------------------------------------------- | --------------------------------- |
 | `account_id`   | The account on which to perform this action. | Account must exist in the wallet. |
 
 ## Response
@@ -16,22 +16,19 @@ description: Remove an account from a given wallet.
 
 {% tabs %}
 {% tab title="Request Body" %}
-
 ```
 {
   "method": "remove_account",
   "params": {
-    "account_id": "3407fbbc250799f5ce9089658380c5fe152403643a525f581f359917d8d59d52"
+    "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa"
   },
   "jsonrpc": "2.0",
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```
 {
   "method": "remove_account",
@@ -42,6 +39,5 @@ description: Remove an account from a given wallet.
   "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}
