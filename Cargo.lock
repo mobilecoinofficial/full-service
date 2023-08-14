@@ -421,9 +421,9 @@ dependencies = [
 
 [[package]]
 name = "boringssl-src"
-version = "0.5.2+6195bf8"
+version = "0.6.0+e46383f"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ab565ccc5e276ea82a2013dd08bf2c999866b06daf1d4f30fee419c4aaec6d5"
+checksum = "5edec42197c014d84ea2396589f0da14b2257f63f319442b5e8475a077b90457"
 dependencies = [
  "cmake",
 ]
@@ -1515,8 +1515,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 [[package]]
 name = "grpcio"
 version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "609832ca501baeb662dc81932fda9ed83f5d058f4b899a807ba222ce696f430a"
+source = "git+https://github.com/tikv/grpc-rs.git?rev=cc5d2ab4fa0a110d0fdaa49f12552d28a0348721#cc5d2ab4fa0a110d0fdaa49f12552d28a0348721"
 dependencies = [
  "futures-executor",
  "futures-util",
@@ -1538,9 +1537,8 @@ dependencies = [
 
 [[package]]
 name = "grpcio-sys"
-version = "0.12.1+1.46.5-patched"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf625d1803b6f44203f0428ddace847fb4994def5c803fc8a7a2f18fb3daec62"
+version = "0.12.1+1.56.2-patched"
+source = "git+https://github.com/tikv/grpc-rs.git?rev=cc5d2ab4fa0a110d0fdaa49f12552d28a0348721#cc5d2ab4fa0a110d0fdaa49f12552d28a0348721"
 dependencies = [
  "bindgen 0.59.2",
  "boringssl-src",

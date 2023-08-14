@@ -762,6 +762,7 @@ impl TxoModel for Txo {
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: Some(&shared_secret_vec),
+                    memo_type: None,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -799,6 +800,7 @@ impl TxoModel for Txo {
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
             shared_secret: None, // no account id so we don't
+            memo_type: None,
         };
 
         diesel::insert_into(txos::table)
