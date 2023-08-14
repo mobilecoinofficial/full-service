@@ -86,6 +86,7 @@ pub struct Txo {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
     pub shared_secret: Option<Vec<u8>>,
+    pub memo_type: Option<i32>,
 }
 
 impl Txo {
@@ -112,6 +113,7 @@ pub struct NewTxo<'a> {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
     pub shared_secret: Option<&'a [u8]>,
+    pub memo_type: Option<i32>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
@@ -228,6 +230,28 @@ pub struct NewGiftCode<'a> {
     pub gift_code_b58: &'a str,
     pub value: i64,
 }
+
+// #[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+// #[diesel(belongs_to(Txo, foreign_key = txo_id))]
+// #[diesel(table_name = authenticated_sender_memos)]
+// #[diesel(primary_key(txo_id))]
+// pub struct AuthenticatedSenderMemo {
+//     pub txo_id: String,
+//     pub sender_address_hash: String,
+//     pub payment_request_id: Option<String>,
+//     pub payment_intent_id: Option<String>,
+//     pub validated: bool,
+// }
+
+// #[derive(Insertable)]
+// #[diesel(table_name = authenticated_sender_memos)]
+// pub struct NewAuthenticatedSenderMemo<'a> {
+//     pub txo_id: &'a str,
+//     pub sender_address_hash: &'a str,
+//     pub payment_request_id: Option<&'a str>,
+//     pub payment_intent_id: Option<&'a str>,
+//     pub validated: bool,
+// }
 
 #[derive(Queryable, Insertable)]
 #[diesel(table_name = __diesel_schema_migrations)]
