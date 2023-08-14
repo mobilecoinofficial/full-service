@@ -52,3 +52,6 @@ serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a
 
 # Fix issues with recent nightlies, bump curve25519-dalek version
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "4fbaa3343301c62cfdbc3023c9f485257e6b718a" }
+
+# Fix linker errors when compiling gRPC C++ library on systemd based Linux.
+grpcio = { git = "https://github.com/tikv/grpc-rs.git", rev = "cc5d2ab4fa0a110d0fdaa49f12552d28a0348721" }
