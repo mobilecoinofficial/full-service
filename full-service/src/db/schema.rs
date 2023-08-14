@@ -25,7 +25,7 @@ table! {
 
 table! {
     authenticated_sender_memos (txo_id) {
-        txo_id -> Integer,
+        txo_id -> Text,
         sender_address_hash -> Text,
         payment_request_id -> Nullable<Text>,
         payment_intent_id -> Nullable<Text>,
