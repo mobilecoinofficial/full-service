@@ -24,6 +24,16 @@ table! {
 }
 
 table! {
+    authenticated_sender_memos (txo_id) {
+        txo_id -> Integer,
+        sender_address_hash -> Text,
+        payment_request_id -> Nullable<Text>,
+        payment_intent_id -> Nullable<Text>,
+        validated -> Bool,
+    }
+}
+
+table! {
     gift_codes (id) {
         id -> Integer,
         gift_code_b58 -> Text,
@@ -77,6 +87,8 @@ table! {
         spent_block_index -> Nullable<BigInt>,
         confirmation -> Nullable<Binary>,
         shared_secret -> Nullable<Binary>,
+        memo -> Binary,
+        memo_type -> Nullable<Integer>,
     }
 }
 
@@ -88,6 +100,7 @@ table! {
 }
 
 joinable!(assigned_subaddresses -> accounts (account_id));
+joinable!(authenticated_sender_memos -> txos (txo_id));
 joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
 joinable!(transaction_input_txos -> txos (txo_id));
 joinable!(transaction_logs -> accounts (account_id));
@@ -98,6 +111,7 @@ joinable!(txos -> accounts (account_id));
 allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
+    authenticated_sender_memos,
     gift_codes,
     transaction_input_txos,
     transaction_logs,
