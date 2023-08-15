@@ -374,6 +374,12 @@ class ClientAsync:
             "params": {"b58_code": b58_code},
         })
 
+    async def get_txos(self, account_id):
+        return await self._req({
+            "method": "get_txos",
+            "params": {"account_id": account_id},
+        })
+
     # Polling utility functions.
 
     @staticmethod

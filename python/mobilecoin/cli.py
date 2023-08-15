@@ -93,6 +93,7 @@ class CommandLineInterface:
         # Show transaction history.
         self.history_args = command_sp.add_parser('history', help='Show account transaction history.')
         self.history_args.add_argument('account_id', help='Account ID.')
+        self.history_args.add_argument('-T', '--txos', action='store_true', help='List transaction outputs for account.')
 
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
@@ -401,9 +402,23 @@ class CommandLineInterface:
         self.client.remove_account(account_id)
         print('Removed.')
 
-    def history(self, account_id):
+    def history(self, account_id, txos=False):
         account = self._load_account_prefix(account_id)
         account_id = account['id']
+
+        if txos:
+            r = self.client.get_txos(account_id)
+            txos = list(r['txo_map'].values())
+            txos.sort(key=lambda txo: txo['received_block_index'])
+            for txo in txos:
+                print()
+                print('id:', txo['id'])
+                print('amount:', Amount.from_storage_units(txo['value'], txo['token_id']))
+                print('subaddress:', txo['subaddress_index'])
+                print('received in block:', txo['received_block_index'])
+                print('spent in block:', txo['spent_block_index'])
+                print('status:', txo['status'])
+            return
 
         own_addresses = self.client.get_addresses(account_id)
         own_addresses = set( a['public_address_b58'] for a in own_addresses.values() )
