@@ -380,6 +380,12 @@ class ClientAsync:
             "params": {"account_id": account_id},
         })
 
+    async def get_mc_protocol_txo(self, txo_id):
+        return await self._req({
+            "method": "get_mc_protocol_txo",
+            "params": {"txo_id": txo_id},
+        })
+
     # Polling utility functions.
 
     @staticmethod

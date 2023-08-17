@@ -6,6 +6,7 @@
 pub mod account;
 pub mod assigned_subaddress;
 pub mod gift_code;
+pub mod memo;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;
