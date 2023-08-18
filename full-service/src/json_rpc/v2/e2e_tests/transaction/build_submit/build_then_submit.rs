@@ -394,7 +394,7 @@ mod e2e_transaction {
             serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
 
         assert_eq!(
-            tx_proposal.fee_amount.token_id,
+            tx_proposal.fee_amount.token_id.expose_secret().to_string(),
             TokenId::from(1).to_string()
         );
 
