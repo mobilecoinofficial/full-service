@@ -2097,6 +2097,7 @@ mod tests {
             confirmation: None,
             account_id: Some(alice_account_id.to_string()),
             shared_secret: Some(shared_secret.encode_to_vec()),
+            memo_type: None,
         };
 
         assert_eq!(expected_txo, txos[0]);
