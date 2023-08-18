@@ -3,6 +3,7 @@
 //! API definition for the Txo object.
 
 use crate::{db, db::txo::TxoStatus};
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.
@@ -16,23 +17,27 @@ pub struct Txo {
     pub id: String,
 
     /// the txo's value
-    pub value: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub value: Secret<String>,
 
     /// the txo's token id
-    pub token_id: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub token_id: Secret<String>,
 
     /// Block index in which the txo was received by an account.
     pub received_block_index: Option<String>,
 
     /// Block index in which the txo was spent by an account.
-    pub spent_block_index: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub spent_block_index: Secret<Option<String>>,
 
     /// The account_id for the account which has received this TXO. This account
     /// has spend authority.
     pub account_id: Option<String>,
 
     /// The status of this txo
-    pub status: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub status: Secret<String>,
 
     /// A cryptographic key for this Txo.
     pub target_key: String,
@@ -50,34 +55,37 @@ pub struct Txo {
 
     /// A fingerprint of the txo derived from your private spend key materials,
     /// required to spend a Txo.
-    pub key_image: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub key_image: Secret<Option<String>>,
 
     /// A confirmation number that the sender of the Txo can provide to verify
     /// that they participated in the construction of this Txo.
-    pub confirmation: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub confirmation: Secret<Option<String>>,
 
     /// Shared secret that's used to mask the private keys associated with the
     /// amounts in a transaction
-    pub shared_secret: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub shared_secret: Secret<Option<String>>,
 }
 
 impl Txo {
     pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
         Txo {
             id: txo.id.clone(),
-            value: (txo.value as u64).to_string(),
-            token_id: (txo.token_id as u64).to_string(),
+            value: (txo.value as u64).to_string().into(),
+            token_id: (txo.token_id as u64).to_string().into(),
             received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
-            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
+            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()).into(),
             account_id: txo.account_id.clone(),
-            status: status.to_string(),
+            status: status.to_string().into(),
             target_key: hex::encode(&txo.target_key),
             public_key: hex::encode(&txo.public_key),
             e_fog_hint: hex::encode(&txo.e_fog_hint),
             subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            key_image: txo.key_image.as_ref().map(hex::encode),
-            confirmation: txo.confirmation.as_ref().map(hex::encode),
-            shared_secret: txo.shared_secret.as_ref().map(hex::encode),
+            key_image: txo.key_image.as_ref().map(hex::encode).into(),
+            confirmation: txo.confirmation.as_ref().map(hex::encode).into(),
+            shared_secret: txo.shared_secret.as_ref().map(hex::encode).into(),
         }
     }
 }

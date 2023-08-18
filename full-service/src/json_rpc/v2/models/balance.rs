@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 
 use crate::service;
 
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
@@ -16,45 +17,52 @@ pub struct BalanceMap(pub BTreeMap<String, Balance>);
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct Balance {
     /// The max spendable amount in a single transaction.
-    pub max_spendable: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub max_spendable: Secret<String>,
 
     /// Unverified pico MOB. The Unverified value represents the Txos which were
     /// NOT view-key matched, but do have an assigned subaddress.
-    pub unverified: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub unverified: Secret<String>,
 
     /// Unspent pico MOB for this account at the current account_block_height.
     /// If the account is syncing, this value may change.
-    pub unspent: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub unspent: Secret<String>,
 
     /// Pending, out-going pico MOB. The pending value will clear once the
     /// ledger processes the outgoing txos. The available_pmob will reflect the
     /// change.
-    pub pending: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub pending: Secret<String>,
 
     /// Spent pico MOB. This is the sum of all the Txos in the wallet which have
     /// been spent.
-    pub spent: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub spent: Secret<String>,
 
     /// Secreted (minted) pico MOB. This is the sum of all the Txos which have
     /// been created in the wallet for outgoing transactions.
-    pub secreted: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub secreted: Secret<String>,
 
     /// Orphaned pico MOB. The orphaned value represents the Txos which were
     /// view-key matched, but which can not be spent until their subaddress
     /// index is recovered.
-    pub orphaned: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub orphaned: Secret<String>,
 }
 
 impl From<&service::balance::Balance> for Balance {
     fn from(src: &service::balance::Balance) -> Balance {
         Balance {
-            max_spendable: src.max_spendable.to_string(),
-            unverified: src.unverified.to_string(),
-            unspent: src.unspent.to_string(),
-            pending: src.pending.to_string(),
-            spent: src.spent.to_string(),
-            secreted: src.secreted.to_string(),
-            orphaned: src.orphaned.to_string(),
+            max_spendable: src.max_spendable.to_string().into(),
+            unverified: src.unverified.to_string().into(),
+            unspent: src.unspent.to_string().into(),
+            pending: src.pending.to_string().into(),
+            spent: src.spent.to_string().into(),
+            secreted: src.secreted.to_string().into(),
+            orphaned: src.orphaned.to_string().into(),
         }
     }
 }

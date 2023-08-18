@@ -152,8 +152,8 @@ where
                     (
                         a,
                         Amount {
-                            value: v,
-                            token_id: Mob::ID.to_string(),
+                            value: v.into(),
+                            token_id: Mob::ID.to_string().into(),
                         },
                     )
                 })
@@ -264,8 +264,8 @@ where
                     (
                         a,
                         Amount {
-                            value: v,
-                            token_id: Mob::ID.to_string(),
+                            value: v.into(),
+                            token_id: Mob::ID.to_string().into(),
                         },
                     )
                 })

@@ -3,6 +3,7 @@
 //! API definition for the Account object.
 
 use mc_transaction_core::TokenId;
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -10,17 +11,19 @@ use std::convert::TryFrom;
 #[derive(Deserialize, Serialize, Default, Debug, Clone, PartialEq, Eq)]
 pub struct Amount {
     /// The value of a Txo
-    pub value: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub value: Secret<String>,
 
     /// The token_id of a Txo
-    pub token_id: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub token_id: Secret<String>,
 }
 
 impl Amount {
     pub fn new(value: u64, token_id: TokenId) -> Self {
         Self {
-            value: value.to_string(),
-            token_id: token_id.to_string(),
+            value: Secret::new(value.to_string()),
+            token_id: Secret::new(token_id.to_string()),
         }
     }
 }
@@ -38,10 +41,12 @@ impl TryFrom<&Amount> for mc_transaction_core::Amount {
         Ok(Self {
             value: src
                 .value
+                .expose_secret()
                 .parse::<u64>()
                 .map_err(|err| format!("Could not parse value u64: {err:?}"))?,
             token_id: TokenId::from(
                 src.token_id
+                    .expose_secret()
                     .parse::<u64>()
                     .map_err(|err| format!("Could not parse token_id u64: {err:?}"))?,
             ),

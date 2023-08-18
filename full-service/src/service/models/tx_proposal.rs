@@ -287,7 +287,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
             .iter()
             .map(|input_txo| {
                 let key_image_bytes =
-                    hex::decode(&input_txo.key_image).map_err(|e| e.to_string())?;
+                    hex::decode(&input_txo.key_image.expose_secret()).map_err(|e| e.to_string())?;
                 Ok(InputTxo {
                     tx_out: mc_util_serial::decode(
                         hex::decode(&input_txo.tx_out_proto)

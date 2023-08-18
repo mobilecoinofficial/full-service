@@ -107,11 +107,14 @@ where
 
     match wallet_api_inner(&state.service, request).await {
         Ok(command_response) => {
-            global_log::info!("Command executed successfully");
+            global_log::info!(
+                "Command executed successfully with response: {:?}",
+                command_response
+            );
             response.result = Some(command_response);
         }
         Err(rpc_error) => {
-            global_log::info!("Command failed with error: {:?}", rpc_error);
+            global_log::error!("Command failed with error: {:?}", rpc_error);
             response.error = Some(rpc_error);
         }
     };

@@ -2908,6 +2908,7 @@ dependencies = [
  "protobuf",
  "rand 0.8.5",
  "rayon",
+ "redact",
  "reqwest",
  "retry",
  "rocket",
@@ -4571,6 +4572,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 dependencies = [
  "rand_core 0.3.1",
+]
+
+[[package]]
+name = "redact"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aa093c026c8b748090418a5290e153c8804bbbdef7e1d4163046775debeee487"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
