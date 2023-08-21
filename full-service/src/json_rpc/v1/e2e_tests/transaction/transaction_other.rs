@@ -26,6 +26,7 @@ mod e2e_transaction {
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+    use redact::Secret;
     use serde_json::json;
 
     use std::convert::TryFrom;
@@ -294,7 +295,7 @@ mod e2e_transaction {
         let txo_abbrev_expected = TxoAbbrev {
             txo_id_hex: tx_log_id.to_string(),
             recipient_address_id: "".to_string(),
-            value_pmob: 100.to_string(),
+            value_pmob: 100.to_string().into(),
             public_key: hex::encode(tx_out.public_key.as_bytes()),
         };
 
@@ -308,12 +309,12 @@ mod e2e_transaction {
             output_txos: vec![txo_abbrev_expected],
             change_txos: vec![],
             assigned_address_id: Some(b58_public_address.to_string()),
-            value_pmob: 100.to_string(),
-            fee_pmob: None,
-            submitted_block_index: None,
-            finalized_block_index: Some(12.to_string()),
-            status: "tx_status_succeeded".to_string(),
-            sent_time: None,
+            value_pmob: 100.to_string().into(),
+            fee_pmob: Secret::new(None),
+            submitted_block_index: Secret::new(None),
+            finalized_block_index: Secret::new(Some(12.to_string())),
+            status: "tx_status_succeeded".to_string().into(),
+            sent_time: Secret::new(None),
             comment: "".to_string(),
             failure_code: None,
             failure_message: None,

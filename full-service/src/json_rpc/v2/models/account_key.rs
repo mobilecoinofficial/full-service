@@ -49,8 +49,8 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     type Error = String;
 
     fn try_from(src: &AccountKey) -> Result<mc_account_keys::AccountKey, String> {
-        let view_private_key = hex_to_ristretto(&src.view_private_key.expose_secret())?;
-        let spend_private_key = hex_to_ristretto(&src.spend_private_key.expose_secret())?;
+        let view_private_key = hex_to_ristretto(src.view_private_key.expose_secret())?;
+        let spend_private_key = hex_to_ristretto(src.spend_private_key.expose_secret())?;
         let fog_authority_spki = hex_to_vec(&src.fog_authority_spki)?;
 
         Ok(mc_account_keys::AccountKey::new_with_fog(
@@ -107,8 +107,8 @@ impl TryFrom<&ViewAccountKey> for mc_account_keys::ViewAccountKey {
     type Error = String;
 
     fn try_from(src: &ViewAccountKey) -> Result<mc_account_keys::ViewAccountKey, String> {
-        let view_private_key = hex_to_ristretto(&src.view_private_key.expose_secret())?;
-        let spend_public_key = hex_to_ristretto_public(&src.spend_public_key.expose_secret())?;
+        let view_private_key = hex_to_ristretto(src.view_private_key.expose_secret())?;
+        let spend_public_key = hex_to_ristretto_public(src.spend_public_key.expose_secret())?;
 
         Ok(mc_account_keys::ViewAccountKey::new(
             view_private_key,

@@ -10,6 +10,7 @@ use mc_common::HashMap;
 use mc_mobilecoind_json::data_types::{JsonOutlayV2, JsonTx, JsonUnspentTxOut};
 
 use mc_transaction_extra::TxOutConfirmationNumber;
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -18,9 +19,12 @@ pub struct TxProposal {
     pub input_list: Vec<UnspentTxOut>,
     pub outlay_list: Vec<JsonOutlayV2>,
     pub tx: JsonTx,
-    pub fee: String,
-    pub outlay_index_to_tx_out_index: Vec<(String, String)>,
-    pub outlay_confirmation_numbers: Vec<Vec<u8>>,
+    #[serde(serialize_with = "expose_secret")]
+    pub fee: Secret<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub outlay_index_to_tx_out_index: Secret<Vec<(String, String)>>,
+    #[serde(serialize_with = "expose_secret")]
+    pub outlay_confirmation_numbers: Secret<Vec<Vec<u8>>>,
 }
 
 impl TryFrom<&TxProposalServiceModel> for TxProposal {
@@ -120,9 +124,11 @@ impl TryFrom<&mc_mobilecoind::payments::TxProposal> for TxProposal {
                 .collect::<Result<Vec<UnspentTxOut>, String>>()?,
             outlay_list: json_tx_proposal.outlay_list.clone(),
             tx: json_tx_proposal.tx.clone(),
-            fee: json_tx_proposal.fee.to_string(),
-            outlay_index_to_tx_out_index: outlay_map,
-            outlay_confirmation_numbers: json_tx_proposal.outlay_confirmation_numbers.clone(),
+            fee: json_tx_proposal.fee.to_string().into(),
+            outlay_index_to_tx_out_index: Secret::new(outlay_map),
+            outlay_confirmation_numbers: Secret::new(
+                json_tx_proposal.outlay_confirmation_numbers.clone(),
+            ),
         })
     }
 }
@@ -156,6 +162,7 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
     ) -> Result<mc_mobilecoind_json::data_types::JsonTxProposal, String> {
         let outlay_map: Vec<(usize, usize)> = src
             .outlay_index_to_tx_out_index
+            .expose_secret()
             .iter()
             .map(|(key, val)| {
                 key.parse::<usize>()
@@ -173,10 +180,11 @@ impl TryFrom<&TxProposal> for mc_mobilecoind_json::data_types::JsonTxProposal {
             tx: src.tx.clone(),
             fee: src
                 .fee
+                .expose_secret()
                 .parse::<u64>()
                 .map_err(|err| format!("Failed to parse u64 from fee: {err}"))?,
             outlay_index_to_tx_out_index: outlay_map,
-            outlay_confirmation_numbers: src.outlay_confirmation_numbers.clone(),
+            outlay_confirmation_numbers: src.outlay_confirmation_numbers.expose_secret().clone(),
         })
     }
 }

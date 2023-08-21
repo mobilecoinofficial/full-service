@@ -836,7 +836,7 @@ where
             // Add transaction log objects for sent transactions.
             let transaction_logs_and_txos = service
                 .list_transaction_logs(
-                    Some(account_id.clone()),
+                    Some(account_id),
                     None,
                     None,
                     min_block_index,
