@@ -58,7 +58,6 @@ ARG RUSTFLAGS
 RUN  --mount=type=cache,target=/opt/cargo/git \
   --mount=type=cache,target=/opt/cargo/registry/index \
   --mount=type=cache,target=/opt/cargo/registry/cache \
-  --mount=type=cache,target=/app/target \
   cargo build --locked --release ${BUILD_OPTS}
 
 RUN cp /app/target/release/full-service /usr/local/bin/
