@@ -46,7 +46,7 @@ jobs:
     - name: Unpack full-service
       run: |
         cd "${DOWNLOAD_DIR}"
-        tar --skip-old-files -xvzf linux.tar.gz
+        tar --skip-old-files --strip-components=1 --show-stored-names -xvzf linux.tar.gz
 
     - name: Run full-service - wait for ledger sync
       shell: bash
