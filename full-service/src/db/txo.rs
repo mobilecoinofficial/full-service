@@ -25,7 +25,8 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
+        memo::Memo,
+        models::{Account, AuthenticatedSenderMemo, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
@@ -131,7 +132,7 @@ impl Txo {
 
 #[rustfmt::skip]
 pub trait TxoModel {
-    /// Upserts a received TxOut to local database.
+    /// Saves a received TxOut to local database.
     ///
     /// The subaddress_index may be None, and the Txo is said to be "orphaned",
     /// if the subaddress is not yet being tracked by the wallet.
@@ -675,6 +676,8 @@ pub trait TxoModel {
     /// * TxoStatus 
     fn status(&self, conn: Conn) -> Result<TxoStatus, WalletDbError>;
 
+    /// Get memo for current TxOut
+    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError>;
 
     /// Get the membership proof from ledger DB for current TxOut
     /// 
@@ -1947,6 +1950,29 @@ impl TxoModel for Txo {
         } else {
             Ok(TxoStatus::Orphaned)
         }
+    }
+
+    fn memo(&self, conn: Conn) -> Result<Option<Memo>, WalletDbError> {
+        use crate::db::schema::authenticated_sender_memos;
+
+        self.memo_type
+
+        Ok(
+            match self.memo_type {
+                None => None,
+                AuthenticatedSender(memo) => {
+                    authenticated_
+                    authenticated_sender_memos::table.filter(
+                        authenticated_sender_memos::txo_id.eq(&self.id),
+                    )
+
+                    )
+                    .execute(conn)?;
+
+                },
+                _ => Memo::UnknownType,
+            }
+        )
     }
 
     fn membership_proof(
@@ -3624,6 +3650,59 @@ mod tests {
         assert_eq!(result.len(), 16);
         let sum: i64 = result.iter().map(|x| x.value).sum();
         assert_eq!(12400000000_i64, sum);
+    }
+
+    #[test_with_logger]
+    fn test_create_received_with_memo(
+        logger: Logger,
+    ) {
+        // make sure it only includes txos with key image and subaddress
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a received txo without a memo, and show that no memo is created.
+        let (txo, key_image) = create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
+
+        let txo_id = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txo = Txo::get(&txo_id, conn).unwrap();
+        let memo = txo.memo(conn).unwrap();
+        dbg!(
+        assert_eq!(memo, Memo::UnknownType);
+
+        // Create a txo with a memo, and get the memo from the wallet db.
+        // txo.memo
+
+        assert!(false);
     }
 
     // FIXME: once we have create_minted, then select_txos test with no

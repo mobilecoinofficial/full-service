@@ -4,6 +4,12 @@
 
 use crate::db::models::AuthenticatedSenderMemo;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Memo {
+    UnknownType,
+    AuthenticatedSender(AuthenticatedSenderMemo),
+}
+
 pub trait AuthenticatedSenderMemoModel {
 }
 

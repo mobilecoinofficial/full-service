@@ -231,7 +231,7 @@ pub struct NewGiftCode<'a> {
     pub value: i64,
 }
 
-#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Debug)]
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Eq, Debug)]
 #[diesel(belongs_to(Txo, foreign_key = txo_id))]
 #[diesel(table_name = authenticated_sender_memos)]
 #[diesel(primary_key(txo_id))]

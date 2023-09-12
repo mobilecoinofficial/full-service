@@ -161,6 +161,7 @@ pub enum JsonCommandResponse {
     },
     get_txo {
         txo: Txo,
+        // memo: Memo,
     },
     get_txo_block_index {
         block_index: String,
