@@ -1954,22 +1954,15 @@ impl TxoModel for Txo {
 
     fn memo(&self, conn: Conn) -> Result<Option<Memo>, WalletDbError> {
         use crate::db::schema::authenticated_sender_memos;
-
-        self.memo_type
-
         Ok(
             match self.memo_type {
                 None => None,
-                AuthenticatedSender(memo) => {
-                    authenticated_
-                    authenticated_sender_memos::table.filter(
-                        authenticated_sender_memos::txo_id.eq(&self.id),
-                    )
-
-                    )
-                    .execute(conn)?;
-
-                },
+                // AuthenticatedSender(memo) => {
+                //     memos = authenticated_sender_memos::table.filter(
+                //         authenticated_sender_memos::txo_id.eq(&self.id),
+                //     )
+                //     .execute(conn)?;
+                // },
                 _ => Memo::UnknownType,
             }
         )
@@ -3696,13 +3689,12 @@ mod tests {
 
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).unwrap();
-        dbg!(
         assert_eq!(memo, Memo::UnknownType);
 
         // Create a txo with a memo, and get the memo from the wallet db.
         // txo.memo
 
-        assert!(false);
+        assert!(false); //STUB
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
