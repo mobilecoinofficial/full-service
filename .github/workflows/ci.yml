@@ -96,6 +96,13 @@ jobs:
       - name: Set Git Safe Directory
         run: git config --global --add safe.directory /__w/full-service/full-service/
 
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2023-09-18
+          override: true
+          components: rustfmt, clippy
+
       - uses: actions-rs/cargo@v1
         with:
           command: test
