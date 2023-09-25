@@ -136,16 +136,16 @@ jobs:
           chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
           chart_path: .internal-ci/helm/full-service
 
-      - name: Package and publish "full-service-mirror" chart
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: helm-publish
-          chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-          chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-          chart_repo: ${{ env.CHART_REPO }}
-          chart_app_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
-          chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
-          chart_path: .internal-ci/helm/full-service-mirror
+      # - name: Package and publish "full-service-mirror" chart
+      #   uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      #   with:
+      #     action: helm-publish
+      #     chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+      #     chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+      #     chart_repo: ${{ env.CHART_REPO }}
+      #     chart_app_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+      #     chart_version: ${{ steps.meta.outputs.tag }}-${{ matrix.network.chain_id }}
+      #     chart_path: .internal-ci/helm/full-service-mirror
 
   deploy:
     strategy:
@@ -155,7 +155,7 @@ jobs:
         # - chain_id: main
         chart:
           - full-service
-          - full-service-mirror
+          # - full-service-mirror
     runs-on: [self-hosted, Linux, small]
     needs:
       - publish
@@ -332,7 +332,7 @@ jobs:
         # - chain_id: main
         chart:
           - full-service
-          - full-service-mirror
+          # - full-service-mirror
     runs-on: [self-hosted, Linux, small]
     needs:
       - integration-test
