@@ -47,7 +47,7 @@ mc-validator-connection = { path = "../validator/connection" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
-base64 = "0.21.2"
+base64 = "0.21.4"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.3", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
