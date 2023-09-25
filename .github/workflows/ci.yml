@@ -22,7 +22,7 @@ jobs:
   lint:
     runs-on: [self-hosted, Linux, large]
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.27
+      image: mobilecoin/rust-sgx-base:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -46,6 +46,13 @@ jobs:
 
       - name: Set Git Safe Directory
         run: git config --global --add safe.directory /__w/full-service/full-service/
+
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2023-09-18
+          override: true
+          components: rustfmt, clippy
 
       - name: Cargo sort
         run: |
