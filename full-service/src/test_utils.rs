@@ -40,6 +40,7 @@ use mc_transaction_core::{
     tx::{Tx, TxOut},
     Amount, FeeMap, Token, TokenId,
 };
+use mc_transaction_extra::MemoType;
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
 use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
@@ -379,9 +380,26 @@ pub fn create_test_txo_for_recipient(
     amount: Amount,
     rng: &mut StdRng,
 ) -> (TxOut, KeyImage) {
+    return create_test_txo_for_recipient_with_memo(
+        recipient_account_key,
+        recipient_subaddress_index,
+        amount,
+        rng,
+        None,
+    );
+}
+
+pub fn create_test_txo_for_recipient_with_memo(
+    recipient_account_key: &AccountKey,
+    recipient_subaddress_index: u64,
+    amount: Amount,
+    rng: &mut StdRng,
+) -> (TxOut, KeyImage) {
+
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
+
     let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)

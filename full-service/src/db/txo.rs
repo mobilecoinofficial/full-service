@@ -17,7 +17,10 @@ use mc_transaction_core::{
     tx::{TxOut, TxOutMembershipProof},
     Amount, TokenId,
 };
-use mc_transaction_extra::TxOutConfirmationNumber;
+use mc_transaction_extra::{
+    MemoType, RegisteredMemoType, AuthenticatedSenderMemo, UnusedMemo,
+    TxOutConfirmationNumber,
+};
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
 
@@ -25,8 +28,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        memo::Memo,
-        models::{Account, AuthenticatedSenderMemo, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
+        models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
@@ -677,7 +679,7 @@ pub trait TxoModel {
     fn status(&self, conn: Conn) -> Result<TxoStatus, WalletDbError>;
 
     /// Get memo for current TxOut
-    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError>;
+    fn memo(&self, conn: Conn) -> Result<MemoType, WalletDbError>;
 
     /// Get the membership proof from ledger DB for current TxOut
     /// 
@@ -1952,20 +1954,25 @@ impl TxoModel for Txo {
         }
     }
 
-    fn memo(&self, conn: Conn) -> Result<Option<Memo>, WalletDbError> {
-        use crate::db::schema::authenticated_sender_memos;
+    fn memo(&self, conn: Conn) -> Result<MemoType, WalletDbError> {
+        let unused = MemoType::Unused(UnusedMemo {});
         Ok(
             match self.memo_type {
-                None => None,
-                // AuthenticatedSender(memo) => {
-                //     memos = authenticated_sender_memos::table.filter(
-                //         authenticated_sender_memos::txo_id.eq(&self.id),
-                //     )
-                //     .execute(conn)?;
-                // },
-                _ => Memo::UnknownType,
+                None => unused,
+                Some(mtype) => {
+                    match i32_to_two_bytes(mtype) {
+                        <AuthenticatedSenderMemo as RegisteredMemoType>::MEMO_TYPE_BYTES => panic!(),
+                        _ => unused,
+                    }
+                }
             }
         )
+
+        // use crate::db::schema::authenticated_sender_memos;
+        // let memos = authenticated_sender_memos::table.filter(
+        //         authenticated_sender_memos::txo_id.eq(&self.id),
+        //     )
+        //     .execute(conn)?;
     }
 
     fn membership_proof(
@@ -2002,6 +2009,16 @@ impl TxoModel for Txo {
         Ok(())
     }
 }
+
+
+fn i32_to_two_bytes(value: i32) -> [u8; 2] {
+    [(value >> 8) as u8, (value & 0xFF) as u8]
+}
+
+fn two_bytes_to_i32(bytes: [u8; 2]) -> i32 {
+    ((bytes[0] as i32) << 8) | (bytes[1] as i32)
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -3689,7 +3706,10 @@ mod tests {
 
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).unwrap();
-        assert_eq!(memo, Memo::UnknownType);
+        match memo {
+            MemoType::Unused(_) => {},
+            _ => panic!("expected unused memo"),
+        }
 
         // Create a txo with a memo, and get the memo from the wallet db.
         // txo.memo
