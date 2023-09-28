@@ -28,6 +28,11 @@ strip = "symbols"
 # Fork and rename to use "OG" dalek-cryptography with latest dependencies.
 bulletproofs-og = { git = "https://github.com/mobilecoinfoundation/bulletproofs.git", rev = "9abfdc054d9ba65f1e185ea1e6eff3947ce879dc" }
 
+curve25519-dalek = { git = "https://github.com/dalek-cryptography/curve25519-dalek", rev = "99c0520aa79401b69fb51d38172cd58c6a256cfb" }
+
+# Fix issues with recent nightlies, bump curve25519-dalek version
+ed25519-dalek = { git = "https://github.com/dalek-cryptography/ed25519-dalek.git", rev = "2931c688eb11341a1145e257bc41d8ecbe36277c" }
+
 # mbedtls patched to allow certificate verification with a profile
 mbedtls = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "e966091845f27d49b0d9ba91fc99125e0c5f111c" }
 mbedtls-sys-auto = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "e966091845f27d49b0d9ba91fc99125e0c5f111c" }
@@ -43,11 +48,11 @@ x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git
 
 # Patch mc lib for git dependencies in ledger-mob
 mc-core = { path = "./mobilecoin/core" }
-mc-crypto-digestible = { path ="./mobilecoin/crypto/digestible" }
-mc-crypto-hashes = { path ="./mobilecoin/crypto/hashes" }
-mc-crypto-keys = { path ="./mobilecoin/crypto/keys" }
-mc-crypto-ring-signature = { path ="./mobilecoin/crypto/ring-signature" }
-mc-crypto-ring-signature-signer = { path ="./mobilecoin/crypto/ring-signature/signer" }
+mc-crypto-digestible = { path = "./mobilecoin/crypto/digestible" }
+mc-crypto-hashes = { path = "./mobilecoin/crypto/hashes" }
+mc-crypto-keys = { path = "./mobilecoin/crypto/keys" }
+mc-crypto-ring-signature = { path = "./mobilecoin/crypto/ring-signature" }
+mc-crypto-ring-signature-signer = { path = "./mobilecoin/crypto/ring-signature/signer" }
 mc-transaction-core = { path = "./mobilecoin/transaction/core" }
 mc-transaction-extra = { path = "./mobilecoin/transaction/extra" }
 mc-transaction-signer = { path = "./mobilecoin/transaction/signer" }

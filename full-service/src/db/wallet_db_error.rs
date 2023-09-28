@@ -1,6 +1,7 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
+use base64::DecodeSliceError;
 use reqwest;
 
 use displaydoc::Display;
@@ -162,6 +163,9 @@ pub enum WalletDbError {
 
     /// Account key is not available for a view only account
     AccountKeyNotAvailableForViewOnlyAccount,
+
+    /// Decode Slice Error
+    DecodeSlice(DecodeSliceError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -239,5 +243,11 @@ impl From<reqwest::Error> for WalletDbError {
 impl From<ed25519_dalek::ed25519::Error> for WalletDbError {
     fn from(src: ed25519_dalek::ed25519::Error) -> Self {
         Self::Dalek(src)
+    }
+}
+
+impl From<DecodeSliceError> for WalletDbError {
+    fn from(src: DecodeSliceError) -> Self {
+        Self::DecodeSlice(src)
     }
 }
