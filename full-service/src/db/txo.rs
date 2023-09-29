@@ -38,6 +38,7 @@ use crate::{
     },
     service::models::tx_proposal::OutputTxo,
     util::b58::b58_encode_public_address,
+    json_rpc::v2::models::memo::Memo,
 };
 
 #[derive(Debug, PartialEq)]
@@ -683,7 +684,7 @@ pub trait TxoModel {
     fn status(&self, conn: Conn) -> Result<TxoStatus, WalletDbError>;
 
     /// Get memo for current TxOut
-    fn memo(&self, conn: Conn) -> Result<MemoType, WalletDbError>;
+    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError>;
 
     /// Get the membership proof from ledger DB for current TxOut
     /// 
@@ -803,6 +804,8 @@ impl TxoModel for Txo {
                         payment_intent_id: None,
                         validated: false, // TODO: run memo.validate()
                     };
+
+                    // TODO: check if this memo already exists
                     diesel::insert_into(authenticated_sender_memos::table)
                         .values(&new_memo)
                         .execute(conn)?;
@@ -1988,13 +1991,12 @@ impl TxoModel for Txo {
         }
     }
 
-    fn memo(&self, conn: Conn) -> Result<MemoType, WalletDbError> {
+    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError> {
         use crate::db::schema::authenticated_sender_memos;
 
-        let unused = MemoType::Unused(UnusedMemo {});
         Ok(
             match self.memo_type {
-                None => unused,
+                None => Memo::Unused,
                 Some(mtype) => {
                     match i32_to_two_bytes(mtype) {
                         <AuthenticatedSenderMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
@@ -2004,12 +2006,9 @@ impl TxoModel for Txo {
                                 let db_memo = authenticated_sender_memos::table.filter(
                                     authenticated_sender_memos::txo_id.eq(&self.id),
                                     ).first::<AuthenticatedSenderMemoModel>(conn)?;
-
-                                dbg!(&db_memo);
-
-                                unused //STUB
+                                Memo::Sender(db_memo.into())
                             },
-                        _ => unused,
+                        _ => Memo::Unused,
                     }
                 }
             }
@@ -2064,7 +2063,7 @@ fn two_bytes_to_i32(bytes: [u8; 2]) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress, ShortAddressHash, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::{
         logger::{log, test_with_logger, Logger},
         HashSet,
@@ -3709,7 +3708,6 @@ mod tests {
     fn test_create_received_with_memo(
         logger: Logger,
     ) {
-        // make sure it only includes txos with key image and subaddress
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -3719,6 +3717,8 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
+        let address_hash: ShortAddressHash = (&account_key.default_subaddress()).into();
+
         let (account_id, _address) = Account::create_from_root_entropy(
             &root_id.root_entropy,
             Some(0),
@@ -3732,6 +3732,7 @@ mod tests {
         .unwrap();
 
         let amount = Amount::new(1000 * MOB, Mob::ID);
+
 
         // Create a received txo without a memo, and show that no memo is created.
         let (txo, key_image) = create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
@@ -3750,7 +3751,7 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).unwrap();
         match memo {
-            MemoType::Unused(_) => {},
+            Memo::Unused => {},
             _ => panic!("expected unused memo"),
         }
 
@@ -3772,7 +3773,11 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).expect("loading memo");
         match memo {
-            MemoType::AuthenticatedSender(_) => {},
+            Memo::Sender(m) => {
+                assert_eq!(m.sender_address_hash, address_hash.to_string());
+                assert_eq!(m.payment_request_id, None);
+                assert_eq!(m.payment_intent_id, None);
+            },
             _ => panic!("expected sender memo"),
         }
     }
