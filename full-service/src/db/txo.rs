@@ -18,8 +18,9 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::{
-    MemoType, RegisteredMemoType, AuthenticatedSenderMemo, UnusedMemo,
-    TxOutConfirmationNumber,
+    MemoType, RegisteredMemoType, AuthenticatedSenderMemo,
+    AuthenticatedSenderWithPaymentIntentIdMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
+    UnusedMemo, TxOutConfirmationNumber,
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -28,7 +29,10 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo},
+        models::{
+            Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo,
+            AuthenticatedSenderMemo as AuthenticatedSenderMemoModel, NewAuthenticatedSenderMemo,
+        },
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
@@ -732,6 +736,13 @@ impl TxoModel for Txo {
         let txo_id = TxoID::from(&txo);
         let shared_secret_vec = shared_secret.encode_to_vec();
 
+        // Decrypt the memo and determine its type bytes.
+        let memo_payload = match txo.e_memo {
+            Some(e_memo) => e_memo.decrypt(&shared_secret),
+            None => UnusedMemo.into(),
+        };
+        let memo_type = Some(two_bytes_to_i32(*memo_payload.get_memo_type()));
+
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -767,7 +778,7 @@ impl TxoModel for Txo {
                     confirmation: None,
                     account_id: Some(account_id_hex.to_string()),
                     shared_secret: Some(&shared_secret_vec),
-                    memo_type: None,
+                    memo_type,
                 };
 
                 diesel::insert_into(crate::db::schema::txos::table)
@@ -778,6 +789,29 @@ impl TxoModel for Txo {
                 return Err(e);
             }
         };
+
+        // Interpret the memo payload and save it to the correct database table.
+        // TODO: move this to its own function.
+        use crate::db::schema::authenticated_sender_memos;
+        if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
+            match memo_type {
+                MemoType::AuthenticatedSender(memo) => {
+                    let new_memo = NewAuthenticatedSenderMemo {
+                        txo_id: &txo_id.to_string(),
+                        sender_address_hash: &memo.sender_address_hash().to_string(),
+                        payment_request_id: None,
+                        payment_intent_id: None,
+                        validated: false, // TODO: run memo.validate()
+                    };
+                    diesel::insert_into(authenticated_sender_memos::table)
+                        .values(&new_memo)
+                        .execute(conn)?;
+                },
+                _ => {}
+            };
+        };
+
+
         Ok(txo_id.to_string())
     }
 
@@ -1955,24 +1989,32 @@ impl TxoModel for Txo {
     }
 
     fn memo(&self, conn: Conn) -> Result<MemoType, WalletDbError> {
+        use crate::db::schema::authenticated_sender_memos;
+
         let unused = MemoType::Unused(UnusedMemo {});
         Ok(
             match self.memo_type {
                 None => unused,
                 Some(mtype) => {
                     match i32_to_two_bytes(mtype) {
-                        <AuthenticatedSenderMemo as RegisteredMemoType>::MEMO_TYPE_BYTES => panic!(),
+                        <AuthenticatedSenderMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
+                        <AuthenticatedSenderWithPaymentIntentIdMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
+                        <AuthenticatedSenderWithPaymentRequestIdMemo as RegisteredMemoType>::MEMO_TYPE_BYTES
+                            => {
+                                let db_memo = authenticated_sender_memos::table.filter(
+                                    authenticated_sender_memos::txo_id.eq(&self.id),
+                                    ).first::<AuthenticatedSenderMemoModel>(conn)?;
+
+                                dbg!(&db_memo);
+
+                                unused //STUB
+                            },
                         _ => unused,
                     }
                 }
             }
         )
 
-        // use crate::db::schema::authenticated_sender_memos;
-        // let memos = authenticated_sender_memos::table.filter(
-        //         authenticated_sender_memos::txo_id.eq(&self.id),
-        //     )
-        //     .execute(conn)?;
     }
 
     fn membership_proof(
@@ -2045,8 +2087,9 @@ mod tests {
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
             create_test_received_txo, create_test_txo_for_recipient,
-            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+            create_test_txo_for_recipient_with_memo, create_test_unsigned_txproposal_and_log,
+            get_resolver_factory, get_test_ledger, manually_sync_account,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -3712,9 +3755,26 @@ mod tests {
         }
 
         // Create a txo with a memo, and get the memo from the wallet db.
-        // txo.memo
+        let memo = TransactionMemo::RTH(None, None);
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(&account_key, 0, amount, &mut rng, memo);
 
-        assert!(false); //STUB
+        let txo_id = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txo = Txo::get(&txo_id, conn).unwrap();
+        let memo = txo.memo(conn).expect("loading memo");
+        match memo {
+            MemoType::AuthenticatedSender(_) => {},
+            _ => panic!("expected sender memo"),
+        }
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
