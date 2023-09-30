@@ -1986,7 +1986,7 @@ impl TxoModel for Txo {
 mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::{
-        logger::{log, test_with_logger, Logger},
+        logger::{async_test_with_logger, log, test_with_logger, Logger},
         HashSet,
     };
     use mc_fog_report_validation::MockFogPubkeyResolver;
@@ -2020,8 +2020,8 @@ mod tests {
     // each step of the lifecycle.
     // Note: This is not a replacement for a service-level test, but instead tests
     // basic assumptions after common DB operations with the Txo.
-    #[test_with_logger]
-    fn test_received_txo_lifecycle(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_received_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -2064,6 +2064,7 @@ mod tests {
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
         let txos = Txo::list_for_account(
             &alice_account_id.to_string(),
             None,
@@ -2133,7 +2134,7 @@ mod tests {
             TxoStatus::Created,
         );
 
-        let tx_proposal = unsigned_tx_proposal.sign(&alice_account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&alice_account).await.unwrap();
         // There should be 2 outputs, one to dest and one change
         assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
         transaction_log = TransactionLog::log_signed(
@@ -2389,7 +2390,8 @@ mod tests {
             72 * MOB,
             wallet_db.clone(),
             ledger_db.clone(),
-        );
+        )
+        .await;
 
         let associated_txos = transaction_log
             .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
@@ -2769,8 +2771,8 @@ mod tests {
         }
     }
 
-    #[test_with_logger]
-    fn test_create_minted(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_create_minted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let root_id = RootIdentity::from_random(&mut rng);
@@ -2826,7 +2828,8 @@ mod tests {
             MOB,
             wallet_db.clone(),
             ledger_db,
-        );
+        )
+        .await;
 
         let associated_txos = transaction_log
             .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
@@ -2843,8 +2846,8 @@ mod tests {
     }
 
     // Test that the confirmation number validates correctly.
-    #[test_with_logger]
-    fn test_validate_confirmation(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_validate_confirmation(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -2888,6 +2891,8 @@ mod tests {
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
+        let sender_account = Account::get(&AccountID::from(&sender_account_key), conn).unwrap();
+
         let mut builder: WalletTransactionBuilder<MockFogPubkeyResolver> =
             WalletTransactionBuilder::new(
                 AccountID::from(&sender_account_key).to_string(),
@@ -2906,9 +2911,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let proposal = unsigned_tx_proposal
-            .sign(&sender_account_key, None)
-            .unwrap();
+        let proposal = unsigned_tx_proposal.sign(&sender_account).await.unwrap();
 
         // Sleep to make sure that the foreign keys exist
         std::thread::sleep(Duration::from_secs(3));

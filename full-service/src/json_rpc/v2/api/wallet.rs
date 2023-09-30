@@ -200,6 +200,7 @@ where
                     ),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_and_submit_transaction {
@@ -257,6 +258,7 @@ where
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_burn_transaction {
@@ -316,6 +318,7 @@ where
                     ),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_transaction {
@@ -442,6 +445,7 @@ where
                     b58_data.insert("value".to_string(), payment_request.value.to_string());
                     b58_data.insert("token_id".to_string(), payment_request.token_id.to_string());
                     b58_data.insert("memo".to_string(), payment_request.memo);
+                    b58_data.insert("token_id".to_string(), payment_request.token_id.to_string());
                 }
             }
             JsonCommandResponse::check_b58_type {

@@ -14,12 +14,16 @@ mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-api = { path = "../mobilecoin/api" }
 mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
 mc-blockchain-types = { path = "../mobilecoin/blockchain/types" }
-mc-common = { path = "../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-common = { path = "../mobilecoin/common", default-features = false, features = [
+    "loggers",
+] }
 mc-connection = { path = "../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../mobilecoin/consensus/enclave/measurement" }
 mc-consensus-scp = { path = "../mobilecoin/consensus/scp" }
 mc-core = { path = "../mobilecoin/core" }
-mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = ["derive"] }
+mc-crypto-digestible = { path = "../mobilecoin/crypto/digestible", features = [
+    "derive",
+] }
 mc-crypto-keys = { path = "../mobilecoin/crypto/keys", default-features = false }
 mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/signer" }
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
@@ -37,6 +41,7 @@ mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
 mc-transaction-extra = { path = "../mobilecoin/transaction/extra" }
 mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
@@ -47,6 +52,9 @@ mc-validator-connection = { path = "../validator/connection" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 
+ledger-mob = { path = "../ledger-mob/lib" }
+
+async-trait = "0.1.59"
 base64 = "0.21.4"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.3", features = ["derive", "env"] }
@@ -56,7 +64,7 @@ diesel-derive-enum = { version = "2", features = ["sqlite"] }
 diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
-ed25519-dalek = "1.0.1"
+ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
 grpcio = "0.12"
 hex = { version = "0.4", default-features = false }
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
@@ -64,11 +72,19 @@ num_cpus = "1.16"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }
 rayon = "1.7"
-reqwest = { version = "0.11.20", default-features = false, features = ["rustls-tls", "gzip"] }
+reqwest = { version = "0.11.20", default-features = false, features = [
+    "rustls-tls",
+    "gzip",
+] }
 retry = "2.0"
 rocket = { version = "0.5.0-rc.3", features = ["json"] }
-rocket_sync_db_pools = { version = "0.1.0-rc.3", features = ["diesel_sqlite_pool"] }
-serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
+rocket_sync_db_pools = { version = "0.1.0-rc.3", features = [
+    "diesel_sqlite_pool",
+] }
+serde = { version = "1.0", default-features = false, features = [
+    "alloc",
+    "derive",
+] }
 serde-big-array = "0.5.1"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -81,13 +97,23 @@ uuid = { version = "1.4.1", features = ["serde", "v4"] }
 mc-blockchain-test-utils = { path = "../mobilecoin/blockchain/test-utils" }
 mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
 mc-consensus-enclave-api = { path = "../mobilecoin/consensus/enclave/api" }
-mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", features = ["automock"] }
+mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", features = [
+    "automock",
+] }
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils" }
 
 bs58 = "0.5.0"
 tempdir = "0.3"
-url = "2.4"
+tokio = "1.27"
+url = "2.3"
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "8.2.4", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+vergen = { version = "8.2.4", features = [
+    "build",
+    "cargo",
+    "git",
+    "gitcl",
+    "rustc",
+    "si",
+] }

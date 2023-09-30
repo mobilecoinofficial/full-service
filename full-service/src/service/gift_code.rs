@@ -345,6 +345,7 @@ pub enum GiftCodeStatus {
 /// gift codes.
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
+#[async_trait]
 pub trait GiftCodeService {
     /// Builds a new gift code.
     ///
@@ -372,7 +373,7 @@ pub trait GiftCodeService {
     ///| `max_spendable_value` | The maximum amount for an input TXO selected for this transaction. |                                              |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_gift_code(
+    async fn build_gift_code(
         &self,
         from_account_id: &AccountID,
         value: u64,
@@ -476,12 +477,13 @@ pub trait GiftCodeService {
     ) -> Result<bool, GiftCodeServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> GiftCodeService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn build_gift_code(
+    async fn build_gift_code(
         &self,
         from_account_id: &AccountID,
         value: u64,
@@ -524,7 +526,7 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let signing_data = self.build_transaction(
+        let unsigned_tx_proposal = self.build_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
@@ -542,13 +544,7 @@ where
             None,
         )?;
 
-        let account_key: AccountKey = mc_util_serial::decode(&from_account.account_key)?;
-        let fee_map = if self.offline {
-            None
-        } else {
-            Some(self.get_network_fees()?)
-        };
-        let tx_proposal = signing_data.sign(&account_key, fee_map.as_ref())?;
+        let tx_proposal = unsigned_tx_proposal.sign(&from_account).await?;
 
         if tx_proposal.payload_txos.len() != 1 {
             return Err(GiftCodeServiceError::UnexpectedTxProposalFormat);
@@ -870,13 +866,13 @@ mod tests {
         },
     };
     use mc_account_keys::PublicAddress;
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_gift_code_lifecycle(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_gift_code_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -930,6 +926,7 @@ mod tests {
                 None,
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built gift code transaction");
 
@@ -1055,8 +1052,8 @@ mod tests {
         )
     }
 
-    #[test_with_logger]
-    fn test_remove_gift_code(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_remove_gift_code(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -1110,6 +1107,7 @@ mod tests {
                 None,
                 None,
             )
+            .await
             .unwrap();
         log::info!(logger, "Built gift code transaction");
 

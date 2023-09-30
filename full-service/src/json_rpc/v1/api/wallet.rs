@@ -60,7 +60,7 @@ use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
 
-pub fn generic_wallet_api<T, FPR>(
+pub async fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
@@ -87,7 +87,7 @@ where
         }
     };
 
-    match wallet_api_inner(&state.service, request) {
+    match wallet_api_inner(&state.service, request).await {
         Ok(command_response) => {
             global_log::info!("Command executed successfully");
             response.result = Some(command_response);
@@ -107,7 +107,7 @@ where
 /// take explicit Rocket state, and then pass the service to the inner method.
 /// This allows us to properly construct state with Mock Connection Objects in
 /// tests. This also allows us to version the overall API easily.
-pub fn wallet_api_inner<T, FPR>(
+pub async fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
     command: JsonCommandRequest,
 ) -> Result<JsonCommandResponse, JsonRPCError>
@@ -172,6 +172,7 @@ where
                     TransactionMemo::RTH(None, None),
                     None,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_and_submit_transaction {
@@ -209,6 +210,7 @@ where
                         .transpose()
                         .map_err(format_error)?,
                 )
+                .await
                 .map_err(format_error)?;
             JsonCommandResponse::build_gift_code {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
@@ -234,6 +236,7 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                 )
+                .await
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
@@ -283,6 +286,7 @@ where
                     TransactionMemo::RTH(None, None),
                     None,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_transaction {
@@ -836,7 +840,7 @@ where
             // Add transaction log objects for sent transactions.
             let transaction_logs_and_txos = service
                 .list_transaction_logs(
-                    Some(account_id.clone()),
+                    Some(account_id),
                     None,
                     None,
                     min_block_index,
