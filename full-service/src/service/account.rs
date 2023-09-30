@@ -563,7 +563,7 @@ where
                     fog_info.report_id.unwrap_or_default(),
                     &fog_authority_spki,
                 );
-                exclusive_transaction(conn, |conn: &mut diesel::SqliteConnection| {
+                exclusive_transaction(conn, |conn| {
                     Ok(Account::import_view_only_from_hardware_wallet_with_fog(
                         &view_account_keys,
                         name,
@@ -574,7 +574,7 @@ where
                     )?)
                 })
             }
-            None => exclusive_transaction(conn, |conn: &mut diesel::SqliteConnection| {
+            None => exclusive_transaction(conn, |conn| {
                 Ok(Account::import_view_only(
                     &view_account_keys,
                     name,

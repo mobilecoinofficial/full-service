@@ -47,19 +47,16 @@ use crate::{
         watcher::WatcherService,
         WalletService,
     },
-    util::{
-        b58::{
-            b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
-            PrintableWrapperType,
-        },
-        encoding_helpers::{hex_to_ristretto, hex_to_ristretto_public},
+    util::b58::{
+        b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
+        PrintableWrapperType,
     },
 };
 use mc_account_keys::{burn_address, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
@@ -1177,10 +1174,17 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
-            // TODO: change this to convert from raw bytes not protobuf
-            let view_private_key = hex_to_ristretto(&view_private_key).map_err(format_error)?;
-            let spend_public_key =
-                hex_to_ristretto_public(&spend_public_key).map_err(format_error)?;
+            let mut view_private_key_bytes = [0u8; 32];
+            hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)
+                .map_err(format_error)?;
+            let view_private_key: RistrettoPrivate =
+                (&view_private_key_bytes).try_into().map_err(format_error)?;
+
+            let mut spend_public_key_bytes = [0u8; 32];
+            hex::decode_to_slice(spend_public_key, &mut spend_public_key_bytes)
+                .map_err(format_error)?;
+            let spend_public_key: RistrettoPublic =
+                (&spend_public_key_bytes).try_into().map_err(format_error)?;
 
             let account = service
                 .import_view_only_account(
