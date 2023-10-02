@@ -61,7 +61,9 @@ jobs:
           cargo clippy --all --all-features
 
   test:
-    runs-on: [self-hosted, macOS, X64, rust]
+    runs-on: [self-hosted, Linux, large]
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.28
 
     steps:
       - name: Checkout
@@ -90,6 +92,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+          args: -- --test-threads=1
         env:
           CARGO_INCREMENTAL: "0"
           RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"

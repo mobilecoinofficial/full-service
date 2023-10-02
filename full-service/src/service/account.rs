@@ -560,7 +560,6 @@ where
                 let default_public_address = get_public_fog_address(
                     &default_subaddress_keys,
                     fog_info.report_url,
-                    fog_info.report_id.unwrap_or_default(),
                     &fog_authority_spki,
                 );
                 exclusive_transaction(conn, |conn| {
@@ -720,7 +719,6 @@ where
 fn get_public_fog_address(
     subaddress_keys: &ViewSubaddress,
     fog_report_url: String,
-    fog_report_id: String,
     fog_authority_spki_bytes: &[u8],
 ) -> PublicAddress {
     let fog_authority_sig = {
@@ -740,7 +738,7 @@ fn get_public_fog_address(
         subaddress_spend_public.as_ref(),
         subaddress_view_public.as_ref(),
         fog_report_url,
-        fog_report_id,
+        "".to_string(),
         fog_authority_sig,
     )
 }
@@ -773,14 +771,13 @@ mod tests {
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_private_key = RistrettoPrivate::from_random(&mut rng);
         let fog_report_url = "fog://fog.test.mobilecoin.com".to_string();
-        let fog_report_id: String = Default::default();
         let fog_authority_spki = "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".as_bytes().to_vec();
 
         let account_key = AccountKey::new_with_fog(
             &spend_private_key,
             &view_private_key,
             fog_report_url.clone(),
-            fog_report_id.clone(),
+            "".to_string(),
             fog_authority_spki.clone(),
         );
 
@@ -798,7 +795,6 @@ mod tests {
         let public_address_from_view_subaddress = get_public_fog_address(
             &default_view_subaddress,
             fog_report_url,
-            fog_report_id,
             fog_authority_spki.as_ref(),
         );
 

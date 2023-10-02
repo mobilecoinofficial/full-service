@@ -15,7 +15,7 @@ use crate::{
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
-use base64::{engine::general_purpose, Engine};
+use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
@@ -453,7 +453,7 @@ impl AccountModel for Account {
         let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
             "".to_string(),
-            general_purpose::STANDARD.decode(fog_authority_spki)?,
+            BASE64_ENGINE.decode(fog_authority_spki)?,
         );
 
         Account::create(
@@ -485,7 +485,7 @@ impl AccountModel for Account {
             root_entropy: entropy.clone(),
             fog_report_url,
             fog_report_id: "".to_string(),
-            fog_authority_spki: general_purpose::STANDARD.decode(fog_authority_spki)?,
+            fog_authority_spki: BASE64_ENGINE.decode(fog_authority_spki)?,
         };
         let account_key = AccountKey::from(&root_id);
 
