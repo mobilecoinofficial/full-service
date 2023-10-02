@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        account::AccountID,
+        account::{AccountID, AccountModel},
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -1331,6 +1331,11 @@ where
             let synced_txos = match synced_txos {
                 Some(synced_txos) => synced_txos,
                 None => {
+                    let account = service
+                        .get_account(&AccountID(account_id.clone()))
+                        .map_err(format_error)?;
+                    let view_account_keys = account.view_account_key().map_err(format_error)?;
+
                     let unverified_txos = service
                         .list_txos(
                             Some(account_id.clone()),
@@ -1360,7 +1365,9 @@ where
                         })
                         .collect::<Result<Vec<_>, JsonRPCError>>()?;
 
-                    sync_txos(unsynced_txos).await.map_err(format_error)?
+                    sync_txos(unsynced_txos, &view_account_keys)
+                        .await
+                        .map_err(format_error)?
                 }
             };
 

@@ -6,6 +6,7 @@ use std::convert::{TryFrom, TryInto};
 
 use ledger_mob::{DeviceHandle, Filters, LedgerHandle, LedgerProvider, Transport};
 
+use mc_account_keys::ViewAccountKey;
 use mc_common::logger::global_log;
 use mc_core::account::{ViewAccount, ViewSubaddress};
 use mc_crypto_keys::RistrettoPublic;
@@ -25,6 +26,7 @@ pub enum HardwareWalletServiceError {
     KeyImageNotFoundForSignedInput,
     RingCT(mc_transaction_core::ring_ct::Error),
     CryptoKeys(mc_crypto_keys::KeyError),
+    CredentialMismatch,
 }
 
 impl From<mc_transaction_core::ring_ct::Error> for HardwareWalletServiceError {
@@ -70,8 +72,17 @@ async fn get_device_handle() -> Result<DeviceHandle<LedgerHandle>, HardwareWalle
 
 pub async fn sync_txos(
     unsynced_txos: Vec<(TxOut, u64)>,
+    view_account: &ViewAccountKey,
 ) -> Result<Vec<TxoSynced>, HardwareWalletServiceError> {
     let mut device_handle = get_device_handle().await?;
+
+    // Check device and requested accounts match
+    let device_keys = device_handle.account_keys(0).await?;
+    if device_keys.view_private_key() != view_account.view_private_key()
+        || device_keys.spend_public_key() != view_account.spend_public_key()
+    {
+        return Err(HardwareWalletServiceError::CredentialMismatch);
+    }
 
     let mut synced_txos = vec![];
     for unsynced_txo in unsynced_txos {
@@ -103,9 +114,19 @@ pub async fn get_view_only_subaddress_keys(
 
 pub async fn sign_tx_proposal(
     unsigned_tx_proposal: UnsignedTxProposal,
+    view_account: &ViewAccountKey,
 ) -> Result<TxProposal, HardwareWalletServiceError> {
     let mut device_handle = get_device_handle().await?;
 
+    // Check device and requested accounts match
+    let device_keys = device_handle.account_keys(0).await?;
+    if device_keys.view_private_key() != view_account.view_private_key()
+        || device_keys.spend_public_key() != view_account.spend_public_key()
+    {
+        return Err(HardwareWalletServiceError::CredentialMismatch);
+    }
+
+    // Sign transaction proposal
     global_log::debug!("Signing tx proposal with hardware device");
     let (tx, txos_synced) = device_handle
         .transaction(0, 60, unsigned_tx_proposal.unsigned_tx)
