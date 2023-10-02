@@ -15,7 +15,7 @@ use crate::{
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
-use base64::engine::{Engine, general_purpose::STANDARD as BASE64_ENGINE};
+use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{

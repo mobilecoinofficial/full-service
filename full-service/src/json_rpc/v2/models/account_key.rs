@@ -3,8 +3,8 @@
 //! API definition for the Account Key object.
 
 use crate::util::encoding_helpers::{
-    hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex,
-    ristretto_to_hex, vec_to_base64, base64_to_vec,
+    base64_to_vec, hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex,
+    ristretto_to_hex, vec_to_base64,
 };
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
