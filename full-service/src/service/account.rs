@@ -795,7 +795,6 @@ mod tests {
         let public_address_from_view_subaddress = get_public_fog_address(
             &default_view_subaddress,
             fog_report_url,
-            "".to_string(),
             fog_authority_spki.as_ref(),
         );
 
