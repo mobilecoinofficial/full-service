@@ -261,7 +261,7 @@ pub enum JsonCommandRequest {
     },
     sync_view_only_account {
         account_id: String,
-        synced_txos: Vec<TxoSynced>,
+        synced_txos: Option<Vec<TxoSynced>>,
     },
     update_account_name {
         account_id: String,
