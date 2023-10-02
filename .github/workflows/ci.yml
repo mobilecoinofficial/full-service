@@ -61,9 +61,7 @@ jobs:
           cargo clippy --all --all-features
 
   test:
-    runs-on: [self-hosted, Linux, large]
-    container:
-      image: mobilecoin/rust-sgx-base:v0.0.28
+    runs-on: [self-hosted, macOS, X64, rust]
 
     steps:
       - name: Checkout

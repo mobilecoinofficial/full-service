@@ -29,6 +29,7 @@ mc-crypto-ring-signature-signer = { path = "../mobilecoin/crypto/ring-signature/
 mc-fog-report-connection = { path = "../mobilecoin/fog/report/connection" }
 mc-fog-report-resolver = { path = "../mobilecoin/fog/report/resolver" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation" }
+mc-fog-sig-authority = { path = "../mobilecoin/fog/sig/authority" }
 mc-ledger-db = { path = "../mobilecoin/ledger/db" }
 mc-ledger-migration = { path = "../mobilecoin/ledger/migration" }
 mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }

@@ -8,23 +8,19 @@ use crate::{
         account::{AccountID, AccountModel},
         models::{Account, AssignedSubaddress, NewAssignedSubaddress, Txo},
         txo::TxoModel,
+        Conn, WalletDbError,
     },
-    util::b58::b58_decode_public_address,
+    util::b58::{b58_decode_public_address, b58_encode_public_address},
 };
-
-use crate::util::b58::b58_encode_public_address;
-
+use core::convert::TryFrom;
+use diesel::prelude::*;
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     onetime_keys::{recover_onetime_private_key, recover_public_subaddress_spend_key},
     ring_signature::KeyImage,
 };
-
-use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
-use mc_ledger_db::{Ledger, LedgerDB};
-
-use crate::db::{Conn, WalletDbError};
-use diesel::prelude::*;
 
 #[rustfmt::skip]
 pub trait AssignedSubaddressModel {
@@ -64,6 +60,14 @@ pub trait AssignedSubaddressModel {
     fn create_for_view_only_account(
         account_key: &ViewAccountKey,
         subaddress_index: u64,
+        comment: &str,
+        conn: Conn,
+    ) -> Result<String, WalletDbError>;
+
+    fn create_for_view_only_fog_account(
+        account_key: &ViewAccountKey,
+        subaddress_index: u64,
+        public_address: &PublicAddress,
         comment: &str,
         conn: Conn,
     ) -> Result<String, WalletDbError>;
@@ -223,6 +227,33 @@ impl AssignedSubaddressModel for AssignedSubaddress {
             subaddress_index: subaddress_index as i64,
             comment,
             spend_public_key: &subaddress.spend_public_key().to_bytes(),
+        };
+
+        diesel::insert_into(assigned_subaddresses::table)
+            .values(&subaddress_entry)
+            .execute(conn)?;
+
+        Ok(public_address_b58)
+    }
+
+    fn create_for_view_only_fog_account(
+        account_key: &ViewAccountKey,
+        subaddress_index: u64,
+        public_address: &PublicAddress,
+        comment: &str,
+        conn: Conn,
+    ) -> Result<String, WalletDbError> {
+        use crate::db::schema::assigned_subaddresses;
+        let account_id = AccountID::from(account_key);
+
+        let public_address_b58 = b58_encode_public_address(public_address)?;
+
+        let subaddress_entry = NewAssignedSubaddress {
+            public_address_b58: &public_address_b58,
+            account_id: &account_id.to_string(),
+            subaddress_index: subaddress_index as i64,
+            comment,
+            spend_public_key: &public_address.spend_public_key().to_bytes(),
         };
 
         diesel::insert_into(assigned_subaddresses::table)
@@ -446,6 +477,15 @@ impl AssignedSubaddressModel for AssignedSubaddress {
 
     fn public_address(self) -> Result<PublicAddress, WalletDbError> {
         let public_address = b58_decode_public_address(&self.public_address_b58)?;
+        Ok(public_address)
+    }
+}
+
+impl TryFrom<&AssignedSubaddress> for PublicAddress {
+    type Error = WalletDbError;
+
+    fn try_from(assigned_subaddress: &AssignedSubaddress) -> Result<Self, Self::Error> {
+        let public_address = b58_decode_public_address(&assigned_subaddress.public_address_b58)?;
         Ok(public_address)
     }
 }
