@@ -26,7 +26,8 @@ use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_builder::{
-    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
+    TransactionBuilder,
 };
 use mc_transaction_core::{
     constants::RING_SIZE,
@@ -228,7 +229,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
-        let memo_builder = memo.memo_builder(account)?;
+
+        let memo_builder = match account.account_key() {
+            Ok(account_key) => memo.memo_builder(&account_key),
+            Err(_) => Box::<EmptyMemoBuilder>::default(),
+        };
 
         let mut transaction_builder = TransactionBuilder::new_with_box(
             block_version,

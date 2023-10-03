@@ -18,9 +18,9 @@ use mc_transaction_core::{
     Amount, TokenId,
 };
 use mc_transaction_extra::{
-    MemoType, RegisteredMemoType, AuthenticatedSenderMemo,
-    AuthenticatedSenderWithPaymentIntentIdMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
-    UnusedMemo, TxOutConfirmationNumber,
+    AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentIntentIdMemo,
+    AuthenticatedSenderWithPaymentRequestIdMemo, MemoType, RegisteredMemoType,
+    TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -30,15 +30,15 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{
-            Account, AssignedSubaddress, NewTransactionOutputTxo, NewTxo, Txo,
-            AuthenticatedSenderMemo as AuthenticatedSenderMemoModel, NewAuthenticatedSenderMemo,
+            Account, AssignedSubaddress, AuthenticatedSenderMemo as AuthenticatedSenderMemoModel,
+            NewAuthenticatedSenderMemo, NewTransactionOutputTxo, NewTxo, Txo,
         },
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
+    json_rpc::v2::models::memo::Memo,
     service::models::tx_proposal::OutputTxo,
     util::b58::b58_encode_public_address,
-    json_rpc::v2::models::memo::Memo,
 };
 
 #[derive(Debug, PartialEq)]
@@ -809,11 +809,10 @@ impl TxoModel for Txo {
                     diesel::insert_into(authenticated_sender_memos::table)
                         .values(&new_memo)
                         .execute(conn)?;
-                },
+                }
                 _ => {}
             };
         };
-
 
         Ok(txo_id.to_string())
     }
@@ -2013,7 +2012,6 @@ impl TxoModel for Txo {
                 }
             }
         )
-
     }
 
     fn membership_proof(
@@ -2051,7 +2049,6 @@ impl TxoModel for Txo {
     }
 }
 
-
 fn i32_to_two_bytes(value: i32) -> [u8; 2] {
     [(value >> 8) as u8, (value & 0xFF) as u8]
 }
@@ -2060,10 +2057,11 @@ fn two_bytes_to_i32(bytes: [u8; 2]) -> i32 {
     ((bytes[0] as i32) << 8) | (bytes[1] as i32)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use mc_account_keys::{AccountKey, PublicAddress, ShortAddressHash, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{
+        AccountKey, PublicAddress, RootIdentity, ShortAddressHash, CHANGE_SUBADDRESS_INDEX,
+    };
     use mc_common::{
         logger::{async_test_with_logger, log, test_with_logger, Logger},
         HashSet,
@@ -3708,9 +3706,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_create_received_with_memo(
-        logger: Logger,
-    ) {
+    fn test_create_received_with_memo(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -3736,7 +3732,6 @@ mod tests {
 
         let amount = Amount::new(1000 * MOB, Mob::ID);
 
-
         // Create a received txo without a memo, and show that no memo is created.
         let (txo, key_image) = create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
 
@@ -3754,13 +3749,14 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).unwrap();
         match memo {
-            Memo::Unused => {},
+            Memo::Unused => {}
             _ => panic!("expected unused memo"),
         }
 
         // Create a txo with a memo, and get the memo from the wallet db.
         let memo = TransactionMemo::RTH(None, None);
-        let (txo, key_image) = create_test_txo_for_recipient_with_memo(&account_key, 0, amount, &mut rng, memo);
+        let (txo, key_image) =
+            create_test_txo_for_recipient_with_memo(&account_key, 0, amount, &mut rng, memo);
 
         let txo_id = Txo::create_received(
             txo,
@@ -3780,7 +3776,7 @@ mod tests {
                 assert_eq!(m.sender_address_hash, address_hash.to_string());
                 assert_eq!(m.payment_request_id, None);
                 assert_eq!(m.payment_intent_id, None);
-            },
+            }
             _ => panic!("expected sender memo"),
         }
     }

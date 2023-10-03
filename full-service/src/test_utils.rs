@@ -395,24 +395,20 @@ pub fn create_test_txo_for_recipient_with_memo(
     rng: &mut StdRng,
     memo: TransactionMemo,
 ) -> (TxOut, KeyImage) {
-
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
 
-    let mut memo_builder = memo.memo_builder(Some(recipient_account_key.clone())).unwrap();
+    let mut memo_builder = memo.memo_builder(recipient_account_key);
     let tx_out = TxOut::new_with_memo(
         BlockVersion::MAX,
         amount,
         &recipient,
         &tx_private_key,
         hint,
-        |ctx| memo_builder.make_memo_for_output(
-            amount,
-            &recipient,
-            ctx,
-        ),
-    ).unwrap();
+        |ctx| memo_builder.make_memo_for_output(amount, &recipient, ctx),
+    )
+    .unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see

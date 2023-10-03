@@ -22,8 +22,9 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 
+use mc_account_keys::AccountKey;
 use mc_blockchain_types::BlockVersion;
-use mc_common::logger::{global_log, log};
+use mc_common::logger::log;
 use mc_connection::{
     BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
 };
@@ -248,21 +249,10 @@ pub enum TransactionMemo {
 }
 
 impl TransactionMemo {
-    pub fn memo_builder(
-        &self,
-        account: Account,
-    ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
+    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
         match self {
-            Self::Empty => Ok(Box::<EmptyMemoBuilder>::default()),
+            Self::Empty => Box::<EmptyMemoBuilder>::default(),
             Self::RTH(subaddress_index, payment_request_id) => {
-                let account_key = match account.account_key() {
-                    Ok(account_key) => account_key,
-                    Err(_) => {
-                        global_log::warn!("Could not get account key, using empty memo");
-                        return Ok(Box::<EmptyMemoBuilder>::default());
-                    }
-                };
-
                 let mut memo_builder = RTHMemoBuilder::default();
                 let sender_memo_credential = match subaddress_index {
                     Some(subaddress_index) => {
@@ -271,19 +261,19 @@ impl TransactionMemo {
                             account_key.subaddress_spend_private(*subaddress_index),
                         )
                     }
-                    None => SenderMemoCredential::from(&account_key),
+                    None => SenderMemoCredential::from(account_key),
                 };
                 memo_builder.set_sender_credential(sender_memo_credential);
                 memo_builder.enable_destination_memo();
                 if let Some(payment_request_id) = payment_request_id {
                     memo_builder.set_payment_request_id(*payment_request_id);
                 }
-                Ok(Box::new(memo_builder))
+                Box::new(memo_builder)
             }
             Self::BurnRedemption(memo_data) => {
                 let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
                 memo_builder.enable_destination_memo();
-                Ok(Box::new(memo_builder))
+                Box::new(memo_builder)
             }
         }
     }
