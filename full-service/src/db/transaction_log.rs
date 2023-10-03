@@ -856,7 +856,7 @@ mod tests {
     use std::ops::DerefMut;
 
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
@@ -877,7 +877,7 @@ mod tests {
 
     use super::*;
 
-    #[test_with_logger]
+    #[async_test_with_logger]
     // Test the happy path for log_submitted. When a transaction is submitted to the
     // MobileCoin network, several things must happen for Full-Service to
     // maintain accurate transaction history.
@@ -887,7 +887,7 @@ mod tests {
     // 3. The change TXO(s) are marked as minted, secreted
     // 4. The transaction_log is created and added to the transaction_log table
     // 5. Once the change is received, it is marked as minted, unspent
-    fn test_log_submitted(logger: Logger) {
+    async fn test_log_submitted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -909,6 +909,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -919,10 +922,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
 
         assert_eq!(
             TransactionId::from(&tx_proposal),
@@ -1064,8 +1064,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_submitted_zero_change(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_zero_change(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1087,6 +1087,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
@@ -1100,7 +1103,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         let tx_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -1142,8 +1145,8 @@ mod tests {
         assert_eq!(associated.change.len(), 1);
     }
 
-    #[test_with_logger]
-    fn test_delete_transaction_logs_for_account(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_delete_transaction_logs_for_account(logger: Logger) {
         use crate::db::schema::{
             transaction_input_txos, transaction_logs, transaction_output_txos,
         };
@@ -1172,6 +1175,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
@@ -1180,7 +1186,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
@@ -1248,8 +1254,8 @@ mod tests {
     //
     // This test confirms that submitting a transaction_log for < u64::Max, but >
     // i64::Max succeeds
-    #[test_with_logger]
-    fn test_log_submitted_big_int(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_big_int(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1271,6 +1277,9 @@ mod tests {
         // Build a transaction for > i64::Max
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -1281,7 +1290,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         assert_eq!(
             tx_proposal.payload_txos[0].amount.value,
@@ -1315,8 +1324,8 @@ mod tests {
     //
     // Note: This is also testing 2 inputs, as opposed to the happy path test
     // above, which tests only 1 input.
-    #[test_with_logger]
-    fn test_log_submitted_to_self(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_to_self(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1337,6 +1346,9 @@ mod tests {
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let mut builder = WalletTransactionBuilder::new(
             AccountID::from(&account_key).to_string(),
             ledger_db.clone(),
@@ -1351,7 +1363,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(TransactionMemo::RTH(None, None), conn)
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -1539,8 +1551,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_built_signed_and_submitted(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_built_signed_and_submitted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1562,6 +1574,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -1592,10 +1607,7 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
@@ -1760,8 +1772,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_submitted_with_comment_change(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_with_comment_change(logger: Logger) {
         // Test setup
 
         // log_submitted
@@ -1788,6 +1800,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
@@ -1816,10 +1831,7 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(

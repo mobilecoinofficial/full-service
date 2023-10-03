@@ -15,7 +15,7 @@ use crate::{
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
     },
 };
-use base64::{engine::general_purpose, Engine};
+use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use bip39::Mnemonic;
 use diesel::prelude::*;
 use mc_account_keys::{
@@ -25,7 +25,7 @@ use mc_account_keys::{
 use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_transaction_core::{ring_signature::get_tx_out_shared_secret, TokenId};
+use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
 use std::fmt;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -224,17 +224,28 @@ pub trait AccountModel {
     ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                       |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
     /// * Account
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only(
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: bool,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError>;
+
+    fn import_view_only_from_hardware_wallet_with_fog(
+        view_account_key: &ViewAccountKey,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        default_public_address: &PublicAddress,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -389,8 +400,8 @@ pub trait AccountModel {
     /// * None
     ///
     /// # Returns:
-    /// * Either an AccountKey or None
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError>;
+    /// * AccountKey
+    fn account_key(&self) -> Result<AccountKey, WalletDbError>;
 
     /// Get the view only account key for the current account.
     ///
@@ -442,7 +453,7 @@ impl AccountModel for Account {
         let account_key_with_fog = account_key.with_fog(
             &fog_report_url,
             "".to_string(),
-            general_purpose::STANDARD.decode(fog_authority_spki)?,
+            BASE64_ENGINE.decode(fog_authority_spki)?,
         );
 
         Account::create(
@@ -474,7 +485,7 @@ impl AccountModel for Account {
             root_entropy: entropy.clone(),
             fog_report_url,
             fog_report_id: "".to_string(),
-            fog_authority_spki: general_purpose::STANDARD.decode(fog_authority_spki)?,
+            fog_authority_spki: BASE64_ENGINE.decode(fog_authority_spki)?,
         };
         let account_key = AccountKey::from(&root_id);
 
@@ -527,6 +538,7 @@ impl AccountModel for Account {
             name,
             fog_enabled,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
 
         diesel::insert_into(accounts::table)
@@ -601,18 +613,17 @@ impl AccountModel for Account {
     }
 
     fn import_view_only(
-        view_private_key: &RistrettoPrivate,
-        spend_public_key: &RistrettoPublic,
+        view_account_key: &ViewAccountKey,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        managed_by_hardware_wallet: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let view_account_key = ViewAccountKey::new(*view_private_key, *spend_public_key);
-        let account_id = AccountID::from(&view_account_key);
+        let account_id = AccountID::from(view_account_key);
 
         if Account::get(&account_id, conn).is_ok() {
             return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
@@ -626,7 +637,7 @@ impl AccountModel for Account {
 
         let new_account = NewAccount {
             id: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(&view_account_key),
+            account_key: &mc_util_serial::encode(view_account_key),
             entropy: None,
             key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
             first_block_index,
@@ -635,6 +646,7 @@ impl AccountModel for Account {
             name: &name.unwrap_or_default(),
             fog_enabled: false,
             view_only: true,
+            managed_by_hardware_wallet,
         };
 
         diesel::insert_into(accounts::table)
@@ -642,21 +654,21 @@ impl AccountModel for Account {
             .execute(conn)?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             DEFAULT_SUBADDRESS_INDEX,
             "Main",
             conn,
         )?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             LEGACY_CHANGE_SUBADDRESS_INDEX,
             "Legacy Change",
             conn,
         )?;
 
         AssignedSubaddress::create_for_view_only_account(
-            &view_account_key,
+            view_account_key,
             CHANGE_SUBADDRESS_INDEX,
             "Change",
             conn,
@@ -664,12 +676,67 @@ impl AccountModel for Account {
 
         for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
             AssignedSubaddress::create_for_view_only_account(
-                &view_account_key,
+                view_account_key,
                 subaddress_index,
                 "",
                 conn,
             )?;
         }
+
+        Account::get(&account_id, conn)
+    }
+
+    fn import_view_only_from_hardware_wallet_with_fog(
+        view_account_key: &ViewAccountKey,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        default_public_address: &PublicAddress,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        let account_id = AccountID::from(view_account_key);
+
+        if Account::get(&account_id, conn).is_ok() {
+            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
+        }
+
+        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
+        let next_block_index = first_block_index;
+
+        let new_account = NewAccount {
+            id: &account_id.to_string(),
+            account_key: &mc_util_serial::encode(view_account_key),
+            entropy: None,
+            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+            first_block_index,
+            next_block_index,
+            import_block_index: Some(import_block_index as i64),
+            name: &name.unwrap_or_default(),
+            fog_enabled: true,
+            view_only: true,
+            managed_by_hardware_wallet: true,
+        };
+
+        diesel::insert_into(accounts::table)
+            .values(&new_account)
+            .execute(conn)?;
+
+        AssignedSubaddress::create_for_view_only_fog_account(
+            view_account_key,
+            DEFAULT_SUBADDRESS_INDEX,
+            default_public_address,
+            "Main",
+            conn,
+        )?;
+
+        AssignedSubaddress::create_for_view_only_account(
+            view_account_key,
+            CHANGE_SUBADDRESS_INDEX,
+            "Change",
+            conn,
+        )?;
 
         Account::get(&account_id, conn)
     }
@@ -800,13 +867,13 @@ impl AccountModel for Account {
         Ok(highest_subaddress_index as u64 + 1)
     }
 
-    fn account_key(&self) -> Result<Option<AccountKey>, WalletDbError> {
+    fn account_key(&self) -> Result<AccountKey, WalletDbError> {
         if self.view_only {
-            return Ok(None);
+            return Err(WalletDbError::AccountKeyNotAvailableForViewOnlyAccount);
         }
 
         let account_key: AccountKey = mc_util_serial::decode(&self.account_key)?;
-        Ok(Some(account_key))
+        Ok(account_key)
     }
 
     fn view_account_key(&self) -> Result<ViewAccountKey, WalletDbError> {
@@ -837,9 +904,10 @@ impl AccountModel for Account {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::WalletDbTestContext;
+    use crate::{test_utils::WalletDbTestContext, util::b58::b58_encode_public_address};
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{collections::HashSet, convert::TryFrom, iter::FromIterator, ops::DerefMut};
@@ -893,6 +961,7 @@ mod tests {
             name: "Alice's Main Account".to_string(),
             fog_enabled: false,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -962,6 +1031,7 @@ mod tests {
             name: "".to_string(),
             fog_enabled: false,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -1131,6 +1201,7 @@ mod tests {
             name: "Alice's FOG Account".to_string(),
             fog_enabled: true,
             view_only: false,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, acc);
     }
@@ -1142,20 +1213,22 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let spend_public_key = RistrettoPublic::from_random(&mut rng);
+        let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
+        let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
+
+        let view_account_key = ViewAccountKey::new(view_private_key, spend_public_key);
 
         let account = {
             let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
             let conn = pooled_conn.deref_mut();
 
             Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
+                &view_account_key,
                 Some("View Only Account".to_string()),
                 12,
                 None,
                 None,
+                false,
                 conn,
             )
             .unwrap()
@@ -1185,7 +1258,100 @@ mod tests {
             name: "View Only Account".to_string(),
             fog_enabled: false,
             view_only: true,
+            managed_by_hardware_wallet: false,
         };
         assert_eq!(expected_account, account);
+    }
+
+    #[test_with_logger]
+    fn test_import_view_only_from_hardware_wallet_with_fog(logger: Logger) {
+        // Test Setup
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random(&mut rng);
+        let account_key = account_key.with_fog(
+            "fog//some.fog.url".to_string(),
+            "".to_string(),
+            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string()
+        );
+        let view_account_key: ViewAccountKey = (&account_key).into();
+        let default_public_address = account_key.default_subaddress();
+
+        // Import the account into the database
+        let account = {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+
+            Account::import_view_only_from_hardware_wallet_with_fog(
+                &view_account_key,
+                Some("View Only Account".to_string()),
+                12,
+                None,
+                &default_public_address,
+                conn,
+            )
+            .unwrap()
+        };
+
+        // Check to make sure the number of accounts in the database is correct
+        {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            let res = Account::list_all(conn, None, None).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        // Construct the expected account
+        let account_key_proto_bytes = mc_util_serial::encode(&view_account_key);
+        let expected_account = Account {
+            id: account.id.to_string(),
+            account_key: account_key_proto_bytes,
+            entropy: None,
+            key_derivation_version: 2,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: Some(12),
+            name: "View Only Account".to_string(),
+            fog_enabled: true,
+            view_only: true,
+            managed_by_hardware_wallet: true,
+        };
+
+        // Check to make sure the account in the database is correct
+        assert_eq!(account, expected_account);
+
+        // Check to make sure the correct number of subaddresses were created
+        let assigned_subaddresses = {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            AssignedSubaddress::list_all(Some(account.id.clone()), None, None, conn).unwrap()
+        };
+
+        assert_eq!(assigned_subaddresses.len(), 2);
+
+        // Check to make sure the default subaddress was created correctly
+        let default_public_address_b58 =
+            b58_encode_public_address(&default_public_address).unwrap();
+        let default_subaddress_spend_public_key_bytes = default_public_address
+            .spend_public_key()
+            .to_bytes()
+            .to_vec();
+
+        let default_subaddress = assigned_subaddresses
+            .into_iter()
+            .find(|s| s.subaddress_index == 0)
+            .unwrap();
+        let expected_default_subaddress = AssignedSubaddress {
+            public_address_b58: default_public_address_b58,
+            account_id: account.id.to_string(),
+            subaddress_index: 0,
+            comment: "Main".to_string(),
+            spend_public_key: default_subaddress_spend_public_key_bytes,
+        };
+
+        assert_eq!(default_subaddress, expected_default_subaddress);
     }
 }

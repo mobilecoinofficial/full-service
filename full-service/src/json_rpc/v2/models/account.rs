@@ -3,6 +3,7 @@
 //! API definition for the Account object.
 
 use crate::{db, util::b58::b58_encode_public_address};
+use mc_account_keys::PublicAddress;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -54,22 +55,19 @@ pub struct Account {
 
     /// A flag that indicates if this account is a watch only account.
     pub view_only: bool,
+
+    /// A flag that indicates if this account's private spend key is managed by
+    /// a hardware wallet.
+    pub managed_by_hardware_wallet: bool,
 }
 
 impl Account {
-    pub fn new(src: &db::models::Account, next_subaddress_index: u64) -> Result<Self, String> {
-        let main_public_address = if src.view_only {
-            let account_key: mc_account_keys::ViewAccountKey =
-                mc_util_serial::decode(&src.account_key)
-                    .map_err(|e| format!("Failed to decode view account key: {e}"))?;
-            account_key.default_subaddress()
-        } else {
-            let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
-                .map_err(|e| format!("Failed to decode account key: {e}"))?;
-            account_key.default_subaddress()
-        };
-
-        let main_public_address_b58 = b58_encode_public_address(&main_public_address)
+    pub fn new(
+        src: &db::models::Account,
+        main_public_address: &PublicAddress,
+        next_subaddress_index: u64,
+    ) -> Result<Self, String> {
+        let main_public_address_b58 = b58_encode_public_address(main_public_address)
             .map_err(|e| format!("Could not b58 encode public address {e:?}"))?;
 
         Ok(Account {
@@ -83,6 +81,7 @@ impl Account {
             recovery_mode: false,
             fog_enabled: src.fog_enabled,
             view_only: src.view_only,
+            managed_by_hardware_wallet: src.managed_by_hardware_wallet,
         })
     }
 }

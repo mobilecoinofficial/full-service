@@ -1,0 +1,1 @@
+ALTER TABLE accounts ADD COLUMN managed_by_hardware_wallet BOOLEAN NOT NULL DEFAULT FALSE;

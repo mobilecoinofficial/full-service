@@ -36,6 +36,10 @@ pub struct Account {
     pub name: String, /* empty string for nullable */
     pub fog_enabled: bool,
     pub view_only: bool,
+    /// If true, this accounts private spend key is managed by a hardware wallet
+    /// and is required in order to spend funds and generate key images for this
+    /// account.
+    pub managed_by_hardware_wallet: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`
@@ -53,6 +57,7 @@ pub struct NewAccount<'a> {
     pub name: &'a str,
     pub fog_enabled: bool,
     pub view_only: bool,
+    pub managed_by_hardware_wallet: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this

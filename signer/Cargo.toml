@@ -31,7 +31,7 @@ mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features 
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
 anyhow = "1.0.72"
-base64 = "0.21.2"
+base64 = "0.21.4"
 clap = { version = "4.3", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
 hex = { version = "0.4", default-features = false }

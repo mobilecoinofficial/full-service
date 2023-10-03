@@ -2,6 +2,7 @@ use std::convert::{TryFrom, TryInto};
 
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_api::ConversionError;
+use mc_common::logger::global_log;
 use mc_crypto_keys::RistrettoPublic;
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_transaction_core::{
@@ -9,12 +10,17 @@ use mc_transaction_core::{
     ring_signature::KeyImage,
     tokens::Mob,
     tx::{Tx, TxOut},
-    Amount, FeeMap, Token,
+    Amount, Token,
 };
 use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
+
 use protobuf::Message;
 
-use crate::{service::transaction::TransactionServiceError, util::b58::b58_decode_public_address};
+use crate::{
+    db::{account::AccountModel, models::Account},
+    service::{hardware_wallet, transaction::TransactionServiceError},
+    util::b58::b58_decode_public_address,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputTxo {
@@ -56,10 +62,22 @@ pub struct UnsignedTxProposal {
 }
 
 impl UnsignedTxProposal {
-    pub fn sign(
+    pub async fn sign(self, account: &Account) -> Result<TxProposal, TransactionServiceError> {
+        match account.view_only {
+            true => {
+                global_log::debug!("signing tx proposal with hardware wallet");
+                Ok(hardware_wallet::sign_tx_proposal(self, &account.view_account_key()?).await?)
+            }
+            false => {
+                global_log::debug!("signing tx proposal with local signer");
+                self.sign_with_local_signer(&account.account_key()?)
+            }
+        }
+    }
+
+    pub fn sign_with_local_signer(
         self,
         account_key: &AccountKey,
-        fee_map: Option<&FeeMap>,
     ) -> Result<TxProposal, TransactionServiceError> {
         let input_txos = self
             .unsigned_input_txos
@@ -85,7 +103,7 @@ impl UnsignedTxProposal {
 
         let signer = LocalRingSigner::from(account_key);
         let mut rng = rand::thread_rng();
-        let tx = self.unsigned_tx.sign(&signer, fee_map, &mut rng)?;
+        let tx = self.unsigned_tx.sign(&signer, None, &mut rng)?;
 
         Ok(TxProposal {
             tx,

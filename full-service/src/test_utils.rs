@@ -458,7 +458,7 @@ pub fn create_test_received_txo(
 /// Creates a test minted and change txo.
 ///
 /// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
-pub fn create_test_minted_and_change_txos(
+pub async fn create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
     value: u64,
@@ -479,10 +479,13 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
+
+    let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
+
     let unsigned_tx_proposal = builder
         .build(TransactionMemo::RTH(None, None), conn)
         .unwrap();
-    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);

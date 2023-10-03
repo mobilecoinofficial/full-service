@@ -10,9 +10,7 @@ members = [
     "validator/connection",
     "validator/service",
 ]
-exclude = [
-    "mobilecoin",
-]
+exclude = ["ledger-mob", "mobilecoin"]
 
 [profile.dev]
 opt-level = 0
@@ -45,13 +43,22 @@ lmdb-rkv = { git = "https://github.com/mozilla/lmdb-rs", rev = "df1c2f5" }
 # Fork and rename to use "OG" dalek-cryptography.
 schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git", rev = "b76d8c3a50671b08af0874b25b2543d3302d794d" }
 
-# Fixes the following:
-# * Allow enabling `serde/std` without also requiring `serde_cbor/std` to be enabled.
-#   See: https://github.com/pyfisch/cbor/pull/198
-serde_cbor = { git = "https://github.com/mobilecoinofficial/cbor", rev = "4c886a7c1d523aae1ec4aa7386f402cb2f4341b5" }
-
 # Fix issues with recent nightlies, bump curve25519-dalek version
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "4fbaa3343301c62cfdbc3023c9f485257e6b718a" }
 
 # Fix linker errors when compiling gRPC C++ library on systemd based Linux.
 grpcio = { git = "https://github.com/tikv/grpc-rs.git", rev = "cc5d2ab4fa0a110d0fdaa49f12552d28a0348721" }
+
+# Patch mc lib for git dependencies in ledger-mob
+mc-core = { path = "./mobilecoin/core" }
+mc-crypto-digestible = { path = "./mobilecoin/crypto/digestible" }
+mc-crypto-hashes = { path = "./mobilecoin/crypto/hashes" }
+mc-crypto-keys = { path = "./mobilecoin/crypto/keys" }
+mc-crypto-ring-signature = { path = "./mobilecoin/crypto/ring-signature" }
+mc-crypto-ring-signature-signer = { path = "./mobilecoin/crypto/ring-signature/signer" }
+mc-transaction-core = { path = "./mobilecoin/transaction/core" }
+mc-transaction-extra = { path = "./mobilecoin/transaction/extra" }
+mc-transaction-signer = { path = "./mobilecoin/transaction/signer" }
+mc-transaction-summary = { path = "./mobilecoin/transaction/summary" }
+mc-transaction-types = { path = "./mobilecoin/transaction/types" }
+mc-util-from-random = { path = "./mobilecoin/util/from-random" }
