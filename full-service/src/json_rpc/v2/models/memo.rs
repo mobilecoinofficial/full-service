@@ -1,5 +1,5 @@
-use serde_derive::{Deserialize, Serialize};
 use crate::db::models::AuthenticatedSenderMemo;
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum Memo {
