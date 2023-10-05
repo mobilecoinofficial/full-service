@@ -792,53 +792,36 @@ impl TxoModel for Txo {
         };
 
         // Interpret the memo payload and save it to the correct database table.
-        // TODO: move this to its own function.
+        // Check that there is no existing memo before creating a new one.
         use crate::db::schema::authenticated_sender_memos;
-        match authenticated_sender_memos::table
-            .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
-            .get_result::<AuthenticatedSenderMemoModel>(conn)
-        {
-            Ok(_) => {}
-            Err(diesel::result::Error::NotFound) => {
-                if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
-                    match memo_type {
-                        MemoType::AuthenticatedSender(memo) => {
-                            let new_memo = NewAuthenticatedSenderMemo {
-                                txo_id: &txo_id.to_string(),
-                                sender_address_hash: &memo.sender_address_hash().to_string(),
-                                payment_request_id: None,
-                                payment_intent_id: None,
-                                validated: false, // TODO: run memo.validate()
-                            };
+        if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
+            match memo_type {
+                MemoType::AuthenticatedSender(memo) => {
+                    let new_memo = NewAuthenticatedSenderMemo {
+                        txo_id: &txo_id.to_string(),
+                        sender_address_hash: &memo.sender_address_hash().to_string(),
+                        payment_request_id: None,
+                        payment_intent_id: None,
+                        validated: false, // TODO: run memo.validate()
+                    };
 
-                            // TODO: check if this memo already exists
+                    match authenticated_sender_memos::table
+                        .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
+                        .get_result::<AuthenticatedSenderMemoModel>(conn)
+                    {
+                        Ok(_) => {}
+                        Err(diesel::result::Error::NotFound) => {
                             diesel::insert_into(authenticated_sender_memos::table)
                                 .values(&new_memo)
                                 .execute(conn)?;
                         }
-                        _ => {}
-                    };
-                };
-            }
-            Err(e) => return Err(e.into()),
+                        Err(e) => return Err(e.into()),
+                    }
+
+                }
+                _ => {}  // The memo type is unknown, so don't record it to the database.
+            };
         }
-
-        // use crate::db::schema::txos;
-
-        // let txo = match txos::table
-        //     .filter(txos::id.eq(txo_id_hex))
-        //     .get_result::<Txo>(conn)
-        // {
-        //     Ok(t) => t,
-        //     Err(diesel::result::Error::NotFound) => {
-        //         return Err(WalletDbError::TxoNotFound(txo_id_hex.to_string()));
-        //     }
-        //     Err(e) => {
-        //         return Err(e.into());
-        //     }
-        // };
-
-        // Ok(txo)
 
         Ok(txo_id.to_string())
     }
@@ -2018,7 +2001,6 @@ impl TxoModel for Txo {
 
     fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError> {
         use crate::db::schema::authenticated_sender_memos;
-
         Ok(
             match self.memo_type {
                 None => Memo::Unused,
