@@ -6,7 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -744,6 +744,7 @@ impl TxoModel for Txo {
         };
         let memo_type = Some(two_bytes_to_i32(*memo_payload.get_memo_type()));
 
+        // Ensure that the TXO is added to the database.
         match Txo::get(&txo_id.to_string(), conn) {
             // If we already have this TXO for this account (e.g. from minting in a previous
             // transaction), we need to update it
@@ -797,12 +798,30 @@ impl TxoModel for Txo {
         if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
             match memo_type {
                 MemoType::AuthenticatedSender(memo) => {
+                    // Validate the memo cryptographically.
+                    // pub fn validate(
+                    //     &self,
+                    //     sender_address: &PublicAddress,
+                    //     receiving_subaddress_view_private_key: &RistrettoPrivate,
+                    //     tx_out_public_key: &CompressedRistrettoPublic,
+                    // ) -> Choice;
+                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+                    let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
+                    let received_address = account_key.subaddress(subaddress_index);
+                    let view_private_key = account_key.subaddress_view_private(subaddress_index);
+                    let validated = memo.validate(
+                        &received_address,
+                        &view_private_key,
+                        &txo.public_key,
+                    ).into();
+
+                    // Create a memo row if necessary.
                     let new_memo = NewAuthenticatedSenderMemo {
                         txo_id: &txo_id.to_string(),
                         sender_address_hash: &memo.sender_address_hash().to_string(),
                         payment_request_id: None,
                         payment_intent_id: None,
-                        validated: false, // TODO: run memo.validate()
+                        validated,
                     };
 
                     match authenticated_sender_memos::table
@@ -3762,9 +3781,14 @@ mod tests {
         }
 
         // Create a txo with a memo, and get the memo from the wallet db.
-        let memo = TransactionMemo::RTH(None, None);
         let (txo, key_image) =
-            create_test_txo_for_recipient_with_memo(&account_key, 0, amount, &mut rng, memo);
+            create_test_txo_for_recipient_with_memo(
+                &account_key,
+                0,
+                amount,
+                &mut rng,
+                TransactionMemo::RTH(None, None),
+            );
 
         let txo_id = Txo::create_received(
             txo,
@@ -3784,6 +3808,7 @@ mod tests {
                 assert_eq!(m.sender_address_hash, address_hash.to_string());
                 assert_eq!(m.payment_request_id, None);
                 assert_eq!(m.payment_intent_id, None);
+                assert_eq!(m.validated, true);
             }
             _ => panic!("expected sender memo"),
         }
