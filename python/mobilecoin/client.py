@@ -379,6 +379,13 @@ class ClientAsync:
             "params": {"b58_code": b58_code},
         })
 
+    async def search_ledger(self, query):
+        return await self._req({
+            "method": "search_ledger",
+            "params": {"query": query},
+        })
+
+
     # Polling utility functions.
 
     @staticmethod

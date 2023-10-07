@@ -238,6 +238,12 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
     ./tools/run-fs.sh test
     ```
 
+    You can also run and build simultaneously with
+    ```sh
+    ./tools/run-fs.sh test --build 
+    ```
+
+
 See [Parameters](#parameters) for full list of available options.
 
 

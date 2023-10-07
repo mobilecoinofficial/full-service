@@ -35,7 +35,7 @@ use rand::Rng;
 use crate::db::WalletDbError;
 use displaydoc::Display;
 use rayon::prelude::*; // For par_iter
-use std::{convert::TryFrom, ops::DerefMut};
+use std::{convert::{TryFrom, TryInto}, ops::DerefMut};
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -531,12 +531,17 @@ where
                 query_bytes.remove(0);
             }
 
-            // Try and search for a tx out by public key.
+            // Search for a tx out by public key.
             if let Some(result) = self.search_ledger_by_tx_out_pub_key(&query_bytes)? {
                 results.push(result);
             }
 
-            // Try and search for a key image.
+            // Search for a key image.
+            if let Some(result) = self.search_ledger_by_txo_hash(&query_bytes)? {
+                results.push(result);
+            }
+
+            // Search for a key image.
             if let Some(result) = self.search_ledger_by_key_image(&query_bytes)? {
                 results.push(result);
             }
@@ -579,6 +584,54 @@ where
             .outputs
             .iter()
             .position(|tx_out| tx_out.public_key == public_key)
+            .ok_or(LedgerServiceError::LedgerInconsistent)?
+            as u64;
+
+        let watcher_info = self.get_watcher_block_info(block_index)?;
+
+        Ok(Some(LedgerSearchResult::TxOut {
+            block,
+            block_contents,
+            block_contents_tx_out_index,
+            tx_out_global_index,
+            watcher_info,
+        }))
+    }
+
+    fn search_ledger_by_txo_hash(
+        &self,
+        query_bytes: &[u8],
+    ) -> Result<Option<LedgerSearchResult>, LedgerServiceError> {
+        // // get any txo_id
+        // let block_contents = self.ledger_db.get_block_contents(1)?;
+        // let any_hash = block_contents.outputs[0].hash();
+        // dbg!(hex::encode(&any_hash));
+        // return Ok(None);
+
+        let txo_id: [u8; 32] = match (*query_bytes).try_into() {
+            Ok(array_ref) => array_ref,
+            Err(_) => return Ok(None)
+        };
+        dbg!(&txo_id);
+
+        let tx_out_global_index = match self.ledger_db.get_tx_out_index_by_hash(&txo_id) {
+            Ok(index) => index,
+            Err(_) => return Ok(None)
+        };
+        dbg!(tx_out_global_index);
+
+        let block_index = self
+            .ledger_db
+            .get_block_index_by_tx_out_index(tx_out_global_index)?;
+
+        let block = self.ledger_db.get_block(block_index)?;
+
+        let block_contents = self.ledger_db.get_block_contents(block_index)?;
+
+        let block_contents_tx_out_index = block_contents
+            .outputs
+            .iter()
+            .position(|tx_out| tx_out.hash() == txo_id)
             .ok_or(LedgerServiceError::LedgerInconsistent)?
             as u64;
 

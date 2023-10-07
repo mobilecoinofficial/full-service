@@ -150,6 +150,7 @@ fi
 
 echo "building full service..."
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options
-cargo build --release ${BUILD_OPTIONS}
+
+cargo build --release ${BUILD_OPTIONS} --bin full-service
 
 echo "  Binaries are available in ${RELEASE_DIR} and ${WORK_DIR}"
