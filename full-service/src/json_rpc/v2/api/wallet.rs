@@ -38,6 +38,7 @@ use crate::{
         confirmation_number::ConfirmationService,
         hardware_wallet::sync_txos,
         ledger::LedgerService,
+        memo::MemoService,
         models::tx_proposal::TxProposal,
         network::get_token_metadata,
         payment_request::PaymentRequestService,
@@ -1408,6 +1409,16 @@ where
                 .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
+        }
+        JsonCommandRequest::validate_sender_memo {
+            account_id,
+            txo_id,
+            sender_address,
+        } => {
+            let result = service
+                .validate_sender_memo(&AccountID(account_id), &txo_id, &sender_address)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_sender_memo { validated: result }
         }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
             verified: service.verify_address(&address).is_ok(),

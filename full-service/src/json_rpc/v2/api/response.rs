@@ -161,7 +161,6 @@ pub enum JsonCommandResponse {
     },
     get_txo {
         txo: Txo,
-        // memo: Memo,
     },
     get_txo_block_index {
         block_index: String,
@@ -208,6 +207,9 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     validate_confirmation {
+        validated: bool,
+    },
+    validate_sender_memo {
         validated: bool,
     },
     verify_address {

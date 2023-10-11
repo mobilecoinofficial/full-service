@@ -272,6 +272,11 @@ pub enum JsonCommandRequest {
         txo_id: String,
         confirmation: String,
     },
+    validate_sender_memo {
+        account_id: String,
+        txo_id: String,
+        sender_address: String,
+    },
     verify_address {
         address: String,
     },
