@@ -799,21 +799,13 @@ impl TxoModel for Txo {
             match memo_type {
                 MemoType::AuthenticatedSender(memo) => {
                     // Validate the memo cryptographically.
-                    // pub fn validate(
-                    //     &self,
-                    //     sender_address: &PublicAddress,
-                    //     receiving_subaddress_view_private_key: &RistrettoPrivate,
-                    //     tx_out_public_key: &CompressedRistrettoPublic,
-                    // ) -> Choice;
                     let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
                     let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
                     let received_address = account_key.subaddress(subaddress_index);
                     let view_private_key = account_key.subaddress_view_private(subaddress_index);
-                    let validated = memo.validate(
-                        &received_address,
-                        &view_private_key,
-                        &txo.public_key,
-                    ).into();
+                    let validated = memo
+                        .validate(&received_address, &view_private_key, &txo.public_key)
+                        .into();
 
                     // Create a memo row if necessary.
                     let new_memo = NewAuthenticatedSenderMemo {
@@ -836,9 +828,8 @@ impl TxoModel for Txo {
                         }
                         Err(e) => return Err(e.into()),
                     }
-
                 }
-                _ => {}  // The memo type is unknown, so don't record it to the database.
+                _ => {} // The memo type is unknown, so don't record it to the database.
             };
         }
 
@@ -3781,14 +3772,13 @@ mod tests {
         }
 
         // Create a txo with a memo, and get the memo from the wallet db.
-        let (txo, key_image) =
-            create_test_txo_for_recipient_with_memo(
-                &account_key,
-                0,
-                amount,
-                &mut rng,
-                TransactionMemo::RTH(None, None),
-            );
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH(None, None),
+        );
 
         let txo_id = Txo::create_received(
             txo,
