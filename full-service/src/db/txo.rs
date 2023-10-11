@@ -3776,7 +3776,7 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).unwrap();
         match memo {
-            Memo::Unused => {}
+            TxoMemo::Unused => {}
             _ => panic!("expected unused memo"),
         }
 
@@ -3803,7 +3803,7 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).expect("loading memo");
         match memo {
-            Memo::Sender(m) => {
+            TxoMemo::Sender(m) => {
                 assert_eq!(m.sender_address_hash, address_hash.to_string());
                 assert_eq!(m.payment_request_id, None);
                 assert_eq!(m.payment_intent_id, None);

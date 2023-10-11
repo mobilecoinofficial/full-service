@@ -454,7 +454,7 @@ mod tests {
             .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
-        let pending: Vec<(Txo, TxoStatus)> = service
+        let pending: Vec<(Txo, TxoStatus, TxoMemo)> = service
             .list_txos(
                 Some(alice.id.clone()),
                 None,

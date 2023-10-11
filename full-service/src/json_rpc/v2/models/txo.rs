@@ -141,8 +141,11 @@ mod tests {
         let status = txo_details
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
+        let memo = txo_details
+            .memo(&mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::new(&txo_details, &status);
+        let json_txo = Txo::new(&txo_details, &status, &memo);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");
     }

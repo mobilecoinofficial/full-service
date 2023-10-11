@@ -521,7 +521,7 @@ mod tests {
             )
             .unwrap();
 
-        for (txo, _) in txos_and_statuses {
+        for (txo, _, _) in txos_and_statuses {
             assert_eq!(txo.value as u64, expected_value);
         }
 
