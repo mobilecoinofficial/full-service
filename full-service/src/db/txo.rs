@@ -226,6 +226,7 @@ pub trait TxoModel {
         public_key: &[u8],
         e_fog_hint: &[u8],
         shared_secret: Option<&[u8]>,
+        memo_type: Option<i32>,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -764,6 +765,7 @@ impl TxoModel for Txo {
                     &mc_util_serial::encode(&txo.public_key),
                     &mc_util_serial::encode(&txo.e_fog_hint),
                     Some(&shared_secret_vec),
+                    memo_type,
                     conn,
                 )?;
             }
@@ -900,6 +902,7 @@ impl TxoModel for Txo {
         public_key: &[u8],
         e_fog_hint: &[u8],
         shared_secret: Option<&[u8]>,
+        memo_type: Option<i32>,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
@@ -918,6 +921,7 @@ impl TxoModel for Txo {
                 txos::public_key.eq(public_key),
                 txos::e_fog_hint.eq(e_fog_hint),
                 txos::shared_secret.eq(shared_secret),
+                txos::memo_type.eq(memo_type),
             ))
             .execute(conn)?;
         Ok(())
