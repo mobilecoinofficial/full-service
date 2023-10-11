@@ -2,8 +2,13 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoStatus};
+use crate::{
+    db,
+    db::txo::{TxoMemo, TxoStatus},
+};
 use serde_derive::{Deserialize, Serialize};
+
+use super::memo::Memo;
 
 /// An Txo in the wallet.
 ///
@@ -59,10 +64,13 @@ pub struct Txo {
     /// Shared secret that's used to mask the private keys associated with the
     /// amounts in a transaction
     pub shared_secret: Option<String>,
+
+    /// The memo associated with this Txo.
+    pub memo: Memo,
 }
 
 impl Txo {
-    pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
+    pub fn new(txo: &db::models::Txo, status: &TxoStatus, memo: &TxoMemo) -> Txo {
         Txo {
             id: txo.id.clone(),
             value: (txo.value as u64).to_string(),
@@ -78,6 +86,7 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
             shared_secret: txo.shared_secret.as_ref().map(hex::encode),
+            memo: memo.into(),
         }
     }
 }

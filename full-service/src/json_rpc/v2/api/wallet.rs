@@ -459,14 +459,15 @@ where
         } => {
             let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
                 .map_err(format_error)?;
-            let (status, txo_and_status) = service
+            let (status, txo_status_and_memo) = service
                 .check_receipt_status(&address, &receipt)
                 .map_err(format_error)?;
+
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status
+                txo: txo_status_and_memo
                     .as_ref()
-                    .map(|(txo, status)| Txo::new(txo, status)),
+                    .map(|(txo, status, memo)| Txo::new(txo, status, memo)),
             }
         }
         JsonCommandRequest::create_account { name, fog_info } => {
@@ -546,7 +547,7 @@ where
                 .map_err(format_error)?;
 
             let mut unsynced_txos = vec![];
-            for (txo, _) in unverified_txos {
+            for (txo, _, _) in unverified_txos {
                 let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
                     .try_into()
                     .map_err(format_error)?;
@@ -944,9 +945,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let (txo, status, memo) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo, &status),
+                txo: Txo::new(&txo, &status, &memo),
             }
         }
         JsonCommandRequest::get_txo_block_index { public_key } => {
@@ -1008,10 +1009,11 @@ where
             let txo_map = Map::from_iter(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s)| {
+                    .map(|(t, s, m)| {
                         (
                             t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                            serde_json::to_value(Txo::new(t, s, m))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -1020,7 +1022,7 @@ where
             JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
                     .iter()
-                    .map(|(t, _)| t.id.clone())
+                    .map(|(t, _, _)| t.id.clone())
                     .collect(),
                 txo_map,
             }
@@ -1351,7 +1353,7 @@ where
 
                     let unsynced_txos = unverified_txos
                         .iter()
-                        .map(|(txo, _)| {
+                        .map(|(txo, _, _)| {
                             let subaddress_index = match txo.subaddress_index {
                                 Some(subaddress_index) => subaddress_index,
                                 None => {

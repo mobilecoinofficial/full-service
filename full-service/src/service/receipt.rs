@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoModel, TxoStatus},
+        txo::{TxoMemo, TxoModel, TxoStatus},
         WalletDbError,
     },
     service::models::tx_proposal::TxProposal,
@@ -187,7 +187,7 @@ pub trait ReceiptService {
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus, TxoMemo)>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     ///
@@ -212,7 +212,8 @@ where
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
+    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus, TxoMemo)>), ReceiptServiceError>
+    {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
@@ -227,11 +228,12 @@ where
         }
         let txo = txos[0].clone();
         let txo_status = txo.status(conn)?;
+        let txo_memo = txo.memo(conn)?;
 
         if (txo_status == TxoStatus::Pending) || (txo_status == TxoStatus::Created) {
             return Ok((
                 ReceiptTransactionStatus::TransactionPending,
-                Some((txo, txo_status)),
+                Some((txo, txo_status, txo_memo)),
             ));
         }
 
@@ -244,7 +246,7 @@ where
             Err(_) => {
                 return Ok((
                     ReceiptTransactionStatus::FailedAmountDecryption,
-                    Some((txo, txo_status)),
+                    Some((txo, txo_status, txo_memo)),
                 ))
             }
         };
@@ -255,7 +257,7 @@ where
                     "Expected: {}, Got: {}",
                     expected_value.value, txo.value
                 )),
-                Some((txo, txo_status)),
+                Some((txo, txo_status, txo_memo)),
             ));
         }
 
@@ -266,13 +268,13 @@ where
         if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
             return Ok((
                 ReceiptTransactionStatus::InvalidConfirmation,
-                Some((txo, txo_status)),
+                Some((txo, txo_status, txo_memo)),
             ));
         }
 
         Ok((
             ReceiptTransactionStatus::TransactionSuccess,
-            Some((txo, txo_status)),
+            Some((txo, txo_status, txo_memo)),
         ))
     }
 

@@ -36,7 +36,6 @@ use crate::{
         transaction_log::TransactionId,
         Conn, WalletDbError,
     },
-    json_rpc::v2::models::memo::Memo,
     service::models::tx_proposal::OutputTxo,
     util::b58::b58_encode_public_address,
 };
@@ -70,6 +69,12 @@ pub enum TxoStatus {
     // The txo has been received at a known subaddress index, but the key image cannot
     // be derived (usually because this is a view only account)
     Unverified,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum TxoMemo {
+    Unused,
+    Sender(AuthenticatedSenderMemoModel),
 }
 
 impl fmt::Display for TxoStatus {
@@ -684,7 +689,7 @@ pub trait TxoModel {
     fn status(&self, conn: Conn) -> Result<TxoStatus, WalletDbError>;
 
     /// Get memo for current TxOut
-    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError>;
+    fn memo(&self, conn: Conn) -> Result<TxoMemo, WalletDbError>;
 
     /// Get the membership proof from ledger DB for current TxOut
     /// 
@@ -2009,11 +2014,11 @@ impl TxoModel for Txo {
         }
     }
 
-    fn memo(&self, conn: Conn) -> Result<Memo, WalletDbError> {
+    fn memo(&self, conn: Conn) -> Result<TxoMemo, WalletDbError> {
         use crate::db::schema::authenticated_sender_memos;
         Ok(
             match self.memo_type {
-                None => Memo::Unused,
+                None => TxoMemo::Unused,
                 Some(mtype) => {
                     match i32_to_two_bytes(mtype) {
                         <AuthenticatedSenderMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
@@ -2023,9 +2028,9 @@ impl TxoModel for Txo {
                                 let db_memo = authenticated_sender_memos::table.filter(
                                     authenticated_sender_memos::txo_id.eq(&self.id),
                                     ).first::<AuthenticatedSenderMemoModel>(conn)?;
-                                Memo::Sender(db_memo.into())
+                                TxoMemo::Sender(db_memo)
                             },
-                        _ => Memo::Unused,
+                        _ => TxoMemo::Unused,
                     }
                 }
             }
