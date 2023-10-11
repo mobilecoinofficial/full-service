@@ -6,7 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use mc_account_keys::{AccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::AccountKey;
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -805,22 +805,12 @@ impl TxoModel for Txo {
         if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
             match memo_type {
                 MemoType::AuthenticatedSender(memo) => {
-                    // Validate the memo cryptographically.
-                    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
-                    let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
-                    let received_address = account_key.subaddress(subaddress_index);
-                    let view_private_key = account_key.subaddress_view_private(subaddress_index);
-                    let validated = memo
-                        .validate(&received_address, &view_private_key, &txo.public_key)
-                        .into();
-
                     // Create a memo row if necessary.
                     let new_memo = NewAuthenticatedSenderMemo {
                         txo_id: &txo_id.to_string(),
                         sender_address_hash: &memo.sender_address_hash().to_string(),
                         payment_request_id: None,
                         payment_intent_id: None,
-                        validated,
                     };
 
                     match authenticated_sender_memos::table

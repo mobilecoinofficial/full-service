@@ -1,4 +1,6 @@
-table! {
+// @generated automatically by Diesel CLI.
+
+diesel::table! {
     accounts (id) {
         id -> Text,
         account_key -> Binary,
@@ -14,7 +16,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     assigned_subaddresses (public_address_b58) {
         public_address_b58 -> Text,
         account_id -> Text,
@@ -24,17 +26,16 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     authenticated_sender_memos (txo_id) {
         txo_id -> Text,
         sender_address_hash -> Text,
         payment_request_id -> Nullable<Text>,
         payment_intent_id -> Nullable<Text>,
-        validated -> Bool,
     }
 }
 
-table! {
+diesel::table! {
     gift_codes (id) {
         id -> Integer,
         gift_code_b58 -> Text,
@@ -42,14 +43,14 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     transaction_input_txos (transaction_log_id, txo_id) {
         transaction_log_id -> Text,
         txo_id -> Text,
     }
 }
 
-table! {
+diesel::table! {
     transaction_logs (id) {
         id -> Text,
         account_id -> Text,
@@ -64,7 +65,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     transaction_output_txos (transaction_log_id, txo_id) {
         transaction_log_id -> Text,
         txo_id -> Text,
@@ -73,7 +74,7 @@ table! {
     }
 }
 
-table! {
+diesel::table! {
     txos (id) {
         id -> Text,
         account_id -> Nullable<Text>,
@@ -92,26 +93,26 @@ table! {
     }
 }
 
-
-table! {
+diesel::table! {
     __diesel_schema_migrations(version) {
         version -> Text,
         run_on -> Timestamp,
     }
 }
 
+diesel::joinable!(assigned_subaddresses -> accounts (account_id));
+diesel::joinable!(authenticated_sender_memos -> txos (txo_id));
+diesel::joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
+diesel::joinable!(transaction_input_txos -> txos (txo_id));
+diesel::joinable!(transaction_logs -> accounts (account_id));
+diesel::joinable!(transaction_output_txos -> transaction_logs (transaction_log_id));
+diesel::joinable!(transaction_output_txos -> txos (txo_id));
+diesel::joinable!(txos -> accounts (account_id));
 
-joinable!(assigned_subaddresses -> accounts (account_id));
-joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
-joinable!(transaction_input_txos -> txos (txo_id));
-joinable!(transaction_logs -> accounts (account_id));
-joinable!(transaction_output_txos -> transaction_logs (transaction_log_id));
-joinable!(transaction_output_txos -> txos (txo_id));
-joinable!(txos -> accounts (account_id));
-
-allow_tables_to_appear_in_same_query!(
+diesel::allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
+    authenticated_sender_memos,
     gift_codes,
     transaction_input_txos,
     transaction_logs,

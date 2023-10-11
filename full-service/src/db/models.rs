@@ -245,7 +245,6 @@ pub struct AuthenticatedSenderMemo {
     pub sender_address_hash: String,
     pub payment_request_id: Option<String>,
     pub payment_intent_id: Option<String>,
-    pub validated: bool,
 }
 
 #[derive(Insertable)]
@@ -255,7 +254,6 @@ pub struct NewAuthenticatedSenderMemo<'a> {
     pub sender_address_hash: &'a str,
     pub payment_request_id: Option<&'a str>,
     pub payment_intent_id: Option<&'a str>,
-    pub validated: bool,
 }
 
 #[derive(Queryable, Insertable)]

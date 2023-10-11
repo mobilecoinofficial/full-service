@@ -5,6 +5,7 @@ CREATE TABLE authenticated_sender_memos (
   sender_address_hash TEXT NOT NULL,
   payment_request_id TEXT,
   payment_intent_id TEXT,
-  validated BOOLEAN NOT NULL,
   FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
+
+UPDATE accounts SET next_block_index = 0;
