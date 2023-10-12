@@ -27,6 +27,9 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+
+use crate::service::t3::T3SyncConfig;
+
 /// Command line config for the Wallet API
 #[derive(Clone, Debug, Parser)]
 #[clap(
@@ -81,6 +84,10 @@ pub struct APIConfig {
     /// will not add any CORS headers
     #[clap(long, env = "MC_ALLOWED_ORIGIN")]
     pub allowed_origin: Option<String>,
+
+    /// T3 Server to connect to and the api key to use for authorization.
+    #[clap(flatten)]
+    pub t3_sync_config: Option<T3SyncConfig>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {

@@ -164,6 +164,9 @@ impl From<diesel::result::Error> for WalletServiceError {
 }
 
 #[derive(Display, Debug)]
+pub enum T3SyncError {}
+
+#[derive(Display, Debug)]
 pub enum SyncError {
     /// Could not find account
     AccountNotFound,

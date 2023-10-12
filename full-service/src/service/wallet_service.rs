@@ -23,6 +23,8 @@ use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
 
+use super::t3::{T3SyncConfig, T3SyncThread};
+
 /// Service for interacting with the wallet
 ///
 /// Note that some fields need to be pub in order to be used in trait
@@ -58,6 +60,9 @@ pub struct WalletService<
     /// Background ledger sync thread.
     _sync_thread: Option<SyncThread>,
 
+    /// Background T3 sync thread.
+    _t3_sync_thread: Option<T3SyncThread>,
+
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
     pub submit_node_offset: Arc<AtomicUsize>,
@@ -84,6 +89,7 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
+        t3_sync_config: Option<T3SyncConfig>,
         logger: Logger,
     ) -> Self {
         let sync_thread = if let Some(wallet_db) = wallet_db.clone() {
@@ -97,6 +103,19 @@ impl<
             None
         };
 
+        let t3_sync_thread =
+            if let (Some(wallet_db), Some(t3_sync_config)) = (wallet_db.clone(), t3_sync_config) {
+                log::info!(logger, "Starting T3 Sync Task Thread");
+                Some(T3SyncThread::start(
+                    t3_sync_config,
+                    ledger_db.clone(),
+                    wallet_db,
+                    logger.clone(),
+                ))
+            } else {
+                None
+            };
+
         let mut rng = rand::thread_rng();
         WalletService {
             wallet_db,
@@ -107,6 +126,7 @@ impl<
             network_state,
             fog_resolver_factory,
             _sync_thread: sync_thread,
+            _t3_sync_thread: t3_sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             offline,
             logger,
