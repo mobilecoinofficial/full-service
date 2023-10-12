@@ -78,6 +78,11 @@ impl T3SyncThread {
                             break;
                         }
 
+                        match sync_txos(&ledger_db, conn, &logger) {
+                            Ok(()) => (),
+                            Err(e) => log::error!(&logger, "Error during t3 sync:\n{:?}", e),
+                        }
+
                         // This sleep is to allow other API calls that need access to the database a
                         // chance to execute, because the t3 sync process requires a write lock on
                         // the database.

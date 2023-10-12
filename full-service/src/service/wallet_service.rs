@@ -5,7 +5,10 @@
 use crate::{
     config::NetworkConfig,
     db::{WalletDb, WalletDbError},
-    service::sync::SyncThread,
+    service::{
+        sync::SyncThread,
+        t3::{T3SyncConfig, T3SyncThread},
+    },
 };
 use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
@@ -22,8 +25,6 @@ use mc_rand::rand_core::RngCore;
 use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
 use std::sync::{atomic::AtomicUsize, Arc, RwLock};
-
-use super::t3::{T3SyncConfig, T3SyncThread};
 
 /// Service for interacting with the wallet
 ///

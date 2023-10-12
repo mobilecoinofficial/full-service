@@ -239,7 +239,7 @@ fn consensus_backed_full_service(
         network_state,
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
-        config.t3_sync_config,
+        config.t3_sync_config.clone(),
         logger,
     );
 
@@ -336,7 +336,7 @@ fn validator_backed_full_service(
             }
         }),
         false,
-        config.t3_sync_config,
+        config.t3_sync_config.clone(),
         logger,
     );
 
