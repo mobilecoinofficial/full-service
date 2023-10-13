@@ -685,6 +685,7 @@ fn setup_wallet_service_impl(
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,
+        None,
         logger,
     )
 }

@@ -92,6 +92,7 @@ pub struct Txo {
     pub confirmation: Option<Vec<u8>>,
     pub shared_secret: Option<Vec<u8>>,
     pub memo_type: Option<i32>,
+    pub is_synced_to_t3: bool,
 }
 
 impl Txo {

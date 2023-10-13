@@ -121,6 +121,7 @@ pub fn create_test_setup(
         network_state.clone(),
         get_resolver_factory(rng).unwrap(),
         false,
+        None,
         logger,
     );
 

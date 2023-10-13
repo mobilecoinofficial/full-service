@@ -32,7 +32,7 @@ impl From<&AuthenticatedSenderMemo> for SenderMemo {
 impl From<&TxoMemo> for Memo {
     fn from(memo: &TxoMemo) -> Self {
         match memo {
-            TxoMemo::Sender(memo) => Memo::Sender(memo.into()),
+            TxoMemo::AuthenticatedSender(memo) => Memo::Sender(memo.into()),
             _ => Memo::Unused,
         }
     }

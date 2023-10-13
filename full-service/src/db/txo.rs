@@ -74,7 +74,7 @@ pub enum TxoStatus {
 #[derive(Debug, PartialEq)]
 pub enum TxoMemo {
     Unused,
-    Sender(AuthenticatedSenderMemoModel),
+    AuthenticatedSender(AuthenticatedSenderMemoModel),
 }
 
 impl fmt::Display for TxoStatus {
@@ -268,6 +268,12 @@ pub trait TxoModel {
         conn: Conn,
     ) -> Result<(), WalletDbError>;
 
+
+    fn update_is_synced_to_t3(&self, is_synced: bool, conn: Conn) -> Result<(), WalletDbError>;
+
+    fn get_txos_that_need_to_be_synced_to_t3(
+        conn: Conn,
+    ) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get a list of TxOut within the given conditions
     /// 
@@ -948,6 +954,36 @@ impl TxoModel for Txo {
             .execute(conn)?;
 
         Ok(())
+    }
+
+    fn update_is_synced_to_t3(&self, is_synced: bool, conn: Conn) -> Result<(), WalletDbError> {
+        use crate::db::schema::txos;
+
+        diesel::update(self)
+            .set(txos::is_synced_to_t3.eq(is_synced))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn get_txos_that_need_to_be_synced_to_t3(conn: Conn) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::txos;
+
+        let memo_types_predicate = txos::memo_type
+            .eq(Some(two_bytes_to_i32(
+                AuthenticatedSenderMemo::MEMO_TYPE_BYTES,
+            )))
+            .or(txos::memo_type.eq(two_bytes_to_i32(
+                AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES,
+            )))
+            .or(txos::memo_type.eq(two_bytes_to_i32(
+                AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES,
+            )));
+
+        Ok(txos::table
+            .filter(txos::is_synced_to_t3.eq(false))
+            .filter(memo_types_predicate)
+            .load(conn)?)
     }
 
     fn list(
@@ -2022,7 +2058,7 @@ impl TxoModel for Txo {
                                 let db_memo = authenticated_sender_memos::table.filter(
                                     authenticated_sender_memos::txo_id.eq(&self.id),
                                     ).first::<AuthenticatedSenderMemoModel>(conn)?;
-                                TxoMemo::Sender(db_memo)
+                                TxoMemo::AuthenticatedSender(db_memo)
                             },
                         _ => TxoMemo::Unused,
                     }
@@ -2192,6 +2228,7 @@ mod tests {
             account_id: Some(alice_account_id.to_string()),
             shared_secret: Some(shared_secret.encode_to_vec()),
             memo_type: Some(0),
+            is_synced_to_t3: false,
         };
 
         assert_eq!(expected_txo, txos[0]);
@@ -3793,13 +3830,102 @@ mod tests {
         let txo = Txo::get(&txo_id, conn).unwrap();
         let memo = txo.memo(conn).expect("loading memo");
         match memo {
-            TxoMemo::Sender(m) => {
+            TxoMemo::AuthenticatedSender(m) => {
                 assert_eq!(m.sender_address_hash, address_hash.to_string());
                 assert_eq!(m.payment_request_id, None);
                 assert_eq!(m.payment_intent_id, None);
             }
             _ => panic!("expected sender memo"),
         }
+    }
+
+    #[test_with_logger]
+    fn test_get_memos_for_t3_sync_get_correct_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let address_hash: ShortAddressHash = (&account_key.default_subaddress()).into();
+
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a received txo without a memo, and show that no memo is created.
+        let (txo, key_image) = create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
+
+        Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create a txo with an AuthorizedSenderMemo, which should be returned by
+        // get_memos_for_t3_sync
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH(None, None),
+        );
+
+        Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create a txo with an AuthorizedSenderMemoWithPaymentRequestId, which should
+        // be returned by get_memos_for_t3_sync
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH(None, Some(500)),
+        );
+
+        Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos_that_need_to_be_synced_to_t3 =
+            Txo::get_txos_that_need_to_be_synced_to_t3(conn).unwrap();
+
+        assert!(txos_that_need_to_be_synced_to_t3.len() == 2);
     }
 
     // FIXME: once we have create_minted, then select_txos test with no
