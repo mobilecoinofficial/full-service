@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package t3.v1;
+
+option java_multiple_files = true;
+
+service AdminService {
+  rpc AddApiKey(AddApiKeyRequest) returns (AddApiKeyResponse);
+  rpc SetNewTransactionWebhookUrl(SetNewTransactionWebhookUrlRequest) returns (SetNewTransactionWebhookUrlResponse);
+}
+
+message AddApiKeyRequest {
+  string institution_id = 1;
+  string contact_email = 2;
+  string contact_name = 3;
+  string new_transaction_webhook_url = 4;
+  bool has_read_access = 5;
+  bool has_write_access = 6;
+  bool is_admin = 7;
+}
+
+message AddApiKeyResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+  }
+  Result result = 1;
+  string api_key = 2;
+}
+
+message SetNewTransactionWebhookUrlRequest {
+  string new_transaction_webhook_url = 1;
+  string institution_id = 2;
+  string internal_auth_id = 3;
+}
+
+message SetNewTransactionWebhookUrlResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+  }
+  Result result = 1;
+}
