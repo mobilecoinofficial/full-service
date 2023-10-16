@@ -3857,7 +3857,6 @@ mod tests {
 
         let root_id = RootIdentity::from_random(&mut rng);
         let account_key = AccountKey::from(&root_id);
-        let address_hash: ShortAddressHash = (&account_key.default_subaddress()).into();
 
         let (account_id, _address) = Account::create_from_root_entropy(
             &root_id.root_entropy,
