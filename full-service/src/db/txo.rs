@@ -142,6 +142,8 @@ impl Txo {
     }
 }
 
+pub type TxoInfo = (Txo, TxoMemo, TxoStatus);
+
 #[rustfmt::skip]
 pub trait TxoModel {
     /// Saves a received TxOut to local database.
@@ -809,32 +811,26 @@ impl TxoModel for Txo {
         // Interpret the memo payload and save it to the correct database table.
         // Check that there is no existing memo before creating a new one.
         use crate::db::schema::authenticated_sender_memos;
-        if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
-            match memo_type {
-                MemoType::AuthenticatedSender(memo) => {
-                    // Create a memo row if necessary.
-                    let new_memo = NewAuthenticatedSenderMemo {
-                        txo_id: &txo_id.to_string(),
-                        sender_address_hash: &memo.sender_address_hash().to_string(),
-                        payment_request_id: None,
-                        payment_intent_id: None,
-                    };
-
-                    match authenticated_sender_memos::table
-                        .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
-                        .get_result::<AuthenticatedSenderMemoModel>(conn)
-                    {
-                        Ok(_) => {}
-                        Err(diesel::result::Error::NotFound) => {
-                            diesel::insert_into(authenticated_sender_memos::table)
-                                .values(&new_memo)
-                                .execute(conn)?;
-                        }
-                        Err(e) => return Err(e.into()),
-                    }
-                }
-                _ => {} // The memo type is unknown, so don't record it to the database.
+        if let Ok(MemoType::AuthenticatedSender(memo)) = MemoType::try_from(&memo_payload) {
+            let new_memo = NewAuthenticatedSenderMemo {
+                txo_id: &txo_id.to_string(),
+                sender_address_hash: &memo.sender_address_hash().to_string(),
+                payment_request_id: None,
+                payment_intent_id: None,
             };
+
+            match authenticated_sender_memos::table
+                .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
+                .get_result::<AuthenticatedSenderMemoModel>(conn)
+            {
+                Ok(_) => {}
+                Err(diesel::result::Error::NotFound) => {
+                    diesel::insert_into(authenticated_sender_memos::table)
+                        .values(&new_memo)
+                        .execute(conn)?;
+                }
+                Err(e) => return Err(e.into()),
+            }
         }
 
         Ok(txo_id.to_string())

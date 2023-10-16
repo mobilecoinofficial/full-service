@@ -6,7 +6,8 @@ use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::ConnectionUri;
 use t3_api::{
     t3_grpc::TransactionServiceClient, CreateTransactionRequest, CreateTransactionResponse,
-    FindTransactionsRequest, T3Uri, TestErrorRequest, TransparentTransaction,
+    FindTransactionsRequest, FindTransactionsResponse, T3Uri, TestErrorRequest, TestErrorResponse,
+    TransparentTransaction,
 };
 
 use grpcio::{CallOption, ChannelBuilder, EnvBuilder, MetadataBuilder};
@@ -56,10 +57,10 @@ impl T3Connection {
         }
     }
 
-    pub fn find_transactions(&self) -> Result<(), Error> {
-        let mut request = FindTransactionsRequest::new();
+    pub fn find_transactions(&self) -> Result<FindTransactionsResponse, Error> {
+        let request = FindTransactionsRequest::new();
 
-        let response = self
+        Ok(self
             .transaction_service_client
             .find_transactions_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
@@ -69,9 +70,7 @@ impl T3Connection {
                     err
                 );
                 err
-            })?;
-
-        Ok(())
+            })?)
     }
 
     pub fn list_transactions() {}
@@ -83,7 +82,8 @@ impl T3Connection {
         let mut request = CreateTransactionRequest::new();
         request.set_transaction(transparent_transaction);
 
-        self.transaction_service_client
+        Ok(self
+            .transaction_service_client
             .create_transaction_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
                 log::warn!(
@@ -92,14 +92,14 @@ impl T3Connection {
                     err
                 );
                 err
-            })
+            })?)
     }
 
-    pub fn test_error(&self) -> Result<(), Error> {
+    pub fn test_error(&self, code: i32) -> Result<TestErrorResponse, Error> {
         let mut request = TestErrorRequest::new();
-        request.set_code(400);
+        request.set_code(code);
 
-        let response = self
+        Ok(self
             .transaction_service_client
             .test_error_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
@@ -109,84 +109,8 @@ impl T3Connection {
                     err
                 );
                 err
-            })?;
-
-        Ok(())
+            })?)
     }
-
-    // pub fn get_archive_blocks(&self, offset: u64, limit: u32) ->
-    // Result<Vec<ArchiveBlock>, Error> {     let mut request =
-    // BlocksRequest::new();     request.set_offset(offset);
-    //     request.set_limit(limit);
-
-    //     let response = self
-    //         .validator_api_client
-    //         .get_archive_blocks_opt(&request,
-    // common_headers_call_option(&self.chain_id))         .map_err(|err| {
-    //             log::warn!(
-    //                 self.logger,
-    //                 "validator get_archive_blocks RPC call failed: {}",
-    //                 err
-    //             );
-    //             err
-    //         })?;
-
-    //     Ok(response.get_blocks().to_vec())
-    // }
-
-    // pub fn get_blocks_data(&self, offset: u64, limit: u32) ->
-    // Result<Vec<BlockData>, Error> {     let archive_blocks =
-    // self.get_archive_blocks(offset, limit)?;
-
-    //     let blocks_data = archive_blocks
-    //         .iter()
-    //         .map(BlockData::try_from)
-    //         .collect::<Result<Vec<_>, _>>()?;
-    //     Ok(blocks_data)
-    // }
-
-    // /// Given a fog report uri, fetch its response over grpc, or return an
-    // /// error.
-    // pub fn fetch_fog_report(&self, uri: &FogUri) -> Result<ReportResponse, Error>
-    // {     let mut request = FetchFogReportRequest::new();
-    //     request.set_uri(uri.to_string());
-
-    //     let response = self
-    //         .validator_api_client
-    //         .fetch_fog_report_opt(&request,
-    // common_headers_call_option(&self.chain_id))         .map_err(|err| {
-    //             log::warn!(
-    //                 self.logger,
-    //                 "validator fetch_fog_report RPC call failed: {}",
-    //                 err
-    //             );
-    //             err
-    //         })?;
-
-    //     match response.get_result() {
-    //         FetchFogReportResult::Ok => Ok(response.get_report().clone()),
-
-    //         FetchFogReportResult::NoReports => Err(Error::NoReports),
-    //     }
-    // }
-
-    // /// Fetch multiple fog reports.
-    // pub fn fetch_fog_reports(
-    //     &self,
-    //     uris: impl Iterator<Item = FogUri>,
-    // ) -> Result<FogReportResponses, Error> {
-    //     let mut responses = FogReportResponses::default();
-    //     for uri in uris {
-    //         if responses.contains_key(&uri.to_string()) {
-    //             continue;
-    //         }
-
-    //         let response = self.fetch_fog_report(&uri)?;
-    //         responses.insert(uri.to_string(), response.into());
-    //     }
-
-    //     Ok(responses)
-    // }
 }
 
 impl Display for T3Connection {

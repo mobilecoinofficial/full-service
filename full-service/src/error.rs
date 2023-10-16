@@ -14,6 +14,7 @@ use crate::{
     util::b58::B58Error,
 };
 use displaydoc::Display;
+use hex::FromHexError;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -167,11 +168,38 @@ impl From<diesel::result::Error> for WalletServiceError {
 pub enum T3SyncError {
     /// Error with WalletDb: {0}
     WalletDb(WalletDbError),
+
+    /// From Hex Error: {0}
+    FromHex(FromHexError),
+
+    /// T3 Connection Error: {0}
+    T3Connection(t3_connection::Error),
+
+    /// mc util serial decode error: {0}
+    McUtilSerialDecode(mc_util_serial::DecodeError),
 }
 
 impl From<WalletDbError> for T3SyncError {
     fn from(src: WalletDbError) -> Self {
         Self::WalletDb(src)
+    }
+}
+
+impl From<FromHexError> for T3SyncError {
+    fn from(src: FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<t3_connection::Error> for T3SyncError {
+    fn from(src: t3_connection::Error) -> Self {
+        Self::T3Connection(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for T3SyncError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::McUtilSerialDecode(src)
     }
 }
 

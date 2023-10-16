@@ -109,7 +109,6 @@ impl<
                 log::info!(logger, "Starting T3 Sync Task Thread");
                 Some(T3SyncThread::start(
                     t3_sync_config,
-                    ledger_db.clone(),
                     wallet_db,
                     logger.clone(),
                 ))

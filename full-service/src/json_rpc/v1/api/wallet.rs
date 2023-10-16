@@ -339,7 +339,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status.as_ref().map(|(t, s, _m)| Txo::new(t, s)),
+                txo: txo_and_status.as_ref().map(|(t, _m, s)| Txo::new(t, s)),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -646,7 +646,7 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s, _)| {
+                    .map(|(t, _m, s)| {
                         (
                             t.id.clone(),
                             serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
@@ -877,9 +877,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status, _) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let (txo, _m, s) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo, &status),
+                txo: Txo::new(&txo, &s),
             }
         }
         JsonCommandRequest::get_txos_for_account {
@@ -909,7 +909,7 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s, _)| {
+                    .map(|(t, _m, s)| {
                         (
                             t.id.clone(),
                             serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),

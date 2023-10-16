@@ -1,7 +1,4 @@
 use mc_common::logger::{log, Logger};
-use mc_ledger_db::LedgerDB;
-use mc_util_grpc::ConnectionUriGrpcioChannel;
-use mc_util_uri::{Uri, UriScheme};
 
 use t3_api::{T3Uri, TransparentTransaction};
 use t3_connection::T3Connection;
@@ -17,7 +14,11 @@ use std::{
 use clap::Parser;
 
 use crate::{
-    db::{models::Txo, txo::TxoModel, Conn},
+    db::{
+        models::{AuthenticatedSenderMemo, Txo},
+        txo::{TxoMemo, TxoModel},
+        Conn,
+    },
     error::T3SyncError,
     WalletDb,
 };
@@ -38,9 +39,6 @@ const T3_SYNC_INTERVAL: u64 = 1000;
 /// T3 Sync thread - holds objects needed to cleanly terminate the t3 sync
 /// thread.
 pub struct T3SyncThread {
-    /// The configuration for the t3 sync thread.
-    config: T3Config,
-
     /// The main sync thread handle.
     join_handle: Option<thread::JoinHandle<()>>,
 
@@ -49,12 +47,7 @@ pub struct T3SyncThread {
 }
 
 impl T3SyncThread {
-    pub fn start(
-        config: T3Config,
-        ledger_db: LedgerDB,
-        wallet_db: WalletDb,
-        logger: Logger,
-    ) -> Self {
+    pub fn start(config: T3Config, wallet_db: WalletDb, logger: Logger) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
 
@@ -77,7 +70,7 @@ impl T3SyncThread {
                             break;
                         }
 
-                        match sync_txos(&ledger_db, conn, &t3_connection, &logger) {
+                        match sync_txos(conn, &t3_connection, &logger) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during t3 sync:\n{:?}", e),
                         }
@@ -93,7 +86,6 @@ impl T3SyncThread {
         );
 
         Self {
-            config,
             join_handle,
             stop_requested,
         }
@@ -114,7 +106,6 @@ impl Drop for T3SyncThread {
 }
 
 pub fn sync_txos(
-    ledger_db: &LedgerDB,
     conn: Conn,
     t3_connection: &T3Connection,
     logger: &Logger,
@@ -125,12 +116,37 @@ pub fn sync_txos(
 
     let txos = Txo::get_txos_that_need_to_be_synced_to_t3(Some(TXO_CHUNK_SIZE), conn)?;
 
+    for txo in txos {
+        let txo_memo = txo.memo(conn)?;
+        let memo = match txo_memo {
+            TxoMemo::AuthenticatedSender(memo) => memo,
+            _ => continue,
+        };
+
+        sync_txo(&txo, &memo, t3_connection)?;
+        txo.update_is_synced_to_t3(true, conn)?;
+    }
+
     Ok(())
 }
 
-fn sync_txo(conn: Conn, t3_connection: &T3Connection, logger: &Logger) -> Result<(), T3SyncError> {
+fn sync_txo(
+    txo: &Txo,
+    memo: &AuthenticatedSenderMemo,
+    t3_connection: &T3Connection,
+) -> Result<(), T3SyncError> {
     let mut transparent_transaction = TransparentTransaction::new();
-    // let _ = t3_connection.create_transaction()?;
+
+    let sender_address_hash_bytes = hex::decode(&memo.sender_address_hash)?;
+    transparent_transaction.set_sender_address_hash(sender_address_hash_bytes);
+
+    transparent_transaction.set_token_id(txo.token_id as u64);
+    transparent_transaction.set_amount(txo.value as u64);
+
+    let public_key_bytes = txo.public_key()?.as_bytes().to_vec();
+    transparent_transaction.set_public_key_hex(hex::encode(public_key_bytes));
+
+    let _ = t3_connection.create_transaction(transparent_transaction)?;
 
     Ok(())
 }

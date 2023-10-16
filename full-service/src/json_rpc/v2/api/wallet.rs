@@ -466,9 +466,7 @@ where
 
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_status_and_memo
-                    .as_ref()
-                    .map(|(txo, status, memo)| Txo::new(txo, status, memo)),
+                txo: txo_status_and_memo.map(|txo_info| (&txo_info).into()),
             }
         }
         JsonCommandRequest::create_account { name, fog_info } => {
@@ -946,9 +944,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status, memo) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo, &status, &memo),
+                txo: (&txo_info).into(),
             }
         }
         JsonCommandRequest::get_txo_block_index { public_key } => {
@@ -1010,11 +1008,14 @@ where
             let txo_map = Map::from_iter(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s, m)| {
+                    .map(|txo_info| {
                         (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s, m))
+                            txo_info.0.id.clone(),
+                            serde_json::to_value(Txo::from(txo_info))
                                 .expect("Could not get json value"),
+                            // txo.id.clone(),
+                            // serde_json::to_value(Txo::from((txo, memo, status)))
+                            //     .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -1022,8 +1023,8 @@ where
 
             JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
-                    .iter()
-                    .map(|(t, _, _)| t.id.clone())
+                    .into_iter()
+                    .map(|(t, _, _)| t.id)
                     .collect(),
                 txo_map,
             }
