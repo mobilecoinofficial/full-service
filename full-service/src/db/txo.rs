@@ -272,6 +272,7 @@ pub trait TxoModel {
     fn update_is_synced_to_t3(&self, is_synced: bool, conn: Conn) -> Result<(), WalletDbError>;
 
     fn get_txos_that_need_to_be_synced_to_t3(
+        limit: Option<usize>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -966,7 +967,10 @@ impl TxoModel for Txo {
         Ok(())
     }
 
-    fn get_txos_that_need_to_be_synced_to_t3(conn: Conn) -> Result<Vec<Txo>, WalletDbError> {
+    fn get_txos_that_need_to_be_synced_to_t3(
+        limit: Option<usize>,
+        conn: Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
         let memo_types_predicate = txos::memo_type
@@ -980,10 +984,17 @@ impl TxoModel for Txo {
                 AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES,
             )));
 
-        Ok(txos::table
+        let mut query = txos::table.into_boxed();
+
+        query = query
             .filter(txos::is_synced_to_t3.eq(false))
-            .filter(memo_types_predicate)
-            .load(conn)?)
+            .filter(memo_types_predicate);
+
+        if let Some(l) = limit {
+            query = query.limit(l as i64);
+        }
+
+        Ok(query.load(conn)?)
     }
 
     fn list(
@@ -3923,7 +3934,7 @@ mod tests {
         .unwrap();
 
         let txos_that_need_to_be_synced_to_t3 =
-            Txo::get_txos_that_need_to_be_synced_to_t3(conn).unwrap();
+            Txo::get_txos_that_need_to_be_synced_to_t3(None, conn).unwrap();
 
         assert!(txos_that_need_to_be_synced_to_t3.len() == 2);
     }

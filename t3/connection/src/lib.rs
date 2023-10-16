@@ -4,7 +4,10 @@ use mc_common::logger::{log, Logger};
 use mc_connection::Connection;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::ConnectionUri;
-use t3_api::{t3_grpc::TransactionServiceClient, FindTransactionsRequest, T3Uri, TestErrorRequest};
+use t3_api::{
+    t3_grpc::TransactionServiceClient, CreateTransactionRequest, CreateTransactionResponse,
+    FindTransactionsRequest, T3Uri, TestErrorRequest, TransparentTransaction,
+};
 
 use grpcio::{CallOption, ChannelBuilder, EnvBuilder, MetadataBuilder};
 
@@ -73,7 +76,24 @@ impl T3Connection {
 
     pub fn list_transactions() {}
 
-    pub fn create_transaction() {}
+    pub fn create_transaction(
+        &self,
+        transparent_transaction: TransparentTransaction,
+    ) -> Result<CreateTransactionResponse, Error> {
+        let mut request = CreateTransactionRequest::new();
+        request.set_transaction(transparent_transaction);
+
+        self.transaction_service_client
+            .create_transaction_opt(&request, common_headers_call_option(&self.api_key))
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "t3_transaction_service find_transactions RPC call failed: {}",
+                    err
+                );
+                err
+            })
+    }
 
     pub fn test_error(&self) -> Result<(), Error> {
         let mut request = TestErrorRequest::new();

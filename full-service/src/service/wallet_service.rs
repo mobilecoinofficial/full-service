@@ -7,7 +7,7 @@ use crate::{
     db::{WalletDb, WalletDbError},
     service::{
         sync::SyncThread,
-        t3::{T3SyncConfig, T3SyncThread},
+        t3_sync::{T3Config, T3SyncThread},
     },
 };
 use diesel::{
@@ -90,7 +90,7 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
-        t3_sync_config: Option<T3SyncConfig>,
+        t3_sync_config: Option<T3Config>,
         logger: Logger,
     ) -> Self {
         let sync_thread = if let Some(wallet_db) = wallet_db.clone() {

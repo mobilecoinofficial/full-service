@@ -1,7 +1,11 @@
-use clap::Parser;
 use mc_common::logger::{log, Logger};
 use mc_ledger_db::LedgerDB;
+use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::{Uri, UriScheme};
+
+use t3_api::{T3Uri, TransparentTransaction};
+use t3_connection::T3Connection;
+
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -10,24 +14,16 @@ use std::{
     thread,
 };
 
-use crate::{db::Conn, error::T3SyncError, WalletDb};
+use clap::Parser;
 
-#[derive(Debug, Hash, Ord, PartialOrd, Eq, PartialEq, Clone)]
-pub struct T3Scheme {}
-impl UriScheme for T3Scheme {
-    /// The part before the '://' of a URL.
-    const SCHEME_SECURE: &'static str = "t3";
-    const SCHEME_INSECURE: &'static str = "insecure-t3";
-
-    /// Default port numbers
-    const DEFAULT_SECURE_PORT: u16 = 443;
-    const DEFAULT_INSECURE_PORT: u16 = 3223;
-}
-
-pub type T3Uri = Uri<T3Scheme>;
+use crate::{
+    db::{models::Txo, txo::TxoModel, Conn},
+    error::T3SyncError,
+    WalletDb,
+};
 
 #[derive(Clone, Debug, Parser)]
-pub struct T3SyncConfig {
+pub struct T3Config {
     #[clap(long, env = "T3_URI")]
     pub t3_uri: T3Uri,
     #[clap(long, env = "T3_API_KEY")]
@@ -43,7 +39,7 @@ const T3_SYNC_INTERVAL: u64 = 1000;
 /// thread.
 pub struct T3SyncThread {
     /// The configuration for the t3 sync thread.
-    config: T3SyncConfig,
+    config: T3Config,
 
     /// The main sync thread handle.
     join_handle: Option<thread::JoinHandle<()>>,
@@ -54,13 +50,16 @@ pub struct T3SyncThread {
 
 impl T3SyncThread {
     pub fn start(
-        config: T3SyncConfig,
+        config: T3Config,
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
         logger: Logger,
     ) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
+
+        let t3_connection =
+            T3Connection::new(&config.t3_uri, config.t3_api_key.clone(), logger.clone());
 
         let join_handle = Some(
             thread::Builder::new()
@@ -78,7 +77,7 @@ impl T3SyncThread {
                             break;
                         }
 
-                        match sync_txos(&ledger_db, conn, &logger) {
+                        match sync_txos(&ledger_db, conn, &t3_connection, &logger) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during t3 sync:\n{:?}", e),
                         }
@@ -114,9 +113,24 @@ impl Drop for T3SyncThread {
     }
 }
 
-pub fn sync_txos(ledger_db: &LedgerDB, conn: Conn, logger: &Logger) -> Result<(), T3SyncError> {
+pub fn sync_txos(
+    ledger_db: &LedgerDB,
+    conn: Conn,
+    t3_connection: &T3Connection,
+    logger: &Logger,
+) -> Result<(), T3SyncError> {
     // get all txos from the database that haven't synced yet to t3 and that have an
     // authenticated sender memo
     log::debug!(logger, "Syncing txos to t3");
+
+    let txos = Txo::get_txos_that_need_to_be_synced_to_t3(Some(TXO_CHUNK_SIZE), conn)?;
+
+    Ok(())
+}
+
+fn sync_txo(conn: Conn, t3_connection: &T3Connection, logger: &Logger) -> Result<(), T3SyncError> {
+    let mut transparent_transaction = TransparentTransaction::new();
+    // let _ = t3_connection.create_transaction()?;
+
     Ok(())
 }

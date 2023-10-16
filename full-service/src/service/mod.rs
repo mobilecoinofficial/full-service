@@ -15,7 +15,7 @@ pub mod network;
 pub mod payment_request;
 pub mod receipt;
 pub mod sync;
-pub mod t3;
+pub mod t3_sync;
 pub mod transaction;
 pub mod transaction_builder;
 pub mod transaction_log;

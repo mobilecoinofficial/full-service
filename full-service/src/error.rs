@@ -164,7 +164,16 @@ impl From<diesel::result::Error> for WalletServiceError {
 }
 
 #[derive(Display, Debug)]
-pub enum T3SyncError {}
+pub enum T3SyncError {
+    /// Error with WalletDb: {0}
+    WalletDb(WalletDbError),
+}
+
+impl From<WalletDbError> for T3SyncError {
+    fn from(src: WalletDbError) -> Self {
+        Self::WalletDb(src)
+    }
+}
 
 #[derive(Display, Debug)]
 pub enum SyncError {
