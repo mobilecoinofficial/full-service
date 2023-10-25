@@ -22,9 +22,9 @@ then
     exit
 fi
 
-echo "generating..."
+echo "exporting..."
 
 # generate files from buf.build
-buf generate buf.build/mobilecoin-inc/trusted-transparent-transactions
+buf export buf.build/mobilecoin-inc/trusted-transparent-transactions --output=t3/api/proto
 
 echo "done"

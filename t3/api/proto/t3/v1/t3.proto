@@ -83,6 +83,12 @@ message TransparentTransaction {
   // If none, then the value is set to NONE
   KnownInstitution sender_institution = 11;
   KnownInstitution recipient_institution = 12;
+
+  // Collected directly from the blockchain, ignored during CreateTransaction
+  // When this transaction was written to the blockchain, as seconds since Unix epoch.
+  uint64 block_time = 13;
+  // Block number
+  uint64 block_index = 14;
 }
 
 message CrossChainSwap {

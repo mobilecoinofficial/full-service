@@ -6,14 +6,15 @@ option java_multiple_files = true;
 
 service AdminService {
   rpc AddApiKey(AddApiKeyRequest) returns (AddApiKeyResponse);
-  rpc SetNewTransactionWebhookUrl(SetNewTransactionWebhookUrlRequest) returns (SetNewTransactionWebhookUrlResponse);
+  rpc MigrateBlockTimes(MigrateBlockTimesRequest) returns (MigrateBlockTimesResponse);
 }
 
 message AddApiKeyRequest {
+  reserved 4;
+
   string institution_id = 1;
   string contact_email = 2;
   string contact_name = 3;
-  string new_transaction_webhook_url = 4;
   bool has_read_access = 5;
   bool has_write_access = 6;
   bool is_admin = 7;
@@ -28,16 +29,17 @@ message AddApiKeyResponse {
   string api_key = 2;
 }
 
-message SetNewTransactionWebhookUrlRequest {
-  string new_transaction_webhook_url = 1;
-  string institution_id = 2;
-  string internal_auth_id = 3;
+message MigrateBlockTimesRequest {
 }
 
-message SetNewTransactionWebhookUrlResponse {
+message MigrateBlockTimesResponse {
   enum Result {
     RESULT_UNSPECIFIED = 0;
     RESULT_OK = 1;
   }
   Result result = 1;
+  int32 found_transactions_count = 2;
+  int32 updated_count = 3;
+  map<string, int32> error_counts = 4;
 }
+
