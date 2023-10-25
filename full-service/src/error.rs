@@ -166,16 +166,16 @@ impl From<diesel::result::Error> for WalletServiceError {
 
 #[derive(Display, Debug)]
 pub enum T3SyncError {
-    /// Error with WalletDb: {0}
+    /// WalletDb: {0}
     WalletDb(WalletDbError),
 
-    /// From Hex Error: {0}
+    /// FromHex: {0}
     FromHex(FromHexError),
 
-    /// T3 Connection Error: {0}
+    /// T3Connection: {0}
     T3Connection(t3_connection::Error),
 
-    /// mc util serial decode error: {0}
+    /// mc util serial decode: {0}
     McUtilSerialDecode(mc_util_serial::DecodeError),
 }
 

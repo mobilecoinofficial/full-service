@@ -142,7 +142,11 @@ impl Txo {
     }
 }
 
-pub type TxoInfo = (Txo, TxoMemo, TxoStatus);
+pub struct TxoInfo {
+    pub txo: Txo,
+    pub memo: TxoMemo,
+    pub status: TxoStatus,
+}
 
 #[rustfmt::skip]
 pub trait TxoModel {
@@ -3872,11 +3876,13 @@ mod tests {
 
         let amount = Amount::new(1000 * MOB, Mob::ID);
 
-        // Create a received txo without a memo, and show that no memo is created.
-        let (txo, key_image) = create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
+        // Create a received txo without a memo (empty memo), which should NOT be
+        // returned by get_memos_for_t3_sync.
+        let (txo_with_empty_memo, key_image) =
+            create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
 
         Txo::create_received(
-            txo,
+            txo_with_empty_memo,
             Some(0),
             Some(key_image),
             amount,
@@ -3888,7 +3894,7 @@ mod tests {
 
         // Create a txo with an AuthorizedSenderMemo, which should be returned by
         // get_memos_for_t3_sync
-        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+        let (txo_with_memo_1, key_image) = create_test_txo_for_recipient_with_memo(
             &account_key,
             0,
             amount,
@@ -3897,7 +3903,7 @@ mod tests {
         );
 
         Txo::create_received(
-            txo,
+            txo_with_memo_1.clone(),
             Some(0),
             Some(key_image),
             amount,
@@ -3909,7 +3915,7 @@ mod tests {
 
         // Create a txo with an AuthorizedSenderMemoWithPaymentRequestId, which should
         // be returned by get_memos_for_t3_sync
-        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+        let (txo_with_memo_2, key_image) = create_test_txo_for_recipient_with_memo(
             &account_key,
             0,
             amount,
@@ -3918,7 +3924,7 @@ mod tests {
         );
 
         Txo::create_received(
-            txo,
+            txo_with_memo_2.clone(),
             Some(0),
             Some(key_image),
             amount,
@@ -3932,6 +3938,14 @@ mod tests {
             Txo::get_txos_that_need_to_be_synced_to_t3(None, conn).unwrap();
 
         assert!(txos_that_need_to_be_synced_to_t3.len() == 2);
+
+        assert!(txos_that_need_to_be_synced_to_t3
+            .iter()
+            .any(|txo| txo.public_key().unwrap() == txo_with_memo_1.public_key));
+
+        assert!(txos_that_need_to_be_synced_to_t3
+            .iter()
+            .any(|txo| txo.public_key().unwrap() == txo_with_memo_2.public_key));
     }
 
     // FIXME: once we have create_minted, then select_txos test with no

@@ -152,13 +152,14 @@ where
 
         let mut results = Vec::new();
         for (associated_txo, _) in associated_txos.outputs {
-            let (txo, _, _) = self.get_txo(&TxoID(associated_txo.id.clone()))?;
-            if let Some(confirmation) = txo.confirmation {
+            let txo_info = self.get_txo(&TxoID(associated_txo.id.clone()))?;
+            if let Some(confirmation) = txo_info.txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
-                let pubkey: CompressedRistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
+                let pubkey: CompressedRistrettoPublic =
+                    mc_util_serial::decode(&txo_info.txo.public_key)?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;
                 results.push(Confirmation {
-                    txo_id: TxoID(txo.id),
+                    txo_id: TxoID(txo_info.txo.id),
                     txo_index,
                     confirmation,
                 });

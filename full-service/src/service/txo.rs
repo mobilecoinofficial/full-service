@@ -274,7 +274,7 @@ where
             .map(|txo| {
                 let status = txo.status(conn)?;
                 let memo = txo.memo(conn)?;
-                Ok((txo, memo, status))
+                Ok(TxoInfo { txo, memo, status })
             })
             .collect::<Result<Vec<TxoInfo>, TxoServiceError>>()?;
 
@@ -287,7 +287,7 @@ where
         let txo = Txo::get(&txo_id.to_string(), conn)?;
         let status = txo.status(conn)?;
         let memo = txo.memo(conn)?;
-        Ok((txo, memo, status))
+        Ok(TxoInfo { txo, memo, status })
     }
 
     async fn split_txo(

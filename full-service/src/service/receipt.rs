@@ -226,14 +226,13 @@ where
             return Ok((ReceiptTransactionStatus::TransactionPending, None));
         }
         let txo = txos[0].clone();
-        let txo_status = txo.status(conn)?;
-        let txo_memo = txo.memo(conn)?;
+        let status = txo.status(conn)?;
+        let memo = txo.memo(conn)?;
 
-        if (txo_status == TxoStatus::Pending) || (txo_status == TxoStatus::Created) {
-            return Ok((
-                ReceiptTransactionStatus::TransactionPending,
-                Some((txo, txo_memo, txo_status)),
-            ));
+        let txo_info = TxoInfo { txo, memo, status };
+
+        if (txo_info.status == TxoStatus::Pending) || (txo_info.status == TxoStatus::Created) {
+            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo_info)));
         }
 
         // Decrypt the amount to get the expected value
@@ -245,18 +244,18 @@ where
             Err(_) => {
                 return Ok((
                     ReceiptTransactionStatus::FailedAmountDecryption,
-                    Some((txo, txo_memo, txo_status)),
+                    Some(txo_info),
                 ))
             }
         };
         // Check that the value of the received Txo matches the expected value.
-        if (txo.value as u64) != expected_value.value {
+        if (txo_info.txo.value as u64) != expected_value.value {
             return Ok((
                 ReceiptTransactionStatus::AmountMismatch(format!(
                     "Expected: {}, Got: {}",
-                    expected_value.value, txo.value
+                    expected_value.value, txo_info.txo.value
                 )),
-                Some((txo, txo_memo, txo_status)),
+                Some(txo_info),
             ));
         }
 
@@ -264,17 +263,14 @@ where
         let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
+        if !Txo::validate_confirmation(&account_id, &txo_info.txo.id, &confirmation, conn)? {
             return Ok((
                 ReceiptTransactionStatus::InvalidConfirmation,
-                Some((txo, txo_memo, txo_status)),
+                Some(txo_info),
             ));
         }
 
-        Ok((
-            ReceiptTransactionStatus::TransactionSuccess,
-            Some((txo, txo_memo, txo_status)),
-        ))
+        Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo_info)))
     }
 
     fn create_receiver_receipts(

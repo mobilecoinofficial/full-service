@@ -546,14 +546,15 @@ where
                 .map_err(format_error)?;
 
             let mut unsynced_txos = vec![];
-            for (txo, _, _) in unverified_txos {
-                let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
-                    .try_into()
-                    .map_err(format_error)?;
+            for txo_info in unverified_txos {
+                let txo_pubkey: RistrettoPublic =
+                    (&txo_info.txo.public_key().map_err(format_error)?)
+                        .try_into()
+                        .map_err(format_error)?;
                 // We can guarantee that subaddress index will exist because the query for
                 // unverified txos only returns txos that have a subaddress
                 // index but not a key image.
-                let subaddress_index = txo.subaddress_index.unwrap() as u64;
+                let subaddress_index = txo_info.txo.subaddress_index.unwrap() as u64;
                 unsynced_txos.push(TxoUnsynced {
                     subaddress: subaddress_index,
                     tx_out_public_key: txo_pubkey.into(),
@@ -1010,12 +1011,9 @@ where
                     .iter()
                     .map(|txo_info| {
                         (
-                            txo_info.0.id.clone(),
+                            txo_info.txo.id.clone(),
                             serde_json::to_value(Txo::from(txo_info))
                                 .expect("Could not get json value"),
-                            // txo.id.clone(),
-                            // serde_json::to_value(Txo::from((txo, memo, status)))
-                            //     .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -1024,7 +1022,7 @@ where
             JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
                     .into_iter()
-                    .map(|(t, _, _)| t.id)
+                    .map(|txo_info| txo_info.txo.id)
                     .collect(),
                 txo_map,
             }
@@ -1355,8 +1353,8 @@ where
 
                     let unsynced_txos = unverified_txos
                         .iter()
-                        .map(|(txo, _, _)| {
-                            let subaddress_index = match txo.subaddress_index {
+                        .map(|txo_info| {
+                            let subaddress_index = match txo_info.txo.subaddress_index {
                                 Some(subaddress_index) => subaddress_index,
                                 None => {
                                     return Err(format_error(
@@ -1364,7 +1362,7 @@ where
                                     ))
                                 }
                             };
-                            let txo = service.get_txo_object(&txo.id).map_err(format_error)?;
+                            let txo = service.get_txo_object(&txo_info.txo.id).map_err(format_error)?;
                             Ok((txo, subaddress_index as u64))
                         })
                         .collect::<Result<Vec<_>, JsonRPCError>>()?;
