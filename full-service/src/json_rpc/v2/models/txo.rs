@@ -141,16 +141,17 @@ mod tests {
             &wallet_db,
         );
 
-        let txo_details = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
+        let txo = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
             .expect("Could not get Txo");
-        let status = txo_details
+        let status = txo
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
-        let memo = txo_details
-            .memo(&mut wallet_db.get_pooled_conn().unwrap())
-            .unwrap();
-        assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::from(&(txo_details, memo, status));
+        let memo = txo.memo(&mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+
+        let txo_info = TxoInfo { txo, status, memo };
+
+        assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
+        let json_txo = Txo::from(&txo_info);
         // let json_txo = Txo::new(&txo_details, &status, &memo);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");

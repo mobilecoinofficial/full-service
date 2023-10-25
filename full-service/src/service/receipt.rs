@@ -486,12 +486,12 @@ mod tests {
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].0.public_key)
+        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let public_key = txos_and_statuses[0]
-            .0
+            .txo
             .public_key()
             .expect("Could not get CompressedRistrettoPublic from txo");
         let txo: TxOut = get_tx_out_by_public_key(&ledger_db, &public_key)

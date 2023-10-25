@@ -521,8 +521,8 @@ mod tests {
             )
             .unwrap();
 
-        for (txo, _, _) in txos_and_statuses {
-            assert_eq!(txo.value as u64, expected_value);
+        for txo_info in txos_and_statuses {
+            assert_eq!(txo_info.txo.value as u64, expected_value);
         }
 
         // Now verify that the service gets the balance with the correct value

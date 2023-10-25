@@ -467,7 +467,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].0.value, 100000000000000);
+        assert_eq!(pending[0].txo.value, 100000000000000);
 
         // Our balance should reflect the various statuses of our txos
         let balance = service
