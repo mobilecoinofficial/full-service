@@ -1,18 +1,3 @@
-use mc_common::logger::{log, Logger};
-
-use t3_api::{T3Uri, TransparentTransaction};
-use t3_connection::T3Connection;
-
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread,
-};
-
-use clap::Parser;
-
 use crate::{
     db::{
         models::{AuthenticatedSenderMemo, Txo},
@@ -22,6 +7,17 @@ use crate::{
     error::T3SyncError,
     WalletDb,
 };
+use clap::Parser;
+use mc_common::logger::{log, Logger};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    thread,
+};
+use t3_api::{T3Uri, TransparentTransaction};
+use t3_connection::T3Connection;
 
 #[derive(Clone, Debug, Parser)]
 pub struct T3Config {
@@ -32,9 +28,11 @@ pub struct T3Config {
 }
 
 // How many txos to sync per round
+// TODO - Discuss in PR if this is a reasonable value
 const TXO_CHUNK_SIZE: usize = 5;
 // How long to wait in milliseconds between sync rounds
-const T3_SYNC_INTERVAL: u64 = 1000;
+// TODO - discuss in PR if this is a reasonable value
+const T3_SYNC_INTERVAL: u64 = 10;
 
 /// T3 Sync thread - holds objects needed to cleanly terminate the t3 sync
 /// thread.
@@ -120,7 +118,7 @@ pub fn sync_txos(
         let txo_memo = txo.memo(conn)?;
         let memo = match txo_memo {
             TxoMemo::AuthenticatedSender(memo) => memo,
-            _ => continue,
+            _ => return Err(T3SyncError::TxoMemoIsNotAuthenticatedSender(txo.id)),
         };
 
         sync_txo(&txo, &memo, t3_connection)?;

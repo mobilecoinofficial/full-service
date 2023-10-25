@@ -177,6 +177,9 @@ pub enum T3SyncError {
 
     /// mc util serial decode: {0}
     McUtilSerialDecode(mc_util_serial::DecodeError),
+
+    /// Txo with ID {0} does not have an authenticated sender memo
+    TxoMemoIsNotAuthenticatedSender(String),
 }
 
 impl From<WalletDbError> for T3SyncError {

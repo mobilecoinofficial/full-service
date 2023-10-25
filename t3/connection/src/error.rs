@@ -1,3 +1,5 @@
+// Copyright (c) 2018-2023 The MobileCoin Foundation
+
 use displaydoc::Display;
 
 #[derive(Display, Debug)]

@@ -152,7 +152,6 @@ mod tests {
 
         assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::from(&txo_info);
-        // let json_txo = Txo::new(&txo_details, &status, &memo);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");
     }

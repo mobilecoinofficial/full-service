@@ -1,25 +1,24 @@
+// Copyright (c) 2018-2023 The MobileCoin Foundation
+
 mod error;
 
+pub use error::Error;
+use grpcio::{CallOption, ChannelBuilder, EnvBuilder, MetadataBuilder};
 use mc_common::logger::{log, Logger};
 use mc_connection::Connection;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::ConnectionUri;
-use t3_api::{
-    t3_grpc::TransactionServiceClient, CreateTransactionRequest, CreateTransactionResponse,
-    FindTransactionsRequest, FindTransactionsResponse, T3Uri, TestErrorRequest, TestErrorResponse,
-    TransparentTransaction,
-};
-
-use grpcio::{CallOption, ChannelBuilder, EnvBuilder, MetadataBuilder};
-
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
     hash::{Hash, Hasher},
     sync::Arc,
 };
-
-pub use error::Error;
+use t3_api::{
+    t3_grpc::TransactionServiceClient, CreateTransactionRequest, CreateTransactionResponse,
+    FindTransactionsRequest, FindTransactionsResponse, T3Uri, TestErrorRequest, TestErrorResponse,
+    TransparentTransaction,
+};
 
 pub fn common_headers_call_option(api_key: &str) -> CallOption {
     let mut metadata_builder = MetadataBuilder::new();
