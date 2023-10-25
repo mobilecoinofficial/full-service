@@ -15,9 +15,9 @@ use std::{
     sync::Arc,
 };
 use t3_api::{
-    t3_grpc::TransactionServiceClient, CreateTransactionRequest, CreateTransactionResponse,
-    FindTransactionsRequest, FindTransactionsResponse, T3Uri, TestErrorRequest, TestErrorResponse,
-    TransparentTransaction,
+    external::CompressedRistretto, t3_grpc::TransactionServiceClient, CreateTransactionRequest,
+    CreateTransactionResponse, FindTransactionsRequest, FindTransactionsResponse,
+    ListTransactionsRequest, T3Uri, TestErrorRequest, TestErrorResponse, TransparentTransaction,
 };
 
 pub fn common_headers_call_option(api_key: &str) -> CallOption {
@@ -56,8 +56,16 @@ impl T3Connection {
         }
     }
 
-    pub fn find_transactions(&self) -> Result<FindTransactionsResponse, Error> {
-        let request = FindTransactionsRequest::new();
+    pub fn find_transactions(
+        &self,
+        address_hashes: &Vec<Vec<u8>>,
+        public_keys: &Vec<CompressedRistretto>,
+        public_key_hex: &Vec<String>,
+    ) -> Result<FindTransactionsResponse, Error> {
+        let mut request = FindTransactionsRequest::new();
+        request.set_address_hashes(address_hashes);
+        request.set_public_keys(public_keys);
+        request.set_public_key_hex(public_key_hex);
 
         Ok(self
             .transaction_service_client
@@ -72,7 +80,22 @@ impl T3Connection {
             })?)
     }
 
-    pub fn list_transactions() {}
+    pub fn list_transactions(&self, created_since: u64) {
+        let mut request = ListTransactionsRequest::new();
+        request.set_created_since(created_since);
+
+        Ok(self
+            .transaction_service_client
+            .list_transactions_opt(&request, common_headers_call_option(&self.api_key))
+            .map_err(|err| {
+                log::warn!(
+                    self.logger,
+                    "t3_transaction_service find_transactions RPC call failed: {}",
+                    err
+                );
+                err
+            })?)
+    }
 
     pub fn create_transaction(
         &self,
