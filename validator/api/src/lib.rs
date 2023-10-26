@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2022 MobileCoin, Inc.
+// Copyright (c) 2018-2023 MobileCoin, Inc.
 
 //! Ledger Validator Node gRPC API.
 
