@@ -6,7 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -31,7 +31,7 @@ use crate::{
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, AuthenticatedSenderMemo as AuthenticatedSenderMemoModel,
-            NewAuthenticatedSenderMemo, NewTransactionOutputTxo, NewTxo, Txo,
+            NewAuthenticatedSenderMemo, NewTransactionOutputTxo, NewTxo, TransactionOutputTxo, Txo,
         },
         transaction_log::TransactionId,
         Conn, WalletDbError,
@@ -736,6 +736,11 @@ pub trait TxoModel {
         spent_block_index: Option<u64>,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
+
+    /// Get the public address of the recipient of this txo, if available. 
+    /// If we created the txo, it would be the address at which we received it. Otherwise,
+    /// it will require a lookup of who we sent it to in the transaction_txo_outputs table
+    fn recipient_public_address(&self, conn: Conn) -> Result<Option<PublicAddress>, WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -2110,6 +2115,37 @@ impl TxoModel for Txo {
         Self::update_key_image(&txo.id, key_image, spent_block_index, conn)?;
 
         Ok(())
+    }
+
+    fn recipient_public_address(&self, conn: Conn) -> Result<Option<PublicAddress>, WalletDbError> {
+        use crate::db::schema::transaction_output_txos;
+
+        match (&self.account_id, self.subaddress_index) {
+            // if an account in the database owns the TXO and we have an available
+            // subaddress index (not orphaned) we can lookup the public address that
+            // it was sent to
+            (Some(account_id), Some(subaddress_index)) => {
+                return Ok(Some(
+                    AssignedSubaddress::get_for_account_by_index(
+                        account_id,
+                        subaddress_index,
+                        conn,
+                    )?
+                    .public_address()?,
+                ));
+            }
+            // If we do not own it, we can look up its transaction_output_txo which will give us the
+            // recipient public b58
+            (None, None) => {
+                let transaction_output_txo: TransactionOutputTxo = transaction_output_txos::table
+                    .filter(transaction_output_txos::txo_id.eq(&self.id))
+                    .first(conn)?;
+
+                return Ok(Some(transaction_output_txo.recipient_public_address()?));
+            }
+            // The rest are either orphaned txos or invalid states, which we both want to ignore
+            _ => return Ok(None),
+        }
     }
 }
 

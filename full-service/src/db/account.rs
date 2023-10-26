@@ -433,6 +433,8 @@ pub trait AccountModel {
     /// # Returns:
     /// * RistrettoPublic
     fn get_shared_secret(&self, tx_public_key: &RistrettoPublic) -> Result<RistrettoPublic, WalletDbError>;
+
+    fn public_address(&self, index: u64) -> Result<PublicAddress, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -898,6 +900,11 @@ impl AccountModel for Account {
             &self.view_private_key()?,
             tx_public_key,
         ))
+    }
+
+    fn public_address(&self, index: u64) -> Result<PublicAddress, WalletDbError> {
+        let account_key = self.account_key()?;
+        Ok(account_key.subaddress(index))
     }
 }
 

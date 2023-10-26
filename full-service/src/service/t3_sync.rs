@@ -8,6 +8,7 @@ use crate::{
     WalletDb,
 };
 use clap::Parser;
+use mc_account_keys::ShortAddressHash;
 use mc_common::logger::{log, Logger};
 use std::{
     sync::{
@@ -121,7 +122,12 @@ pub fn sync_txos(
             _ => return Err(T3SyncError::TxoMemoIsNotAuthenticatedSender(txo.id)),
         };
 
-        sync_txo(&txo, &memo, t3_connection)?;
+        let recipient_short_address_hash = match txo.recipient_public_address(conn)? {
+            Some(address) => Some((&address).into()),
+            None => None,
+        };
+
+        sync_txo(&txo, &memo, recipient_short_address_hash, t3_connection)?;
         txo.update_is_synced_to_t3(true, conn)?;
     }
 
@@ -131,12 +137,20 @@ pub fn sync_txos(
 fn sync_txo(
     txo: &Txo,
     memo: &AuthenticatedSenderMemo,
+    recipient_short_address_hash: Option<ShortAddressHash>,
     t3_connection: &T3Connection,
 ) -> Result<(), T3SyncError> {
     let mut transparent_transaction = TransparentTransaction::new();
 
     let sender_address_hash_bytes = hex::decode(&memo.sender_address_hash)?;
     transparent_transaction.set_sender_address_hash(sender_address_hash_bytes);
+
+    // now we need to set the receiver address hash, which will require a database
+    // lookup, but only if it exists
+    if let Some(recipient_short_address_hash) = recipient_short_address_hash {
+        let recipient_address_hash_bytes: [u8; 16] = recipient_short_address_hash.into();
+        transparent_transaction.set_recipient_address_hash(recipient_address_hash_bytes.to_vec());
+    }
 
     transparent_transaction.set_token_id(txo.token_id as u64);
     transparent_transaction.set_amount(txo.value as u64);
