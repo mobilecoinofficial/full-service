@@ -816,19 +816,19 @@ impl TxoModel for Txo {
         // Check that there is no existing memo before creating a new one.
         use crate::db::schema::authenticated_sender_memos;
         if let Ok(MemoType::AuthenticatedSender(memo)) = MemoType::try_from(&memo_payload) {
-            let new_memo = NewAuthenticatedSenderMemo {
-                txo_id: &txo_id.to_string(),
-                sender_address_hash: &memo.sender_address_hash().to_string(),
-                payment_request_id: None,
-                payment_intent_id: None,
-            };
-
             match authenticated_sender_memos::table
                 .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
                 .get_result::<AuthenticatedSenderMemoModel>(conn)
             {
                 Ok(_) => {}
                 Err(diesel::result::Error::NotFound) => {
+                    let new_memo = NewAuthenticatedSenderMemo {
+                        txo_id: &txo_id.to_string(),
+                        sender_address_hash: &memo.sender_address_hash().to_string(),
+                        payment_request_id: None,
+                        payment_intent_id: None,
+                    };
+
                     diesel::insert_into(authenticated_sender_memos::table)
                         .values(&new_memo)
                         .execute(conn)?;

@@ -2218,7 +2218,7 @@ dependencies = [
  "mc-transaction-signer",
  "mc-transaction-summary",
  "once_cell",
- "prost 0.11.9",
+ "prost",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "serde",
@@ -2459,7 +2459,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "serde",
  "subtle",
@@ -2515,7 +2515,7 @@ dependencies = [
  "mc-crypto-noise",
  "mc-util-build-script",
  "mc-util-build-sgx",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "serde",
 ]
@@ -2559,7 +2559,7 @@ dependencies = [
  "mc-util-build-sgx",
  "mc-util-encodings",
  "mc-util-repr-bytes",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "rjson",
  "serde",
@@ -2616,7 +2616,7 @@ dependencies = [
  "hex_fmt",
  "mc-crypto-digestible",
  "mc-util-encodings",
- "prost 0.11.9",
+ "prost",
  "serde",
 ]
 
@@ -2652,7 +2652,7 @@ dependencies = [
  "mc-transaction-types",
  "mc-util-from-random",
  "mc-util-repr-bytes",
- "prost 0.11.9",
+ "prost",
  "serde",
  "zeroize",
 ]
@@ -2676,7 +2676,7 @@ dependencies = [
  "mc-util-build-info",
  "mc-util-logger-macros",
  "mc-util-serial",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "sentry",
  "serde",
@@ -2811,7 +2811,7 @@ dependencies = [
  "mc-crypto-keys",
  "mc-util-from-random",
  "mc-util-test-helper",
- "prost 0.11.9",
+ "prost",
  "rand 0.8.5",
  "rand_hc",
  "serde",
@@ -2948,7 +2948,7 @@ version = "5.0.8"
 dependencies = [
  "mc-crypto-digestible",
  "mc-crypto-keys",
- "prost 0.11.9",
+ "prost",
  "serde",
 ]
 
@@ -2987,7 +2987,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-repr-bytes",
  "mc-util-serial",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "serde",
  "subtle",
@@ -3007,7 +3007,7 @@ dependencies = [
  "mc-crypto-ring-signature",
  "mc-transaction-types",
  "mc-util-serial",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "serde",
  "subtle",
@@ -3089,7 +3089,7 @@ version = "5.0.8"
 dependencies = [
  "mc-attest-core",
  "mc-crypto-digestible",
- "prost 0.11.9",
+ "prost",
  "serde",
 ]
 
@@ -3214,7 +3214,7 @@ dependencies = [
  "mc-watcher",
  "mc-watcher-api",
  "num_cpus",
- "prost 0.12.1",
+ "prost",
  "protobuf",
  "rand 0.8.5",
  "rayon",
@@ -3289,7 +3289,7 @@ dependencies = [
  "mc-util-telemetry",
  "mc-util-test-helper",
  "mockall",
- "prost 0.11.9",
+ "prost",
  "rand 0.8.5",
  "tempfile",
 ]
@@ -3388,7 +3388,7 @@ dependencies = [
  "mc-util-uri",
  "mc-watcher",
  "num_cpus",
- "prost 0.11.9",
+ "prost",
  "protobuf",
  "rand 0.8.5",
  "rayon",
@@ -3545,7 +3545,7 @@ dependencies = [
  "mc-util-from-random",
  "mc-util-serial",
  "mc-util-u64-ratio",
- "prost 0.11.9",
+ "prost",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "serde",
@@ -3584,7 +3584,7 @@ dependencies = [
  "mc-util-u64-ratio",
  "mc-util-zip-exact",
  "merlin",
- "prost 0.11.9",
+ "prost",
  "rand_core 0.6.4",
  "serde",
  "sha2",
@@ -3631,7 +3631,7 @@ dependencies = [
  "mc-util-u64-ratio",
  "mc-util-vec-map",
  "mc-util-zip-exact",
- "prost 0.11.9",
+ "prost",
  "rand 0.8.5",
  "rand_core 0.6.4",
  "serde",
@@ -3682,7 +3682,7 @@ dependencies = [
  "mc-transaction-types",
  "mc-util-vec-map",
  "mc-util-zip-exact",
- "prost 0.11.9",
+ "prost",
  "serde",
  "subtle",
  "zeroize",
@@ -3699,7 +3699,7 @@ dependencies = [
  "mc-crypto-hashes",
  "mc-crypto-keys",
  "mc-crypto-ring-signature",
- "prost 0.11.9",
+ "prost",
  "serde",
  "sha2",
  "subtle",
@@ -3819,7 +3819,7 @@ dependencies = [
  "displaydoc",
  "lmdb-rkv",
  "mc-util-serial",
- "prost 0.11.9",
+ "prost",
 ]
 
 [[package]]
@@ -3859,7 +3859,7 @@ version = "5.0.8"
 dependencies = [
  "generic-array",
  "hex_fmt",
- "prost 0.11.9",
+ "prost",
  "serde",
 ]
 
@@ -3867,7 +3867,7 @@ dependencies = [
 name = "mc-util-serial"
 version = "5.0.8"
 dependencies = [
- "prost 0.11.9",
+ "prost",
  "protobuf",
  "serde",
  "serde_cbor",
@@ -4017,7 +4017,7 @@ dependencies = [
  "mc-util-serial",
  "mc-util-uri",
  "mc-watcher-api",
- "prost 0.11.9",
+ "prost",
  "rayon",
  "serde",
  "toml",
@@ -4694,17 +4694,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b82eaa1d779e9a4bc1c3217db8ffbeabaae1dca241bf70183242128d48681cd"
 dependencies = [
  "bytes",
- "prost-derive 0.11.9",
-]
-
-[[package]]
-name = "prost"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4fdd22f3b9c31b53c060df4a0613a1c7f062d4115a2b984dd15b1858f7e340d"
-dependencies = [
- "bytes",
- "prost-derive 0.12.1",
+ "prost-derive",
 ]
 
 [[package]]
@@ -4718,19 +4708,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "prost-derive"
-version = "0.12.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "265baba7fabd416cf5078179f7d2cbeca4ce7a9041111900675ea7c4cb8a4c32"
-dependencies = [
- "anyhow",
- "itertools",
- "proc-macro2",
- "quote",
- "syn 2.0.37",
 ]
 
 [[package]]

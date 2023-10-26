@@ -8,6 +8,7 @@ use mc_common::logger::{log, Logger};
 use mc_connection::Connection;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::ConnectionUri;
+use protobuf::RepeatedField;
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
@@ -17,7 +18,8 @@ use std::{
 use t3_api::{
     external::CompressedRistretto, t3_grpc::TransactionServiceClient, CreateTransactionRequest,
     CreateTransactionResponse, FindTransactionsRequest, FindTransactionsResponse,
-    ListTransactionsRequest, T3Uri, TestErrorRequest, TestErrorResponse, TransparentTransaction,
+    ListTransactionsRequest, ListTransactionsResponse, T3Uri, TestErrorRequest, TestErrorResponse,
+    TransparentTransaction,
 };
 
 pub fn common_headers_call_option(api_key: &str) -> CallOption {
@@ -58,29 +60,25 @@ impl T3Connection {
 
     pub fn find_transactions(
         &self,
-        address_hashes: &Vec<Vec<u8>>,
-        public_keys: &Vec<CompressedRistretto>,
-        public_key_hex: &Vec<String>,
+        address_hashes: Vec<Vec<u8>>,
+        public_keys: Vec<CompressedRistretto>,
+        public_key_hex: Vec<String>,
     ) -> Result<FindTransactionsResponse, Error> {
         let mut request = FindTransactionsRequest::new();
-        request.set_address_hashes(address_hashes);
-        request.set_public_keys(public_keys);
-        request.set_public_key_hex(public_key_hex);
+        request.set_address_hashes(RepeatedField::from_vec(address_hashes));
+        request.set_public_keys(RepeatedField::from_vec(public_keys));
+        request.set_public_key_hex(RepeatedField::from_vec(public_key_hex));
 
         Ok(self
             .transaction_service_client
             .find_transactions_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
-                log::warn!(
-                    self.logger,
-                    "t3_transaction_service find_transactions RPC call failed: {}",
-                    err
-                );
+                log::warn!(self.logger, "T3.find_transactions RPC call failed: {}", err);
                 err
             })?)
     }
 
-    pub fn list_transactions(&self, created_since: u64) {
+    pub fn list_transactions(&self, created_since: u64) -> Result<ListTransactionsResponse, Error> {
         let mut request = ListTransactionsRequest::new();
         request.set_created_since(created_since);
 
@@ -88,11 +86,7 @@ impl T3Connection {
             .transaction_service_client
             .list_transactions_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
-                log::warn!(
-                    self.logger,
-                    "t3_transaction_service find_transactions RPC call failed: {}",
-                    err
-                );
+                log::warn!(self.logger, "T3.list_transactions RPC call failed: {}", err);
                 err
             })?)
     }
@@ -110,7 +104,7 @@ impl T3Connection {
             .map_err(|err| {
                 log::warn!(
                     self.logger,
-                    "t3_transaction_service find_transactions RPC call failed: {}",
+                    "T3.create_transaction RPC call failed: {}",
                     err
                 );
                 err
@@ -125,11 +119,7 @@ impl T3Connection {
             .transaction_service_client
             .test_error_opt(&request, common_headers_call_option(&self.api_key))
             .map_err(|err| {
-                log::warn!(
-                    self.logger,
-                    "t3_transaction_service find_transactions RPC call failed: {}",
-                    err
-                );
+                log::warn!(self.logger, "T3.test_error RPC call failed: {}", err);
                 err
             })?)
     }
@@ -141,6 +131,7 @@ impl Display for T3Connection {
     }
 }
 
+// TODO - implement this
 impl Eq for T3Connection {}
 
 impl Hash for T3Connection {
