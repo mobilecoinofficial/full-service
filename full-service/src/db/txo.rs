@@ -2141,7 +2141,8 @@ impl TxoModel for Txo {
 
                 return Ok(Some(transaction_output_txo.recipient_public_address()?));
             }
-            // The rest are either orphaned txos or invalid states, which we both want to ignore
+            // The rest are either orphaned txos or invalid states we should never hit, which we
+            // both want to ignore
             _ => return Ok(None),
         }
     }
