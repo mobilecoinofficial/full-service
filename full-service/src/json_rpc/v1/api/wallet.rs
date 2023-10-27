@@ -339,9 +339,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status
-                    .as_ref()
-                    .map(|txo_info| Txo::new(&txo_info.txo, &txo_info.status)),
+                txo: txo_and_status.as_ref().map(|txo_info| Txo::from(txo_info)),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -657,7 +655,7 @@ where
                     .map(|txo_info| {
                         (
                             txo_info.txo.id.clone(),
-                            serde_json::to_value(Txo::new(&txo_info.txo, &txo_info.status))
+                            serde_json::to_value(Txo::from(txo_info))
                                 .expect("Could not get json value"),
                         )
                     })
@@ -893,7 +891,7 @@ where
         JsonCommandRequest::get_txo { txo_id } => {
             let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo_info.txo, &txo_info.status),
+                txo: Txo::from(&txo_info),
             }
         }
         JsonCommandRequest::get_txos_for_account {
@@ -926,7 +924,7 @@ where
                     .map(|txo_info| {
                         (
                             txo_info.txo.id.clone(),
-                            serde_json::to_value(Txo::new(&txo_info.txo, &txo_info.status))
+                            serde_json::to_value(Txo::from(txo_info))
                                 .expect("Could not get json value"),
                         )
                     })

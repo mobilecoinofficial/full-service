@@ -979,9 +979,7 @@ impl TxoModel for Txo {
         use crate::db::schema::txos;
 
         let memo_types_predicate = txos::memo_type
-            .eq(Some(two_bytes_to_i32(
-                AuthenticatedSenderMemo::MEMO_TYPE_BYTES,
-            )))
+            .eq(two_bytes_to_i32(AuthenticatedSenderMemo::MEMO_TYPE_BYTES))
             .or(txos::memo_type.eq(two_bytes_to_i32(
                 AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES,
             )))

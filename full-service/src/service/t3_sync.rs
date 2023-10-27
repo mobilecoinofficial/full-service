@@ -16,6 +16,7 @@ use std::{
         Arc,
     },
     thread,
+    time::Duration,
 };
 use t3_api::{T3Uri, TransparentTransaction};
 use t3_connection::T3Connection;
@@ -33,7 +34,7 @@ pub struct T3Config {
 const TXO_CHUNK_SIZE: usize = 5;
 // How long to wait in milliseconds between sync rounds
 // TODO - discuss in PR if this is a reasonable value
-const T3_SYNC_INTERVAL: u64 = 10;
+const T3_SYNC_INTERVAL: Duration = Duration::from_millis(10);
 
 /// T3 Sync thread - holds objects needed to cleanly terminate the t3 sync
 /// thread.
@@ -77,7 +78,7 @@ impl T3SyncThread {
                         // This sleep is to allow other API calls that need access to the database a
                         // chance to execute, because the t3 sync process requires a write lock on
                         // the database.
-                        thread::sleep(std::time::Duration::from_millis(T3_SYNC_INTERVAL));
+                        thread::sleep(T3_SYNC_INTERVAL);
                     }
                     log::debug!(logger, "T3SyncThread stopped.");
                 })

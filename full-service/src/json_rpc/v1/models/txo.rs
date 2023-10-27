@@ -2,7 +2,7 @@
 
 //! API definition for the Txo object.
 
-use crate::db;
+use crate::db::{self, txo::TxoInfo};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::{json, Map};
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -171,13 +171,13 @@ pub struct Txo {
     pub confirmation: Option<String>,
 }
 
-impl Txo {
-    pub fn new(txo: &db::models::Txo, status: &db::txo::TxoStatus) -> Txo {
+impl From<&TxoInfo> for Txo {
+    fn from(txo_info: &TxoInfo) -> Self {
         let mut account_status_map: Map<String, serde_json::Value> = Map::new();
 
-        let status = TxoStatus::from(status);
+        let status = TxoStatus::from(&txo_info.status);
 
-        if let Some(account_id) = &txo.account_id {
+        if let Some(account_id) = &txo_info.txo.account_id {
             account_status_map.insert(
                 account_id.clone(),
                 json!({"txo_type": TxoType::Received.to_string(), "txo_status": status.to_string()}),
@@ -186,22 +186,22 @@ impl Txo {
 
         Txo {
             object: "txo".to_string(),
-            txo_id_hex: txo.id.clone(),
-            value_pmob: (txo.value as u64).to_string(),
+            txo_id_hex: txo_info.txo.id.clone(),
+            value_pmob: (txo_info.txo.value as u64).to_string(),
             recipient_address_id: None,
-            received_block_index: txo.received_block_index.map(|i| i.to_string()),
-            spent_block_index: txo.spent_block_index.map(|i| i.to_string()),
+            received_block_index: txo_info.txo.received_block_index.map(|i| i.to_string()),
+            spent_block_index: txo_info.txo.spent_block_index.map(|i| i.to_string()),
             is_spent_recovered: false,
-            received_account_id: txo.clone().account_id,
+            received_account_id: txo_info.txo.clone().account_id,
             minted_account_id: None,
             account_status_map,
-            target_key: hex::encode(&txo.target_key),
-            public_key: hex::encode(&txo.public_key),
-            e_fog_hint: hex::encode(&txo.e_fog_hint),
-            subaddress_index: txo.subaddress_index.map(|i| i.to_string()),
+            target_key: hex::encode(&txo_info.txo.target_key),
+            public_key: hex::encode(&txo_info.txo.public_key),
+            e_fog_hint: hex::encode(&txo_info.txo.e_fog_hint),
+            subaddress_index: txo_info.txo.subaddress_index.map(|i| i.to_string()),
             assigned_address: None,
-            key_image: txo.key_image.as_ref().map(hex::encode),
-            confirmation: txo.confirmation.as_ref().map(hex::encode),
+            key_image: txo_info.txo.key_image.as_ref().map(hex::encode),
+            confirmation: txo_info.txo.confirmation.as_ref().map(hex::encode),
         }
     }
 }
