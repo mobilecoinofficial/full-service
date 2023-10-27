@@ -1,23 +1,20 @@
-use std::{
-    ops::DerefMut,
-    convert::TryFrom,
-};
 use crate::{
     db::{
         account::{AccountID, AccountModel},
-        models::{Account, Txo},
+        models::Account,
         WalletDbError,
     },
-    util::b58::{b58_decode_public_address, B58Error},
     service::ledger::{LedgerService, LedgerServiceError},
+    util::b58::{b58_decode_public_address, B58Error},
     WalletService,
 };
+use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_fog_report_validation::FogPubkeyResolver;
 use mc_crypto_keys::RistrettoPublic;
+use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_extra::{MemoType, UnusedMemo};
-use displaydoc::Display;
+use std::{convert::TryFrom, ops::DerefMut};
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant, clippy::result_large_err)]
@@ -38,13 +35,11 @@ pub enum MemoServiceError {
     Key(mc_crypto_keys::KeyError),
 }
 
-
 impl From<WalletDbError> for MemoServiceError {
     fn from(src: WalletDbError) -> Self {
         Self::Database(src)
     }
 }
-
 
 impl From<B58Error> for MemoServiceError {
     fn from(src: B58Error) -> Self {
@@ -52,13 +47,11 @@ impl From<B58Error> for MemoServiceError {
     }
 }
 
-
 impl From<mc_util_serial::DecodeError> for MemoServiceError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::Decode(src)
     }
 }
-
 
 impl From<LedgerServiceError> for MemoServiceError {
     fn from(src: LedgerServiceError) -> Self {
@@ -66,13 +59,11 @@ impl From<LedgerServiceError> for MemoServiceError {
     }
 }
 
-
 impl From<mc_crypto_keys::KeyError> for MemoServiceError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::Key(src)
     }
 }
-
 
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
@@ -84,7 +75,6 @@ pub trait MemoService {
         sender_address: &str,
     ) -> Result<bool, MemoServiceError>;
 }
-
 
 impl<T, FPR> MemoService for WalletService<T, FPR>
 where
@@ -112,21 +102,19 @@ where
             Some(e_memo) => e_memo.decrypt(&shared_secret),
             None => UnusedMemo.into(),
         };
-        Ok(
-            if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
-                match memo_type {
-                    MemoType::AuthenticatedSender(memo) => {
-                        memo.validate(
-                            &sender_address,
-                            &account_key.view_private_key(),
-                            &txo.public_key,
-                        ).into()
-                    }
-                    _ => false,
-                }
-            } else {
-                false
+        Ok(if let Ok(memo_type) = MemoType::try_from(&memo_payload) {
+            match memo_type {
+                MemoType::AuthenticatedSender(memo) => memo
+                    .validate(
+                        &sender_address,
+                        &account_key.view_private_key(),
+                        &txo.public_key,
+                    )
+                    .into(),
+                _ => false,
             }
-        )
+        } else {
+            false
+        })
     }
 }
