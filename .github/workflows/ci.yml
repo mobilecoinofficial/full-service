@@ -61,7 +61,7 @@ jobs:
           cargo clippy --all --all-features
 
   test:
-    runs-on: [self-hosted, macOS, X64]
+    runs-on: [self-hosted, macOS, X64, cargo]
     container: ""
 
     steps:
