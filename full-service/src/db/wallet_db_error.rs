@@ -2,6 +2,7 @@
 
 use crate::{db::gift_code::GiftCodeDbError, util::b58::B58Error};
 use base64::DecodeSliceError;
+use mc_transaction_extra::MemoDecodingError;
 use reqwest;
 
 use displaydoc::Display;
@@ -166,6 +167,9 @@ pub enum WalletDbError {
 
     /// Decode Slice Error
     DecodeSlice(DecodeSliceError),
+
+    /// MemoDecoding: {0}
+    MemoDecoding(MemoDecodingError),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -249,5 +253,11 @@ impl From<ed25519_dalek::ed25519::Error> for WalletDbError {
 impl From<DecodeSliceError> for WalletDbError {
     fn from(src: DecodeSliceError) -> Self {
         Self::DecodeSlice(src)
+    }
+}
+
+impl From<MemoDecodingError> for WalletDbError {
+    fn from(src: MemoDecodingError) -> Self {
+        Self::MemoDecoding(src)
     }
 }

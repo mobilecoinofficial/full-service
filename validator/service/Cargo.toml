@@ -11,7 +11,9 @@ path = "src/bin/main.rs"
 
 [dependencies]
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
-mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-common = { path = "../../mobilecoin/common", default-features = false, features = [
+    "loggers",
+] }
 mc-connection = { path = "../../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../../mobilecoin/consensus/enclave/measurement" }
 mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }

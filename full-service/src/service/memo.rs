@@ -19,25 +19,25 @@ use std::{convert::TryFrom, ops::DerefMut};
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant, clippy::result_large_err)]
 pub enum MemoServiceError {
-    /// Error interacting with the database: {0}
-    Database(WalletDbError),
+    /// WalletDb: {0}
+    WalletDb(WalletDbError),
 
-    /// B58 Error
+    /// B58: {0}
     B58(B58Error),
 
-    /// Error decoding account key: {0}
+    /// Decode: {0}
     Decode(mc_util_serial::DecodeError),
 
-    /// Error interacting with ledger database: {0}
-    Ledger(LedgerServiceError),
+    ///LedgerService: {0}
+    LedgerService(LedgerServiceError),
 
-    /// Key Error
+    /// Key: {0}
     Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for MemoServiceError {
     fn from(src: WalletDbError) -> Self {
-        Self::Database(src)
+        Self::WalletDb(src)
     }
 }
 
@@ -55,7 +55,7 @@ impl From<mc_util_serial::DecodeError> for MemoServiceError {
 
 impl From<LedgerServiceError> for MemoServiceError {
     fn from(src: LedgerServiceError) -> Self {
-        Self::Ledger(src)
+        Self::LedgerService(src)
     }
 }
 
@@ -65,8 +65,6 @@ impl From<mc_crypto_keys::KeyError> for MemoServiceError {
     }
 }
 
-#[rustfmt::skip]
-#[allow(clippy::result_large_err)]
 pub trait MemoService {
     fn validate_sender_memo(
         &self,
