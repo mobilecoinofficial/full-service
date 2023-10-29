@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum B58Error {
     #[error("Invalid Printable Wrapper Type")]
     NotPrintableWrapper,

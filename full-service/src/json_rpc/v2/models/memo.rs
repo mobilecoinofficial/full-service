@@ -3,7 +3,7 @@
 use crate::db::{models::AuthenticatedSenderMemo as AuthenticatedSenderMemoDbModel, txo::TxoMemo};
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, Default, Debug, Clone)]
+#[derive(Deserialize, Serialize, Default, Debug, Clone, PartialEq)]
 pub enum Memo {
     #[default]
     Unused,
@@ -14,7 +14,7 @@ pub enum Memo {
 /// * AuthenticatedSenderMemo,
 /// * AuthenticatedSenderMemoWithPaymentRequest
 /// * AuthenticatedSenderMemoWithPaymentIntent
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct AuthenticatedSenderMemo {
     pub sender_address_hash: String,
     pub payment_request_id: Option<String>,
