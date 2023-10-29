@@ -3227,6 +3227,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.2",
  "tempdir",
+ "thiserror",
  "tiny-bip39",
  "tokio",
  "url",

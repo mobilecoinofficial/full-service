@@ -1,29 +1,29 @@
-use displaydoc::Display;
+use thiserror::Error;
 
-#[derive(Display, Debug, PartialEq)]
+#[derive(Error, Debug)]
 pub enum B58Error {
-    /// Invalid Printable Wrapper Type
+    #[error("Invalid Printable Wrapper Type")]
     NotPrintableWrapper,
 
-    /// Not A Public Address
+    #[error("Not A Public Address")]
     NotPublicAddress,
 
-    /// Not A Payment Request
+    #[error("Not A Payment Request")]
     NotPaymentRequest,
 
-    /// Not A Transfer Payload
+    #[error("Not A Transfer Payload")]
     NotTransferPayload,
 
-    /// Transfer payload cannot have more than one entropy
+    #[error("Transfer payload cannot have more than one entropy")]
     TransferPayloadRequiresSingleEntropy,
 
-    /// Invalid Entropy
+    #[error("Invalid Entropy")]
     InvalidEntropy,
 
-    /// Proto Conversion
+    #[error("ProtoConversion: {0}")]
     ProtoConversion(mc_api::ConversionError),
 
-    /// Printable Wrapper
+    #[error("PrintableWrapper: {0}")]
     PrintableWrapper(mc_api::display::Error),
 }
 
