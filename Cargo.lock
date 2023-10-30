@@ -3231,6 +3231,7 @@ dependencies = [
  "t3-api",
  "t3-connection",
  "tempdir",
+ "thiserror",
  "tiny-bip39",
  "tokio",
  "url",

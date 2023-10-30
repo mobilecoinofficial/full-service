@@ -440,7 +440,7 @@ class CommandLineInterface:
                 print('status:', txo['status'])
 
                 mcp_txo = self.client.get_mc_protocol_txo(txo['id'])
-                print(mcp_txo['txo']['e_memo'])
+                print('e_memo:', mcp_txo['txo']['e_memo'])
             return
 
         own_addresses = self.client.get_addresses(account_id)

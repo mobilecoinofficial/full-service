@@ -242,8 +242,8 @@ pub struct NewGiftCode<'a> {
 pub struct AuthenticatedSenderMemo {
     pub txo_id: String,
     pub sender_address_hash: String,
-    pub payment_request_id: Option<String>,
-    pub payment_intent_id: Option<String>,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
 }
 
 #[derive(Insertable)]
@@ -251,8 +251,8 @@ pub struct AuthenticatedSenderMemo {
 pub struct NewAuthenticatedSenderMemo<'a> {
     pub txo_id: &'a str,
     pub sender_address_hash: &'a str,
-    pub payment_request_id: Option<&'a str>,
-    pub payment_intent_id: Option<&'a str>,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
 }
 
 #[derive(Queryable, Insertable)]

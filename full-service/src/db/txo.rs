@@ -819,28 +819,35 @@ impl TxoModel for Txo {
 
         // Interpret the memo payload and save it to the correct database table.
         // Check that there is no existing memo before creating a new one.
-        use crate::db::schema::authenticated_sender_memos;
-        if let Ok(MemoType::AuthenticatedSender(memo)) = MemoType::try_from(&memo_payload) {
-            match authenticated_sender_memos::table
-                .filter(authenticated_sender_memos::txo_id.eq(txo_id.to_string()))
-                .get_result::<AuthenticatedSenderMemoModel>(conn)
-            {
-                Ok(_) => {}
-                Err(diesel::result::Error::NotFound) => {
-                    let new_memo = NewAuthenticatedSenderMemo {
-                        txo_id: &txo_id.to_string(),
-                        sender_address_hash: &memo.sender_address_hash().to_string(),
-                        payment_request_id: None,
-                        payment_intent_id: None,
-                    };
-
-                    diesel::insert_into(authenticated_sender_memos::table)
-                        .values(&new_memo)
-                        .execute(conn)?;
-                }
-                Err(e) => return Err(e.into()),
+        match MemoType::try_from(&memo_payload) {
+            Ok(MemoType::AuthenticatedSender(memo)) => add_authenticated_memo_to_database(
+                &txo_id.to_string(),
+                &memo.sender_address_hash().to_string(),
+                None,
+                None,
+                conn,
+            ),
+            Ok(MemoType::AuthenticatedSenderWithPaymentIntentId(memo)) => {
+                add_authenticated_memo_to_database(
+                    &txo_id.to_string(),
+                    &memo.sender_address_hash().to_string(),
+                    None,
+                    Some(memo.payment_intent_id() as i64),
+                    conn,
+                )
             }
-        }
+            Ok(MemoType::AuthenticatedSenderWithPaymentRequestId(memo)) => {
+                add_authenticated_memo_to_database(
+                    &txo_id.to_string(),
+                    &memo.sender_address_hash().to_string(),
+                    Some(memo.payment_request_id() as i64),
+                    None,
+                    conn,
+                )
+            }
+            Ok(_) => Ok(()),
+            Err(e) => Err(e.into()),
+        }?;
 
         Ok(txo_id.to_string())
     }
@@ -2146,6 +2153,30 @@ impl TxoModel for Txo {
             _ => return Ok(None),
         }
     }
+}
+
+fn add_authenticated_memo_to_database(
+    txo_id: &str,
+    sender_address_hash: &str,
+    payment_request_id: Option<i64>,
+    payment_intent_id: Option<i64>,
+    conn: Conn,
+) -> Result<(), WalletDbError> {
+    use crate::db::schema::authenticated_sender_memos;
+
+    let new_memo = NewAuthenticatedSenderMemo {
+        txo_id,
+        sender_address_hash,
+        payment_request_id,
+        payment_intent_id,
+    };
+
+    diesel::insert_into(authenticated_sender_memos::table)
+        .values(&new_memo)
+        .on_conflict_do_nothing()
+        .execute(conn)?;
+
+    Ok(())
 }
 
 fn i32_to_two_bytes(value: i32) -> [u8; 2] {

@@ -154,5 +154,6 @@ mod tests {
         let json_txo = Txo::from(&txo_info);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");
+        assert_eq!(json_txo.memo, (&memo).into());
     }
 }
