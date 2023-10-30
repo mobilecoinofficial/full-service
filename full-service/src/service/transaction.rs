@@ -960,9 +960,7 @@ mod tests {
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -970,9 +968,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -1370,9 +1366,7 @@ mod tests {
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -1380,9 +1374,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -1564,9 +1556,7 @@ mod tests {
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -1574,9 +1564,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| {
-                Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap()
-            })
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);

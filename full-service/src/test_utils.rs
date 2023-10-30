@@ -361,11 +361,8 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(
-            account_id,
-            wallet_db.get_pooled_conn().unwrap().deref_mut(),
-        )
-        .unwrap();
+        account =
+            Account::get(account_id, wallet_db.get_pooled_conn().unwrap().deref_mut()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }

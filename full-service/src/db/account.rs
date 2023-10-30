@@ -1014,12 +1014,8 @@ mod tests {
                 wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
-        let res = Account::list_all(
-            wallet_db.get_pooled_conn().unwrap().deref_mut(),
-            None,
-            None,
-        )
-        .unwrap();
+        let res = Account::list_all(wallet_db.get_pooled_conn().unwrap().deref_mut(), None, None)
+            .unwrap();
         assert_eq!(res.len(), 2);
 
         let acc_secondary = Account::get(
@@ -1062,12 +1058,8 @@ mod tests {
             .delete(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
-        let res = Account::list_all(
-            wallet_db.get_pooled_conn().unwrap().deref_mut(),
-            None,
-            None,
-        )
-        .unwrap();
+        let res = Account::list_all(wallet_db.get_pooled_conn().unwrap().deref_mut(), None, None)
+            .unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account

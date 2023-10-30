@@ -2129,16 +2129,10 @@ impl TxoModel for Txo {
             // if an account in the database owns the TXO and we have an available
             // subaddress index (not orphaned) we can lookup the public address that
             // it was sent to
-            (Some(account_id), Some(subaddress_index)) => {
-                Ok(Some(
-                    AssignedSubaddress::get_for_account_by_index(
-                        account_id,
-                        subaddress_index,
-                        conn,
-                    )?
+            (Some(account_id), Some(subaddress_index)) => Ok(Some(
+                AssignedSubaddress::get_for_account_by_index(account_id, subaddress_index, conn)?
                     .public_address()?,
-                ))
-            }
+            )),
             // If we do not own it, we can look up its transaction_output_txo which will give us the
             // recipient public b58
             (None, None) => {
