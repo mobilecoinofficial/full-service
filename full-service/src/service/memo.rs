@@ -13,7 +13,7 @@ use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_extra::{MemoType, UnusedMemo};
+use mc_transaction_extra::{MemoDecodingError, MemoType, UnusedMemo};
 use std::{convert::TryFrom, ops::DerefMut};
 
 #[derive(Display, Debug)]
@@ -33,6 +33,12 @@ pub enum MemoServiceError {
 
     /// Key: {0}
     Key(mc_crypto_keys::KeyError),
+
+    /// MemoDecoding: {0}
+    MemoDecoding(MemoDecodingError),
+
+    /// Invalid memo type for validation, expecting AuthenticatedSenderMemo.
+    InvalidMemoTypeForValidation,
 }
 
 impl From<WalletDbError> for MemoServiceError {
@@ -62,6 +68,12 @@ impl From<LedgerServiceError> for MemoServiceError {
 impl From<mc_crypto_keys::KeyError> for MemoServiceError {
     fn from(src: mc_crypto_keys::KeyError) -> Self {
         Self::Key(src)
+    }
+}
+
+impl From<MemoDecodingError> for MemoServiceError {
+    fn from(src: MemoDecodingError) -> Self {
+        Self::MemoDecoding(src)
     }
 }
 
@@ -100,19 +112,17 @@ where
             Some(e_memo) => e_memo.decrypt(&shared_secret),
             None => UnusedMemo.into(),
         };
-        
 
         match MemoType::try_from(&memo_payload) {
-            match memo_type {
-                MemoType::AuthenticatedSender(memo) => memo
-                    .validate(
-                        &sender_address,
-                        &account_key.view_private_key(),
-                        &txo.public_key,
-                    )
-                    .into(),
-                _ => false,
-            }
-        } 
+            Ok(MemoType::AuthenticatedSender(memo)) => Ok(memo
+                .validate(
+                    &sender_address,
+                    &account_key.view_private_key(),
+                    &txo.public_key,
+                )
+                .into()),
+            Ok(_) => Err(MemoServiceError::InvalidMemoTypeForValidation),
+            Err(e) => Err(e.into()),
+        }
     }
 }
