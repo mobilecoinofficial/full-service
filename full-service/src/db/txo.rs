@@ -2112,6 +2112,11 @@ mod tests {
     use mc_ledger_db::Ledger;
     use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
+    use mc_transaction_extra::{
+        BurnRedemptionMemo, DefragmentationMemo, DestinationMemo,
+        DestinationWithPaymentIntentIdMemo, DestinationWithPaymentRequestIdMemo,
+        GiftCodeCancellationMemo, GiftCodeFundingMemo, GiftCodeSenderMemo,
+    };
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{iter::FromIterator, ops::DerefMut, time::Duration};
@@ -2134,6 +2139,109 @@ mod tests {
     };
 
     use super::*;
+
+    /// We want to test that the conversions to and from using these methods
+    /// result in appropriate values to store in the database.
+    ///
+    /// For the sake of full coverage across desired values, we will test all
+    /// memo types defined in mobilecoin repo
+    /*
+       AuthenticatedSenderMemo, //[0x01, 0x00]
+       AuthenticatedSenderWithPaymentRequestIdMemo, //[0x01, 0x01]
+       AuthenticatedSenderWithPaymentIntentIdMemo, //[0x01, 0x02]
+       BurnRedemptionMemo, //[0x00, 0x01]
+       DefragmentationMemo, //[0x00, 0x03]
+       DestinationMemo, //[0x02, 0x00]
+       DestinationWithPaymentRequestIdMemo, //[0x02, 0x03]
+       DestinationWithPaymentIntentIdMemo, //[0x02, 0x04]
+       GiftCodeCancellationMemo, //[0x02, 0x02]
+       GiftCodeFundingMemo, //[0x02, 0x01]
+       GiftCodeSenderMemo, //[0x00, 0x02]
+       UnusedMemo, //[0x00, 0x00]
+    */
+    #[test]
+    fn test_two_bytes_to_i32_works_as_expected() {
+        let value = two_bytes_to_i32(AuthenticatedSenderMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 256);
+
+        let value = two_bytes_to_i32(AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 257);
+
+        let value = two_bytes_to_i32(AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 258);
+
+        let value = two_bytes_to_i32(BurnRedemptionMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 1);
+
+        let value = two_bytes_to_i32(DefragmentationMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 3);
+
+        let value = two_bytes_to_i32(DestinationMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 512);
+
+        let value = two_bytes_to_i32(DestinationWithPaymentRequestIdMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 515);
+
+        let value = two_bytes_to_i32(DestinationWithPaymentIntentIdMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 516);
+
+        let value = two_bytes_to_i32(GiftCodeCancellationMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 514);
+
+        let value = two_bytes_to_i32(GiftCodeFundingMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 513);
+
+        let value = two_bytes_to_i32(GiftCodeSenderMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 2);
+
+        let value = two_bytes_to_i32(UnusedMemo::MEMO_TYPE_BYTES);
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn test_i32_to_two_bytes_works_as_expected() {
+        let bytes = i32_to_two_bytes(256);
+        assert_eq!(bytes, AuthenticatedSenderMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(257);
+        assert_eq!(
+            bytes,
+            AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES
+        );
+
+        let bytes = i32_to_two_bytes(258);
+        assert_eq!(
+            bytes,
+            AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES
+        );
+
+        let bytes = i32_to_two_bytes(1);
+        assert_eq!(bytes, BurnRedemptionMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(3);
+        assert_eq!(bytes, DefragmentationMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(512);
+        assert_eq!(bytes, DestinationMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(515);
+        assert_eq!(bytes, DestinationWithPaymentRequestIdMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(516);
+        assert_eq!(bytes, DestinationWithPaymentIntentIdMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(514);
+        assert_eq!(bytes, GiftCodeCancellationMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(513);
+        assert_eq!(bytes, GiftCodeFundingMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(2);
+        assert_eq!(bytes, GiftCodeSenderMemo::MEMO_TYPE_BYTES);
+
+        let bytes = i32_to_two_bytes(0);
+        assert_eq!(bytes, UnusedMemo::MEMO_TYPE_BYTES);
+    }
 
     // The narrative for this test is that Alice receives a Txo, then sends a
     // transaction to Bob. We verify expected qualities of the Txos involved at
