@@ -71,7 +71,7 @@ pub enum TxoStatus {
     Unverified,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TxoMemo {
     Unused,
     AuthenticatedSender(AuthenticatedSenderMemoModel),

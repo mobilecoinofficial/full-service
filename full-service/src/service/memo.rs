@@ -8,7 +8,6 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
     WalletService,
 };
-use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{KeyError, RistrettoPublic};

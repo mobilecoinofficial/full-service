@@ -123,10 +123,9 @@ pub fn sync_txos(
             _ => return Err(T3SyncError::TxoMemoIsNotAuthenticatedSender(txo.id)),
         };
 
-        let recipient_short_address_hash = match txo.recipient_public_address(conn)? {
-            Some(address) => Some((&address).into()),
-            None => None,
-        };
+        let recipient_short_address_hash = txo
+            .recipient_public_address(conn)?
+            .map(|address| (&address).into());
 
         sync_txo(&txo, &memo, recipient_short_address_hash, t3_connection)?;
         txo.update_is_synced_to_t3(true, conn)?;

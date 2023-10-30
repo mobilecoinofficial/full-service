@@ -148,7 +148,11 @@ mod tests {
             .unwrap();
         let memo = txo.memo(&mut wallet_db.get_pooled_conn().unwrap()).unwrap();
 
-        let txo_info = TxoInfo { txo, status, memo };
+        let txo_info = TxoInfo {
+            txo,
+            status,
+            memo: memo.clone(),
+        };
 
         assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::from(&txo_info);

@@ -256,8 +256,15 @@ mod tests {
         let txo_status = txo_details
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
+        let txo_memo = txo_details
+            .memo(&mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::new(&txo_details, &txo_status);
+        let json_txo = Txo::from(&TxoInfo {
+            txo: txo_details,
+            status: txo_status,
+            memo: txo_memo,
+        });
         assert_eq!(json_txo.value_pmob, "15625000000000000000");
     }
 }
