@@ -46,9 +46,6 @@ schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git"
 # Fix issues with recent nightlies, bump curve25519-dalek version
 x25519-dalek = { git = "https://github.com/mobilecoinfoundation/x25519-dalek.git", rev = "4fbaa3343301c62cfdbc3023c9f485257e6b718a" }
 
-# Fix linker errors when compiling gRPC C++ library on systemd based Linux.
-grpcio = { git = "https://github.com/tikv/grpc-rs.git", rev = "cc5d2ab4fa0a110d0fdaa49f12552d28a0348721" }
-
 # Patch mc lib for git dependencies in ledger-mob
 mc-core = { path = "./mobilecoin/core" }
 mc-crypto-digestible = { path = "./mobilecoin/crypto/digestible" }
