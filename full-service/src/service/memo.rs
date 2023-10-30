@@ -8,67 +8,60 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
     WalletService,
 };
+use displaydoc::Display;
 use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{KeyError, RistrettoPublic};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_extra::{MemoDecodingError, MemoType, UnusedMemo};
-use mc_util_serial::DecodeError;
+use mc_transaction_extra::{MemoType, UnusedMemo};
 use std::{convert::TryFrom, ops::DerefMut};
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant, clippy::result_large_err)]
 pub enum MemoServiceError {
-    #[error("WalletDb: {0}")]
+    /// WalletDb: {0}
     WalletDb(WalletDbError),
 
-    #[error("B58: {0}")]
-    B58(#[from] B58Error),
+    /// B58: {0}
+    B58(B58Error),
 
-    #[error("Decode: {0}")]
-    Decode(DecodeError),
+    /// Decode: {0}
+    Decode(mc_util_serial::DecodeError),
 
-    #[error("LedgerService: {0}")]
+    ///LedgerService: {0}
     LedgerService(LedgerServiceError),
 
-    #[error("Key: {0}")]
-    Key(KeyError),
-
-    #[error("MemoDecoding: {0}")]
-    MemoDecoding(MemoDecodingError),
-
-    #[error("Invalid memo type for validation, expecting AuthenticatedSenderMemo.")]
-    InvalidMemoTypeForValidation,
+    /// Key: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for MemoServiceError {
-    fn from(e: WalletDbError) -> Self {
-        Self::WalletDb(e)
+    fn from(src: WalletDbError) -> Self {
+        Self::WalletDb(src)
     }
 }
 
-impl From<DecodeError> for MemoServiceError {
-    fn from(e: DecodeError) -> Self {
-        Self::Decode(e)
+impl From<B58Error> for MemoServiceError {
+    fn from(src: B58Error) -> Self {
+        Self::B58(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for MemoServiceError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::Decode(src)
     }
 }
 
 impl From<LedgerServiceError> for MemoServiceError {
-    fn from(e: LedgerServiceError) -> Self {
-        Self::LedgerService(e)
+    fn from(src: LedgerServiceError) -> Self {
+        Self::LedgerService(src)
     }
 }
 
-impl From<KeyError> for MemoServiceError {
-    fn from(e: KeyError) -> Self {
-        Self::Key(e)
-    }
-}
-
-impl From<MemoDecodingError> for MemoServiceError {
-    fn from(e: MemoDecodingError) -> Self {
-        Self::MemoDecoding(e)
+impl From<mc_crypto_keys::KeyError> for MemoServiceError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
     }
 }
 
@@ -107,17 +100,19 @@ where
             Some(e_memo) => e_memo.decrypt(&shared_secret),
             None => UnusedMemo.into(),
         };
+        
 
         match MemoType::try_from(&memo_payload) {
-            Ok(MemoType::AuthenticatedSender(memo)) => Ok(memo
-                .validate(
-                    &sender_address,
-                    account_key.view_private_key(),
-                    &txo.public_key,
-                )
-                .into()),
-            Ok(_) => Err(MemoServiceError::InvalidMemoTypeForValidation),
-            Err(e) => Err(e.into()),
-        }
+            match memo_type {
+                MemoType::AuthenticatedSender(memo) => memo
+                    .validate(
+                        &sender_address,
+                        &account_key.view_private_key(),
+                        &txo.public_key,
+                    )
+                    .into(),
+                _ => false,
+            }
+        } 
     }
 }
