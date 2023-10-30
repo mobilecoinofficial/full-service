@@ -540,7 +540,9 @@ where
             None,
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
-            TransactionMemo::RTH(None, None),
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
             None,
         )?;
 

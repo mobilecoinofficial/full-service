@@ -3030,7 +3030,12 @@ mod tests {
         builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&sender_account).await.unwrap();
 
@@ -3795,13 +3800,50 @@ mod tests {
             _ => panic!("expected unused memo"),
         }
 
-        // Create a txo with a memo, and get the memo from the wallet db.
+        // Create a txo with an authenticated sender memo, and get the memo from the
+        // wallet db.
         let (txo, key_image) = create_test_txo_for_recipient_with_memo(
             &account_key,
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH(None, None),
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+        );
+
+        let txo_id = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txo = Txo::get(&txo_id, conn).unwrap();
+        let memo = txo.memo(conn).expect("loading memo");
+        match memo {
+            TxoMemo::AuthenticatedSender(m) => {
+                assert_eq!(m.sender_address_hash, address_hash.to_string());
+                assert_eq!(m.payment_request_id, None);
+                assert_eq!(m.payment_intent_id, None);
+            }
+            _ => panic!("expected sender memo"),
+        }
+
+        // Create a txo with an authenticated sender memo with payment request id, and
+        // get the memo from the wallet db.
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
         );
 
         let txo_id = Txo::create_received(

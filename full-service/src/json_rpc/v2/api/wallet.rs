@@ -185,6 +185,16 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let transaction_memo = match payment_request_id {
+                Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                    payment_request_id,
+                },
+                None => TransactionMemo::RTH {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                },
+            };
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -195,10 +205,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(
-                        sender_memo_credential_subaddress_index,
-                        payment_request_id,
-                    ),
+                    transaction_memo,
                     block_version,
                 )
                 .await
@@ -304,6 +311,16 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let transaction_memo = match payment_request_id {
+                Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                    payment_request_id,
+                },
+                None => TransactionMemo::RTH {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                },
+            };
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -313,10 +330,7 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(
-                        sender_memo_credential_subaddress_index,
-                        payment_request_id,
-                    ),
+                    transaction_memo,
                     block_version,
                 )
                 .await

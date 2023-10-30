@@ -432,7 +432,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -562,7 +564,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -685,7 +689,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -828,7 +834,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
