@@ -61,8 +61,9 @@ jobs:
           cargo clippy --all --all-features
 
   test:
-    runs-on: [self-hosted, macOS, X64]
-    container: ""
+    runs-on: [self-hosted, Linux, large]
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.28
 
     steps:
       - name: Checkout
@@ -70,17 +71,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Brew Bundle
-        if: runner.os == 'macOS'
-        run: |
-          brew bundle
-
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Cache cargo packages
+        uses: ./.github/actions/mobilecoin-cache-cargo-package
         with:
-          toolchain: nightly-2023-06-01
-          override: true
-          components: rustfmt, clippy
+          cache_buster: ${{ secrets.CACHE_BUSTER }}
 
       - name: Consensus SigStruct
         run: |
