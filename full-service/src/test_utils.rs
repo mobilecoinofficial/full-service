@@ -110,7 +110,7 @@ pub fn generate_n_blocks_on_ledger(
     known_recipients: &[PublicAddress],
     num_blocks: usize,
     mut rng: &mut (impl CryptoRng + RngCore),
-    mut ledger_db: &mut LedgerDB,
+    ledger_db: &mut LedgerDB,
 ) {
     let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
         .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
