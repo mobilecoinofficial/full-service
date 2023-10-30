@@ -29,6 +29,6 @@ impl UriScheme for T3Scheme {
     const SCHEME_INSECURE: &'static str = "insecure-t3";
 
     /// Default port numbers
-    const DEFAULT_SECURE_PORT: u16 = 5553;
-    const DEFAULT_INSECURE_PORT: u16 = 5554;
+    const DEFAULT_SECURE_PORT: u16 = 80;
+    const DEFAULT_INSECURE_PORT: u16 = 8080;
 }
