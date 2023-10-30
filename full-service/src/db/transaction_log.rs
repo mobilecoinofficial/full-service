@@ -954,20 +954,20 @@ mod tests {
 
         // Check the associated_txos for this transaction_log are as expected
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There is one associated input TXO to this transaction, and it is now pending.
         assert_eq!(associated_txos.inputs.len(), 1);
         let input_details = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details.value as u64, 70 * MOB);
         assert_eq!(
             input_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -982,7 +982,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 50 * MOB);
@@ -995,7 +995,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
@@ -1033,7 +1033,7 @@ mod tests {
 
         let updated_tx_log = TransactionLog::get(
             &TransactionId::from(&tx_log),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1042,7 +1042,7 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1112,7 +1112,7 @@ mod tests {
 
         assert_eq!(tx_log.account_id, AccountID::from(&account_key).to_string());
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
         assert_eq!(associated_txos.outputs.len(), 1);
         assert_eq!(
@@ -1134,7 +1134,7 @@ mod tests {
 
         // Get associated Txos
         let associated = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
         assert_eq!(associated.inputs.len(), 1);
         assert_eq!(associated.outputs.len(), 1);
@@ -1217,7 +1217,7 @@ mod tests {
         // Delete the transaction logs for one account.
         let result = TransactionLog::delete_all_for_account(
             &account_id.to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         );
         assert!(result.is_ok());
 
@@ -1373,21 +1373,21 @@ mod tests {
 
         // Get the associated txos for this transaction
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There are two input TXOs to this transaction, and they are both now pending.
         assert_eq!(associated_txos.inputs.len(), 2);
         let input_details0 = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details0.value, associated_txos.inputs[0].value);
 
         assert_eq!(
             input_details0
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1395,14 +1395,14 @@ mod tests {
 
         let input_details1 = Txo::get(
             &associated_txos.inputs[1].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details1.value, associated_txos.inputs[1].value);
 
         assert_eq!(
             input_details1
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1422,7 +1422,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 12 * MOB);
@@ -1435,7 +1435,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         // Change = (8 + 7) - 12 - fee
@@ -1467,25 +1467,25 @@ mod tests {
         // Get the Input Txos again
         let updated_input_details0 = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let updated_input_details1 = Txo::get(
             &associated_txos.inputs[1].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
         // The inputs are now spent
         assert_eq!(
             updated_input_details0
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Spent
         );
         assert_eq!(
             updated_input_details1
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Spent
         );
@@ -1507,13 +1507,13 @@ mod tests {
         // Get the output txo again
         let updated_output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         // The minted from account is ourself, and it is unspent, minted
         assert_eq!(
             updated_output_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Unspent
         );
@@ -1530,13 +1530,13 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
         assert_eq!(
             updated_change_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Unspent
         );
@@ -1662,20 +1662,20 @@ mod tests {
 
         // Check the associated_txos for this transaction_log are as expected
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There is one associated input TXO to this transaction, and it is now pending.
         assert_eq!(associated_txos.inputs.len(), 1);
         let input_details = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details.value as u64, 70 * MOB);
         assert_eq!(
             input_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1690,7 +1690,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 50 * MOB);
@@ -1703,7 +1703,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
@@ -1741,7 +1741,7 @@ mod tests {
 
         let updated_tx_log = TransactionLog::get(
             &TransactionId::from(&tx_log),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1750,7 +1750,7 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 

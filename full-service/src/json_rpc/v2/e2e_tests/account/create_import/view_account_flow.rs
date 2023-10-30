@@ -100,7 +100,7 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true);
+        assert!(result["removed"].as_bool().unwrap());
 
         // import vo account
         let body = json!(request);

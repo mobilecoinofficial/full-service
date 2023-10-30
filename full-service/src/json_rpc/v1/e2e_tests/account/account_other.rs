@@ -112,7 +112,7 @@ mod e2e_account {
 
         // Test that the account_key serializes correctly back to an AccountKey object
         let mut entropy_slice = [0u8; 32];
-        entropy_slice[0..32].copy_from_slice(&hex::decode(entropy).unwrap().as_slice());
+        entropy_slice[0..32].copy_from_slice(hex::decode(entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
             serde_json::json!(json_rpc::v1::models::account_key::AccountKey::try_from(

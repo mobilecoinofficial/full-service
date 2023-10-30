@@ -842,7 +842,7 @@ mod tests {
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, account.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(
             account.next_block_index as u64,
@@ -852,7 +852,7 @@ mod tests {
         service.resync_account(&account_id).unwrap();
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.next_block_index, account.first_block_index);
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(
             account.next_block_index as u64,
@@ -876,7 +876,7 @@ mod tests {
         );
         assert_eq!(account2.next_block_index, account2.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(
             account2.next_block_index as u64,
@@ -887,7 +887,7 @@ mod tests {
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(account2.next_block_index, account2.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(
             account2.next_block_index as u64,
@@ -965,7 +965,7 @@ mod tests {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
 
         /* Send the transaction after corrupting the txo entry */
         // build and sign a transaction
@@ -1013,8 +1013,8 @@ mod tests {
         .unwrap();
 
         // manually sync the account
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_b_id, &logger);
 
         // manually overwrite the amount and target_key of the output txo to
         // something bogus
@@ -1025,7 +1025,7 @@ mod tests {
         assert_ne!(expected_target_key, corrupted_target_key);
         diesel::update(&associated_txos.outputs[0].0)
             .set((
-                txos::value.eq(corrupted_txo_amount as i64),
+                txos::value.eq(corrupted_txo_amount),
                 txos::target_key.eq(&corrupted_target_key),
             ))
             .execute(conn)
@@ -1038,8 +1038,8 @@ mod tests {
         // resync the account
         service.resync_account(&account_a_id).unwrap();
         service.resync_account(&account_b_id).unwrap();
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_b_id, &logger);
 
         //  - check that the txo we futzed with is now stored correctly
         //  - check that the transaction log entries are exactly the same as before
@@ -1105,7 +1105,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -1123,7 +1123,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
@@ -1215,8 +1215,8 @@ mod tests {
 
         let view_only_account = service
             .import_view_only_account(
-                &view_account_key.view_private_key().clone().into(),
-                &view_account_key.spend_public_key().clone().into(),
+                &(*view_account_key.view_private_key()).into(),
+                &(*view_account_key.spend_public_key()).into(),
                 None,
                 None,
                 None,
@@ -1246,7 +1246,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1261,7 +1261,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1294,7 +1294,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1307,7 +1307,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1321,7 +1321,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1339,7 +1339,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1367,7 +1367,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(unverified_txos.len(), 0);
@@ -1380,7 +1380,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(unspent_txos.len(), 2);

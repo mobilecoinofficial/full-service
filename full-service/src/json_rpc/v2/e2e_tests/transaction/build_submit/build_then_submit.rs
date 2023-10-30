@@ -740,9 +740,9 @@ mod e2e_transaction {
 
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![public_address.clone()],
+            &vec![public_address],
             starting_funds,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 

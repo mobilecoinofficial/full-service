@@ -339,7 +339,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status.as_ref().map(|txo_info| Txo::from(txo_info)),
+                txo: txo_and_status.as_ref().map(Txo::from),
             }
         }
         JsonCommandRequest::claim_gift_code {

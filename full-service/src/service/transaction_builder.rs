@@ -640,7 +640,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let balance: u128 = unspent
@@ -735,7 +735,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 

@@ -2130,14 +2130,14 @@ impl TxoModel for Txo {
             // subaddress index (not orphaned) we can lookup the public address that
             // it was sent to
             (Some(account_id), Some(subaddress_index)) => {
-                return Ok(Some(
+                Ok(Some(
                     AssignedSubaddress::get_for_account_by_index(
                         account_id,
                         subaddress_index,
                         conn,
                     )?
                     .public_address()?,
-                ));
+                ))
             }
             // If we do not own it, we can look up its transaction_output_txo which will give us the
             // recipient public b58
@@ -2146,11 +2146,11 @@ impl TxoModel for Txo {
                     .filter(transaction_output_txos::txo_id.eq(&self.id))
                     .first(conn)?;
 
-                return Ok(Some(transaction_output_txo.recipient_public_address()?));
+                Ok(Some(transaction_output_txo.recipient_public_address()?))
             }
             // The rest are either orphaned txos or invalid states we should never hit, which we
             // both want to ignore
-            _ => return Ok(None),
+            _ => Ok(None),
         }
     }
 }
