@@ -4,7 +4,8 @@
 
 use super::schema::{
     __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
-    gift_codes, transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+    gift_codes, post_migration_processes, transaction_input_txos, transaction_logs,
+    transaction_output_txos, txos,
 };
 
 use mc_crypto_keys::CompressedRistrettoPublic;
@@ -275,4 +276,11 @@ impl NewMigration {
             version: version.to_string(),
         }
     }
+}
+
+#[derive(Queryable)]
+#[diesel(table_name = post_migration_processes)]
+pub struct PostMigrationProcess {
+    pub migration_version: String,
+    pub has_run: bool,
 }

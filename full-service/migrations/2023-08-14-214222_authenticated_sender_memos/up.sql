@@ -8,4 +8,10 @@ CREATE TABLE authenticated_sender_memos (
   FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
 
-UPDATE accounts SET next_block_index = 0;
+CREATE TABLE post_migration_processes (
+  migration_version TEXT PRIMARY KEY NOT NULL,
+  has_run BOOLEAN NOT NULL
+);
+
+INSERT INTO post_migration_processes (migration_version, has_run)
+VALUES ('20230814214222', FALSE);

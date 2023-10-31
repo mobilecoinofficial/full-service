@@ -1,6 +1,7 @@
 use crate::db::{
-    models::{AssignedSubaddress, Migration, NewMigration},
-    schema::{__diesel_schema_migrations, assigned_subaddresses},
+    models::{AssignedSubaddress, Migration, NewMigration, PostMigrationProcess, Txo},
+    schema::{__diesel_schema_migrations, assigned_subaddresses, post_migration_processes, txos},
+    txo::TxoModel,
     WalletDbError,
 };
 use diesel::{
@@ -12,7 +13,7 @@ use diesel::{
     SqliteConnection,
 };
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use mc_common::logger::global_log;
+use mc_common::logger::{global_log, log, Logger};
 use mc_crypto_keys::RistrettoPublic;
 use std::{env, thread::sleep, time::Duration};
 
@@ -189,6 +190,49 @@ impl WalletDb {
     pub fn run_migrations(conn: &mut impl MigrationHarness<Sqlite>) {
         conn.run_pending_migrations(MIGRATIONS)
             .expect("failed running migrations");
+    }
+
+    pub fn run_post_migration_processes(logger: &Logger, conn: &mut SqliteConnection) {
+        let pending_post_migration_processes: Vec<PostMigrationProcess> =
+            post_migration_processes::table
+                .filter(post_migration_processes::has_run.eq(false))
+                .load::<PostMigrationProcess>(conn)
+                .expect("failed querying for pending post migration processes");
+
+        for pending_post_migration_process in pending_post_migration_processes {
+            match pending_post_migration_process.migration_version.as_str() {
+                "20230814214222" => {
+                    Self::run_post_migration_process_version_20230814214222(logger, conn);
+                }
+                _ => panic!(
+                    "Unknown post migration process version: {}",
+                    pending_post_migration_process.migration_version
+                ),
+            }
+        }
+    }
+
+    /// This post migration process rescans all txos in the the database and
+    /// decodes/stores any AuthenticatedSenderMemos (and vairants of)
+    /// that are found.
+    fn run_post_migration_process_version_20230814214222(
+        logger: &Logger,
+        conn: &mut SqliteConnection,
+    ) {
+        log::info!(
+            logger,
+            "Running post migration process version 20230814214222"
+        );
+
+        let txos = txos::table
+            .load::<Txo>(conn)
+            .expect("failed querying for txos");
+
+        diesel::update(post_migration_processes::table)
+            .filter(post_migration_processes::migration_version.eq("20230814214222"))
+            .set(post_migration_processes::has_run.eq(true))
+            .execute(conn)
+            .expect("failed updating post migration process");
     }
 
     pub fn run_proto_conversions_if_necessary(conn: &mut SqliteConnection) {
