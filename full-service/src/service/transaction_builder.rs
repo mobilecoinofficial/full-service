@@ -383,6 +383,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 recipient_public_address: receiver,
                 confirmation_number: tx_out_context.confirmation,
                 amount,
+                shared_secret: Some(tx_out_context.shared_secret),
             };
             payload_txos.push(payload_txo);
         }
@@ -439,6 +440,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
                 confirmation_number: tx_out_context.confirmation,
                 amount: change_amount,
+                shared_secret: Some(tx_out_context.shared_secret),
             };
             change_txos.push(change_txo);
         }
