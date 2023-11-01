@@ -983,8 +983,11 @@ impl TxoModel for Txo {
             AuthenticatedSenderMemo::MEMO_TYPE_BYTES,
             AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES,
             AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES,
-        ].into_iter().map(two_bytes_to_i32).collect();
-        let memo_types_predicate = txos::memo_type.eq_any(memo_types)
+        ]
+        .into_iter()
+        .map(two_bytes_to_i32)
+        .collect();
+        let memo_types_predicate = txos::memo_type.eq_any(memo_types);
 
         let mut query = txos::table.into_boxed();
 
