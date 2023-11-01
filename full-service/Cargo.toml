@@ -66,7 +66,7 @@ diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
 ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
-grpcio = "0.12"
+grpcio = "0.13"
 hex = { version = "0.4", default-features = false }
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"

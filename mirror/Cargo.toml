@@ -26,7 +26,7 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 boring = "2.1"
 futures = "0.3"
 generic-array = "0.14"
-grpcio = "0.12"
+grpcio = "0.13"
 hex = "0.4"
 num_cpus = "1.16"
 protobuf = "2.28"
