@@ -18,7 +18,7 @@ use std::{
     thread,
     time::Duration,
 };
-use t3_api::{T3Uri, TransparentTransaction};
+use t3_api::{ReportedDirection, T3Uri, TransparentTransaction};
 use t3_connection::T3Connection;
 
 #[derive(Clone, Debug, Parser)]
@@ -154,6 +154,12 @@ fn sync_txo(
 
     transparent_transaction.set_token_id(txo.token_id as u64);
     transparent_transaction.set_amount(txo.value as u64);
+
+    let reported_direction = match txo.account_id {
+        Some(_) => ReportedDirection::REPORTED_DIRECTION_RECEIVE,
+        None => ReportedDirection::REPORTED_DIRECTION_SEND,
+    };
+    transparent_transaction.set_reported_direction(reported_direction);
 
     let public_key_bytes = txo.public_key()?.as_bytes().to_vec();
     transparent_transaction.set_public_key_hex(hex::encode(public_key_bytes));

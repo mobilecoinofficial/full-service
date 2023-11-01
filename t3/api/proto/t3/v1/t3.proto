@@ -89,6 +89,10 @@ message TransparentTransaction {
   uint64 block_time = 13;
   // Block number
   uint64 block_index = 14;
+
+  // The direction of the transaction from the perspective of the reporter.
+  // Ex. if the direction is 'SEND' then the sender_address_hash belongs to the reporter of the transaction data.
+  ReportedDirection reported_direction = 15;
 }
 
 message CrossChainSwap {
@@ -245,4 +249,10 @@ enum KnownInstitution {
   KNOWN_INSTITUTION_MIXIN = 2;
   KNOWN_INSTITUTION_MOONPAY = 3;
   KNOWN_INSTITUTION_PAYBIS = 4;
+}
+
+enum ReportedDirection {
+  REPORTED_DIRECTION_UNSPECIFIED = 0;
+  REPORTED_DIRECTION_SEND = 1;
+  REPORTED_DIRECTION_RECEIVE = 2;
 }
