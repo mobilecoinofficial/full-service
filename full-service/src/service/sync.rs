@@ -508,7 +508,7 @@ mod tests {
         // There should now be 16 txos. Let's get each one and verify the amount
         let expected_value = 15_625_000 * MOB;
 
-        let txos_and_statuses = service
+        let txo_infos = service
             .list_txos(
                 Some(AccountID::from(&account_key).to_string()),
                 None,
@@ -521,7 +521,7 @@ mod tests {
             )
             .unwrap();
 
-        for txo_info in txos_and_statuses {
+        for txo_info in txo_infos {
             assert_eq!(txo_info.txo.value as u64, expected_value);
         }
 
@@ -532,47 +532,4 @@ mod tests {
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(balance_pmob.unspent, 250_000_000 * MOB as u128);
     }
-
-    // #[test_with_logger]
-    // fn test_sync_view_only_account(logger: Logger) {
-    //     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-    //     let view_private_key = RistrettoPrivate::from_random(&mut rng);
-
-    //     let spend_private_key = RistrettoPrivate::from_random(&mut rng);
-
-    //     let account_key = AccountKey::new(&spend_private_key,
-    // &view_private_key);
-
-    //     let mut ledger_db = get_test_ledger(0, &vec![], 0, &mut rng);
-
-    //     let origin_block_amount: u128 = 250_000_000 * MOB as u128;
-    //     let origin_block_txo_amount = origin_block_amount / 16;
-    //     let o = account_key.subaddress(0);
-    //     let _new_block_index = add_block_to_ledger_db(
-    //         &mut ledger_db,
-    //         &(0..16).map(|_| o.clone()).collect::<Vec<_>>(),
-    //         origin_block_txo_amount as u64,
-    //         &vec![],
-    //         &mut rng,
-    //     );
-
-    //     let service = setup_wallet_service(ledger_db.clone(),
-    // logger.clone());     let wallet_db =
-    // &service.wallet_db.as_ref().unwrap();
-
-    //     // create view only account
-    //     let account = service
-    //         .import_view_only_account(view_private_key.clone(),
-    // "catsaccount", None)         .unwrap();
-
-    //     manually_sync_view_only_account(&ledger_db, &wallet_db,
-    // &account.account_id_hex, &logger);
-
-    //     // Now verify that the service gets the balance with the correct
-    // value     let balance = service
-    //         .get_balance_for_view_only_account(&account.account_id_hex)
-    //         .expect("Could not get balance");
-    //     assert_eq!(balance.balance, 250_000_000 * MOB as u128);
-    // }
 }

@@ -148,8 +148,8 @@ fn sync_txo(
     // now we need to set the receiver address hash, which will require a database
     // lookup, but only if it exists
     if let Some(recipient_short_address_hash) = recipient_short_address_hash {
-        let recipient_address_hash_bytes: [u8; 16] = recipient_short_address_hash.into();
-        transparent_transaction.set_recipient_address_hash(recipient_address_hash_bytes.to_vec());
+        transparent_transaction
+            .set_recipient_address_hash(recipient_short_address_hash.as_ref().to_vec());
     }
 
     transparent_transaction.set_token_id(txo.token_id as u64);

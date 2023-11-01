@@ -8,7 +8,6 @@ use mc_common::logger::Logger;
 use mc_connection::Connection;
 use mc_util_grpc::ConnectionUriGrpcioChannel;
 use mc_util_uri::ConnectionUri;
-use protobuf::RepeatedField;
 use std::{
     cmp::Ordering,
     fmt::{Display, Formatter, Result as FmtResult},
