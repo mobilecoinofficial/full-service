@@ -4,8 +4,7 @@
 
 use super::schema::{
     __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
-    gift_codes, post_migration_processes, transaction_input_txos, transaction_logs,
-    transaction_output_txos, txos,
+    gift_codes, transaction_input_txos, transaction_logs, transaction_output_txos, txos,
 };
 
 use mc_crypto_keys::CompressedRistrettoPublic;

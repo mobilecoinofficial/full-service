@@ -83,7 +83,6 @@ fn rocket() -> Rocket<Build> {
             conn.batch_execute("PRAGMA foreign_keys = OFF;")
                 .expect("failed disabling foreign keys");
             WalletDb::run_migrations(conn);
-            WalletDb::run_post_migration_processes(&logger, conn);
             WalletDb::validate_foreign_keys(conn);
             conn.batch_execute("PRAGMA foreign_keys = ON;")
                 .expect("failed enabling foreign keys");
