@@ -62,9 +62,9 @@ impl T3Connection {
         public_key_hex: Vec<String>,
     ) -> Result<Vec<TransparentTransaction>, Error> {
         let mut request = FindTransactionsRequest::new();
-        request.set_address_hashes(RepeatedField::from_vec(address_hashes));
-        request.set_public_keys(RepeatedField::from_vec(public_keys));
-        request.set_public_key_hex(RepeatedField::from_vec(public_key_hex));
+        request.set_address_hashes(address_hashes.into());
+        request.set_public_keys(public_keys.into());
+        request.set_public_key_hex(public_key_hex.into());
 
         let response = self
             .transaction_service_client
