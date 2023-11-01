@@ -9,14 +9,14 @@ use protobuf::Message;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
-#[derive(Deserialize, Serialize, Default, Debug)]
+#[derive(Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct UnsignedInputTxo {
     pub tx_out_proto: String,
     pub amount: AmountJSON,
     pub subaddress_index: String,
 }
 
-#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct InputTxo {
     pub tx_out_proto: String,
     pub amount: AmountJSON,
@@ -24,15 +24,16 @@ pub struct InputTxo {
     pub key_image: String,
 }
 
-#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct OutputTxo {
     pub tx_out_proto: String,
     pub amount: AmountJSON,
     pub recipient_public_address_b58: String,
     pub confirmation_number: String,
+    pub shared_secret: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug, Default)]
+#[derive(Deserialize, Serialize, Debug, Default, PartialEq)]
 pub struct UnsignedTxProposal {
     pub unsigned_tx_proto_bytes_hex: String,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,
@@ -40,11 +41,11 @@ pub struct UnsignedTxProposal {
     pub change_txos: Vec<OutputTxo>,
 }
 
-impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
+impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
     type Error = String;
 
     fn try_from(
-        src: crate::service::models::tx_proposal::UnsignedTxProposal,
+        src: &crate::service::models::tx_proposal::UnsignedTxProposal,
     ) -> Result<Self, Self::Error> {
         let unsigned_input_txos = src
             .unsigned_input_txos
@@ -67,6 +68,9 @@ impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for Unsign
                         &output_txo.recipient_public_address,
                     )?,
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: output_txo
+                        .shared_secret
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -83,6 +87,9 @@ impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for Unsign
                         &output_txo.recipient_public_address,
                     )?,
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: output_txo
+                        .shared_secret
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -103,7 +110,7 @@ impl TryFrom<crate::service::models::tx_proposal::UnsignedTxProposal> for Unsign
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct TxProposal {
     pub input_txos: Vec<InputTxo>,
     pub payload_txos: Vec<OutputTxo>,
@@ -139,6 +146,9 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                         &output_txo.recipient_public_address,
                     )?,
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: output_txo
+                        .shared_secret
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -155,6 +165,9 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                         &output_txo.recipient_public_address,
                     )?,
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
+                    shared_secret: output_txo
+                        .shared_secret
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
