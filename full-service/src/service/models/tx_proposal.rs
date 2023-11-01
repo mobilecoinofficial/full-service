@@ -43,6 +43,7 @@ pub struct OutputTxo {
     pub recipient_public_address: PublicAddress,
     pub confirmation_number: TxOutConfirmationNumber,
     pub amount: Amount,
+    pub shared_secret: Option<RistrettoPublic>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -53,7 +54,7 @@ pub struct TxProposal {
     pub change_txos: Vec<OutputTxo>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct UnsignedTxProposal {
     pub unsigned_tx: UnsignedTx,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,
@@ -114,11 +115,11 @@ impl UnsignedTxProposal {
     }
 }
 
-impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
+impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
     type Error = String;
 
     fn try_from(
-        src: crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal,
+        src: &crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal,
     ) -> Result<Self, Self::Error> {
         let unsigned_input_txos = src
             .unsigned_input_txos
@@ -160,11 +161,25 @@ impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for U
 
             let amount = Amount::try_from(&txo.amount)?;
 
+            let shared_secret = match &txo.shared_secret {
+                Some(shared_secret) => {
+                    let shared_secret_bytes =
+                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    Some(
+                        RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
+                            format!("error converting shared secret to RistrettoPublic: {e}")
+                        })?,
+                    )
+                }
+                None => None,
+            };
+
             let output_txo = OutputTxo {
                 tx_out,
                 recipient_public_address,
                 confirmation_number,
                 amount,
+                shared_secret,
             };
 
             payload_txos.push(output_txo);
@@ -190,11 +205,25 @@ impl TryFrom<crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for U
 
             let amount = Amount::try_from(&txo.amount)?;
 
+            let shared_secret = match &txo.shared_secret {
+                Some(shared_secret) => {
+                    let shared_secret_bytes =
+                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    Some(
+                        RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
+                            format!("error converting shared secret to RistrettoPublic: {e}")
+                        })?,
+                    )
+                }
+                None => None,
+            };
+
             let output_txo = OutputTxo {
                 tx_out,
                 recipient_public_address,
                 confirmation_number,
                 amount,
+                shared_secret,
             };
 
             change_txos.push(output_txo);
@@ -278,6 +307,7 @@ impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxPropos
                 recipient_public_address: public_address,
                 confirmation_number,
                 amount: Amount::new(outlay.value.0, Mob::ID),
+                shared_secret: None,
             };
 
             payload_txos.push(payload_txo);
@@ -344,11 +374,25 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
+            let shared_secret = match &txo.shared_secret {
+                Some(shared_secret) => {
+                    let shared_secret_bytes =
+                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    Some(
+                        RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
+                            format!("error converting shared secret to RistrettoPublic: {e}")
+                        })?,
+                    )
+                }
+                None => None,
+            };
+
             let output_txo = OutputTxo {
                 tx_out,
                 recipient_public_address,
                 confirmation_number,
                 amount,
+                shared_secret,
             };
 
             payload_txos.push(output_txo);
@@ -374,11 +418,25 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
+            let shared_secret = match &txo.shared_secret {
+                Some(shared_secret) => {
+                    let shared_secret_bytes =
+                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    Some(
+                        RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
+                            format!("error converting shared secret to RistrettoPublic: {e}")
+                        })?,
+                    )
+                }
+                None => None,
+            };
+
             let output_txo = OutputTxo {
                 tx_out,
                 recipient_public_address,
                 confirmation_number,
                 amount,
+                shared_secret,
             };
 
             change_txos.push(output_txo);
@@ -390,5 +448,119 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
             payload_txos,
             change_txos,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        db::account::AccountID,
+        json_rpc::v2::models::amount::Amount as AmountJSON,
+        service::{
+            account::AccountService,
+            address::AddressService,
+            transaction::{TransactionMemo, TransactionService},
+        },
+        test_utils::{
+            add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
+            MOB,
+        },
+    };
+
+    use mc_common::logger::{test_with_logger, Logger};
+    use mc_rand::RngCore;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    use super::*;
+
+    #[test_with_logger]
+    fn test_v2_tx_proposal_converts_correctly(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let alice = service
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Add a block with a transaction for Alice
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.default_subaddress();
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address.clone()],
+            100 * MOB,
+            &vec![KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+
+        // Add an account for Bob
+        let bob = service
+            .create_account(
+                Some("Bob's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        // Create an assigned subaddress for Bob to receive funds from Alice
+        let bob_address_from_alice = service
+            .assign_address_for_account(&AccountID(bob.id.clone()), Some("From Alice"))
+            .unwrap();
+
+        // Create an assigned subaddress for Alice to receive from Bob, which will be
+        // used to authenticate the sender (Alice)
+        let alice_address_from_bob = service
+            .assign_address_for_account(&alice_account_id, Some("From Bob"))
+            .unwrap();
+
+        let unsigned_tx_proposal = service
+            .build_transaction(
+                &alice.id,
+                &[(
+                    bob_address_from_alice.public_address_b58,
+                    AmountJSON::new(42 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
+                },
+                None,
+            )
+            .unwrap();
+
+        let unsigned_tx_proposal_v2_json_model =
+            crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal::try_from(
+                &unsigned_tx_proposal,
+            )
+            .unwrap();
+
+        let unsigned_tx_proposal_converted_from_v2_json_model =
+            UnsignedTxProposal::try_from(&unsigned_tx_proposal_v2_json_model).unwrap();
+
+        assert_eq!(
+            unsigned_tx_proposal,
+            unsigned_tx_proposal_converted_from_v2_json_model
+        );
     }
 }

@@ -183,6 +183,7 @@ pub trait ReceiptService {
     ///| `address`          | The account's public address.              | Must be a valid account address. |
     ///| `receiver_receipt` | The receipt whose status is being checked. |                                  |
     ///
+    #[allow(clippy::type_complexity)]
     fn check_receipt_status(
         &self,
         address: &str,
@@ -427,7 +428,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -557,7 +560,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -680,7 +685,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -823,7 +830,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await

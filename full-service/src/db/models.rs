@@ -275,3 +275,10 @@ impl NewMigration {
         }
     }
 }
+
+#[derive(Queryable)]
+#[diesel(table_name = post_migration_processes)]
+pub struct PostMigrationProcess {
+    pub migration_version: String,
+    pub has_run: bool,
+}

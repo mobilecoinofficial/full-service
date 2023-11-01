@@ -169,7 +169,9 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
                 .await
@@ -283,7 +285,9 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
                 .await

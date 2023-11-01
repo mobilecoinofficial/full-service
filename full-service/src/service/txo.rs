@@ -335,7 +335,9 @@ where
             fee_token_id,
             tombstone_block,
             None,
-            TransactionMemo::RTH(None, None),
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
             None,
         )?;
 
@@ -445,7 +447,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await

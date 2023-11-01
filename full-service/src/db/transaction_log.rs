@@ -916,7 +916,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
 
@@ -1097,7 +1102,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -1180,7 +1190,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -1284,7 +1299,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -1357,7 +1377,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -1581,7 +1606,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
 
         let tx_log =
@@ -1805,7 +1835,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
 
         let tx_log =

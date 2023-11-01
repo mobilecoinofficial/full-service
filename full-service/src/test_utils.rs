@@ -476,7 +476,12 @@ pub async fn create_test_minted_and_change_txos(
     let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
 
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -521,7 +526,12 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
 
     (

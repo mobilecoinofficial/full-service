@@ -70,7 +70,7 @@ diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
 ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
-grpcio = "0.12"
+grpcio = "0.13"
 hex = { version = "0.4", default-features = false }
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
@@ -96,7 +96,6 @@ serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 strum = { version = "0.25.0", features = ["derive"] }
 strum_macros = "0.25.1"
-thiserror = "1.0"
 tiny-bip39 = "1.0"
 uuid = { version = "1.4.1", features = ["serde", "v4"] }
 

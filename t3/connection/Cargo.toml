@@ -15,5 +15,5 @@ t3-api = { path = "../api" }
 
 displaydoc = { version = "0.2", default-features = false }
 futures = "0.3"
-grpcio = "0.12"
+grpcio = "0.13"
 protobuf = "2.28.0"
