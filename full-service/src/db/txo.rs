@@ -985,14 +985,12 @@ impl TxoModel for Txo {
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let memo_types_predicate = txos::memo_type
-            .eq(two_bytes_to_i32(AuthenticatedSenderMemo::MEMO_TYPE_BYTES))
-            .or(txos::memo_type.eq(two_bytes_to_i32(
-                AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES,
-            )))
-            .or(txos::memo_type.eq(two_bytes_to_i32(
-                AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES,
-            )));
+        let memo_types: Vec<_> = vec![
+            AuthenticatedSenderMemo::MEMO_TYPE_BYTES,
+            AuthenticatedSenderWithPaymentIntentIdMemo::MEMO_TYPE_BYTES,
+            AuthenticatedSenderWithPaymentRequestIdMemo::MEMO_TYPE_BYTES,
+        ].into_iter().map(two_bytes_to_i32).collect();
+        let memo_types_predicate = txos::memo_type.eq_any(memo_types)
 
         let mut query = txos::table.into_boxed();
 
