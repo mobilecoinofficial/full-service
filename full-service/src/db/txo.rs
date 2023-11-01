@@ -15,7 +15,7 @@ use mc_transaction_core::{
     constants::MAX_INPUTS,
     ring_signature::KeyImage,
     tx::{TxOut, TxOutMembershipProof},
-    Amount, TokenId,
+    Amount, MemoPayload, TokenId,
 };
 use mc_transaction_extra::{
     AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentIntentIdMemo,
@@ -799,37 +799,7 @@ impl TxoModel for Txo {
             }
         };
 
-        // Interpret the memo payload and save it to the correct database table.
-        // Check that there is no existing memo before creating a new one.
-        match MemoType::try_from(&memo_payload) {
-            Ok(MemoType::AuthenticatedSender(memo)) => add_authenticated_memo_to_database(
-                &txo_id.to_string(),
-                &memo.sender_address_hash().to_string(),
-                None,
-                None,
-                conn,
-            ),
-            Ok(MemoType::AuthenticatedSenderWithPaymentIntentId(memo)) => {
-                add_authenticated_memo_to_database(
-                    &txo_id.to_string(),
-                    &memo.sender_address_hash().to_string(),
-                    None,
-                    Some(memo.payment_intent_id() as i64),
-                    conn,
-                )
-            }
-            Ok(MemoType::AuthenticatedSenderWithPaymentRequestId(memo)) => {
-                add_authenticated_memo_to_database(
-                    &txo_id.to_string(),
-                    &memo.sender_address_hash().to_string(),
-                    Some(memo.payment_request_id() as i64),
-                    None,
-                    conn,
-                )
-            }
-            Ok(_) => Ok(()),
-            Err(e) => Err(e.into()),
-        }?;
+        add_memo_to_database(&txo_id.to_string(), &memo_payload, conn)?;
 
         Ok(txo_id.to_string())
     }
@@ -844,6 +814,21 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&output_txo.tx_out);
         let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
+
+        let (memo_payload, memo_type) = match output_txo.shared_secret {
+            Some(shared_secret) => {
+                // Decrypt the memo and determine its type bytes.
+                let memo_payload = match output_txo.tx_out.e_memo {
+                    Some(e_memo) => e_memo.decrypt(&shared_secret),
+                    None => UnusedMemo.into(),
+                };
+
+                let memo_type = Some(two_bytes_to_i32(*memo_payload.get_memo_type()));
+
+                (Some(memo_payload), memo_type)
+            }
+            None => (None, None),
+        };
 
         let shared_secret_bytes = output_txo
             .shared_secret
@@ -863,7 +848,7 @@ impl TxoModel for Txo {
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
             shared_secret: shared_secret_bytes.as_deref(),
-            memo_type: None,
+            memo_type,
         };
 
         diesel::insert_into(txos::table)
@@ -883,6 +868,10 @@ impl TxoModel for Txo {
         diesel::insert_into(crate::db::schema::transaction_output_txos::table)
             .values(&new_transaction_output_txo)
             .execute(conn)?;
+
+        if let Some(memo_payload) = memo_payload {
+            add_memo_to_database(&txo_id.to_string(), &memo_payload, conn)?;
+        }
 
         Ok(())
     }
@@ -1919,7 +1908,9 @@ impl TxoModel for Txo {
     }
 
     fn delete_unreferenced(conn: Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
+        use crate::db::schema::{
+            authenticated_sender_memos, transaction_input_txos, transaction_output_txos, txos,
+        };
 
         /*
            SELECT * FROM txos
@@ -1937,6 +1928,12 @@ impl TxoModel for Txo {
             )))
             .filter(txos::account_id.is_null());
 
+        let unreferenced_authenticated_sender_memos = authenticated_sender_memos::table
+            .filter(authenticated_sender_memos::txo_id.eq_any(unreferenced_txos.select(txos::id)));
+
+        // Delete all associated memos in the database with these unreferenced txos, and
+        // then delete the unreferenced txos themselves.
+        diesel::delete(unreferenced_authenticated_sender_memos).execute(conn)?;
         diesel::delete(unreferenced_txos).execute(conn)?;
 
         Ok(())
@@ -2102,6 +2099,44 @@ fn i32_to_two_bytes(value: i32) -> [u8; 2] {
 
 fn two_bytes_to_i32(bytes: [u8; 2]) -> i32 {
     ((bytes[0] as i32) << 8) | (bytes[1] as i32)
+}
+
+fn add_memo_to_database(
+    txo_id: &str,
+    memo_payload: &MemoPayload,
+    conn: Conn,
+) -> Result<(), WalletDbError> {
+    // Interpret the memo payload and save it to the correct database table.
+    // Check that there is no existing memo before creating a new one.
+    match MemoType::try_from(memo_payload) {
+        Ok(MemoType::AuthenticatedSender(memo)) => add_authenticated_memo_to_database(
+            txo_id,
+            &memo.sender_address_hash().to_string(),
+            None,
+            None,
+            conn,
+        ),
+        Ok(MemoType::AuthenticatedSenderWithPaymentIntentId(memo)) => {
+            add_authenticated_memo_to_database(
+                txo_id,
+                &memo.sender_address_hash().to_string(),
+                None,
+                Some(memo.payment_intent_id() as i64),
+                conn,
+            )
+        }
+        Ok(MemoType::AuthenticatedSenderWithPaymentRequestId(memo)) => {
+            add_authenticated_memo_to_database(
+                txo_id,
+                &memo.sender_address_hash().to_string(),
+                Some(memo.payment_request_id() as i64),
+                None,
+                conn,
+            )
+        }
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 #[cfg(test)]
@@ -2988,7 +3023,7 @@ mod tests {
         }
 
         let res = Txo::select_spendable_txos_for_value(
-            &account_id_hex.to_string(), // FIXME: WS-11 - take AccountID
+            &account_id_hex.to_string(),
             1800 * MOB as u128,
             None,
             0,
@@ -4018,10 +4053,217 @@ mod tests {
         }
     }
 
-    // FIXME: once we have create_minted, then select_txos test with no
-    // FIXME: test update txo after tombstone block is exceeded
-    // FIXME: test update txo after it has landed via key_image update
-    // FIXME: test for selecting utxos from multiple subaddresses in one account
-    // FIXME: test for one TXO belonging to multiple accounts with get
-    // FIXME: test create_received for various permutations of multiple accounts
+    #[test_with_logger]
+    fn test_only_associated_memos_removed_when_txo_deleted_from_database(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+
+        let (account_id_1, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a txo with an authenticated sender memo
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+        );
+
+        let txo_id_1 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment request id
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentRequestId {
+                subaddress_index: None,
+                payment_request_id: 1000,
+            },
+        );
+
+        let txo_id_2 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment intent id, and
+        // get the memo from the wallet db.
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentIntentId {
+                subaddress_index: None,
+                payment_intent_id: 2000,
+            },
+        );
+
+        let txo_id_3 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Now create a new account and a few txos with memos
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+
+        let (account_id_2, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a txo with an authenticated sender memo
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+        );
+
+        let txo_id_4 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_2.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment request id
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentRequestId {
+                subaddress_index: None,
+                payment_request_id: 1000,
+            },
+        );
+
+        let txo_id_5 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_2.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment intent id, and
+        // get the memo from the wallet db.
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentIntentId {
+                subaddress_index: None,
+                payment_intent_id: 2000,
+            },
+        );
+
+        let txo_id_6 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_2.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // now let's verify that there are 6 txos and 6 memos in the database
+        let txos = Txo::list(None, None, None, None, None, None, conn).unwrap();
+        let memos = crate::db::models::AuthenticatedSenderMemo::list(conn).unwrap();
+        assert_eq!(txos.len(), 6);
+        assert_eq!(memos.len(), 6);
+
+        // now let's delete the first account
+        let account_1 = Account::get(&account_id_1, conn).unwrap();
+        account_1.delete(conn).unwrap();
+
+        // now let's check to make sure that there are 3 txos and 3 memos left
+        // in the database and that they are the expected ones
+        let txos = Txo::list(None, None, None, None, None, None, conn).unwrap();
+        let memos = crate::db::models::AuthenticatedSenderMemo::list(conn).unwrap();
+        assert_eq!(txos.len(), 3);
+        assert_eq!(memos.len(), 3);
+
+        for txo in txos {
+            assert!(
+                txo.id == txo_id_4 || txo.id == txo_id_5 || txo.id == txo_id_6,
+                "unexpected txo id"
+            );
+        }
+
+        for memo in memos {
+            assert!(
+                memo.txo_id == txo_id_4 || memo.txo_id == txo_id_5 || memo.txo_id == txo_id_6,
+                "unexpected memo txo id"
+            );
+        }
+    }
 }

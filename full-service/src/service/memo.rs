@@ -117,7 +117,7 @@ where
             Ok(MemoType::AuthenticatedSender(memo)) => Ok(memo
                 .validate(
                     &sender_address,
-                    &account_key.view_private_key(),
+                    account_key.view_private_key(),
                     &txo.public_key,
                 )
                 .into()),

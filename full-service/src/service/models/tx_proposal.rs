@@ -542,7 +542,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(Some(alice_address_from_bob.subaddress_index as u64), None),
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
+                },
                 None,
             )
             .unwrap();
