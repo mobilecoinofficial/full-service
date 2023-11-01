@@ -592,14 +592,10 @@ impl TransactionLogModel for TransactionLog {
                 .execute(conn)?;
         }
 
-        // TODO - Get each payload txo and add it to the transaction_output_txos
-        // table for this transactions.
         for payload_txo in unsigned_tx_proposal.payload_txos.iter() {
             Txo::create_new_output(payload_txo, false, &transaction_log_id, conn)?;
         }
 
-        // TODO - Get each change txo and add it to the transaction_output_txos
-        // table for this transaction as change.
         for change_txo in unsigned_tx_proposal.change_txos.iter() {
             Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
         }

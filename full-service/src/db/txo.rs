@@ -844,6 +844,11 @@ impl TxoModel for Txo {
 
         let txo_id = TxoID::from(&output_txo.tx_out);
         let encoded_confirmation = mc_util_serial::encode(&output_txo.confirmation_number);
+
+        let shared_secret_bytes = output_txo
+            .shared_secret
+            .map(|shared_secret| shared_secret.to_bytes().to_vec());
+
         let new_txo = NewTxo {
             id: &txo_id.to_string(),
             account_id: None,
@@ -857,7 +862,7 @@ impl TxoModel for Txo {
             received_block_index: None,
             spent_block_index: None,
             confirmation: Some(&encoded_confirmation),
-            shared_secret: None, // no account id so we don't
+            shared_secret: shared_secret_bytes.as_deref(),
             memo_type: None,
         };
 

@@ -372,7 +372,7 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = (&service
                 .build_transaction(
                     &account_id,
                     &[(
@@ -387,7 +387,7 @@ where
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
                 )
-                .map_err(format_error)?
+                .map_err(format_error)?)
                 .try_into()
                 .map_err(format_error)?;
 
@@ -421,7 +421,7 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = (&service
                 .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
@@ -433,7 +433,7 @@ where
                     TransactionMemo::Empty,
                     block_version,
                 )
-                .map_err(format_error)?
+                .map_err(format_error)?)
                 .try_into()
                 .map_err(format_error)?;
 
