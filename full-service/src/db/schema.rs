@@ -44,13 +44,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    post_migration_processes (migration_version) {
-        migration_version -> Text,
-        has_run -> Bool,
-    }
-}
-
-diesel::table! {
     transaction_input_txos (transaction_log_id, txo_id) {
         transaction_log_id -> Text,
         txo_id -> Text,
@@ -121,7 +114,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     assigned_subaddresses,
     authenticated_sender_memos,
     gift_codes,
-    post_migration_processes,
     transaction_input_txos,
     transaction_logs,
     transaction_output_txos,
