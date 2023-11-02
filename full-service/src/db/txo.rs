@@ -4138,6 +4138,109 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_get_memos_for_t3_sync_get_correct_txos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a received txo without a memo (empty memo), which should NOT be
+        // returned by get_memos_for_t3_sync.
+        let (txo_with_empty_memo, key_image) =
+            create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
+
+        Txo::create_received(
+            txo_with_empty_memo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create a txo with an AuthorizedSenderMemo, which should be returned by
+        // get_memos_for_t3_sync
+        let (txo_with_memo_1, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+        );
+
+        Txo::create_received(
+            txo_with_memo_1.clone(),
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Create a txo with an AuthorizedSenderMemoWithPaymentRequestId, which should
+        // be returned by get_memos_for_t3_sync
+        let (txo_with_memo_2, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentRequestId {
+                subaddress_index: None,
+                payment_request_id: 500,
+            },
+        );
+
+        Txo::create_received(
+            txo_with_memo_2.clone(),
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id.to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let txos_that_need_to_be_synced_to_t3 =
+            Txo::get_txos_that_need_to_be_synced_to_t3(None, conn).unwrap();
+
+        assert!(txos_that_need_to_be_synced_to_t3.len() == 2);
+
+        assert!(txos_that_need_to_be_synced_to_t3
+            .iter()
+            .any(|txo| txo.public_key().unwrap() == txo_with_memo_1.public_key));
+
+        assert!(txos_that_need_to_be_synced_to_t3
+            .iter()
+            .any(|txo| txo.public_key().unwrap() == txo_with_memo_2.public_key));
+    }
+
+    #[test_with_logger]
     fn test_only_associated_memos_removed_when_txo_deleted_from_database(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -4349,107 +4452,5 @@ mod tests {
                 "unexpected memo txo id"
             );
         }
-    }
-    #[test_with_logger]
-    fn test_get_memos_for_t3_sync_get_correct_txos(logger: Logger) {
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
-        let conn = pooled_conn.deref_mut();
-
-        let root_id = RootIdentity::from_random(&mut rng);
-        let account_key = AccountKey::from(&root_id);
-
-        let (account_id, _address) = Account::create_from_root_entropy(
-            &root_id.root_entropy,
-            Some(0),
-            None,
-            None,
-            "",
-            "".to_string(),
-            "".to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap(),
-        )
-        .unwrap();
-
-        let amount = Amount::new(1000 * MOB, Mob::ID);
-
-        // Create a received txo without a memo (empty memo), which should NOT be
-        // returned by get_memos_for_t3_sync.
-        let (txo_with_empty_memo, key_image) =
-            create_test_txo_for_recipient(&account_key, 0, amount, &mut rng);
-
-        Txo::create_received(
-            txo_with_empty_memo,
-            Some(0),
-            Some(key_image),
-            amount,
-            15,
-            &account_id.to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Create a txo with an AuthorizedSenderMemo, which should be returned by
-        // get_memos_for_t3_sync
-        let (txo_with_memo_1, key_image) = create_test_txo_for_recipient_with_memo(
-            &account_key,
-            0,
-            amount,
-            &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: None,
-            },
-        );
-
-        Txo::create_received(
-            txo_with_memo_1.clone(),
-            Some(0),
-            Some(key_image),
-            amount,
-            15,
-            &account_id.to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap(),
-        )
-        .unwrap();
-
-        // Create a txo with an AuthorizedSenderMemoWithPaymentRequestId, which should
-        // be returned by get_memos_for_t3_sync
-        let (txo_with_memo_2, key_image) = create_test_txo_for_recipient_with_memo(
-            &account_key,
-            0,
-            amount,
-            &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
-                payment_request_id: 500,
-            },
-        );
-
-        Txo::create_received(
-            txo_with_memo_2.clone(),
-            Some(0),
-            Some(key_image),
-            amount,
-            15,
-            &account_id.to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap(),
-        )
-        .unwrap();
-
-        let txos_that_need_to_be_synced_to_t3 =
-            Txo::get_txos_that_need_to_be_synced_to_t3(None, conn).unwrap();
-
-        assert!(txos_that_need_to_be_synced_to_t3.len() == 2);
-
-        assert!(txos_that_need_to_be_synced_to_t3
-            .iter()
-            .any(|txo| txo.public_key().unwrap() == txo_with_memo_1.public_key));
-
-        assert!(txos_that_need_to_be_synced_to_t3
-            .iter()
-            .any(|txo| txo.public_key().unwrap() == txo_with_memo_2.public_key));
     }
 }

@@ -3,7 +3,6 @@
 //! API definition for the Txo object.
 
 use crate::{db::txo::TxoInfo, json_rpc::v2::models::memo::Memo};
-
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.

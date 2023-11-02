@@ -7,8 +7,3 @@ CREATE TABLE authenticated_sender_memos (
   payment_intent_id UNSIGNED BIG INT,
   FOREIGN KEY (txo_id) REFERENCES txos(id)
 );
-
-CREATE TABLE post_migration_processes (
-  migration_version TEXT PRIMARY KEY NOT NULL,
-  has_run BOOLEAN NOT NULL
-);
