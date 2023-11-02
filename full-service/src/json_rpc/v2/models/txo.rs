@@ -2,8 +2,13 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoStatus};
+use crate::{
+    db,
+    db::txo::{TxoMemo, TxoStatus},
+};
 use serde_derive::{Deserialize, Serialize};
+
+use super::memo::Memo;
 
 /// An Txo in the wallet.
 ///
@@ -59,10 +64,13 @@ pub struct Txo {
     /// Shared secret that's used to mask the private keys associated with the
     /// amounts in a transaction
     pub shared_secret: Option<String>,
+
+    /// The memo associated with this Txo.
+    pub memo: Memo,
 }
 
 impl Txo {
-    pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
+    pub fn new(txo: &db::models::Txo, status: &TxoStatus, memo: &TxoMemo) -> Txo {
         Txo {
             id: txo.id.clone(),
             value: (txo.value as u64).to_string(),
@@ -78,6 +86,7 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(hex::encode),
             confirmation: txo.confirmation.as_ref().map(hex::encode),
             shared_secret: txo.shared_secret.as_ref().map(hex::encode),
+            memo: memo.into(),
         }
     }
 }
@@ -132,9 +141,13 @@ mod tests {
         let status = txo_details
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
+        let memo = txo_details
+            .memo(&mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
         assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::new(&txo_details, &status);
+        let json_txo = Txo::new(&txo_details, &status, &memo);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");
+        assert_eq!(json_txo.memo, (&memo).into());
     }
 }

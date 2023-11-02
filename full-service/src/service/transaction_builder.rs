@@ -26,7 +26,8 @@ use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_builder::{
-    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
+    TransactionBuilder,
 };
 use mc_transaction_core::{
     constants::RING_SIZE,
@@ -228,7 +229,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
-        let memo_builder = memo.memo_builder(account)?;
+
+        let memo_builder = match account.account_key() {
+            Ok(account_key) => memo.memo_builder(&account_key),
+            Err(_) => Box::<EmptyMemoBuilder>::default(),
+        };
 
         let mut transaction_builder = TransactionBuilder::new_with_box(
             block_version,
@@ -583,7 +588,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -751,7 +761,12 @@ mod tests {
 
         builder.set_txos(conn, &[txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(TransactionMemo::RTH(None, None), conn) {
+        match builder.build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -773,7 +788,12 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -1020,7 +1040,12 @@ mod tests {
         builder.select_txos(conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -1065,7 +1090,12 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(TransactionMemo::RTH(None, None), conn) {
+        match builder.build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        ) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1083,7 +1113,12 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
@@ -1101,7 +1136,12 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
@@ -1142,7 +1182,12 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
@@ -1162,7 +1207,12 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
@@ -1189,7 +1239,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
@@ -1231,7 +1286,12 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
@@ -1289,7 +1349,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
         let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();

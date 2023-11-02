@@ -9,6 +9,7 @@ pub mod confirmation_number;
 pub mod gift_code;
 pub mod hardware_wallet;
 pub mod ledger;
+pub mod memo;
 pub mod models;
 pub mod network;
 pub mod payment_request;

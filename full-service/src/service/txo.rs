@@ -9,7 +9,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoID, TxoModel, TxoStatus},
+        txo::{TxoID, TxoMemo, TxoModel, TxoStatus},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -174,7 +174,7 @@ pub trait TxoService {
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
+    ) -> Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
     ///
@@ -187,7 +187,7 @@ pub trait TxoService {
     fn get_txo(
         &self, 
         txo_id: &TxoID
-    ) -> Result<(Txo, TxoStatus), TxoServiceError>;
+    ) -> Result<(Txo, TxoStatus, TxoMemo), TxoServiceError>;
 
     /// Build a transaction that will split a txo into multiple output txos to the origin account.
     ///
@@ -229,7 +229,7 @@ where
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
+    ) -> Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
@@ -269,23 +269,25 @@ where
             )?;
         }
 
-        let txos_and_statuses = txos
+        let txos_statuses_and_memos = txos
             .into_iter()
             .map(|txo| {
                 let status = txo.status(conn)?;
-                Ok((txo, status))
+                let memo = txo.memo(conn)?;
+                Ok((txo, status, memo))
             })
-            .collect::<Result<Vec<(Txo, TxoStatus)>, TxoServiceError>>()?;
+            .collect::<Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError>>()?;
 
-        Ok(txos_and_statuses)
+        Ok(txos_statuses_and_memos)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus, TxoMemo), TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let txo = Txo::get(&txo_id.to_string(), conn)?;
         let status = txo.status(conn)?;
-        Ok((txo, status))
+        let memo = txo.memo(conn)?;
+        Ok((txo, status, memo))
     }
 
     async fn split_txo(
@@ -333,7 +335,9 @@ where
             fee_token_id,
             tombstone_block,
             None,
-            TransactionMemo::RTH(None, None),
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
             None,
         )?;
 
@@ -443,7 +447,9 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
             .await
@@ -452,7 +458,7 @@ mod tests {
             .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
-        let pending: Vec<(Txo, TxoStatus)> = service
+        let pending: Vec<(Txo, TxoStatus, TxoMemo)> = service
             .list_txos(
                 Some(alice.id.clone()),
                 None,

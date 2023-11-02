@@ -24,7 +24,6 @@ mod tests {
         let bip39_entropy_bytes = mnemonic.entropy().to_vec();
         let slip10_key = mnemonic.derive_slip10_key(0);
         let account_key = AccountKey::from(slip10_key);
-
         (account_key, bip39_entropy_bytes)
     }
 
@@ -55,6 +54,7 @@ mod tests {
     fn encoding_transfer_payload_succeeds() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+
         let (txo, _key_image) = create_test_txo_for_recipient(
             &account_key,
             0,
@@ -106,6 +106,7 @@ mod tests {
     fn decoding_transfer_payload_succeeds() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+
         let (txo, _key_image) = create_test_txo_for_recipient(
             &account_key,
             0,
@@ -132,6 +133,7 @@ mod tests {
     fn decoding_invalid_public_address_returns_error() {
         let mut rng: StdRng = SeedableRng::from_seed([91u8; 32]);
         let (account_key, bip39_entropy_bytes) = get_account_and_entropy_bytes();
+
         let (txo, _key_image) = create_test_txo_for_recipient(
             &account_key,
             0,

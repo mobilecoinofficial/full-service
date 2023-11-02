@@ -379,10 +379,36 @@ pub fn create_test_txo_for_recipient(
     amount: Amount,
     rng: &mut StdRng,
 ) -> (TxOut, KeyImage) {
+    create_test_txo_for_recipient_with_memo(
+        recipient_account_key,
+        recipient_subaddress_index,
+        amount,
+        rng,
+        TransactionMemo::Empty,
+    )
+}
+
+pub fn create_test_txo_for_recipient_with_memo(
+    recipient_account_key: &AccountKey,
+    recipient_subaddress_index: u64,
+    amount: Amount,
+    rng: &mut StdRng,
+    memo: TransactionMemo,
+) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
+
+    let mut memo_builder = memo.memo_builder(recipient_account_key);
+    let tx_out = TxOut::new_with_memo(
+        BlockVersion::MAX,
+        amount,
+        &recipient,
+        &tx_private_key,
+        hint,
+        |ctx| memo_builder.make_memo_for_output(amount, &recipient, ctx),
+    )
+    .unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
@@ -453,7 +479,12 @@ pub async fn create_test_minted_and_change_txos(
     let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
 
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -498,7 +529,12 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
 
     (

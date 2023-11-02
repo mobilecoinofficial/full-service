@@ -209,6 +209,9 @@ pub enum JsonCommandResponse {
     validate_confirmation {
         validated: bool,
     },
+    validate_sender_memo {
+        validated: bool,
+    },
     verify_address {
         verified: bool,
     },

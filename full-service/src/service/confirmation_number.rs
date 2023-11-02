@@ -152,7 +152,7 @@ where
 
         let mut results = Vec::new();
         for (associated_txo, _) in associated_txos.outputs {
-            let (txo, _) = self.get_txo(&TxoID(associated_txo.id.clone()))?;
+            let (txo, _, _) = self.get_txo(&TxoID(associated_txo.id.clone()))?;
             if let Some(confirmation) = txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
                 let pubkey: CompressedRistrettoPublic = mc_util_serial::decode(&txo.public_key)?;

@@ -169,7 +169,9 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
                 .await
@@ -283,7 +285,9 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
                 .await
@@ -339,7 +343,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status.as_ref().map(|(t, s)| Txo::new(t, s)),
+                txo: txo_and_status.as_ref().map(|(t, s, _m)| Txo::new(t, s)),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -543,7 +547,7 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
+                .map(|(txo, _, _)| {
                     let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
                         (Some(subaddress_index), Some(account_id)) => service
                             .get_address_for_account(
@@ -596,7 +600,7 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
+                .map(|(txo, _, _)| {
                     let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
                         (Some(subaddress_index), Some(account_id)) => service
                             .get_address_for_account(
@@ -646,7 +650,7 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s)| {
+                    .map(|(t, s, _)| {
                         (
                             t.id.clone(),
                             serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
@@ -656,7 +660,7 @@ where
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_ids: txos.iter().map(|(t, _s, _m)| t.id.clone()).collect(),
                 txo_map,
             }
         }
@@ -748,7 +752,7 @@ where
             // Check whether the transaction_log_id actually refers to the txo_id of a
             // received transaction.
             let txo_id = TxoID(transaction_log_id.clone());
-            let json_tx_log = if let Ok((txo, _)) = service.get_txo(&txo_id) {
+            let json_tx_log = if let Ok((txo, _, _)) = service.get_txo(&txo_id) {
                 // A txo was found, determine which address it was received at, if any.
                 let subaddress_b58 = match (&txo.subaddress_index, &txo.account_id) {
                     (Some(subaddress_index), Some(account_id)) => {
@@ -814,7 +818,7 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
+                .map(|(txo, _, _)| {
                     let subaddress_b58 = match txo.subaddress_index {
                         Some(subaddress_index) => service
                             .get_address_for_account(
@@ -877,7 +881,7 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let (txo, status, _) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::new(&txo, &status),
             }
@@ -909,7 +913,7 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s)| {
+                    .map(|(t, s, _)| {
                         (
                             t.id.clone(),
                             serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
@@ -919,7 +923,7 @@ where
             );
 
             JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_ids: txos.iter().map(|(t, _s, _m)| t.id.clone()).collect(),
                 txo_map,
             }
         }
