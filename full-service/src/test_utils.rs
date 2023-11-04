@@ -1,3 +1,4 @@
+use crate::service::t3_sync::T3Config;
 // Copyright (c) 2020-2021 MobileCoin Inc.
 #[cfg(test)]
 use crate::{
@@ -692,7 +693,7 @@ fn setup_wallet_service_impl(
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,
-        None,
+        T3Config::default(),
         logger,
     )
 }

@@ -90,7 +90,7 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
-        t3_sync_config: Option<T3Config>,
+        t3_sync_config: T3Config,
         logger: Logger,
     ) -> Self {
         let sync_thread = if let Some(wallet_db) = wallet_db.clone() {
@@ -104,17 +104,21 @@ impl<
             None
         };
 
-        let t3_sync_thread =
-            if let (Some(wallet_db), Some(t3_sync_config)) = (wallet_db.clone(), t3_sync_config) {
-                log::info!(logger, "Starting T3 Sync Task Thread");
-                Some(T3SyncThread::start(
-                    t3_sync_config,
-                    wallet_db,
-                    logger.clone(),
-                ))
-            } else {
-                None
-            };
+        let t3_sync_thread = if let (Some(wallet_db), Some(t3_uri), Some(t3_api_key)) = (
+            wallet_db.clone(),
+            t3_sync_config.t3_uri,
+            t3_sync_config.t3_api_key,
+        ) {
+            log::info!(logger, "Starting T3 Sync Task Thread");
+            Some(T3SyncThread::start(
+                t3_uri,
+                t3_api_key,
+                wallet_db,
+                logger.clone(),
+            ))
+        } else {
+            None
+        };
 
         let mut rng = rand::thread_rng();
         WalletService {

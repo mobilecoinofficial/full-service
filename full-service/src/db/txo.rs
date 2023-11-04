@@ -4453,4 +4453,123 @@ mod tests {
             );
         }
     }
+
+    #[async_test_with_logger]
+    async fn test_recipient_public_address_returns_as_expected(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let default_public_address = account_key.default_subaddress();
+
+        let (account_id_1, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let amount = Amount::new(1000 * MOB, Mob::ID);
+
+        // Create a txo with an authenticated sender memo
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+        );
+
+        let txo_id_1 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment request id
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentRequestId {
+                subaddress_index: None,
+                payment_request_id: 1000,
+            },
+        );
+
+        let txo_id_2 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Create a txo with an authenticated sender memo with payment intent id, and
+        // get the memo from the wallet db.
+        let (txo, key_image) = create_test_txo_for_recipient_with_memo(
+            &account_key,
+            0,
+            amount,
+            &mut rng,
+            TransactionMemo::RTHWithPaymentIntentId {
+                subaddress_index: None,
+                payment_intent_id: 2000,
+            },
+        );
+
+        let txo_id_3 = Txo::create_received(
+            txo,
+            Some(0),
+            Some(key_image),
+            amount,
+            15,
+            &account_id_1.to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let txos_that_need_to_be_synced_to_t3 =
+            Txo::get_txos_that_need_to_be_synced_to_t3(None, conn).unwrap();
+        assert_eq!(txos_that_need_to_be_synced_to_t3.len(), 3);
+
+        let txo_1 = Txo::get(&txo_id_1, conn).unwrap();
+        let recipient_public_address = txo_1.recipient_public_address(conn).unwrap();
+        assert_eq!(
+            recipient_public_address,
+            Some(default_public_address.clone())
+        );
+
+        let txo_2 = Txo::get(&txo_id_2, conn).unwrap();
+        let recipient_public_address = txo_2.recipient_public_address(conn).unwrap();
+        assert_eq!(
+            recipient_public_address,
+            Some(default_public_address.clone())
+        );
+
+        let txo_3 = Txo::get(&txo_id_3, conn).unwrap();
+        let recipient_public_address = txo_3.recipient_public_address(conn).unwrap();
+        assert_eq!(recipient_public_address, Some(default_public_address));
+    }
 }

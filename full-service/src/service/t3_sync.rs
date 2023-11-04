@@ -21,12 +21,12 @@ use std::{
 use t3_api::{ReportedDirection, T3Uri, TransparentTransaction};
 use t3_connection::T3Connection;
 
-#[derive(Clone, Debug, Parser)]
+#[derive(Clone, Debug, Parser, Default)]
 pub struct T3Config {
-    #[clap(long, env = "T3_URI")]
-    pub t3_uri: T3Uri,
-    #[clap(long, env = "T3_API_KEY")]
-    pub t3_api_key: String,
+    #[clap(long, env = "T3_URI", requires = "t3_api_key")]
+    pub t3_uri: Option<T3Uri>,
+    #[clap(long, env = "T3_API_KEY", requires = "t3_uri")]
+    pub t3_api_key: Option<String>,
 }
 
 // How many txos to sync per round
@@ -34,7 +34,7 @@ pub struct T3Config {
 const TXO_CHUNK_SIZE: usize = 5;
 // How long to wait in milliseconds between sync rounds
 // TODO - discuss in PR if this is a reasonable value
-const T3_SYNC_INTERVAL: Duration = Duration::from_millis(10);
+const T3_SYNC_INTERVAL: Duration = Duration::from_millis(1000);
 
 /// T3 Sync thread - holds objects needed to cleanly terminate the t3 sync
 /// thread.
@@ -47,12 +47,11 @@ pub struct T3SyncThread {
 }
 
 impl T3SyncThread {
-    pub fn start(config: T3Config, wallet_db: WalletDb, logger: Logger) -> Self {
+    pub fn start(t3_uri: T3Uri, t3_api_key: String, wallet_db: WalletDb, logger: Logger) -> Self {
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
 
-        let t3_connection =
-            T3Connection::new(&config.t3_uri, config.t3_api_key.clone(), logger.clone());
+        let t3_connection = T3Connection::new(&t3_uri, t3_api_key, logger.clone());
 
         let join_handle = Some(
             thread::Builder::new()

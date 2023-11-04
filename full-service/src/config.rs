@@ -87,7 +87,7 @@ pub struct APIConfig {
 
     /// T3 Server to connect to and the api key to use for authorization.
     #[clap(flatten)]
-    pub t3_sync_config: Option<T3Config>,
+    pub t3_sync_config: T3Config,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
