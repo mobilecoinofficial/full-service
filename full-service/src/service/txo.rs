@@ -9,7 +9,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoID, TxoMemo, TxoModel, TxoStatus},
+        txo::{TxoID, TxoInfo, TxoModel, TxoStatus},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
@@ -174,7 +174,7 @@ pub trait TxoService {
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError>;
+    ) -> Result<Vec<TxoInfo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
     ///
@@ -187,7 +187,7 @@ pub trait TxoService {
     fn get_txo(
         &self, 
         txo_id: &TxoID
-    ) -> Result<(Txo, TxoStatus, TxoMemo), TxoServiceError>;
+    ) -> Result<TxoInfo, TxoServiceError>;
 
     /// Build a transaction that will split a txo into multiple output txos to the origin account.
     ///
@@ -229,7 +229,7 @@ where
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError> {
+    ) -> Result<Vec<TxoInfo>, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
@@ -269,25 +269,25 @@ where
             )?;
         }
 
-        let txos_statuses_and_memos = txos
+        let txo_infos = txos
             .into_iter()
             .map(|txo| {
                 let status = txo.status(conn)?;
                 let memo = txo.memo(conn)?;
-                Ok((txo, status, memo))
+                Ok(TxoInfo { txo, memo, status })
             })
-            .collect::<Result<Vec<(Txo, TxoStatus, TxoMemo)>, TxoServiceError>>()?;
+            .collect::<Result<Vec<TxoInfo>, TxoServiceError>>()?;
 
-        Ok(txos_statuses_and_memos)
+        Ok(txo_infos)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus, TxoMemo), TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoInfo, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let txo = Txo::get(&txo_id.to_string(), conn)?;
         let status = txo.status(conn)?;
         let memo = txo.memo(conn)?;
-        Ok((txo, status, memo))
+        Ok(TxoInfo { txo, memo, status })
     }
 
     async fn split_txo(
@@ -458,7 +458,7 @@ mod tests {
             .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
-        let pending: Vec<(Txo, TxoStatus, TxoMemo)> = service
+        let pending: Vec<TxoInfo> = service
             .list_txos(
                 Some(alice.id.clone()),
                 None,
@@ -471,7 +471,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].0.value, 100000000000000);
+        assert_eq!(pending[0].txo.value, 100000000000000);
 
         // Our balance should reflect the various statuses of our txos
         let balance = service

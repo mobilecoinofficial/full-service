@@ -2,13 +2,8 @@
 
 //! API definition for the Txo object.
 
-use crate::{
-    db,
-    db::txo::{TxoMemo, TxoStatus},
-};
+use crate::{db::txo::TxoInfo, json_rpc::v2::models::memo::Memo};
 use serde_derive::{Deserialize, Serialize};
-
-use super::memo::Memo;
 
 /// An Txo in the wallet.
 ///
@@ -69,24 +64,33 @@ pub struct Txo {
     pub memo: Memo,
 }
 
-impl Txo {
-    pub fn new(txo: &db::models::Txo, status: &TxoStatus, memo: &TxoMemo) -> Txo {
+impl From<&TxoInfo> for Txo {
+    fn from(txo_info: &TxoInfo) -> Self {
         Txo {
-            id: txo.id.clone(),
-            value: (txo.value as u64).to_string(),
-            token_id: (txo.token_id as u64).to_string(),
-            received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
-            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()),
-            account_id: txo.account_id.clone(),
-            status: status.to_string(),
-            target_key: hex::encode(&txo.target_key),
-            public_key: hex::encode(&txo.public_key),
-            e_fog_hint: hex::encode(&txo.e_fog_hint),
-            subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            key_image: txo.key_image.as_ref().map(hex::encode),
-            confirmation: txo.confirmation.as_ref().map(hex::encode),
-            shared_secret: txo.shared_secret.as_ref().map(hex::encode),
-            memo: memo.into(),
+            id: txo_info.txo.id.clone(),
+            value: (txo_info.txo.value as u64).to_string(),
+            token_id: (txo_info.txo.token_id as u64).to_string(),
+            received_block_index: txo_info
+                .txo
+                .received_block_index
+                .map(|x| (x as u64).to_string()),
+            spent_block_index: txo_info
+                .txo
+                .spent_block_index
+                .map(|x| (x as u64).to_string()),
+            account_id: txo_info.txo.account_id.clone(),
+            status: txo_info.status.to_string(),
+            target_key: hex::encode(&txo_info.txo.target_key),
+            public_key: hex::encode(&txo_info.txo.public_key),
+            e_fog_hint: hex::encode(&txo_info.txo.e_fog_hint),
+            subaddress_index: txo_info
+                .txo
+                .subaddress_index
+                .map(|s| (s as u64).to_string()),
+            key_image: txo_info.txo.key_image.as_ref().map(hex::encode),
+            confirmation: txo_info.txo.confirmation.as_ref().map(hex::encode),
+            shared_secret: txo_info.txo.shared_secret.as_ref().map(hex::encode),
+            memo: (&txo_info.memo).into(),
         }
     }
 }
@@ -136,16 +140,21 @@ mod tests {
             &wallet_db,
         );
 
-        let txo_details = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
+        let txo = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
             .expect("Could not get Txo");
-        let status = txo_details
+        let status = txo
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
-        let memo = txo_details
-            .memo(&mut wallet_db.get_pooled_conn().unwrap())
-            .unwrap();
-        assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::new(&txo_details, &status, &memo);
+        let memo = txo.memo(&mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+
+        let txo_info = TxoInfo {
+            txo,
+            status,
+            memo: memo.clone(),
+        };
+
+        assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
+        let json_txo = Txo::from(&txo_info);
         assert_eq!(json_txo.value, "15625000000000000000");
         assert_eq!(json_txo.token_id, "0");
         assert_eq!(json_txo.memo, (&memo).into());

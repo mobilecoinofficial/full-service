@@ -6,9 +6,7 @@ use super::schema::{
     __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
     gift_codes, transaction_input_txos, transaction_logs, transaction_output_txos, txos,
 };
-
 use mc_crypto_keys::CompressedRistrettoPublic;
-
 use serde::Serialize;
 
 /// An Account entity.
@@ -92,6 +90,7 @@ pub struct Txo {
     pub confirmation: Option<Vec<u8>>,
     pub shared_secret: Option<Vec<u8>>,
     pub memo_type: Option<i32>,
+    pub is_synced_to_t3: bool,
 }
 
 impl Txo {
@@ -275,4 +274,11 @@ impl NewMigration {
             version: version.to_string(),
         }
     }
+}
+
+#[derive(Queryable)]
+#[diesel(table_name = post_migration_processes)]
+pub struct PostMigrationProcess {
+    pub migration_version: String,
+    pub has_run: bool,
 }

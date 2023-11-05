@@ -433,6 +433,8 @@ pub trait AccountModel {
     /// # Returns:
     /// * RistrettoPublic
     fn get_shared_secret(&self, tx_public_key: &RistrettoPublic) -> Result<RistrettoPublic, WalletDbError>;
+
+    fn public_address(&self, index: u64) -> Result<PublicAddress, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -899,6 +901,11 @@ impl AccountModel for Account {
             tx_public_key,
         ))
     }
+
+    fn public_address(&self, index: u64) -> Result<PublicAddress, WalletDbError> {
+        let account_key = self.account_key()?;
+        Ok(account_key.subaddress(index))
+    }
 }
 
 #[cfg(test)]
@@ -947,7 +954,7 @@ mod tests {
 
         let acc = Account::get(
             &account_id_hex,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let expected_account = Account {
@@ -970,7 +977,7 @@ mod tests {
             Some(account_id_hex.to_string()),
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(subaddresses.len(), 3);
@@ -986,7 +993,7 @@ mod tests {
         let (retrieved_index, retrieved_account_id_hex) =
             AssignedSubaddress::find_by_subaddress_spend_public_key(
                 main_subaddress.spend_public_key(),
-                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+                wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
         assert_eq!(retrieved_index, 0);
@@ -1004,20 +1011,16 @@ mod tests {
                 "",
                 "".to_string(),
                 "".to_string(),
-                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+                wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
-        let res = Account::list_all(
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
-            None,
-            None,
-        )
-        .unwrap();
+        let res = Account::list_all(wallet_db.get_pooled_conn().unwrap().deref_mut(), None, None)
+            .unwrap();
         assert_eq!(res.len(), 2);
 
         let acc_secondary = Account::get(
             &account_id_hex_secondary,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let mut expected_account_secondary = Account {
@@ -1039,12 +1042,12 @@ mod tests {
         acc_secondary
             .update_name(
                 "Alice's Secondary Account".to_string(),
-                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+                wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
         let acc_secondary2 = Account::get(
             &account_id_hex_secondary,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         expected_account_secondary.name = "Alice's Secondary Account".to_string();
@@ -1052,21 +1055,17 @@ mod tests {
 
         // Delete the secondary account
         acc_secondary
-            .delete(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .delete(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
-        let res = Account::list_all(
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
-            None,
-            None,
-        )
-        .unwrap();
+        let res = Account::list_all(wallet_db.get_pooled_conn().unwrap().deref_mut(), None, None)
+            .unwrap();
         assert_eq!(res.len(), 1);
 
         // Attempt to get the deleted account
         let res = Account::get(
             &account_id_hex_secondary,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         );
         match res {
             Ok(_) => panic!("Should have deleted account"),
@@ -1106,7 +1105,7 @@ mod tests {
         };
         let account = Account::get(
             &account_id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let decoded_entropy = RootEntropy::try_from(account.entropy.unwrap().as_slice()).unwrap();
@@ -1149,7 +1148,7 @@ mod tests {
 
         let acc = Account::get(
             &account_id_hex,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let expected_account = Account {
@@ -1213,8 +1212,8 @@ mod tests {
         let db_test_context = WalletDbTestContext::default();
         let wallet_db = db_test_context.get_db_instance(logger);
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
-        let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_public_key = RistrettoPublic::from_random(&mut rng);
 
         let view_account_key = ViewAccountKey::new(view_private_key, spend_public_key);
 
@@ -1275,7 +1274,7 @@ mod tests {
         let account_key = account_key.with_fog(
             "fog//some.fog.url".to_string(),
             "".to_string(),
-            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string()
+            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
         );
         let view_account_key: ViewAccountKey = (&account_key).into();
         let default_public_address = account_key.default_subaddress();
@@ -1346,7 +1345,7 @@ mod tests {
             .unwrap();
         let expected_default_subaddress = AssignedSubaddress {
             public_address_b58: default_public_address_b58,
-            account_id: account.id.to_string(),
+            account_id: account.id,
             subaddress_index: 0,
             comment: "Main".to_string(),
             spend_public_key: default_subaddress_spend_public_key_bytes,

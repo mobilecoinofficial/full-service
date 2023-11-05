@@ -9,7 +9,7 @@ use crate::{
             request::JsonCommandRequest, response::JsonCommandResponse, wallet::wallet_api_inner,
         },
     },
-    service::WalletService,
+    service::{t3_sync::T3Config, WalletService},
     test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
         WalletDbTestContext,
@@ -121,6 +121,7 @@ pub fn create_test_setup(
         network_state.clone(),
         get_resolver_factory(rng).unwrap(),
         false,
+        T3Config::default(),
         logger,
     );
 

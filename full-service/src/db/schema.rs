@@ -90,6 +90,7 @@ diesel::table! {
         confirmation -> Nullable<Binary>,
         shared_secret -> Nullable<Binary>,
         memo_type -> Nullable<Integer>,
+        is_synced_to_t3 -> Bool,
     }
 }
 

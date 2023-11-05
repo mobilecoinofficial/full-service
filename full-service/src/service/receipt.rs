@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoMemo, TxoModel, TxoStatus},
+        txo::{TxoInfo, TxoModel, TxoStatus},
         WalletDbError,
     },
     service::models::tx_proposal::TxProposal,
@@ -188,7 +188,7 @@ pub trait ReceiptService {
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus, TxoMemo)>), ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoInfo>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     ///
@@ -213,8 +213,7 @@ where
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus, TxoMemo)>), ReceiptServiceError>
-    {
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoInfo>), ReceiptServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
@@ -228,14 +227,13 @@ where
             return Ok((ReceiptTransactionStatus::TransactionPending, None));
         }
         let txo = txos[0].clone();
-        let txo_status = txo.status(conn)?;
-        let txo_memo = txo.memo(conn)?;
+        let status = txo.status(conn)?;
+        let memo = txo.memo(conn)?;
 
-        if (txo_status == TxoStatus::Pending) || (txo_status == TxoStatus::Created) {
-            return Ok((
-                ReceiptTransactionStatus::TransactionPending,
-                Some((txo, txo_status, txo_memo)),
-            ));
+        let txo_info = TxoInfo { txo, memo, status };
+
+        if (txo_info.status == TxoStatus::Pending) || (txo_info.status == TxoStatus::Created) {
+            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo_info)));
         }
 
         // Decrypt the amount to get the expected value
@@ -247,18 +245,18 @@ where
             Err(_) => {
                 return Ok((
                     ReceiptTransactionStatus::FailedAmountDecryption,
-                    Some((txo, txo_status, txo_memo)),
+                    Some(txo_info),
                 ))
             }
         };
         // Check that the value of the received Txo matches the expected value.
-        if (txo.value as u64) != expected_value.value {
+        if (txo_info.txo.value as u64) != expected_value.value {
             return Ok((
                 ReceiptTransactionStatus::AmountMismatch(format!(
                     "Expected: {}, Got: {}",
-                    expected_value.value, txo.value
+                    expected_value.value, txo_info.txo.value
                 )),
-                Some((txo, txo_status, txo_memo)),
+                Some(txo_info),
             ));
         }
 
@@ -266,17 +264,14 @@ where
         let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
+        if !Txo::validate_confirmation(&account_id, &txo_info.txo.id, &confirmation, conn)? {
             return Ok((
                 ReceiptTransactionStatus::InvalidConfirmation,
-                Some((txo, txo_status, txo_memo)),
+                Some(txo_info),
             ));
         }
 
-        Ok((
-            ReceiptTransactionStatus::TransactionSuccess,
-            Some((txo, txo_status, txo_memo)),
-        ))
+        Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo_info)))
     }
 
     fn create_receiver_receipts(
@@ -455,7 +450,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -494,12 +489,12 @@ mod tests {
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].0.public_key)
+        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let public_key = txos_and_statuses[0]
-            .0
+            .txo
             .public_key()
             .expect("Could not get CompressedRistrettoPublic from txo");
         let txo: TxOut = get_tx_out_by_public_key(&ledger_db, &public_key)
@@ -592,7 +587,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -709,7 +704,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
@@ -743,7 +738,7 @@ mod tests {
         let bob_account_key: AccountKey = mc_util_serial::decode(
             &Account::get(
                 &bob_account_id,
-                &mut service.get_pooled_conn().unwrap().deref_mut(),
+                service.get_pooled_conn().unwrap().deref_mut(),
             )
             .expect("Could not get bob account")
             .account_key,
@@ -854,7 +849,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);

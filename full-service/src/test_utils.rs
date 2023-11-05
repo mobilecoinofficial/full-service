@@ -1,3 +1,4 @@
+use crate::service::t3_sync::T3Config;
 // Copyright (c) 2020-2021 MobileCoin Inc.
 #[cfg(test)]
 use crate::{
@@ -110,7 +111,7 @@ pub fn generate_n_blocks_on_ledger(
     known_recipients: &[PublicAddress],
     num_blocks: usize,
     mut rng: &mut (impl CryptoRng + RngCore),
-    mut ledger_db: &mut LedgerDB,
+    ledger_db: &mut LedgerDB,
 ) {
     let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
         .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
@@ -125,7 +126,7 @@ pub fn generate_n_blocks_on_ledger(
             vec![KeyImage::from(rng.next_u64())]
         };
         let _new_block_index = add_block_to_ledger_db(
-            &mut ledger_db,
+            ledger_db,
             &public_addresses,
             DEFAULT_PER_RECIPIENT_AMOUNT,
             &key_images,
@@ -348,7 +349,7 @@ pub fn manually_sync_account(
     loop {
         match sync_account_next_chunk(
             ledger_db,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
             &account_id.to_string(),
             logger,
         ) {
@@ -361,11 +362,8 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(
-            account_id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
-        )
-        .unwrap();
+        account =
+            Account::get(account_id, wallet_db.get_pooled_conn().unwrap().deref_mut()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -445,7 +443,7 @@ pub fn create_test_received_txo(
         amount,
         received_block_index,
         &AccountID::from(account_key).to_string(),
-        &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        wallet_db.get_pooled_conn().unwrap().deref_mut(),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
@@ -567,7 +565,7 @@ pub fn random_account_with_seed_values(
             &format!("SeedAccount{}", rng.next_u32()),
             "".to_string(),
             "".to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
     }
@@ -595,7 +593,7 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 Some(0),
-                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+                wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap()
             .len(),
@@ -695,6 +693,7 @@ fn setup_wallet_service_impl(
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,
+        T3Config::default(),
         logger,
     )
 }

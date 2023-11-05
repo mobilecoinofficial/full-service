@@ -5,7 +5,10 @@
 use crate::{
     config::NetworkConfig,
     db::{WalletDb, WalletDbError},
-    service::sync::SyncThread,
+    service::{
+        sync::SyncThread,
+        t3_sync::{T3Config, T3SyncThread},
+    },
 };
 use diesel::{
     r2d2::{ConnectionManager, PooledConnection},
@@ -58,6 +61,9 @@ pub struct WalletService<
     /// Background ledger sync thread.
     _sync_thread: Option<SyncThread>,
 
+    /// Background T3 sync thread.
+    _t3_sync_thread: Option<T3SyncThread>,
+
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
     pub submit_node_offset: Arc<AtomicUsize>,
@@ -84,12 +90,29 @@ impl<
         network_state: Arc<RwLock<PollingNetworkState<T>>>,
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
+        t3_sync_config: T3Config,
         logger: Logger,
     ) -> Self {
         let sync_thread = if let Some(wallet_db) = wallet_db.clone() {
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
             Some(SyncThread::start(
                 ledger_db.clone(),
+                wallet_db,
+                logger.clone(),
+            ))
+        } else {
+            None
+        };
+
+        let t3_sync_thread = if let (Some(wallet_db), Some(t3_uri), Some(t3_api_key)) = (
+            wallet_db.clone(),
+            t3_sync_config.t3_uri,
+            t3_sync_config.t3_api_key,
+        ) {
+            log::info!(logger, "Starting T3 Sync Task Thread");
+            Some(T3SyncThread::start(
+                t3_uri,
+                t3_api_key,
                 wallet_db,
                 logger.clone(),
             ))
@@ -107,6 +130,7 @@ impl<
             network_state,
             fog_resolver_factory,
             _sync_thread: sync_thread,
+            _t3_sync_thread: t3_sync_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             offline,
             logger,

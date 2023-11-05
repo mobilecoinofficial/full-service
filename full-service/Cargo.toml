@@ -45,6 +45,7 @@ mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
 mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-transaction-types = { path = "../mobilecoin/transaction/types" }
 mc-util-from-random = { path = "../mobilecoin/util/from-random" }
+mc-util-grpc = { path = "../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../mobilecoin/util/parse" }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
@@ -52,6 +53,9 @@ mc-validator-api = { path = "../validator/api" }
 mc-validator-connection = { path = "../validator/connection" }
 mc-watcher = { path = "../mobilecoin/watcher" }
 mc-watcher-api = { path = "../mobilecoin/watcher/api" }
+
+t3-api = { path = "../t3/api" }
+t3-connection = { path = "../t3/connection" }
 
 ledger-mob = { path = "../ledger-mob/lib" }
 
@@ -70,6 +74,7 @@ grpcio = "0.13"
 hex = { version = "0.4", default-features = false }
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
+prost = "0.11"
 protobuf = "2.28.0"
 rand = { version = "0.8", default-features = false }
 rayon = "1.7"

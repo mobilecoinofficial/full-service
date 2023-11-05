@@ -201,7 +201,7 @@ mod e2e_account {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true);
+        assert!(result["removed"].as_bool().unwrap());
 
         // Import it again - should succeed.
         let body = json!({

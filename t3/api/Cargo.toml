@@ -1,0 +1,18 @@
+[package]
+name = "t3-api"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+futures = "0.3"
+grpcio = "0.13"
+mc-util-uri = { path = "../../mobilecoin/util/uri" }
+protobuf = "2.28.0"
+
+[build-dependencies]
+
+cargo-emit = "0.2.1"
+mc-util-build-grpc = { path = "../../mobilecoin/util/build/grpc" }
+mc-util-build-script = { path = "../../mobilecoin/util/build/script" }

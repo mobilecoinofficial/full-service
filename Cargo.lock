@@ -3207,6 +3207,7 @@ dependencies = [
  "mc-transaction-summary",
  "mc-transaction-types",
  "mc-util-from-random",
+ "mc-util-grpc",
  "mc-util-parse",
  "mc-util-serial",
  "mc-util-uri",
@@ -3215,6 +3216,7 @@ dependencies = [
  "mc-watcher",
  "mc-watcher-api",
  "num_cpus",
+ "prost",
  "protobuf",
  "rand 0.8.5",
  "rayon",
@@ -3228,6 +3230,8 @@ dependencies = [
  "serde_json",
  "strum 0.25.0",
  "strum_macros 0.25.2",
+ "t3-api",
+ "t3-connection",
  "tempdir",
  "tiny-bip39",
  "tokio",
@@ -6016,6 +6020,34 @@ dependencies = [
  "ntapi",
  "once_cell",
  "winapi",
+]
+
+[[package]]
+name = "t3-api"
+version = "0.1.0"
+dependencies = [
+ "cargo-emit",
+ "futures",
+ "grpcio",
+ "mc-util-build-grpc",
+ "mc-util-build-script",
+ "mc-util-uri",
+ "protobuf",
+]
+
+[[package]]
+name = "t3-connection"
+version = "0.1.0"
+dependencies = [
+ "displaydoc",
+ "futures",
+ "grpcio",
+ "mc-common",
+ "mc-connection",
+ "mc-util-grpc",
+ "mc-util-uri",
+ "protobuf",
+ "t3-api",
 ]
 
 [[package]]

@@ -6,6 +6,8 @@ members = [
     "full-service",
     "mirror",
     "signer",
+    "t3/api",
+    "t3/connection",
     "validator/api",
     "validator/connection",
     "validator/service",

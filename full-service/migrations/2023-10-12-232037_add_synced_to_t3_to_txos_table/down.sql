@@ -1,0 +1,1 @@
+ALTER TABLE txos DROP COLUMN is_synced_to_t3;
