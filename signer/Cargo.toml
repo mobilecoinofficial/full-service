@@ -30,7 +30,7 @@ mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
-anyhow = "1.0.72"
+anyhow = "1.0.75"
 base64 = "0.21.4"
 clap = { version = "4.3", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
