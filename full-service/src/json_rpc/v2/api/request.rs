@@ -236,6 +236,11 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
     },
+    import_view_only_account_from_hardware_wallet {
+        name: Option<String>,
+        first_block_index: Option<String>,
+        fog_info: Option<FogInfo>,
+    },
     remove_account {
         account_id: String,
     },
@@ -256,7 +261,7 @@ pub enum JsonCommandRequest {
     },
     sync_view_only_account {
         account_id: String,
-        synced_txos: Vec<TxoSynced>,
+        synced_txos: Option<Vec<TxoSynced>>,
     },
     update_account_name {
         account_id: String,
@@ -266,6 +271,11 @@ pub enum JsonCommandRequest {
         account_id: String,
         txo_id: String,
         confirmation: String,
+    },
+    validate_sender_memo {
+        account_id: String,
+        txo_id: String,
+        sender_address: String,
     },
     verify_address {
         address: String,

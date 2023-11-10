@@ -9,20 +9,19 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoID, TxoModel, TxoStatus},
+        txo::{TxoID, TxoInfo, TxoModel, TxoStatus},
         WalletDbError,
     },
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
-        ledger::{LedgerService, LedgerServiceError},
+        ledger::LedgerServiceError,
         models::tx_proposal::TxProposal,
         transaction::{TransactionMemo, TransactionService, TransactionServiceError},
     },
     WalletService,
 };
 use displaydoc::Display;
-use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::FeeMapError;
@@ -147,6 +146,7 @@ impl From<LedgerServiceError> for TxoServiceError {
 /// Txos.
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
+#[async_trait]
 pub trait TxoService {
     /// List the Txos for a given account in the wallet.
     ///
@@ -174,7 +174,7 @@ pub trait TxoService {
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError>;
+    ) -> Result<Vec<TxoInfo>, TxoServiceError>;
 
     /// Get a Txo from the wallet.
     ///
@@ -187,7 +187,7 @@ pub trait TxoService {
     fn get_txo(
         &self, 
         txo_id: &TxoID
-    ) -> Result<(Txo, TxoStatus), TxoServiceError>;
+    ) -> Result<TxoInfo, TxoServiceError>;
 
     /// Build a transaction that will split a txo into multiple output txos to the origin account.
     ///
@@ -202,7 +202,7 @@ pub trait TxoService {
     ///| `fee_token_id`     | The fee token_id to submit with this transaction     | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
     ///| `tombstone_block`  | The block after which this transaction expires       | If not provided, uses current height + 10                                                         |
     ///
-    fn split_txo(
+    async fn split_txo(
         &self,
         txo_id: &TxoID,
         output_values: &[String],
@@ -213,6 +213,7 @@ pub trait TxoService {
     ) -> Result<TxProposal, TxoServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> TxoService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
@@ -228,7 +229,7 @@ where
         max_received_block_index: Option<u64>,
         offset: Option<u64>,
         limit: Option<u64>,
-    ) -> Result<Vec<(Txo, TxoStatus)>, TxoServiceError> {
+    ) -> Result<Vec<TxoInfo>, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
@@ -268,26 +269,28 @@ where
             )?;
         }
 
-        let txos_and_statuses = txos
+        let txo_infos = txos
             .into_iter()
             .map(|txo| {
                 let status = txo.status(conn)?;
-                Ok((txo, status))
+                let memo = txo.memo(conn)?;
+                Ok(TxoInfo { txo, memo, status })
             })
-            .collect::<Result<Vec<(Txo, TxoStatus)>, TxoServiceError>>()?;
+            .collect::<Result<Vec<TxoInfo>, TxoServiceError>>()?;
 
-        Ok(txos_and_statuses)
+        Ok(txo_infos)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<(Txo, TxoStatus), TxoServiceError> {
+    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoInfo, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let txo = Txo::get(&txo_id.to_string(), conn)?;
         let status = txo.status(conn)?;
-        Ok((txo, status))
+        let memo = txo.memo(conn)?;
+        Ok(TxoInfo { txo, memo, status })
     }
 
-    fn split_txo(
+    async fn split_txo(
         &self,
         txo_id: &TxoID,
         output_values: &[String],
@@ -332,20 +335,15 @@ where
             fee_token_id,
             tombstone_block,
             None,
-            TransactionMemo::RTH(None, None),
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
             None,
         )?;
 
         let account = Account::get(&AccountID(account_id_hex), conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
-        let fee_map = if self.offline {
-            None
-        } else {
-            Some(self.get_network_fees()?)
-        };
-
-        Ok(unsigned_transaction.sign(&account_key, fee_map.as_ref())?)
+        Ok(unsigned_transaction.sign(&account).await?)
     }
 }
 
@@ -364,13 +362,13 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_txo_lifecycle(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_txo_lifecycle(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -449,15 +447,18 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
+            .await
             .unwrap();
         let _submitted = service
             .submit_transaction(&tx_proposal, None, Some(alice.id.clone()))
             .unwrap();
 
-        let pending: Vec<(Txo, TxoStatus)> = service
+        let pending: Vec<TxoInfo> = service
             .list_txos(
                 Some(alice.id.clone()),
                 None,
@@ -470,7 +471,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pending.len(), 1);
-        assert_eq!(pending[0].0.value, 100000000000000);
+        assert_eq!(pending[0].txo.value, 100000000000000);
 
         // Our balance should reflect the various statuses of our txos
         let balance = service

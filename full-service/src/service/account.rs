@@ -2,7 +2,7 @@
 
 //! Service for managing accounts.
 
-use std::{convert::TryFrom, ops::DerefMut};
+use std::ops::DerefMut;
 
 use crate::{
     db::{
@@ -12,22 +12,35 @@ use crate::{
         txo::TxoModel,
         WalletDbError,
     },
-    json_rpc::{json_rpc_request::JsonRPCRequest, v2::api::request::JsonCommandRequest},
+    json_rpc::{
+        json_rpc_request::JsonRPCRequest,
+        v2::{api::request::JsonCommandRequest, models::account_key::FogInfo},
+    },
     service::{
+        hardware_wallet::{
+            get_view_only_account_keys, get_view_only_subaddress_keys, HardwareWalletServiceError,
+        },
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
 };
 
-use base64;
+use base64::{engine::general_purpose, Engine};
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
-use mc_account_keys::{AccountKey, RootEntropy};
+use mc_account_keys::{
+    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
+};
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
+use mc_core::{
+    account::{RingCtAddress, ViewSubaddress},
+    keys::{RootSpendPublic, RootViewPrivate},
+};
+use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
+use mc_fog_sig_authority::Signer;
 use mc_ledger_db::Ledger;
 use mc_transaction_signer::types::TxoSynced;
 
@@ -71,6 +84,9 @@ pub enum AccountServiceError {
 
     /// Key Error: {0}
     Key(mc_crypto_keys::KeyError),
+
+    /// Error with the HardwareWalletService: {0}
+    HardwareWalletService(HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -127,8 +143,15 @@ impl From<mc_crypto_keys::KeyError> for AccountServiceError {
     }
 }
 
+impl From<HardwareWalletServiceError> for AccountServiceError {
+    fn from(src: HardwareWalletServiceError) -> Self {
+        Self::HardwareWalletService(src)
+    }
+}
+
 /// AccountService trait defining the ways in which the wallet can interact with and manage
 #[rustfmt::skip]
+#[async_trait]
 pub trait AccountService {
     /// Creates a new account with default values.
     ///
@@ -209,11 +232,18 @@ pub trait AccountService {
     ///
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+    ) -> Result<Account, AccountServiceError>;
+
+    async fn import_view_only_account_from_hardware_wallet(
+        &self,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        fog_info: Option<FogInfo>,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -328,6 +358,7 @@ pub trait AccountService {
     ) -> Result<bool, AccountServiceError>;
 }
 
+#[async_trait]
 impl<T, FPR> AccountService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
@@ -469,8 +500,8 @@ where
 
     fn import_view_only_account(
         &self,
-        view_private_key: String,
-        spend_public_key: String,
+        view_private_key: &RootViewPrivate,
+        spend_public_key: &RootSpendPublic,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -482,27 +513,78 @@ where
             first_block_index,
         );
 
-        let view_private_key_hex = hex::decode(view_private_key)?;
-        let view_private_key = RistrettoPrivate::try_from(view_private_key_hex.as_slice())?;
-
-        let spend_public_key_hex = hex::decode(spend_public_key)?;
-        let spend_public_key = RistrettoPublic::try_from(spend_public_key_hex.as_slice())?;
-
-        let import_block_index = self.ledger_db.num_blocks()? - 1;
-
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
+        let view_account_key =
+            ViewAccountKey::new(*view_private_key.as_ref(), *spend_public_key.as_ref());
+
         exclusive_transaction(conn, |conn| {
             Ok(Account::import_view_only(
-                &view_private_key,
-                &spend_public_key,
+                &view_account_key,
                 name,
                 import_block_index,
                 first_block_index,
                 next_subaddress_index,
+                false,
                 conn,
             )?)
         })
+    }
+
+    async fn import_view_only_account_from_hardware_wallet(
+        &self,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        fog_info: Option<FogInfo>,
+    ) -> Result<Account, AccountServiceError> {
+        let view_account = get_view_only_account_keys().await?;
+
+        let view_account_keys = ViewAccountKey::new(
+            *view_account.view_private_key().as_ref(),
+            *view_account.spend_public_key().as_ref(),
+        );
+
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let import_block_index = self.ledger_db.num_blocks()? - 1;
+
+        match fog_info {
+            Some(fog_info) => {
+                let fog_authority_spki =
+                    general_purpose::STANDARD.decode(fog_info.authority_spki)?;
+                let default_subaddress_keys =
+                    get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX).await?;
+
+                let default_public_address = get_public_fog_address(
+                    &default_subaddress_keys,
+                    fog_info.report_url,
+                    &fog_authority_spki,
+                );
+                exclusive_transaction(conn, |conn| {
+                    Ok(Account::import_view_only_from_hardware_wallet_with_fog(
+                        &view_account_keys,
+                        name,
+                        import_block_index,
+                        first_block_index,
+                        &default_public_address,
+                        conn,
+                    )?)
+                })
+            }
+            None => exclusive_transaction(conn, |conn| {
+                Ok(Account::import_view_only(
+                    &view_account_keys,
+                    name,
+                    import_block_index,
+                    first_block_index,
+                    None,
+                    true,
+                    conn,
+                )?)
+            }),
+        }
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
@@ -634,6 +716,33 @@ where
     }
 }
 
+fn get_public_fog_address(
+    subaddress_keys: &ViewSubaddress,
+    fog_report_url: String,
+    fog_authority_spki_bytes: &[u8],
+) -> PublicAddress {
+    let fog_authority_sig = {
+        let sig = subaddress_keys
+            .view_private
+            .as_ref()
+            .sign_authority(fog_authority_spki_bytes)
+            .unwrap();
+        let sig_bytes: &[u8] = sig.as_ref();
+        sig_bytes.to_vec()
+    };
+
+    let subaddress_view_public = subaddress_keys.view_public_key();
+    let subaddress_spend_public = subaddress_keys.spend_public_key();
+
+    PublicAddress::new_with_fog(
+        subaddress_spend_public.as_ref(),
+        subaddress_view_public.as_ref(),
+        fog_report_url,
+        "".to_string(),
+        fog_authority_sig,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -647,13 +756,53 @@ mod tests {
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::{TryFrom, TryInto};
+
+    #[test]
+    fn test_get_public_fog_address() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let view_private_key = RistrettoPrivate::from_random(&mut rng);
+        let spend_private_key = RistrettoPrivate::from_random(&mut rng);
+        let fog_report_url = "fog://fog.test.mobilecoin.com".to_string();
+        let fog_authority_spki = "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".as_bytes().to_vec();
+
+        let account_key = AccountKey::new_with_fog(
+            &spend_private_key,
+            &view_private_key,
+            fog_report_url.clone(),
+            "".to_string(),
+            fog_authority_spki.clone(),
+        );
+
+        let public_address_from_account_key = account_key.default_subaddress();
+        let default_subaddress_view_private = account_key.default_subaddress_view_private();
+        let default_subaddress_spend_private = account_key.default_subaddress_spend_private();
+        let default_subaddress_spend_public: RistrettoPublic =
+            (&default_subaddress_spend_private).into();
+
+        let default_view_subaddress = ViewSubaddress {
+            view_private: default_subaddress_view_private.into(),
+            spend_public: default_subaddress_spend_public.into(),
+        };
+
+        let public_address_from_view_subaddress = get_public_fog_address(
+            &default_view_subaddress,
+            fog_report_url,
+            fog_authority_spki.as_ref(),
+        );
+
+        assert_eq!(
+            public_address_from_account_key,
+            public_address_from_view_subaddress
+        );
+    }
 
     #[test_with_logger]
     fn test_resync_account(logger: Logger) {
@@ -693,7 +842,7 @@ mod tests {
         assert_eq!(account.first_block_index, 0);
         assert_eq!(account.next_block_index, account.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(
             account.next_block_index as u64,
@@ -703,7 +852,7 @@ mod tests {
         service.resync_account(&account_id).unwrap();
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(account.next_block_index, account.first_block_index);
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account = service.get_account(&account_id).unwrap();
         assert_eq!(
             account.next_block_index as u64,
@@ -727,7 +876,7 @@ mod tests {
         );
         assert_eq!(account2.next_block_index, account2.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(
             account2.next_block_index as u64,
@@ -738,7 +887,7 @@ mod tests {
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(account2.next_block_index, account2.first_block_index);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_id, &service.logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_id, &service.logger);
         let account2 = service.get_account(&account_id).unwrap();
         assert_eq!(
             account2.next_block_index as u64,
@@ -746,8 +895,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_resync_account_badly_stored_txo(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_resync_account_badly_stored_txo(logger: Logger) {
         use crate::{
             db::{
                 account::AccountID,
@@ -816,7 +965,7 @@ mod tests {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
 
         /* Send the transaction after corrupting the txo entry */
         // build and sign a transaction
@@ -830,7 +979,8 @@ mod tests {
             72 * MOB,
             wallet_db.clone(),
             ledger_db.clone(),
-        );
+        )
+        .await;
 
         // Store the real values for the txo's amount and target_key (arbitrary fields
         // we want to corrupt and sync back)
@@ -863,8 +1013,8 @@ mod tests {
         .unwrap();
 
         // manually sync the account
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_b_id, &logger);
 
         // manually overwrite the amount and target_key of the output txo to
         // something bogus
@@ -875,7 +1025,7 @@ mod tests {
         assert_ne!(expected_target_key, corrupted_target_key);
         diesel::update(&associated_txos.outputs[0].0)
             .set((
-                txos::value.eq(corrupted_txo_amount as i64),
+                txos::value.eq(corrupted_txo_amount),
                 txos::target_key.eq(&corrupted_target_key),
             ))
             .execute(conn)
@@ -888,8 +1038,8 @@ mod tests {
         // resync the account
         service.resync_account(&account_a_id).unwrap();
         service.resync_account(&account_b_id).unwrap();
-        manually_sync_account(&ledger_db, &wallet_db, &account_a_id, &logger);
-        manually_sync_account(&ledger_db, &wallet_db, &account_b_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_a_id, &logger);
+        manually_sync_account(&ledger_db, wallet_db, &account_b_id, &logger);
 
         //  - check that the txo we futzed with is now stored correctly
         //  - check that the transaction log entries are exactly the same as before
@@ -955,7 +1105,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 1);
@@ -973,7 +1123,7 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(txos.len(), 0);
@@ -1065,8 +1215,8 @@ mod tests {
 
         let view_only_account = service
             .import_view_only_account(
-                hex::encode(view_account_key.view_private_key().to_bytes()),
-                hex::encode(view_account_key.spend_public_key().to_bytes()),
+                &(*view_account_key.view_private_key()).into(),
+                &(*view_account_key.spend_public_key()).into(),
                 None,
                 None,
                 None,
@@ -1096,7 +1246,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1111,7 +1261,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1144,7 +1294,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1157,7 +1307,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1171,7 +1321,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1189,7 +1339,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1217,7 +1367,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(unverified_txos.len(), 0);
@@ -1230,7 +1380,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(unspent_txos.len(), 2);

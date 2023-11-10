@@ -165,7 +165,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert!(result["removed"].as_bool().unwrap(),);
         assert_eq!(
             txos::table
                 .select(count(txos::id))
@@ -314,7 +314,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert!(result["removed"].as_bool().unwrap(),);
 
         // Add the same account back.
         let body = json!({
@@ -407,7 +407,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert!(result["removed"].as_bool().unwrap(),);
 
         // Send some coins to the removed second account.
         let body = json!({
@@ -477,7 +477,7 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        assert_eq!(result["removed"].as_bool().unwrap(), true,);
+        assert!(result["removed"].as_bool().unwrap(),);
 
         let body = json!({
             "jsonrpc": "2.0",

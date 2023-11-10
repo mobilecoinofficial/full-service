@@ -82,7 +82,7 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
         } => {
             let signed_tx = service::sign_tx(
                 &mnemonic,
-                unsigned_tx_proposal
+                (&unsigned_tx_proposal)
                     .try_into()
                     .map_err(|e: String| anyhow!(e))?,
             )?;

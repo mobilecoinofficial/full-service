@@ -5,10 +5,12 @@
 
 pub mod account;
 pub mod assigned_subaddress;
+pub mod authenticated_sender_memo;
 pub mod gift_code;
 pub mod models;
 pub mod schema;
 pub mod transaction_log;
+pub mod transaction_output_txo;
 pub mod txo;
 mod wallet_db;
 mod wallet_db_error;

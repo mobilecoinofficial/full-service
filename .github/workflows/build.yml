@@ -33,7 +33,7 @@ jobs:
           - runner-tags: [self-hosted, macOS, ARM64]
             container: ""
           - runner-tags: [self-hosted, Linux, large]
-            container: mobilecoin/rust-sgx-base:latest
+            container: mobilecoin/rust-sgx-base:v0.0.28
           - namespace: test
             network: testnet
           - namespace: prod
@@ -55,7 +55,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2023-01-04
+          toolchain: nightly-2023-06-01
           override: true
           components: rustfmt, clippy
 

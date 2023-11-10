@@ -14,6 +14,7 @@ use crate::{
     util::b58::B58Error,
 };
 use displaydoc::Display;
+use hex::FromHexError;
 
 #[derive(Display, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -160,6 +161,48 @@ impl From<serde_json::Error> for WalletServiceError {
 impl From<diesel::result::Error> for WalletServiceError {
     fn from(src: diesel::result::Error) -> Self {
         Self::Diesel(src)
+    }
+}
+
+#[derive(Display, Debug)]
+pub enum T3SyncError {
+    /// WalletDb: {0}
+    WalletDb(WalletDbError),
+
+    /// FromHex: {0}
+    FromHex(FromHexError),
+
+    /// T3Connection: {0}
+    T3Connection(t3_connection::Error),
+
+    /// mc util serial decode: {0}
+    McUtilSerialDecode(mc_util_serial::DecodeError),
+
+    /// Txo with ID {0} does not have an authenticated sender memo
+    TxoMemoIsNotAuthenticatedSender(String),
+}
+
+impl From<WalletDbError> for T3SyncError {
+    fn from(src: WalletDbError) -> Self {
+        Self::WalletDb(src)
+    }
+}
+
+impl From<FromHexError> for T3SyncError {
+    fn from(src: FromHexError) -> Self {
+        Self::FromHex(src)
+    }
+}
+
+impl From<t3_connection::Error> for T3SyncError {
+    fn from(src: t3_connection::Error) -> Self {
+        Self::T3Connection(src)
+    }
+}
+
+impl From<mc_util_serial::DecodeError> for T3SyncError {
+    fn from(src: mc_util_serial::DecodeError) -> Self {
+        Self::McUtilSerialDecode(src)
     }
 }
 

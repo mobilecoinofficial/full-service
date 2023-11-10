@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        account::AccountID,
+        account::{AccountID, AccountModel},
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -36,7 +36,9 @@ use crate::{
         address::AddressService,
         balance::BalanceService,
         confirmation_number::ConfirmationService,
+        hardware_wallet::sync_txos,
         ledger::LedgerService,
+        memo::MemoService,
         models::tx_proposal::TxProposal,
         network::get_token_metadata,
         payment_request::PaymentRequestService,
@@ -52,12 +54,11 @@ use crate::{
         PrintableWrapperType,
     },
 };
-
-use mc_account_keys::burn_address;
+use mc_account_keys::{burn_address, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_core::Amount;
@@ -187,6 +188,16 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let transaction_memo = match payment_request_id {
+                Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                    payment_request_id,
+                },
+                None => TransactionMemo::RTH {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                },
+            };
+
             let (transaction_log, associated_txos, value_map, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -197,12 +208,10 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(
-                        sender_memo_credential_subaddress_index,
-                        payment_request_id,
-                    ),
+                    transaction_memo,
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_and_submit_transaction {
@@ -260,6 +269,7 @@ where
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_burn_transaction {
@@ -304,6 +314,16 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            let transaction_memo = match payment_request_id {
+                Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                    payment_request_id,
+                },
+                None => TransactionMemo::RTH {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                },
+            };
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -313,12 +333,10 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(
-                        sender_memo_credential_subaddress_index,
-                        payment_request_id,
-                    ),
+                    transaction_memo,
                     block_version,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_transaction {
@@ -357,7 +375,7 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = (&service
                 .build_transaction(
                     &account_id,
                     &[(
@@ -372,7 +390,7 @@ where
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
                 )
-                .map_err(format_error)?
+                .map_err(format_error)?)
                 .try_into()
                 .map_err(format_error)?;
 
@@ -406,7 +424,7 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = service
+            let unsigned_tx_proposal: UnsignedTxProposal = (&service
                 .build_transaction(
                     &account_id,
                     &addresses_and_amounts,
@@ -418,7 +436,7 @@ where
                     TransactionMemo::Empty,
                     block_version,
                 )
-                .map_err(format_error)?
+                .map_err(format_error)?)
                 .try_into()
                 .map_err(format_error)?;
 
@@ -445,6 +463,7 @@ where
                     b58_data.insert("value".to_string(), payment_request.value.to_string());
                     b58_data.insert("token_id".to_string(), payment_request.token_id.to_string());
                     b58_data.insert("memo".to_string(), payment_request.memo);
+                    b58_data.insert("token_id".to_string(), payment_request.token_id.to_string());
                 }
             }
             JsonCommandResponse::check_b58_type {
@@ -458,14 +477,13 @@ where
         } => {
             let receipt = service::receipt::ReceiverReceipt::try_from(&receiver_receipt)
                 .map_err(format_error)?;
-            let (status, txo_and_status) = service
+            let (status, txo_status_and_memo) = service
                 .check_receipt_status(&address, &receipt)
                 .map_err(format_error)?;
+
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status
-                    .as_ref()
-                    .map(|(txo, status)| Txo::new(txo, status)),
+                txo: txo_status_and_memo.map(|txo_info| (&txo_info).into()),
             }
         }
         JsonCommandRequest::create_account { name, fog_info } => {
@@ -479,7 +497,17 @@ where
                 .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
                 .map_err(format_error)?;
 
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
 
             JsonCommandResponse::create_account { account }
         }
@@ -535,14 +563,15 @@ where
                 .map_err(format_error)?;
 
             let mut unsynced_txos = vec![];
-            for (txo, _) in unverified_txos {
-                let txo_pubkey: RistrettoPublic = (&txo.public_key().map_err(format_error)?)
-                    .try_into()
-                    .map_err(format_error)?;
+            for txo_info in unverified_txos {
+                let txo_pubkey: RistrettoPublic =
+                    (&txo_info.txo.public_key().map_err(format_error)?)
+                        .try_into()
+                        .map_err(format_error)?;
                 // We can guarantee that subaddress index will exist because the query for
                 // unverified txos only returns txos that have a subaddress
                 // index but not a key image.
-                let subaddress_index = txo.subaddress_index.unwrap() as u64;
+                let subaddress_index = txo_info.txo.subaddress_index.unwrap() as u64;
                 unsynced_txos.push(TxoUnsynced {
                     subaddress: subaddress_index,
                     tx_out_public_key: txo_pubkey.into(),
@@ -578,7 +607,17 @@ where
                 .get_next_subaddress_index_for_account(&AccountID(account_id.clone()))
                 .map_err(format_error)?;
 
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
 
             let network_status = service.get_network_status().map_err(format_error)?;
 
@@ -609,9 +648,18 @@ where
                         let next_subaddress_index = service
                             .get_next_subaddress_index_for_account(&AccountID(a.id.clone()))
                             .map_err(format_error)?;
+                        let main_public_address: mc_account_keys::PublicAddress = (&service
+                            .get_address_for_account(
+                                &a.id.clone().into(),
+                                DEFAULT_SUBADDRESS_INDEX as i64,
+                            )
+                            .map_err(format_error)?)
+                            .try_into()
+                            .map_err(format_error)?;
                         Ok((
                             a.id.to_string(),
-                            Account::new(a, next_subaddress_index).map_err(format_error)?,
+                            Account::new(a, &main_public_address, next_subaddress_index)
+                                .map_err(format_error)?,
                         ))
                     })
                     .collect::<Result<_, _>>()?,
@@ -914,9 +962,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo, &status),
+                txo: (&txo_info).into(),
             }
         }
         JsonCommandRequest::get_txo_block_index { public_key } => {
@@ -978,10 +1026,11 @@ where
             let txo_map = Map::from_iter(
                 txos_and_statuses
                     .iter()
-                    .map(|(t, s)| {
+                    .map(|txo_info| {
                         (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                            txo_info.txo.id.clone(),
+                            serde_json::to_value(Txo::from(txo_info))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
@@ -989,8 +1038,8 @@ where
 
             JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
-                    .iter()
-                    .map(|(t, _)| t.id.clone())
+                    .into_iter()
+                    .map(|txo_info| txo_info.txo.id)
                     .collect(),
                 txo_map,
             }
@@ -1068,7 +1117,17 @@ where
                 .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
                 .map_err(format_error)?;
 
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
 
             JsonCommandResponse::import_account { account }
         }
@@ -1105,7 +1164,17 @@ where
                 .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
                 .map_err(format_error)?;
 
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
 
             JsonCommandResponse::import_account { account }
         }
@@ -1125,15 +1194,73 @@ where
                 .transpose()
                 .map_err(format_error)?;
 
+            let mut view_private_key_bytes = [0u8; 32];
+            hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)
+                .map_err(format_error)?;
+            let view_private_key: RistrettoPrivate =
+                (&view_private_key_bytes).try_into().map_err(format_error)?;
+
+            let mut spend_public_key_bytes = [0u8; 32];
+            hex::decode_to_slice(spend_public_key, &mut spend_public_key_bytes)
+                .map_err(format_error)?;
+            let spend_public_key: RistrettoPublic =
+                (&spend_public_key_bytes).try_into().map_err(format_error)?;
+
             let account = service
-                .import_view_only_account(view_private_key, spend_public_key, name, fb, ns)
+                .import_view_only_account(
+                    &view_private_key.into(),
+                    &spend_public_key.into(),
+                    name,
+                    fb,
+                    ns,
+                )
                 .map_err(format_error)?;
             let next_subaddress_index = service
                 .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
                 .map_err(format_error)?;
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
 
             JsonCommandResponse::import_view_only_account { account }
+        }
+        JsonCommandRequest::import_view_only_account_from_hardware_wallet {
+            name,
+            first_block_index,
+            fog_info,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            let account = service
+                .import_view_only_account_from_hardware_wallet(name, fb, fog_info)
+                .await
+                .map_err(format_error)?;
+
+            let next_subaddress_index = 1;
+
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
+
+            JsonCommandResponse::import_view_only_account_from_hardware_wallet { account }
         }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
@@ -1220,6 +1347,49 @@ where
             account_id,
             synced_txos,
         } => {
+            let synced_txos = match synced_txos {
+                Some(synced_txos) => synced_txos,
+                None => {
+                    let account = service
+                        .get_account(&AccountID(account_id.clone()))
+                        .map_err(format_error)?;
+                    let view_account_keys = account.view_account_key().map_err(format_error)?;
+
+                    let unverified_txos = service
+                        .list_txos(
+                            Some(account_id.clone()),
+                            None,
+                            Some(TxoStatus::Unverified),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                        .map_err(format_error)?;
+
+                    let unsynced_txos = unverified_txos
+                        .iter()
+                        .map(|txo_info| {
+                            let subaddress_index = match txo_info.txo.subaddress_index {
+                                Some(subaddress_index) => subaddress_index,
+                                None => {
+                                    return Err(format_error(
+                                        "Unsynced txo is missing subaddress index, which is required to sync",
+                                    ))
+                                }
+                            };
+                            let txo = service.get_txo_object(&txo_info.txo.id).map_err(format_error)?;
+                            Ok((txo, subaddress_index as u64))
+                        })
+                        .collect::<Result<Vec<_>, JsonRPCError>>()?;
+
+                    sync_txos(unsynced_txos, &view_account_keys)
+                        .await
+                        .map_err(format_error)?
+                }
+            };
+
             service
                 .sync_account(&AccountID(account_id), synced_txos)
                 .map_err(format_error)?;
@@ -1234,7 +1404,16 @@ where
             let next_subaddress_index = service
                 .get_next_subaddress_index_for_account(&account_id)
                 .map_err(format_error)?;
-            let account = Account::new(&account, next_subaddress_index).map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
             JsonCommandResponse::update_account_name { account }
         }
         JsonCommandRequest::validate_confirmation {
@@ -1246,6 +1425,16 @@ where
                 .validate_confirmation(&AccountID(account_id), &TxoID(txo_id), &confirmation)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_confirmation { validated: result }
+        }
+        JsonCommandRequest::validate_sender_memo {
+            account_id,
+            txo_id,
+            sender_address,
+        } => {
+            let result = service
+                .validate_sender_memo(&AccountID(account_id), &txo_id, &sender_address)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_sender_memo { validated: result }
         }
         JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
             verified: service.verify_address(&address).is_ok(),

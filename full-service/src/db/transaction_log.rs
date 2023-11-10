@@ -592,14 +592,10 @@ impl TransactionLogModel for TransactionLog {
                 .execute(conn)?;
         }
 
-        // TODO - Get each payload txo and add it to the transaction_output_txos
-        // table for this transactions.
         for payload_txo in unsigned_tx_proposal.payload_txos.iter() {
             Txo::create_new_output(payload_txo, false, &transaction_log_id, conn)?;
         }
 
-        // TODO - Get each change txo and add it to the transaction_output_txos
-        // table for this transaction as change.
         for change_txo in unsigned_tx_proposal.change_txos.iter() {
             Txo::create_new_output(change_txo, true, &transaction_log_id, conn)?;
         }
@@ -856,7 +852,7 @@ mod tests {
     use std::ops::DerefMut;
 
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
@@ -877,7 +873,7 @@ mod tests {
 
     use super::*;
 
-    #[test_with_logger]
+    #[async_test_with_logger]
     // Test the happy path for log_submitted. When a transaction is submitted to the
     // MobileCoin network, several things must happen for Full-Service to
     // maintain accurate transaction history.
@@ -887,7 +883,7 @@ mod tests {
     // 3. The change TXO(s) are marked as minted, secreted
     // 4. The transaction_log is created and added to the transaction_log table
     // 5. Once the change is received, it is marked as minted, unspent
-    fn test_log_submitted(logger: Logger) {
+    async fn test_log_submitted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -909,6 +905,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -917,12 +916,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
 
         assert_eq!(
             TransactionId::from(&tx_proposal),
@@ -958,20 +959,20 @@ mod tests {
 
         // Check the associated_txos for this transaction_log are as expected
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There is one associated input TXO to this transaction, and it is now pending.
         assert_eq!(associated_txos.inputs.len(), 1);
         let input_details = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details.value as u64, 70 * MOB);
         assert_eq!(
             input_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -986,7 +987,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 50 * MOB);
@@ -999,7 +1000,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
@@ -1037,7 +1038,7 @@ mod tests {
 
         let updated_tx_log = TransactionLog::get(
             &TransactionId::from(&tx_log),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1046,7 +1047,7 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1064,8 +1065,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_submitted_zero_change(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_zero_change(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1087,6 +1088,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         // Add outlays all to the same recipient, so that we exceed u64::MAX in this tx
@@ -1098,9 +1102,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         let tx_log = TransactionLog::log_submitted(
             &tx_proposal,
@@ -1113,7 +1122,7 @@ mod tests {
 
         assert_eq!(tx_log.account_id, AccountID::from(&account_key).to_string());
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
         assert_eq!(associated_txos.outputs.len(), 1);
         assert_eq!(
@@ -1135,15 +1144,15 @@ mod tests {
 
         // Get associated Txos
         let associated = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
         assert_eq!(associated.inputs.len(), 1);
         assert_eq!(associated.outputs.len(), 1);
         assert_eq!(associated.change.len(), 1);
     }
 
-    #[test_with_logger]
-    fn test_delete_transaction_logs_for_account(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_delete_transaction_logs_for_account(logger: Logger) {
         use crate::db::schema::{
             transaction_input_txos, transaction_logs, transaction_output_txos,
         };
@@ -1172,15 +1181,23 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         // Log submitted transaction from tx_proposal
         TransactionLog::log_submitted(
@@ -1215,7 +1232,7 @@ mod tests {
         // Delete the transaction logs for one account.
         let result = TransactionLog::delete_all_for_account(
             &account_id.to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         );
         assert!(result.is_ok());
 
@@ -1248,8 +1265,8 @@ mod tests {
     //
     // This test confirms that submitting a transaction_log for < u64::Max, but >
     // i64::Max succeeds
-    #[test_with_logger]
-    fn test_log_submitted_big_int(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_big_int(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1271,6 +1288,9 @@ mod tests {
         // Build a transaction for > i64::Max
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -1279,9 +1299,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         assert_eq!(
             tx_proposal.payload_txos[0].amount.value,
@@ -1315,8 +1340,8 @@ mod tests {
     //
     // Note: This is also testing 2 inputs, as opposed to the happy path test
     // above, which tests only 1 input.
-    #[test_with_logger]
-    fn test_log_submitted_to_self(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_to_self(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1337,6 +1362,9 @@ mod tests {
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let mut builder = WalletTransactionBuilder::new(
             AccountID::from(&account_key).to_string(),
             ledger_db.clone(),
@@ -1349,9 +1377,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let tx_proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         // Log submitted transaction from tx_proposal
         let tx_log = TransactionLog::log_submitted(
@@ -1365,21 +1398,21 @@ mod tests {
 
         // Get the associated txos for this transaction
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There are two input TXOs to this transaction, and they are both now pending.
         assert_eq!(associated_txos.inputs.len(), 2);
         let input_details0 = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details0.value, associated_txos.inputs[0].value);
 
         assert_eq!(
             input_details0
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1387,14 +1420,14 @@ mod tests {
 
         let input_details1 = Txo::get(
             &associated_txos.inputs[1].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details1.value, associated_txos.inputs[1].value);
 
         assert_eq!(
             input_details1
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1414,7 +1447,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 12 * MOB);
@@ -1427,7 +1460,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         // Change = (8 + 7) - 12 - fee
@@ -1459,25 +1492,25 @@ mod tests {
         // Get the Input Txos again
         let updated_input_details0 = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let updated_input_details1 = Txo::get(
             &associated_txos.inputs[1].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
         // The inputs are now spent
         assert_eq!(
             updated_input_details0
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Spent
         );
         assert_eq!(
             updated_input_details1
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Spent
         );
@@ -1499,13 +1532,13 @@ mod tests {
         // Get the output txo again
         let updated_output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         // The minted from account is ourself, and it is unspent, minted
         assert_eq!(
             updated_output_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Unspent
         );
@@ -1522,13 +1555,13 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
         assert_eq!(
             updated_change_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Unspent
         );
@@ -1539,8 +1572,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_built_signed_and_submitted(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_built_signed_and_submitted(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1562,6 +1595,9 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder
@@ -1570,7 +1606,12 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
 
         let tx_log =
@@ -1592,10 +1633,7 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
@@ -1654,20 +1692,20 @@ mod tests {
 
         // Check the associated_txos for this transaction_log are as expected
         let associated_txos = tx_log
-            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+            .get_associated_txos(wallet_db.get_pooled_conn().unwrap().deref_mut())
             .unwrap();
 
         // There is one associated input TXO to this transaction, and it is now pending.
         assert_eq!(associated_txos.inputs.len(), 1);
         let input_details = Txo::get(
             &associated_txos.inputs[0].id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(input_details.value as u64, 70 * MOB);
         assert_eq!(
             input_details
-                .status(&mut wallet_db.get_pooled_conn().unwrap().deref_mut())
+                .status(wallet_db.get_pooled_conn().unwrap().deref_mut())
                 .unwrap(),
             TxoStatus::Pending
         );
@@ -1682,7 +1720,7 @@ mod tests {
         );
         let output_details = Txo::get(
             &associated_txos.outputs[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(output_details.value as u64, 50 * MOB);
@@ -1695,7 +1733,7 @@ mod tests {
         assert_eq!(associated_txos.change.len(), 1);
         let change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         assert_eq!(change_details.value as u64, 20 * MOB - Mob::MINIMUM_FEE);
@@ -1733,7 +1771,7 @@ mod tests {
 
         let updated_tx_log = TransactionLog::get(
             &TransactionId::from(&tx_log),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1742,7 +1780,7 @@ mod tests {
         // Get the change txo again
         let updated_change_details = Txo::get(
             &associated_txos.change[0].0.id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
@@ -1760,8 +1798,8 @@ mod tests {
         );
     }
 
-    #[test_with_logger]
-    fn test_log_submitted_with_comment_change(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_log_submitted_with_comment_change(logger: Logger) {
         // Test setup
 
         // log_submitted
@@ -1788,13 +1826,21 @@ mod tests {
         // Build a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
         builder.add_recipient(recipient, 50 * MOB, Mob::ID).unwrap();
         builder.set_tombstone(0).unwrap();
         builder.select_txos(conn, None).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
 
         let tx_log =
@@ -1816,10 +1862,7 @@ mod tests {
 
         assert_eq!(tx_log, expected_tx_log);
 
-        let tx_proposal = unsigned_tx_proposal
-            .clone()
-            .sign(&account_key, None)
-            .unwrap();
+        let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
@@ -1875,7 +1918,4 @@ mod tests {
 
         assert_eq!(tx_log.tx, expected_tx_log.tx);
     }
-
-    // FIXME: test_log_submitted for recovered
-    // FIXME: test_log_submitted offline flow
 }

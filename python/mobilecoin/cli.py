@@ -3,12 +3,14 @@ from decimal import Decimal
 import json
 from pathlib import Path
 from textwrap import indent
+from contextlib import contextmanager
 
 from .client import (
     ClientSync as Client,
     WalletAPIError,
     log as client_log,
 )
+from .fog import FOG_INFO
 from .token import Amount, get_token, TOKENS
 
 
@@ -62,9 +64,8 @@ class CommandLineInterface:
         # Create account.
         self.create_args = command_sp.add_parser('create', help='Create a new account.')
         self.create_args.add_argument('-n', '--name', help='Account name.')
-        self.create_args.add_argument('--fog-report-url', help='Fog report server URL.')
-        self.create_args.add_argument('--fog-authority-spki',
-                                      help='Fog authority subject public key info')
+        self.create_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service.')
 
         # Rename account.
         self.rename_args = command_sp.add_parser('rename', help='Change account name.')
@@ -75,10 +76,19 @@ class CommandLineInterface:
         self.import_args = command_sp.add_parser('import', help='Import an account.')
         self.import_args.add_argument('backup', help='Account backup file, mnemonic recovery phrase, or legacy root entropy in hexadecimal.')
         self.import_args.add_argument('-n', '--name', help='Account name.')
-        self.import_args.add_argument('-b', '--block', type=int,
-                                      help='Block index at which to start the account. No transactions before this block will be loaded.')
-        self.import_args.add_argument('--key_derivation_version', type=int, default=2,
-                                      help='The version number of the key derivation path which the mnemonic was created with.')
+        self.import_args.add_argument('-b', '--block', type=int, help='Block index at which to start the account. No transactions before this block will be loaded.')
+        self.import_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service for this account.')
+
+        # Import hardware wallet account.
+        self.import_hardware_args = command_sp.add_parser('import-hardware', help='Import an account from a hardware wallet.')
+        self.import_hardware_args.add_argument('-n', '--name', help='Account name.')
+        self.import_hardware_args.add_argument('--disable-fog', action='store_true',
+                                      help='Developer-only option to disable the fog service.')
+
+        # Verify transactions for hardware wallet account.
+        self.verify_args = command_sp.add_parser('verify', help='Verify unverified transactions on hardware wallet.')
+        self.verify_args.add_argument('account_id', help='ID of the account to verify.')
 
         # Export account.
         self.export_args = command_sp.add_parser('export', help='Export secret entropy mnemonic.')
@@ -93,6 +103,7 @@ class CommandLineInterface:
         # Show transaction history.
         self.history_args = command_sp.add_parser('history', help='Show account transaction history.')
         self.history_args.add_argument('account_id', help='Account ID.')
+        self.history_args.add_argument('-T', '--txos', action='store_true', help='List transaction outputs for account.')
 
         # Send transaction.
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
@@ -167,35 +178,34 @@ class CommandLineInterface:
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
 
-        # Sync view-only account.
-        self.sync_args = command_sp.add_parser('sync', help='Sync a view-only account.')
-        self.sync_args.add_argument(
-            'account_id_or_sync_response',
-            help=(
-                'If an account ID is passed, then generate a sync request for the transaction signer. '
-                'Once the signer is finished, call this again with the completed json file.'
-            )
-        )
-
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
 
     def _load_account_prefix(self, prefix):
-        accounts = self.client.get_accounts()
+        """Find all accounts whose id or name starts with the given prefix."""
 
-        matching_ids = [
-            a_id for a_id in accounts.keys()
-            if a_id.startswith(prefix)
-        ]
+        if len(prefix) < 2:
+            print('Account prefix must be at least 2 characters.')
+            exit(1)
+        prefix = prefix.lower()
+        matching_ids = []
+        accounts = self.client.get_accounts()
+        for a_id, account in accounts.items():
+            a_id = a_id.lower()
+            a_name = account['name'].lower()
+            if a_id.startswith(prefix):
+                matching_ids.append(a_id)
+            elif a_name.startswith(prefix):
+                matching_ids.append(a_id)
 
         if len(matching_ids) == 0:
-            print('Could not find account starting with', prefix)
+            print('Could not find an account starting with', prefix)
             exit(1)
         elif len(matching_ids) == 1:
             account_id = matching_ids[0]
             return accounts[account_id]
         else:
-            print('Multiple matching matching ids: {}'.format(', '.join(matching_ids)))
+            print('Multiple accounts match the prefix: {}'.format(', '.join(matching_ids)))
             exit(1)
 
     def confirm(self, message):
@@ -257,8 +267,15 @@ class CommandLineInterface:
             print()
             _print_account(status)
 
-    def create(self, **args):
-        account = self.client.create_account(**args)
+    def create(self, name=None, disable_fog=False):
+        if disable_fog:
+            fog_info = None
+        else:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            fog_info = FOG_INFO[chain_id]
+
+        account = self.client.create_account(name=name, fog_info=fog_info)
         print('Created a new account.')
         print(_format_account_header(account))
 
@@ -275,63 +292,75 @@ class CommandLineInterface:
         print(_format_account_header(account))
         print()
 
-    def import_(self, backup, name=None, block=None, key_derivation_version=2):
-        account = None
+    def import_(
+        self,
+        backup,
+        name=None,
+        block=None,
+        disable_fog=False,
+    ):
+        params = {}
         if backup.endswith('.json'):
             with open(backup) as f:
                 data = json.load(f)
 
-            if data.get('method') == 'import_view_only_account':
-                account = self.client.import_view_only_account(data['params'])
-            else:
-                params = {}
+            if name is not None:
+                params['name'] = name
 
-                if name is not None:
-                    params['name'] = name
+            for field in [
+                'mnemonic',
+                'name',
+                'first_block_index',
+                'next_subaddress_index',
+            ]:
+                value = data.get(field)
+                if value is not None:
+                    params[field] = value
 
-                for field in [
-                    'mnemonic',
-                    'name',
-                    'first_block_index',
-                    'next_subaddress_index',
-                ]:
-                    value = data.get(field)
-                    if value is not None:
-                        params[field] = value
+            if 'account_key' in data:
+                fog_info = {
+                    "report_url": data['account_key'].get('fog_report_url'),
+                    "authority_spki": data['account_key'].get('fog_authority_spki'),
+                }
+                if any(fog_info.values()):
+                    params['fog_info'] = fog_info
 
-                if 'account_key' in data:
-                    for field in [
-                        'fog_report_url',
-                        'fog_authority_spki',
-                    ]:
-                        value = data['account_key'].get(field)
-                        if value is not None:
-                            params[field] = value
+        else:  # Assume that this is just a mnemonic phrase written to the command line.
+            params['mnemonic'] = backup
 
-                account = self.client.import_account(**params)
+        # Override fields from the .json file from command line arguments.
+        if name is not None:
+            params['name'] = name
+        if block is not None:
+            params['first_block_index'] = block
 
-        else:
-            # Try to use the legacy import system, treating the string as hexadecimal root entropy.
-            root_entropy = None
-            try:
-                b = bytes.fromhex(backup)
-                if len(b) == 32:
-                    root_entropy = b.hex()
-            except ValueError:
-                pass
-            if root_entropy is not None:
-                account = self.client.import_account_from_legacy_root_entropy(root_entropy)
-            else:
-                # Lastly, assume that this is just a mnemonic phrase written to the command line.
-                account = self.client.import_account(backup)
+        if disable_fog:
+            params['fog_info'] = None
+        elif 'fog_info' not in params:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            params['fog_info'] = FOG_INFO[chain_id]
 
-        if account is None:
-            print('Could not import account.')
-            return
+        account = self.client.import_account(**params)
 
         print('Imported account.')
         print(_format_account_header(account))
         print()
+
+    def import_hardware(self, name=None, disable_fog=False):
+        if disable_fog:
+            fog_info = None
+        else:
+            network_status = self.client.get_network_status()
+            chain_id = network_status['network_info']['chain_id']
+            fog_info = FOG_INFO[chain_id]
+
+        print('Importing view keys from hardware wallet, please approve on device.')
+        print()
+        with handle_ledger_error():
+            account = self.client.import_view_only_account_from_hardware_wallet(name=name, fog_info=fog_info)
+        print('Imported account.')
+        print(_format_account_header(account))
 
     def export(self, account_id, show=False):
         account = self._load_account_prefix(account_id)
@@ -379,20 +408,12 @@ class CommandLineInterface:
         account_id = account['id']
         status = self.client.get_account_status(account_id)
 
-        if account.get('view_only'):
-            print('You are about to remove this view key:')
-            print()
-            _print_account(status)
-            print()
-            print('You will lose the ability to see related transactions unless you')
-            print('restore it from backup.')
-        else:
-            print('You are about to remove this account:')
-            print()
-            _print_account(status)
-            print()
-            print('You will lose access to this account unless you restore it')
-            print('from the mnemonic phrase.')
+        print('You are about to remove this account:')
+        print()
+        _print_account(status)
+        print()
+        print('You will lose access to this account unless you restore it')
+        print('from the mnemonic phrase.')
 
         if not self.confirm('Continue? (Y/N) '):
             print('Cancelled.')
@@ -401,9 +422,26 @@ class CommandLineInterface:
         self.client.remove_account(account_id)
         print('Removed.')
 
-    def history(self, account_id):
+    def history(self, account_id, txos=False):
         account = self._load_account_prefix(account_id)
         account_id = account['id']
+
+        if txos:
+            r = self.client.get_txos(account_id)
+            txos = list(r['txo_map'].values())
+            txos.sort(key=lambda txo: txo['received_block_index'])
+            for txo in txos:
+                print()
+                print('id:', txo['id'])
+                print('amount:', Amount.from_storage_units(txo['value'], txo['token_id']))
+                print('subaddress:', txo['subaddress_index'])
+                print('received in block:', txo['received_block_index'])
+                print('spent in block:', txo['spent_block_index'])
+                print('status:', txo['status'])
+
+                mcp_txo = self.client.get_mc_protocol_txo(txo['id'])
+                print('e_memo:', mcp_txo['txo']['e_memo'])
+            return
 
         own_addresses = self.client.get_addresses(account_id)
         own_addresses = set( a['public_address_b58'] for a in own_addresses.values() )
@@ -420,7 +458,7 @@ class CommandLineInterface:
             elif submitted is None and finalized is not None:
                 return finalized
             else:
-                return None
+                return t['tombstone_block_index']
 
         transactions = sorted(transactions.values(), key=tx_block)
         for t in transactions:
@@ -458,12 +496,12 @@ class CommandLineInterface:
 
         account_status = self.client.get_account_status(account_id)
         try:
-            unspent = Amount.from_storage_units(
-                account_status['balance_per_token'][str(token.token_id)]['unspent'],
-                token,
-            )
+            balance = account_status['balance_per_token'][str(token.token_id)]
+            unspent = Amount.from_storage_units(balance['unspent'], token)
+            unverified = Amount.from_storage_units(balance['unverified'], token)
+            available = unspent + unverified
         except KeyError:
-            unspent = Amount.from_storage_units(0, token)
+            available = Amount.from_storage_units(0, token)
 
         if fee is None:
             network_status = self.client.get_network_status()
@@ -476,22 +514,22 @@ class CommandLineInterface:
         assert fee is not None
 
         if amount == "all":
-            amount = unspent - fee
-            total_amount = unspent
+            amount = available - fee
+            total_amount = available
+            assert amount.value >= 0
+            assert total_amount.value >= 0
         else:
             amount = Amount.from_display_units(amount, token)
             total_amount = amount + fee
 
-        if unspent < total_amount:
+        if available < total_amount:
             print('There is not enough {} in account {} to pay for this transaction.'.format(
                 token.short_code,
                 account_id[:6],
             ))
             return
 
-        if account.get('view_only'):
-            verb = 'Building unsigned transaction for'
-        elif build_only:
+        if build_only:
             verb = 'Building transaction for'
         else:
             verb = 'Sending'
@@ -527,36 +565,22 @@ class CommandLineInterface:
                 print(f'Wrote {path}.')
             return
 
-        if account.get('view_only'):
-            response = self.client.build_unsigned_transaction(
-                account_id, 
-                {to_address: amount},
+        if account['managed_by_hardware_wallet']:
+            print('Please confirm on device.')
+            with handle_ledger_error():
+                self.client.sync_view_only_account({'account_id': account['id']})
+        else:
+            if not self.confirm('Confirm? (Y/N) '):
+                print('Cancelled.')
+                return
+
+        with handle_ledger_error():
+            transaction_log, tx_proposal = self.client.build_and_submit_transaction(
+                account_id,
+                amount,
+                to_address,
                 fee=fee,
             )
-            path = Path('tx_proposal_{}_{}_unsigned.json'.format(
-                account_id[:6],
-                account_status['local_block_height'],
-            ))
-            if path.exists():
-                print(f'The file {path} already exists. Please rename the existing file and retry.')
-            else:
-                _save_json_file(path, response)
-                print(f'Wrote {path}.')
-                print()
-                print('This account is view-only, so its spend key is in an offline signer.')
-                print('Run `transaction-signer sign`, then submit the result with `mob submit`')
-            return
-
-        if not self.confirm('Confirm? (Y/N) '):
-            print('Cancelled.')
-            return
-
-        transaction_log, tx_proposal = self.client.build_and_submit_transaction(
-            account_id,
-            amount,
-            to_address,
-            fee=fee,
-        )
 
         sent_amounts = [
             Amount.from_storage_units(value, token_id)
@@ -566,7 +590,12 @@ class CommandLineInterface:
             transaction_log['fee_amount']['value'],
             transaction_log['fee_amount']['token_id'],
         )
-        print('Sent {}, with a transaction fee of {}'.format(
+        if account['managed_by_hardware_wallet']:
+            send_verb = 'Sending'
+        else:
+            send_verb = 'Sent'
+        print('{} {}, with a transaction fee of {}'.format(
+            send_verb,
             ', '.join(a.format() for a in sent_amounts),
             fee_amount.format(),
         ))
@@ -656,8 +685,9 @@ class CommandLineInterface:
         except TypeError:
             qr.terminal()
 
+        status = self.client.get_account_status(account_id)
         print()
-        _print_account(account)
+        _print_account(status)
         print()
 
     def address(self, action, **args):
@@ -696,7 +726,7 @@ class CommandLineInterface:
         print()
         print(_format_account_header(account))
         print(indent(
-            '{} {}'.format(address['public_address'], address['metadata']),
+            '{} {}'.format(address['public_address_b58'], address['metadata']),
             ' '*2,
         ))
         print()
@@ -783,7 +813,12 @@ class CommandLineInterface:
         )
 
     def gift(self, action, **args):
-        getattr(self, 'gift_' + action)(**args)
+        try:
+            func = getattr(self, 'gift_' + action)(**args)
+        except TypeError:
+            self.gift_args.print_help()
+        else:
+            func(**args)
 
     def gift_list(self):
         gift_codes = self.client.get_all_gift_codes()
@@ -884,45 +919,21 @@ class CommandLineInterface:
                 print('Gift code not found; nothing to remove.')
                 return
 
-    def sync(self, account_id_or_sync_response):
-        if account_id_or_sync_response.endswith('.json'):
-            sync_response = account_id_or_sync_response
-            self._finish_sync(sync_response)
-        else:
-            account_id = account_id_or_sync_response
-            self._start_sync(account_id)
-
-    def _start_sync(self, account_id):
+    def verify(self, account_id):
         account = self._load_account_prefix(account_id)
-        print()
-        print(_format_account_header(account))
-
         account_id = account['id']
-        response = self.client.create_view_only_account_sync_request(account_id)
+        if not account['managed_by_hardware_wallet']:
+            print('This account is not on a hardware wallet, so it cannot be verified.')
+            exit(1)
 
-        network_status = self.client.get_network_status()
-        filename = 'sync_request_{}_{}.json'.format(account_id[:6], network_status['local_block_height'])
-        _save_json_file(filename, response)
-
-        print(f'Wrote {filename}.')
-
-    def _finish_sync(self, sync_response):
-        with open(sync_response) as f:
-            data = json.load(f)
-
-        self.client.sync_view_only_account(data['params'])
-        account_id = data['params']['account_id']
-        num_synced = len(data['params']['completed_txos'])
+        with handle_ledger_error():
+            self.client.sync_view_only_account({'account_id': account['id']})
+        print('Verified transactions for account {}.'.format(account['id'][0:6]))
 
         status = self.client.get_account_status(account_id)
-
-        print()
-        print('Synced {} transaction output{}.'.format(
-            num_synced,
-            '' if num_synced == 1 else '',
-        ))
         print()
         _print_account(status)
+        print()
 
     def version(self):
         version = self.client.version()
@@ -951,8 +962,8 @@ def _format_account_header(account):
     output = account['id'][:6]
     if account['name']:
         output += ' ' + account['name']
-    if account.get('view_only'):
-        output += ' [view-only]'
+    if account.get('managed_by_hardware_wallet'):
+        output += ' [hardware]'
     return output
 
 
@@ -1013,26 +1024,6 @@ def _print_gift_code(gift_code_b58, amount, memo='', status=None):
     print(indent('\n'.join(lines), ' '*2))
 
 
-def _print_txo(txo, received=False):
-    print(txo)
-    to_address = txo['assigned_address']
-    if received:
-        verb = 'Received'
-    else:
-        verb = 'Spent'
-    print('  {} {}'.format(verb, _format_mob(pmob2mob(txo['value_pmob']))))
-    if received:
-        if int(txo['subaddress_index']) == 1:
-            print('    as change')
-        else:
-            print('    at subaddress {}, {}'.format(
-                txo['subaddress_index'],
-                to_address,
-            ))
-    else:
-        print('    to unknown address')
-
-
 def _save_export(account, secrets, filename):
     export_data = {}
 
@@ -1055,17 +1046,6 @@ def _save_export(account, secrets, filename):
     _save_json_file(filename, export_data)
 
 
-def _save_view_key_export(account, secrets, filename):
-    _save_json_file(
-        filename,
-        {
-            'name': account['name'],
-            'view_private_key': secrets['account_key']['view_private_key'],
-            'first_block_index': account['first_block_index'],
-        }
-    )
-
-
 def _save_json_file(filename, data):
     path = Path(filename)
     if path.exists():
@@ -1073,3 +1053,18 @@ def _save_json_file(filename, data):
     with path.open('w') as f:
         json.dump(data, f, indent=2)
         f.write('\n')
+
+
+@contextmanager
+def handle_ledger_error():
+    try:
+        yield
+    except WalletAPIError as e:
+        if 'Ledger' in e.response['error']['data']['server_error']:
+            print()
+            print('Could not communicate with hardware wallet.')
+            print('Please make sure your device is plugged in, unlocked,')
+            print('and showing the MobileCoin app.')
+            exit(1)
+        else:
+            raise

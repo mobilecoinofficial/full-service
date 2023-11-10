@@ -2,7 +2,7 @@
 
 //! API definition for the Txo object.
 
-use crate::{db, db::txo::TxoStatus};
+use crate::{db::txo::TxoInfo, json_rpc::v2::models::memo::Memo};
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 
@@ -67,10 +67,11 @@ pub struct Txo {
     /// amounts in a transaction
     #[serde(serialize_with = "expose_secret")]
     pub shared_secret: Secret<Option<String>>,
+    pub memo: Memo,
 }
 
-impl Txo {
-    pub fn new(txo: &db::models::Txo, status: &TxoStatus) -> Txo {
+impl From<&TxoInfo> for Txo {
+    fn from(txo_info: &TxoInfo) -> Self {
         Txo {
             id: txo.id.clone(),
             value: (txo.value as u64).to_string().into(),
@@ -86,6 +87,7 @@ impl Txo {
             key_image: txo.key_image.as_ref().map(hex::encode).into(),
             confirmation: txo.confirmation.as_ref().map(hex::encode).into(),
             shared_secret: txo.shared_secret.as_ref().map(hex::encode).into(),
+            memo: (&txo_info.memo).into(),
         }
     }
 }
@@ -135,14 +137,23 @@ mod tests {
             &wallet_db,
         );
 
-        let txo_details = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
+        let txo = db::models::Txo::get(&txo_hex, &mut wallet_db.get_pooled_conn().unwrap())
             .expect("Could not get Txo");
-        let status = txo_details
+        let status = txo
             .status(&mut wallet_db.get_pooled_conn().unwrap())
             .unwrap();
-        assert_eq!(txo_details.value as u64, 15_625_000 * MOB);
-        let json_txo = Txo::new(&txo_details, &status);
+        let memo = txo.memo(&mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+
+        let txo_info = TxoInfo {
+            txo,
+            status,
+            memo: memo.clone(),
+        };
+
+        assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
+        let json_txo = Txo::from(&txo_info);
         assert_eq!(json_txo.value.expose_secret(), "15625000000000000000");
         assert_eq!(json_txo.token_id.expose_secret(), "0");
+        assert_eq!(json_txo.memo, (&memo).into());
     }
 }

@@ -60,7 +60,7 @@ use rocket::{self, serde::json::Json};
 use serde_json::Map;
 use std::{collections::HashMap, convert::TryFrom, iter::FromIterator};
 
-pub fn generic_wallet_api<T, FPR>(
+pub async fn generic_wallet_api<T, FPR>(
     _api_key_guard: ApiKeyGuard,
     state: &rocket::State<WalletState<T, FPR>>,
     command: Json<JsonRPCRequest>,
@@ -87,7 +87,7 @@ where
         }
     };
 
-    match wallet_api_inner(&state.service, request) {
+    match wallet_api_inner(&state.service, request).await {
         Ok(command_response) => {
             global_log::info!("Command executed successfully");
             response.result = Some(command_response);
@@ -107,7 +107,7 @@ where
 /// take explicit Rocket state, and then pass the service to the inner method.
 /// This allows us to properly construct state with Mock Connection Objects in
 /// tests. This also allows us to version the overall API easily.
-pub fn wallet_api_inner<T, FPR>(
+pub async fn wallet_api_inner<T, FPR>(
     service: &WalletService<T, FPR>,
     command: JsonCommandRequest,
 ) -> Result<JsonCommandResponse, JsonRPCError>
@@ -169,9 +169,12 @@ where
                     tombstone_block,
                     max_spendable_value,
                     comment,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_and_submit_transaction {
@@ -209,6 +212,7 @@ where
                         .transpose()
                         .map_err(format_error)?,
                 )
+                .await
                 .map_err(format_error)?;
             JsonCommandResponse::build_gift_code {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
@@ -234,6 +238,7 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                 )
+                .await
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
@@ -280,9 +285,12 @@ where
                     Some(Mob::ID.to_string()),
                     tombstone_block,
                     max_spendable_value,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
+                .await
                 .map_err(format_error)?;
 
             JsonCommandResponse::build_transaction {
@@ -335,7 +343,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::check_receiver_receipt_status {
                 receipt_transaction_status: status,
-                txo: txo_and_status.as_ref().map(|(t, s)| Txo::new(t, s)),
+                txo: txo_and_status.as_ref().map(Txo::from),
             }
         }
         JsonCommandRequest::claim_gift_code {
@@ -539,8 +547,11 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
-                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                .map(|txo_info| {
+                    let subaddress_b58 = match (
+                        txo_info.txo.subaddress_index,
+                        txo_info.txo.account_id.as_ref(),
+                    ) {
                         (Some(subaddress_index), Some(account_id)) => service
                             .get_address_for_account(
                                 &AccountID(account_id.clone()),
@@ -551,7 +562,7 @@ where
                         _ => None,
                     };
 
-                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                    TransactionLog::new_from_received_txo(&txo_info.txo, subaddress_b58)
                 })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
@@ -592,8 +603,11 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
-                    let subaddress_b58 = match (txo.subaddress_index, txo.account_id.as_ref()) {
+                .map(|txo_info| {
+                    let subaddress_b58 = match (
+                        txo_info.txo.subaddress_index,
+                        txo_info.txo.account_id.as_ref(),
+                    ) {
                         (Some(subaddress_index), Some(account_id)) => service
                             .get_address_for_account(
                                 &AccountID(account_id.clone()),
@@ -604,7 +618,7 @@ where
                         _ => None,
                     };
 
-                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                    TransactionLog::new_from_received_txo(&txo_info.txo, subaddress_b58)
                 })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
@@ -642,17 +656,21 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s)| {
+                    .map(|txo_info| {
                         (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                            txo_info.txo.id.clone(),
+                            serde_json::to_value(Txo::from(txo_info))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_all_txos_for_address {
-                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_ids: txos
+                    .iter()
+                    .map(|txo_info| txo_info.txo.id.clone())
+                    .collect(),
                 txo_map,
             }
         }
@@ -744,19 +762,21 @@ where
             // Check whether the transaction_log_id actually refers to the txo_id of a
             // received transaction.
             let txo_id = TxoID(transaction_log_id.clone());
-            let json_tx_log = if let Ok((txo, _)) = service.get_txo(&txo_id) {
+            let json_tx_log = if let Ok(txo_info) = service.get_txo(&txo_id) {
                 // A txo was found, determine which address it was received at, if any.
-                let subaddress_b58 = match (&txo.subaddress_index, &txo.account_id) {
-                    (Some(subaddress_index), Some(account_id)) => {
-                        let account_id = AccountID(account_id.clone());
-                        service
-                            .get_address_for_account(&account_id, *subaddress_index)
-                            .map(|assigned_sub| assigned_sub.public_address_b58)
-                            .ok()
-                    }
-                    _ => None,
-                };
-                TransactionLog::new_from_received_txo(&txo, subaddress_b58).map_err(format_error)?
+                let subaddress_b58 =
+                    match (&txo_info.txo.subaddress_index, &txo_info.txo.account_id) {
+                        (Some(subaddress_index), Some(account_id)) => {
+                            let account_id = AccountID(account_id.clone());
+                            service
+                                .get_address_for_account(&account_id, *subaddress_index)
+                                .map(|assigned_sub| assigned_sub.public_address_b58)
+                                .ok()
+                        }
+                        _ => None,
+                    };
+                TransactionLog::new_from_received_txo(&txo_info.txo, subaddress_b58)
+                    .map_err(format_error)?
             } else {
                 // Txo ID did not match, check whether this is a real transaction log ID.
                 let (transaction_log, associated_txos, _) = service
@@ -810,8 +830,8 @@ where
 
             let received_tx_logs: Vec<TransactionLog> = received_txos
                 .iter()
-                .map(|(txo, _)| {
-                    let subaddress_b58 = match txo.subaddress_index {
+                .map(|txo_info| {
+                    let subaddress_b58 = match txo_info.txo.subaddress_index {
                         Some(subaddress_index) => service
                             .get_address_for_account(
                                 &AccountID(account_id.clone()),
@@ -822,7 +842,7 @@ where
                         None => None,
                     };
 
-                    TransactionLog::new_from_received_txo(txo, subaddress_b58)
+                    TransactionLog::new_from_received_txo(&txo_info.txo, subaddress_b58)
                 })
                 .collect::<Result<Vec<TransactionLog>, _>>()
                 .map_err(format_error)?;
@@ -873,9 +893,9 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let (txo, status) = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
             JsonCommandResponse::get_txo {
-                txo: Txo::new(&txo, &status),
+                txo: Txo::from(&txo_info),
             }
         }
         JsonCommandRequest::get_txos_for_account {
@@ -905,17 +925,21 @@ where
                 .map_err(format_error)?;
             let txo_map: Map<String, serde_json::Value> = Map::from_iter(
                 txos.iter()
-                    .map(|(t, s)| {
+                    .map(|txo_info| {
                         (
-                            t.id.clone(),
-                            serde_json::to_value(Txo::new(t, s)).expect("Could not get json value"),
+                            txo_info.txo.id.clone(),
+                            serde_json::to_value(Txo::from(txo_info))
+                                .expect("Could not get json value"),
                         )
                     })
                     .collect::<Vec<(String, serde_json::Value)>>(),
             );
 
             JsonCommandResponse::get_txos_for_account {
-                txo_ids: txos.iter().map(|(t, _s)| t.id.clone()).collect(),
+                txo_ids: txos
+                    .iter()
+                    .map(|txo_info| txo_info.txo.id.clone())
+                    .collect(),
                 txo_map,
             }
         }

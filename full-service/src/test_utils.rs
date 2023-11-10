@@ -1,3 +1,4 @@
+use crate::service::t3_sync::T3Config;
 // Copyright (c) 2020-2021 MobileCoin Inc.
 #[cfg(test)]
 use crate::{
@@ -110,7 +111,7 @@ pub fn generate_n_blocks_on_ledger(
     known_recipients: &[PublicAddress],
     num_blocks: usize,
     mut rng: &mut (impl CryptoRng + RngCore),
-    mut ledger_db: &mut LedgerDB,
+    ledger_db: &mut LedgerDB,
 ) {
     let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
         .map(|_i| mc_account_keys::AccountKey::random(&mut rng).default_subaddress())
@@ -125,7 +126,7 @@ pub fn generate_n_blocks_on_ledger(
             vec![KeyImage::from(rng.next_u64())]
         };
         let _new_block_index = add_block_to_ledger_db(
-            &mut ledger_db,
+            ledger_db,
             &public_addresses,
             DEFAULT_PER_RECIPIENT_AMOUNT,
             &key_images,
@@ -348,7 +349,7 @@ pub fn manually_sync_account(
     loop {
         match sync_account_next_chunk(
             ledger_db,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
             &account_id.to_string(),
             logger,
         ) {
@@ -361,11 +362,8 @@ pub fn manually_sync_account(
             }
             Err(e) => panic!("Could not sync account due to {:?}", e),
         }
-        account = Account::get(
-            account_id,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
-        )
-        .unwrap();
+        account =
+            Account::get(account_id, wallet_db.get_pooled_conn().unwrap().deref_mut()).unwrap();
         if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
             break;
         }
@@ -379,10 +377,36 @@ pub fn create_test_txo_for_recipient(
     amount: Amount,
     rng: &mut StdRng,
 ) -> (TxOut, KeyImage) {
+    create_test_txo_for_recipient_with_memo(
+        recipient_account_key,
+        recipient_subaddress_index,
+        amount,
+        rng,
+        TransactionMemo::Empty,
+    )
+}
+
+pub fn create_test_txo_for_recipient_with_memo(
+    recipient_account_key: &AccountKey,
+    recipient_subaddress_index: u64,
+    amount: Amount,
+    rng: &mut StdRng,
+    memo: TransactionMemo,
+) -> (TxOut, KeyImage) {
     let recipient = recipient_account_key.subaddress(recipient_subaddress_index);
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
-    let tx_out = TxOut::new(BlockVersion::MAX, amount, &recipient, &tx_private_key, hint).unwrap();
+
+    let mut memo_builder = memo.memo_builder(recipient_account_key);
+    let tx_out = TxOut::new_with_memo(
+        BlockVersion::MAX,
+        amount,
+        &recipient,
+        &tx_private_key,
+        hint,
+        |ctx| memo_builder.make_memo_for_output(amount, &recipient, ctx),
+    )
+    .unwrap();
 
     // Calculate KeyImage - note you cannot use KeyImage::from(tx_private_key)
     // because the calculation must be done with CryptoNote math (see
@@ -419,7 +443,7 @@ pub fn create_test_received_txo(
         amount,
         received_block_index,
         &AccountID::from(account_key).to_string(),
-        &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+        wallet_db.get_pooled_conn().unwrap().deref_mut(),
     )
     .unwrap();
     (txo_id_hex, txo, key_image)
@@ -428,7 +452,7 @@ pub fn create_test_received_txo(
 /// Creates a test minted and change txo.
 ///
 /// Returns (txproposal, ((output_txo_id, value), (change_txo_id, value)))
-pub fn create_test_minted_and_change_txos(
+pub async fn create_test_minted_and_change_txos(
     src_account_key: AccountKey,
     recipient: PublicAddress,
     value: u64,
@@ -449,10 +473,18 @@ pub fn create_test_minted_and_change_txos(
     builder.add_recipient(recipient, value, Mob::ID).unwrap();
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
+
+    let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
+
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
-    let tx_proposal = unsigned_tx_proposal.sign(&src_account_key, None).unwrap();
+    let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
     // There should be 2 outputs, one to dest and one change
     assert_eq!(tx_proposal.tx.prefix.outputs.len(), 2);
@@ -495,7 +527,12 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(TransactionMemo::RTH(None, None), conn)
+        .build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        )
         .unwrap();
 
     (
@@ -528,7 +565,7 @@ pub fn random_account_with_seed_values(
             &format!("SeedAccount{}", rng.next_u32()),
             "".to_string(),
             "".to_string(),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
     }
@@ -556,7 +593,7 @@ pub fn random_account_with_seed_values(
                 None,
                 None,
                 Some(0),
-                &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+                wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap()
             .len(),
@@ -656,6 +693,7 @@ fn setup_wallet_service_impl(
         network_state,
         get_resolver_factory(&mut rng).unwrap(),
         offline,
+        T3Config::default(),
         logger,
     )
 }

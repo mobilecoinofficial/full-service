@@ -563,7 +563,7 @@ mod e2e_transaction {
             .as_str()
             .unwrap();
         // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx.clone(), &mut rng);
+        add_block_with_tx(&mut ledger_db, payments_tx_proposal.tx, &mut rng);
 
         manually_sync_account(
             &ledger_db,

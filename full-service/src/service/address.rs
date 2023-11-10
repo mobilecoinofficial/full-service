@@ -245,15 +245,12 @@ mod tests {
         let pooled_conn = &mut service.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
-        let view_private_key = RistrettoPrivate::from_random(&mut rng);
-        let spend_public_key = RistrettoPublic::from_random(&mut rng);
-
-        let vpk_hex = hex::encode(view_private_key.to_bytes());
-        let spk_hex = hex::encode(spend_public_key.to_bytes());
+        let view_private_key = RistrettoPrivate::from_random(&mut rng).into();
+        let spend_public_key = RistrettoPublic::from_random(&mut rng).into();
 
         // Create an account.
         let account = service
-            .import_view_only_account(vpk_hex, spk_hex, None, None, None)
+            .import_view_only_account(&view_private_key, &spend_public_key, None, None, None)
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 

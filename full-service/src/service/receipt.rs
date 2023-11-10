@@ -13,7 +13,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::{TxoModel, TxoStatus},
+        txo::{TxoInfo, TxoModel, TxoStatus},
         WalletDbError,
     },
     service::models::tx_proposal::TxProposal,
@@ -183,11 +183,12 @@ pub trait ReceiptService {
     ///| `address`          | The account's public address.              | Must be a valid account address. |
     ///| `receiver_receipt` | The receipt whose status is being checked. |                                  |
     ///
+    #[allow(clippy::type_complexity)]
     fn check_receipt_status(
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError>;
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoInfo>), ReceiptServiceError>;
 
     /// Create a receipt from a given TxProposal
     ///
@@ -212,7 +213,7 @@ where
         &self,
         address: &str,
         receiver_receipt: &ReceiverReceipt,
-    ) -> Result<(ReceiptTransactionStatus, Option<(Txo, TxoStatus)>), ReceiptServiceError> {
+    ) -> Result<(ReceiptTransactionStatus, Option<TxoInfo>), ReceiptServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         let assigned_address = AssignedSubaddress::get(address, conn)?;
@@ -226,13 +227,13 @@ where
             return Ok((ReceiptTransactionStatus::TransactionPending, None));
         }
         let txo = txos[0].clone();
-        let txo_status = txo.status(conn)?;
+        let status = txo.status(conn)?;
+        let memo = txo.memo(conn)?;
 
-        if (txo_status == TxoStatus::Pending) || (txo_status == TxoStatus::Created) {
-            return Ok((
-                ReceiptTransactionStatus::TransactionPending,
-                Some((txo, txo_status)),
-            ));
+        let txo_info = TxoInfo { txo, memo, status };
+
+        if (txo_info.status == TxoStatus::Pending) || (txo_info.status == TxoStatus::Created) {
+            return Ok((ReceiptTransactionStatus::TransactionPending, Some(txo_info)));
         }
 
         // Decrypt the amount to get the expected value
@@ -244,18 +245,18 @@ where
             Err(_) => {
                 return Ok((
                     ReceiptTransactionStatus::FailedAmountDecryption,
-                    Some((txo, txo_status)),
+                    Some(txo_info),
                 ))
             }
         };
         // Check that the value of the received Txo matches the expected value.
-        if (txo.value as u64) != expected_value.value {
+        if (txo_info.txo.value as u64) != expected_value.value {
             return Ok((
                 ReceiptTransactionStatus::AmountMismatch(format!(
                     "Expected: {}, Got: {}",
-                    expected_value.value, txo.value
+                    expected_value.value, txo_info.txo.value
                 )),
-                Some((txo, txo_status)),
+                Some(txo_info),
             ));
         }
 
@@ -263,17 +264,14 @@ where
         let confirmation_hex = hex::encode(mc_util_serial::encode(&receiver_receipt.confirmation));
         let confirmation: TxOutConfirmationNumber =
             mc_util_serial::decode(&hex::decode(confirmation_hex)?)?;
-        if !Txo::validate_confirmation(&account_id, &txo.id, &confirmation, conn)? {
+        if !Txo::validate_confirmation(&account_id, &txo_info.txo.id, &confirmation, conn)? {
             return Ok((
                 ReceiptTransactionStatus::InvalidConfirmation,
-                Some((txo, txo_status)),
+                Some(txo_info),
             ));
         }
 
-        Ok((
-            ReceiptTransactionStatus::TransactionSuccess,
-            Some((txo, txo_status)),
-        ))
+        Ok((ReceiptTransactionStatus::TransactionSuccess, Some(txo_info)))
     }
 
     fn create_receiver_receipts(
@@ -318,7 +316,7 @@ mod tests {
         util::b58::b58_encode_public_address,
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
@@ -375,8 +373,8 @@ mod tests {
         assert_eq!(txo.get_masked_amount().unwrap(), &tx_receipt.amount);
     }
 
-    #[test_with_logger]
-    fn test_create_receipt(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_create_receipt(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -430,9 +428,12 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -449,7 +450,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -488,12 +489,12 @@ mod tests {
             .expect("Could not get confirmations");
         assert_eq!(confirmations.len(), 1);
 
-        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].0.public_key)
+        let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
         assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
         let public_key = txos_and_statuses[0]
-            .0
+            .txo
             .public_key()
             .expect("Could not get CompressedRistrettoPublic from txo");
         let txo: TxOut = get_tx_out_by_public_key(&ledger_db, &public_key)
@@ -504,8 +505,8 @@ mod tests {
 
     // All txos received should return TransactionSuccess, and TransactionPending
     // until they are received.
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_success(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_success(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -559,9 +560,12 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -583,7 +587,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
 
@@ -625,8 +629,8 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_wrong_value(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -681,9 +685,12 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -697,7 +704,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);
@@ -731,7 +738,7 @@ mod tests {
         let bob_account_key: AccountKey = mc_util_serial::decode(
             &Account::get(
                 &bob_account_id,
-                &mut service.get_pooled_conn().unwrap().deref_mut(),
+                service.get_pooled_conn().unwrap().deref_mut(),
             )
             .expect("Could not get bob account")
             .account_key,
@@ -767,8 +774,8 @@ mod tests {
         assert_eq!(status, ReceiptTransactionStatus::FailedAmountDecryption);
     }
 
-    #[test_with_logger]
-    fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_check_receiver_receipt_status_invalid_confirmation(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -823,9 +830,12 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH(None, None),
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
                 None,
             )
+            .await
             .expect("Could not build transaction");
 
         let receipts = service
@@ -839,7 +849,7 @@ mod tests {
             14,
             "".to_string(),
             &alice.id,
-            &mut service.get_pooled_conn().unwrap().deref_mut(),
+            service.get_pooled_conn().unwrap().deref_mut(),
         )
         .expect("Could not log submitted");
         add_block_with_tx(&mut ledger_db, tx_proposal0.tx, &mut rng);

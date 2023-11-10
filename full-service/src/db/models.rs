@@ -3,12 +3,10 @@
 //! DB Models
 
 use super::schema::{
-    __diesel_schema_migrations, accounts, assigned_subaddresses, gift_codes,
-    transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+    __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
+    gift_codes, transaction_input_txos, transaction_logs, transaction_output_txos, txos,
 };
-
 use mc_crypto_keys::CompressedRistrettoPublic;
-
 use serde::Serialize;
 
 /// An Account entity.
@@ -36,6 +34,10 @@ pub struct Account {
     pub name: String, /* empty string for nullable */
     pub fog_enabled: bool,
     pub view_only: bool,
+    /// If true, this accounts private spend key is managed by a hardware wallet
+    /// and is required in order to spend funds and generate key images for this
+    /// account.
+    pub managed_by_hardware_wallet: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`
@@ -53,6 +55,7 @@ pub struct NewAccount<'a> {
     pub name: &'a str,
     pub fog_enabled: bool,
     pub view_only: bool,
+    pub managed_by_hardware_wallet: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this
@@ -86,6 +89,8 @@ pub struct Txo {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<Vec<u8>>,
     pub shared_secret: Option<Vec<u8>>,
+    pub memo_type: Option<i32>,
+    pub is_synced_to_t3: bool,
 }
 
 impl Txo {
@@ -112,6 +117,7 @@ pub struct NewTxo<'a> {
     pub spent_block_index: Option<i64>,
     pub confirmation: Option<&'a [u8]>,
     pub shared_secret: Option<&'a [u8]>,
+    pub memo_type: Option<i32>,
 }
 
 /// A subaddress given to a particular contact, for the purpose of tracking
@@ -229,6 +235,26 @@ pub struct NewGiftCode<'a> {
     pub value: i64,
 }
 
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Eq, Debug)]
+#[diesel(belongs_to(Txo, foreign_key = txo_id))]
+#[diesel(table_name = authenticated_sender_memos)]
+#[diesel(primary_key(txo_id))]
+pub struct AuthenticatedSenderMemo {
+    pub txo_id: String,
+    pub sender_address_hash: String,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = authenticated_sender_memos)]
+pub struct NewAuthenticatedSenderMemo<'a> {
+    pub txo_id: &'a str,
+    pub sender_address_hash: &'a str,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
+}
+
 #[derive(Queryable, Insertable)]
 #[diesel(table_name = __diesel_schema_migrations)]
 pub struct Migration {
@@ -248,4 +274,11 @@ impl NewMigration {
             version: version.to_string(),
         }
     }
+}
+
+#[derive(Queryable)]
+#[diesel(table_name = post_migration_processes)]
+pub struct PostMigrationProcess {
+    pub migration_version: String,
+    pub has_run: bool,
 }

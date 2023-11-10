@@ -26,7 +26,8 @@ use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_builder::{
-    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
+    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
+    TransactionBuilder,
 };
 use mc_transaction_core::{
     constants::RING_SIZE,
@@ -228,7 +229,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
-        let memo_builder = memo.memo_builder(account.account_key()?)?;
+
+        let memo_builder = match account.account_key() {
+            Ok(account_key) => memo.memo_builder(&account_key),
+            Err(_) => Box::<EmptyMemoBuilder>::default(),
+        };
 
         let mut transaction_builder = TransactionBuilder::new_with_box(
             block_version,
@@ -383,6 +388,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 recipient_public_address: receiver,
                 confirmation_number: tx_out_context.confirmation,
                 amount,
+                shared_secret: Some(tx_out_context.shared_secret),
             };
             payload_txos.push(payload_txo);
         }
@@ -439,6 +445,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
                 confirmation_number: tx_out_context.confirmation,
                 amount: change_amount,
+                shared_secret: Some(tx_out_context.shared_secret),
             };
             change_txos.push(change_txo);
         }
@@ -537,11 +544,11 @@ mod tests {
         },
     };
     use mc_account_keys::AccountKey;
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_build_with_utxos(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_build_with_utxos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -563,6 +570,9 @@ mod tests {
         // Construct a transaction
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -578,9 +588,14 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, value);
@@ -632,7 +647,7 @@ mod tests {
             None,
             None,
             None,
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
         let balance: u128 = unspent
@@ -698,8 +713,8 @@ mod tests {
     }
 
     // Users should be able to set the txos specifically that they want to send
-    #[test_with_logger]
-    fn test_setting_txos(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_setting_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -727,12 +742,15 @@ mod tests {
             None,
             None,
             Some(0),
-            &mut wallet_db.get_pooled_conn().unwrap().deref_mut(),
+            wallet_db.get_pooled_conn().unwrap().deref_mut(),
         )
         .unwrap();
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -743,7 +761,12 @@ mod tests {
 
         builder.set_txos(conn, &[txos[0].id.clone()]).unwrap();
         builder.set_tombstone(0).unwrap();
-        match builder.build(TransactionMemo::RTH(None, None), conn) {
+        match builder.build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        ) {
             Ok(_) => {
                 panic!("Should not be able to construct Tx with > inputs value as output value")
             }
@@ -765,9 +788,14 @@ mod tests {
             .unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(
@@ -953,8 +981,8 @@ mod tests {
     }
 
     // Test max_spendable correctly filters out txos above max_spendable
-    #[test_with_logger]
-    fn test_max_spendable(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_max_spendable(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -975,6 +1003,9 @@ mod tests {
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1009,9 +1040,14 @@ mod tests {
         builder.select_txos(conn, Some(80 * MOB)).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.payload_txos.len(), 1);
         assert_eq!(proposal.payload_txos[0].recipient_public_address, recipient);
         assert_eq!(proposal.payload_txos[0].amount.value, 80 * MOB);
@@ -1021,8 +1057,8 @@ mod tests {
     }
 
     // Test setting and not setting tombstone block
-    #[test_with_logger]
-    fn test_tombstone(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_tombstone(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1042,6 +1078,7 @@ mod tests {
             &mut rng,
             &logger,
         );
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
 
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
@@ -1053,7 +1090,12 @@ mod tests {
         assert_eq!(ledger_db.num_blocks().unwrap(), 13);
 
         // We must set tombstone block before building
-        match builder.build(TransactionMemo::RTH(None, None), conn) {
+        match builder.build(
+            TransactionMemo::RTH {
+                subaddress_index: None,
+            },
+            conn,
+        ) {
             Ok(_) => panic!("Expected TombstoneNotSet error"),
             Err(WalletTransactionBuilderError::TombstoneNotSet) => {}
             Err(e) => panic!("Unexpected error {:?}", e),
@@ -1071,9 +1113,14 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 23);
 
         // Build a transaction and explicitly set tombstone
@@ -1089,15 +1136,20 @@ mod tests {
         // Not setting the tombstone results in tombstone = 0. This is an acceptable
         // value,
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.tombstone_block, 20);
     }
 
     // Test setting and not setting the fee
-    #[test_with_logger]
-    fn test_fee(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_fee(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1118,6 +1170,9 @@ mod tests {
 
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
         let (recipient, mut builder) =
             builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
 
@@ -1127,9 +1182,14 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // You cannot set fee to 0
@@ -1147,9 +1207,14 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
 
         // Setting fee less than minimum fee should fail
@@ -1174,15 +1239,20 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         builder.set_fee(Mob::MINIMUM_FEE * 10, Mob::ID).unwrap();
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE * 10);
     }
 
     // Even if change is zero, we should still have a change output
-    #[test_with_logger]
-    fn test_change_zero_mob(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_change_zero_mob(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1216,9 +1286,15 @@ mod tests {
 
         // Verify that not setting fee results in default fee
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 1);
@@ -1231,8 +1307,8 @@ mod tests {
 
     // We should be able to add multiple TxOuts to the same recipient, not to
     // multiple
-    #[test_with_logger]
-    fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_add_multiple_outputs_to_same_recipient(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1273,9 +1349,15 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         let unsigned_tx_proposal = builder
-            .build(TransactionMemo::RTH(None, None), conn)
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
             .unwrap();
-        let proposal = unsigned_tx_proposal.sign(&account_key, None).unwrap();
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
         assert_eq!(proposal.tx.prefix.fee, Mob::MINIMUM_FEE);
         assert_eq!(proposal.payload_txos.len(), 4);

@@ -120,35 +120,29 @@ class ClientAsync:
     async def create_account(
         self,
         name=None,
-        fog_report_url=None,
-        fog_authority_spki=None,
+        fog_info=None,
     ):
         params = {"name": name}
-        if fog_report_url is not None and fog_authority_spki is not None:
-            params['fog_info'] = {
-                "report_url": fog_report_url,
-                "report_id": "",
-                "authority_spki": fog_authority_spki,
-            }
+        if fog_info is not None:
+            params['fog_info'] = fog_info
+
         r = await self._req({"method": "create_account", "params": params})
         return r['account']
 
     async def import_account(
         self,
         mnemonic,
-        key_derivation_version=2,
         name=None,
         first_block_index=None,
         next_subaddress_index=None,
-        fog_report_url=None,
-        fog_authority_spki=None,
+        fog_info=None,
     ):
         # Disable showing sensitive data from within this function during unittests.
         __tracebackhide__ = True
 
         params = {
-            'mnemonic': mnemonic,
-            'key_derivation_version': str(int(key_derivation_version)),
+            "mnemonic": mnemonic,
+            "key_derivation_version": "2",
         }
         if name is not None:
             params['name'] = name
@@ -156,12 +150,8 @@ class ClientAsync:
             params['first_block_index'] = str(int(first_block_index))
         if next_subaddress_index is not None:
             params['next_subaddress_index'] = str(int(next_subaddress_index))
-        if fog_report_url is not None and fog_authority_spki is not None:
-            params['fog_info'] = {
-                "report_url": fog_report_url,
-                "report_id": "",
-                "authority_spki": fog_authority_spki,
-            }
+        if fog_info is not None:
+            params['fog_info'] = fog_info
 
         r = await self._req({
             "method": "import_account",
@@ -338,6 +328,21 @@ class ClientAsync:
         })
         return r['account']
 
+    async def import_view_only_account_from_hardware_wallet(
+        self,
+        name=None,
+        fog_info=None,
+    ):
+        params = {"name": name}
+        if fog_info is not None:
+            params['fog_info'] = fog_info
+
+        r = await self._req({
+            "method": "import_view_only_account_from_hardware_wallet",
+            "params": params,
+        })
+        return r['account']
+
     async def create_view_only_account_sync_request(self, account_id):
         r = await self._req({
             "method": "create_view_only_account_sync_request",
@@ -372,6 +377,18 @@ class ClientAsync:
         return await self._req({
             "method": "check_b58_type",
             "params": {"b58_code": b58_code},
+        })
+
+    async def get_txos(self, account_id):
+        return await self._req({
+            "method": "get_txos",
+            "params": {"account_id": account_id},
+        })
+
+    async def get_mc_protocol_txo(self, txo_id):
+        return await self._req({
+            "method": "get_mc_protocol_txo",
+            "params": {"txo_id": txo_id},
         })
 
     # Polling utility functions.

@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-service"
-version = "2.7.0"
+version = "2.8.0"
 authors = ["MobileCoin"]
 edition = "2018"
 license = "GPL-3.0"
@@ -11,7 +11,9 @@ path = "src/bin/main.rs"
 
 [dependencies]
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
-mc-common = { path = "../../mobilecoin/common", default-features = false, features = ["loggers"] }
+mc-common = { path = "../../mobilecoin/common", default-features = false, features = [
+    "loggers",
+] }
 mc-connection = { path = "../../mobilecoin/connection" }
 mc-consensus-enclave-measurement = { path = "../../mobilecoin/consensus/enclave/measurement" }
 mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }
@@ -25,5 +27,5 @@ mc-util-uri = { path = "../../mobilecoin/util/uri" }
 mc-validator-api = { path = "../api" }
 
 clap = { version = "4.3", features = ["derive", "env"] }
-grpcio = "0.12"
+grpcio = "0.13"
 rayon = "1.7"

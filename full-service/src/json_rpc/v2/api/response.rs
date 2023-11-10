@@ -185,6 +185,9 @@ pub enum JsonCommandResponse {
     import_view_only_account {
         account: Account,
     },
+    import_view_only_account_from_hardware_wallet {
+        account: Account,
+    },
     remove_account {
         removed: bool,
     },
@@ -204,6 +207,9 @@ pub enum JsonCommandResponse {
         account: Account,
     },
     validate_confirmation {
+        validated: bool,
+    },
+    validate_sender_memo {
         validated: bool,
     },
     verify_address {

@@ -137,13 +137,13 @@ mod tests {
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
-    #[test_with_logger]
-    fn test_list_transaction_logs_for_account_with_min_and_max_block_index(logger: Logger) {
+    #[async_test_with_logger]
+    async fn test_list_transaction_logs_for_account_with_min_and_max_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
@@ -206,9 +206,12 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH(None, None),
+                    TransactionMemo::RTH {
+                        subaddress_index: None,
+                    },
                     None,
                 )
+                .await
                 .unwrap();
 
             {

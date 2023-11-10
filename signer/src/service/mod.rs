@@ -65,7 +65,7 @@ pub fn sign_tx(mnemonic: &str, unsigned_tx_proposal: UnsignedTxProposal) -> Resu
     );
 
     unsigned_tx_proposal
-        .sign(&account_key, None)
+        .sign_with_local_signer(&account_key)
         .map_err(|e| anyhow!(e))
 }
 
