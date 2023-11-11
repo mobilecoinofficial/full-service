@@ -139,6 +139,18 @@ where
 {
     global_log::info!("Running command {:?}", command);
 
+    if service.resync_in_progress().map_err(format_error)? {
+        let wallet_status = service.get_wallet_status().map_err(format_error)?;
+
+        let percent_complete = (wallet_status.min_synced_block_index as f64
+            / wallet_status.local_block_height as f64
+            * 100.0) as u64;
+
+        return Err(format_error(&format!(
+            "Resync in progress, please wait until it is completed to perform API calls... ({percent_complete}% complete)"
+        )));
+    }
+
     let response = match command {
         JsonCommandRequest::assign_address_for_account {
             account_id,

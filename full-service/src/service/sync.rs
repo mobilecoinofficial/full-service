@@ -126,7 +126,14 @@ pub fn sync_all_accounts(
 
     for account in accounts {
         // If there are no new blocks for this account, don't do anything.
+        //
+        // If the account is currently resyncing, we need to set it to false
+        // here.
         if account.next_block_index as u64 > num_blocks - 1 {
+            if account.resyncing {
+                account.update_resyncing(false, conn)?;
+            }
+
             continue;
         }
         sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
