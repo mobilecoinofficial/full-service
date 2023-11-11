@@ -73,20 +73,30 @@ pub struct Txo {
 impl From<&TxoInfo> for Txo {
     fn from(txo_info: &TxoInfo) -> Self {
         Txo {
-            id: txo.id.clone(),
-            value: (txo.value as u64).to_string().into(),
-            token_id: (txo.token_id as u64).to_string().into(),
-            received_block_index: txo.received_block_index.map(|x| (x as u64).to_string()),
-            spent_block_index: txo.spent_block_index.map(|x| (x as u64).to_string()).into(),
-            account_id: txo.account_id.clone(),
-            status: status.to_string().into(),
-            target_key: hex::encode(&txo.target_key),
-            public_key: hex::encode(&txo.public_key),
-            e_fog_hint: hex::encode(&txo.e_fog_hint),
-            subaddress_index: txo.subaddress_index.map(|s| (s as u64).to_string()),
-            key_image: txo.key_image.as_ref().map(hex::encode).into(),
-            confirmation: txo.confirmation.as_ref().map(hex::encode).into(),
-            shared_secret: txo.shared_secret.as_ref().map(hex::encode).into(),
+            id: txo_info.txo.id.clone(),
+            value: (txo_info.txo.value as u64).to_string().into(),
+            token_id: (txo_info.txo.token_id as u64).to_string().into(),
+            received_block_index: txo_info
+                .txo
+                .received_block_index
+                .map(|x| (x as u64).to_string()),
+            spent_block_index: txo_info
+                .txo
+                .spent_block_index
+                .map(|x| (x as u64).to_string())
+                .into(),
+            account_id: txo_info.txo.account_id.clone(),
+            status: txo_info.status.to_string().into(),
+            target_key: hex::encode(&txo_info.txo.target_key),
+            public_key: hex::encode(&txo_info.txo.public_key),
+            e_fog_hint: hex::encode(&txo_info.txo.e_fog_hint),
+            subaddress_index: txo_info
+                .txo
+                .subaddress_index
+                .map(|s| (s as u64).to_string()),
+            key_image: txo_info.txo.key_image.as_ref().map(hex::encode).into(),
+            confirmation: txo_info.txo.confirmation.as_ref().map(hex::encode).into(),
+            shared_secret: txo_info.txo.shared_secret.as_ref().map(hex::encode).into(),
             memo: (&txo_info.memo).into(),
         }
     }
