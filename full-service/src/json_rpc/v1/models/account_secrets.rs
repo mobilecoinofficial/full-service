@@ -8,6 +8,7 @@ use crate::{
 };
 
 use bip39::{Language, Mnemonic};
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -27,13 +28,13 @@ pub struct AccountSecrets {
 
     /// The entropy from which this account key was derived, as a String
     /// (version 1)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entropy: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub entropy: Secret<Option<String>>,
 
     /// The mnemonic from which this account key was derived, as a String
     /// (version 2)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mnemonic: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub mnemonic: Secret<Option<String>>,
 
     /// The key derivation version that this mnemonic goes with
     pub key_derivation_version: String,
@@ -61,8 +62,8 @@ impl TryFrom<&Account> for AccountSecrets {
                 object: "account_secrets".to_string(),
                 account_id: src.id.clone(),
                 name: src.name.clone(),
-                entropy: None,
-                mnemonic: None,
+                entropy: Secret::new(None),
+                mnemonic: Secret::new(None),
                 key_derivation_version: src.key_derivation_version.to_string(),
                 account_key: None,
                 view_account_key: Some(ViewAccountKey::from(&view_account_key)),
@@ -98,8 +99,8 @@ impl TryFrom<&Account> for AccountSecrets {
                 object: "account_secrets".to_string(),
                 name: src.name.clone(),
                 account_id: src.id.clone(),
-                entropy,
-                mnemonic,
+                entropy: entropy.into(),
+                mnemonic: mnemonic.into(),
                 key_derivation_version: src.key_derivation_version.to_string(),
                 account_key: Some(AccountKey::try_from(&account_key).map_err(|err| {
                     format!(

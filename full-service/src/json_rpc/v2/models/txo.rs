@@ -3,6 +3,7 @@
 //! API definition for the Txo object.
 
 use crate::{db::txo::TxoInfo, json_rpc::v2::models::memo::Memo};
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 
 /// An Txo in the wallet.
@@ -16,23 +17,27 @@ pub struct Txo {
     pub id: String,
 
     /// the txo's value
-    pub value: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub value: Secret<String>,
 
     /// the txo's token id
-    pub token_id: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub token_id: Secret<String>,
 
     /// Block index in which the txo was received by an account.
     pub received_block_index: Option<String>,
 
     /// Block index in which the txo was spent by an account.
-    pub spent_block_index: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub spent_block_index: Secret<Option<String>>,
 
     /// The account_id for the account which has received this TXO. This account
     /// has spend authority.
     pub account_id: Option<String>,
 
     /// The status of this txo
-    pub status: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub status: Secret<String>,
 
     /// A cryptographic key for this Txo.
     pub target_key: String,
@@ -50,17 +55,18 @@ pub struct Txo {
 
     /// A fingerprint of the txo derived from your private spend key materials,
     /// required to spend a Txo.
-    pub key_image: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub key_image: Secret<Option<String>>,
 
     /// A confirmation number that the sender of the Txo can provide to verify
     /// that they participated in the construction of this Txo.
-    pub confirmation: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub confirmation: Secret<Option<String>>,
 
     /// Shared secret that's used to mask the private keys associated with the
     /// amounts in a transaction
-    pub shared_secret: Option<String>,
-
-    /// The memo associated with this Txo.
+    #[serde(serialize_with = "expose_secret")]
+    pub shared_secret: Secret<Option<String>>,
     pub memo: Memo,
 }
 
@@ -68,8 +74,8 @@ impl From<&TxoInfo> for Txo {
     fn from(txo_info: &TxoInfo) -> Self {
         Txo {
             id: txo_info.txo.id.clone(),
-            value: (txo_info.txo.value as u64).to_string(),
-            token_id: (txo_info.txo.token_id as u64).to_string(),
+            value: (txo_info.txo.value as u64).to_string().into(),
+            token_id: (txo_info.txo.token_id as u64).to_string().into(),
             received_block_index: txo_info
                 .txo
                 .received_block_index
@@ -77,9 +83,10 @@ impl From<&TxoInfo> for Txo {
             spent_block_index: txo_info
                 .txo
                 .spent_block_index
-                .map(|x| (x as u64).to_string()),
+                .map(|x| (x as u64).to_string())
+                .into(),
             account_id: txo_info.txo.account_id.clone(),
-            status: txo_info.status.to_string(),
+            status: txo_info.status.to_string().into(),
             target_key: hex::encode(&txo_info.txo.target_key),
             public_key: hex::encode(&txo_info.txo.public_key),
             e_fog_hint: hex::encode(&txo_info.txo.e_fog_hint),
@@ -87,9 +94,9 @@ impl From<&TxoInfo> for Txo {
                 .txo
                 .subaddress_index
                 .map(|s| (s as u64).to_string()),
-            key_image: txo_info.txo.key_image.as_ref().map(hex::encode),
-            confirmation: txo_info.txo.confirmation.as_ref().map(hex::encode),
-            shared_secret: txo_info.txo.shared_secret.as_ref().map(hex::encode),
+            key_image: txo_info.txo.key_image.as_ref().map(hex::encode).into(),
+            confirmation: txo_info.txo.confirmation.as_ref().map(hex::encode).into(),
+            shared_secret: txo_info.txo.shared_secret.as_ref().map(hex::encode).into(),
             memo: (&txo_info.memo).into(),
         }
     }
@@ -155,8 +162,8 @@ mod tests {
 
         assert_eq!(txo_info.txo.value as u64, 15_625_000 * MOB);
         let json_txo = Txo::from(&txo_info);
-        assert_eq!(json_txo.value, "15625000000000000000");
-        assert_eq!(json_txo.token_id, "0");
+        assert_eq!(json_txo.value.expose_secret(), "15625000000000000000");
+        assert_eq!(json_txo.token_id.expose_secret(), "0");
         assert_eq!(json_txo.memo, (&memo).into());
     }
 }

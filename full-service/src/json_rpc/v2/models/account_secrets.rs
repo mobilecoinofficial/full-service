@@ -8,6 +8,7 @@ use crate::{
 };
 
 use bip39::{Language, Mnemonic};
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -23,24 +24,24 @@ pub struct AccountSecrets {
 
     /// The entropy from which this account key was derived, as a String
     /// (version 1)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entropy: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub entropy: Secret<Option<String>>,
 
     /// The mnemonic from which this account key was derived, as a String
     /// (version 2)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mnemonic: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub mnemonic: Secret<Option<String>>,
 
     /// The key derivation version that this mnemonic goes with
     pub key_derivation_version: String,
 
     ///  Private keys for receiving and spending MobileCoin.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub account_key: Option<AccountKey>,
+    #[serde(serialize_with = "expose_secret")]
+    pub account_key: Secret<Option<AccountKey>>,
 
     ///  Private keys for receiving and spending MobileCoin.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub view_account_key: Option<ViewAccountKey>,
+    #[serde(serialize_with = "expose_secret")]
+    pub view_account_key: Secret<Option<ViewAccountKey>>,
 }
 
 impl TryFrom<&Account> for AccountSecrets {
@@ -56,23 +57,25 @@ impl TryFrom<&Account> for AccountSecrets {
             Ok(AccountSecrets {
                 account_id: src.id.clone(),
                 name: src.name.clone(),
-                entropy: None,
-                mnemonic: None,
+                entropy: Secret::new(None),
+                mnemonic: Secret::new(None),
                 key_derivation_version: src.key_derivation_version.to_string(),
-                account_key: None,
-                view_account_key: Some(ViewAccountKey::from(&view_account_key)),
+                account_key: Secret::new(None),
+                view_account_key: Secret::new(Some(ViewAccountKey::from(&view_account_key))),
             })
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
                 .map_err(|err| format!("Could not decode account key from database: {err:?}"))?;
 
             let entropy = match src.key_derivation_version {
-                1 => Some(hex::encode(src.entropy.as_ref().ok_or("No entropy found")?)),
-                _ => None,
+                1 => Secret::new(Some(hex::encode(
+                    src.entropy.as_ref().ok_or("No entropy found")?,
+                ))),
+                _ => Secret::new(None),
             };
 
             let mnemonic = match src.key_derivation_version {
-                2 => Some(
+                2 => Secret::new(Some(
                     Mnemonic::from_entropy(
                         src.entropy.as_ref().ok_or("No entropy found")?,
                         Language::English,
@@ -80,8 +83,8 @@ impl TryFrom<&Account> for AccountSecrets {
                     .map_err(|err| format!("Could not create mnemonic: {err:?}"))?
                     .phrase()
                     .to_string(),
-                ),
-                _ => None,
+                )),
+                _ => Secret::new(None),
             };
 
             Ok(AccountSecrets {
@@ -90,10 +93,12 @@ impl TryFrom<&Account> for AccountSecrets {
                 entropy,
                 mnemonic,
                 key_derivation_version: src.key_derivation_version.to_string(),
-                account_key: Some(AccountKey::try_from(&account_key).map_err(|err| {
-                    format!("Could not convert account_key to json_rpc representation: {err:?}")
-                })?),
-                view_account_key: None,
+                account_key: Secret::new(Some(AccountKey::try_from(&account_key).map_err(
+                    |err| {
+                        format!("Could not convert account_key to json_rpc representation: {err:?}")
+                    },
+                )?)),
+                view_account_key: Secret::new(None),
             })
         }
     }

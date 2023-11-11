@@ -321,8 +321,8 @@ where
             addresses_and_amounts.push((
                 address_to_split_into.public_address_b58.clone(),
                 Amount {
-                    value: output_value.to_string(),
-                    token_id: txo_details.token_id.to_string(),
+                    value: output_value.to_string().into(),
+                    token_id: txo_details.token_id.to_string().into(),
                 },
             ))
         }

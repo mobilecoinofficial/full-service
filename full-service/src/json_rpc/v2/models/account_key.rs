@@ -6,6 +6,7 @@ use crate::util::encoding_helpers::{
     base64_to_vec, hex_to_ristretto, hex_to_ristretto_public, ristretto_public_to_hex,
     ristretto_to_hex, vec_to_base64,
 };
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
 
@@ -14,10 +15,12 @@ use std::convert::TryFrom;
 #[derive(Deserialize, Serialize, Default, Debug, Clone)]
 pub struct AccountKey {
     ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
-    pub view_private_key: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub view_private_key: Secret<String>,
 
     /// Private key used for spending, hex-encoded Ristretto bytes.
-    pub spend_private_key: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub spend_private_key: Secret<String>,
 
     /// Fog Report server url (if user has Fog service), empty string otherwise.
     pub fog_report_url: String,
@@ -33,8 +36,8 @@ pub struct AccountKey {
 impl From<&mc_account_keys::AccountKey> for AccountKey {
     fn from(src: &mc_account_keys::AccountKey) -> AccountKey {
         AccountKey {
-            view_private_key: ristretto_to_hex(src.view_private_key()),
-            spend_private_key: ristretto_to_hex(src.spend_private_key()),
+            view_private_key: Secret::new(ristretto_to_hex(src.view_private_key())),
+            spend_private_key: Secret::new(ristretto_to_hex(src.spend_private_key())),
             fog_report_url: src.fog_report_url().unwrap_or("").to_string(),
             fog_report_id: src.fog_report_id().unwrap_or("").to_string(),
             fog_authority_spki: vec_to_base64(src.fog_authority_spki().unwrap_or(&[])),
@@ -46,8 +49,8 @@ impl TryFrom<&AccountKey> for mc_account_keys::AccountKey {
     type Error = String;
 
     fn try_from(src: &AccountKey) -> Result<mc_account_keys::AccountKey, String> {
-        let view_private_key = hex_to_ristretto(&src.view_private_key)?;
-        let spend_private_key = hex_to_ristretto(&src.spend_private_key)?;
+        let view_private_key = hex_to_ristretto(src.view_private_key.expose_secret())?;
+        let spend_private_key = hex_to_ristretto(src.spend_private_key.expose_secret())?;
         let fog_authority_spki = base64_to_vec(&src.fog_authority_spki)?;
 
         Ok(mc_account_keys::AccountKey::new_with_fog(
@@ -82,18 +85,20 @@ pub struct ViewAccountKey {
     pub object: String,
 
     ///  Private key used for view-key matching, hex-encoded Ristretto bytes.
-    pub view_private_key: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub view_private_key: Secret<String>,
 
     /// Public key, hex-encoded Ristretto bytes.
-    pub spend_public_key: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub spend_public_key: Secret<String>,
 }
 
 impl From<&mc_account_keys::ViewAccountKey> for ViewAccountKey {
     fn from(src: &mc_account_keys::ViewAccountKey) -> ViewAccountKey {
         ViewAccountKey {
             object: "view_account_key".to_string(),
-            view_private_key: ristretto_to_hex(src.view_private_key()),
-            spend_public_key: ristretto_public_to_hex(src.spend_public_key()),
+            view_private_key: Secret::new(ristretto_to_hex(src.view_private_key())),
+            spend_public_key: Secret::new(ristretto_public_to_hex(src.spend_public_key())),
         }
     }
 }
@@ -102,8 +107,8 @@ impl TryFrom<&ViewAccountKey> for mc_account_keys::ViewAccountKey {
     type Error = String;
 
     fn try_from(src: &ViewAccountKey) -> Result<mc_account_keys::ViewAccountKey, String> {
-        let view_private_key = hex_to_ristretto(&src.view_private_key)?;
-        let spend_public_key = hex_to_ristretto_public(&src.spend_public_key)?;
+        let view_private_key = hex_to_ristretto(src.view_private_key.expose_secret())?;
+        let spend_public_key = hex_to_ristretto_public(src.spend_public_key.expose_secret())?;
 
         Ok(mc_account_keys::ViewAccountKey::new(
             view_private_key,

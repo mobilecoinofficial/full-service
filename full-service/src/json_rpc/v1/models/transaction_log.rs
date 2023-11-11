@@ -2,6 +2,7 @@
 
 //! API definition for the TransactionLog object.
 
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -107,28 +108,34 @@ pub struct TransactionLog {
     pub assigned_address_id: Option<String>,
 
     /// Value in pico MOB associated to this transaction log.
-    pub value_pmob: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub value_pmob: Secret<String>,
 
     /// Fee in pico MOB associated to this transaction log. Only on outgoing
     /// transaction logs. Only available if direction is "sent".
-    pub fee_pmob: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub fee_pmob: Secret<Option<String>>,
 
     /// The block index of the highest block on the network at the time the
     /// transaction was submitted.
-    pub submitted_block_index: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub submitted_block_index: Secret<Option<String>>,
 
     ///  The scanned block block index in which this transaction occurred.
-    pub finalized_block_index: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub finalized_block_index: Secret<Option<String>>,
 
     /// String representing the transaction log status. On "sent", valid
     /// statuses are "built", "pending", "succeeded", "failed".  On "received",
     /// the status is "succeeded".
-    pub status: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub status: Secret<String>,
 
     /// Time at which sent transaction log was created. Only available if
     /// direction is "sent". This value is null if "received" or if the sent
     /// transactions were recovered from the ledger (is_sent_recovered = true).
-    pub sent_time: Option<String>,
+    #[serde(serialize_with = "expose_secret")]
+    pub sent_time: Secret<Option<String>>,
 
     /// An arbitrary string attached to the object.
     pub comment: String,
@@ -158,7 +165,7 @@ impl TransactionLog {
             output_txos: vec![TxoAbbrev {
                 txo_id_hex: txo.id.to_string(),
                 recipient_address_id: "".to_string(),
-                value_pmob: txo.value.to_string(),
+                value_pmob: txo.value.to_string().into(),
                 public_key: hex::encode(
                     txo.public_key()
                         .map_err(|_| "failed to decode txo public key")?
@@ -167,12 +174,14 @@ impl TransactionLog {
             }],
             change_txos: vec![],
             assigned_address_id: assigned_address,
-            value_pmob: txo.value.to_string(),
-            fee_pmob: None,
-            submitted_block_index: None,
-            finalized_block_index: txo.received_block_index.map(|index| index.to_string()),
-            status: TxStatus::Succeeded.to_string(),
-            sent_time: None,
+            value_pmob: txo.value.to_string().into(),
+            fee_pmob: Secret::new(None),
+            submitted_block_index: Secret::new(None),
+            finalized_block_index: Secret::new(
+                txo.received_block_index.map(|index| index.to_string()),
+            ),
+            status: TxStatus::Succeeded.to_string().into(),
+            sent_time: Secret::new(None),
             comment: "".to_string(),
             failure_code: None,
             failure_message: None,
@@ -222,12 +231,16 @@ impl TransactionLog {
             output_txos,
             change_txos,
             assigned_address_id,
-            value_pmob,
-            fee_pmob: Some(transaction_log.fee_value.to_string()),
-            submitted_block_index: transaction_log.submitted_block_index.map(|i| i.to_string()),
-            finalized_block_index: transaction_log.finalized_block_index.map(|i| i.to_string()),
-            status: TxStatus::from(&transaction_log.status()).to_string(),
-            sent_time: None,
+            value_pmob: value_pmob.into(),
+            fee_pmob: Secret::new(Some(transaction_log.fee_value.to_string())),
+            submitted_block_index: Secret::new(
+                transaction_log.submitted_block_index.map(|i| i.to_string()),
+            ),
+            finalized_block_index: Secret::new(
+                transaction_log.finalized_block_index.map(|i| i.to_string()),
+            ),
+            status: TxStatus::from(&transaction_log.status()).to_string().into(),
+            sent_time: Secret::new(None),
             comment: transaction_log.comment.clone(),
             failure_code: None,
             failure_message: None,
@@ -245,7 +258,8 @@ pub struct TxoAbbrev {
 
     /// Available pico MOB for this Txo.
     /// If the account is syncing, this value may change.
-    pub value_pmob: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub value_pmob: Secret<String>,
 
     /// Hex encoded bytes of the public key of this txo, which can be found on
     /// the blockchain.
@@ -262,7 +276,7 @@ impl TxoAbbrev {
         Self {
             txo_id_hex: txo.id.clone(),
             recipient_address_id,
-            value_pmob: (txo.value as u64).to_string(),
+            value_pmob: (txo.value as u64).to_string().into(),
             public_key: public_key_hex,
         }
     }

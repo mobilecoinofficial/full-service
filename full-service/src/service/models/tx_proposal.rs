@@ -281,19 +281,20 @@ impl TryFrom<&crate::json_rpc::v1::models::tx_proposal::TxProposal> for TxPropos
 
         let mut payload_txos = Vec::new();
 
-        for (outlay_index, tx_out_index) in src.outlay_index_to_tx_out_index.iter() {
+        for (outlay_index, tx_out_index) in src.outlay_index_to_tx_out_index.expose_secret().iter()
+        {
             let outlay_index = outlay_index.parse::<usize>().map_err(|e| e.to_string())?;
             let outlay = &src.outlay_list[outlay_index];
             let tx_out_index = tx_out_index.parse::<usize>().map_err(|e| e.to_string())?;
             let tx_out = tx.prefix.outputs[tx_out_index].clone();
-            let confirmation_number_bytes: &[u8; 32] = src.outlay_confirmation_numbers
-                [outlay_index]
-                .as_slice()
-                .try_into()
-                .map_err(|_| {
-                    "confirmation number is not the right number of bytes (expecting 32)"
-                        .to_string()
-                })?;
+            let confirmation_number_bytes: &[u8; 32] =
+                src.outlay_confirmation_numbers.expose_secret()[outlay_index]
+                    .as_slice()
+                    .try_into()
+                    .map_err(|_| {
+                        "confirmation number is not the right number of bytes (expecting 32)"
+                            .to_string()
+                    })?;
 
             let confirmation_number = TxOutConfirmationNumber::from(confirmation_number_bytes);
 
@@ -335,7 +336,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
             .iter()
             .map(|input_txo| {
                 let key_image_bytes =
-                    hex::decode(&input_txo.key_image).map_err(|e| e.to_string())?;
+                    hex::decode(input_txo.key_image.expose_secret()).map_err(|e| e.to_string())?;
                 Ok(InputTxo {
                     tx_out: mc_util_serial::decode(
                         hex::decode(&input_txo.tx_out_proto)
