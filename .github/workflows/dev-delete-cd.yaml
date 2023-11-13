@@ -1,36 +1,36 @@
-# Copyright (c) 2018-2022 The MobileCoin Foundation
-#
-# MobileCoin full-service - Delete development namespaces when branch is removed.
+# # Copyright (c) 2018-2022 The MobileCoin Foundation
+# #
+# # MobileCoin full-service - Delete development namespaces when branch is removed.
 
-name: Mobilecoin Dev Clean Up
+# name: Mobilecoin Dev Clean Up
 
-on:
-  delete: {}
+# on:
+#   delete: {}
 
-jobs:
-  metadata:
-    if: startsWith(github.event.ref, 'feature/')
-    runs-on: [self-hosted, Linux, small]
-    outputs:
-      namespace: ${{ steps.meta.outputs.namespace }}
-    steps:
-      - name: Generate version metadata
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        id: meta
-        with:
-          action: generate-metadata
-          prefix: fs
+# jobs:
+#   metadata:
+#     if: startsWith(github.event.ref, 'feature/')
+#     runs-on: [self-hosted, Linux, small]
+#     outputs:
+#       namespace: ${{ steps.meta.outputs.namespace }}
+#     steps:
+#       - name: Generate version metadata
+#         uses: mobilecoinofficial/gha-k8s-toolbox@v1
+#         id: meta
+#         with:
+#           action: generate-metadata
+#           prefix: fs
 
-  delete:
-    needs:
-      - metadata
-    runs-on: [self-hosted, Linux, small]
-    steps:
-      - name: Delete namespace
-        uses: mobilecoinofficial/gha-k8s-toolbox@v1
-        with:
-          action: namespace-delete
-          namespace: ${{ needs.metadata.outputs.namespace }}
-          rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-          rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-          rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+#   delete:
+#     needs:
+#       - metadata
+#     runs-on: [self-hosted, Linux, small]
+#     steps:
+#       - name: Delete namespace
+#         uses: mobilecoinofficial/gha-k8s-toolbox@v1
+#         with:
+#           action: namespace-delete
+#           namespace: ${{ needs.metadata.outputs.namespace }}
+#           rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+#           rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+#           rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
