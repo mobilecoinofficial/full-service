@@ -62,7 +62,7 @@ ledger-mob = { path = "../ledger-mob/lib" }
 async-trait = "0.1.59"
 base64 = "0.21.5"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-clap = { version = "4.3", features = ["derive", "env"] }
+clap = { version = "4.4", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
 diesel = { version = "2.1.0", features = ["chrono", "sqlite", "r2d2"] }
 diesel-derive-enum = { version = "2", features = ["sqlite"] }
