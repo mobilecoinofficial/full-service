@@ -152,18 +152,18 @@ echo "building full service..."
 # shellcheck disable=SC2086 # split away - Use BUILD_OPTIONS to set additional build options
 cargo build --release ${BUILD_OPTIONS}
 
-if [[ "${AM_I_IN_MOB_PROMPT}" == "no" ]]
-then
-    cp "${RELEASE_DIR}/full-service" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/generate-rsa-keypair" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/signer" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/signer-service" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/validator-service" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/wallet-service-mirror-private" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/wallet-service-mirror-public" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/consensus-enclave.css" "${WORK_DIR}/"
-    cp "${RELEASE_DIR}/ingest-enclave.css" "${WORK_DIR}/"
-    echo "  Binaries are available in ${RELEASE_DIR} and ${WORK_DIR}"
-else
-    echo "  Binaries are available in ${RELEASE_DIR}"
-fi
+# if [[ "${AM_I_IN_MOB_PROMPT}" == "no" ]]
+# then
+#     cp "${RELEASE_DIR}/full-service" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/generate-rsa-keypair" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/signer" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/signer-service" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/validator-service" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/wallet-service-mirror-private" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/wallet-service-mirror-public" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/consensus-enclave.css" "${WORK_DIR}/"
+#     cp "${RELEASE_DIR}/ingest-enclave.css" "${WORK_DIR}/"
+#     echo "  Binaries are available in ${RELEASE_DIR} and ${WORK_DIR}"
+# else
+#     echo "  Binaries are available in ${RELEASE_DIR}"
+# fi
