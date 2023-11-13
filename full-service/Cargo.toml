@@ -116,7 +116,7 @@ url = "2.3"
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "8.2.4", features = [
+vergen = { version = "8.2.6", features = [
     "build",
     "cargo",
     "git",

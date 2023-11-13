@@ -50,4 +50,4 @@ zeroize = { version = "1", default-features = false }
 
 [build-dependencies]
 anyhow = "1.0"
-vergen = { version = "8.2.4", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
+vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }
