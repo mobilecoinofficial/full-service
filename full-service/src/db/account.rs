@@ -17,7 +17,10 @@ use crate::{
 };
 use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use bip39::Mnemonic;
-use diesel::prelude::*;
+use diesel::{
+    dsl::{exists, select},
+    prelude::*,
+};
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
@@ -923,11 +926,10 @@ impl AccountModel for Account {
     fn resync_in_progress(conn: Conn) -> Result<bool, WalletDbError> {
         use crate::db::schema::accounts;
 
-        let resyncing_accounts: Vec<Account> = accounts::table
-            .filter(accounts::resyncing.eq(true))
-            .load(conn)?;
-
-        Ok(!resyncing_accounts.is_empty())
+        Ok(
+            select(exists(accounts::table.filter(accounts::resyncing.eq(true))))
+                .get_result(conn)?,
+        )
     }
 }
 

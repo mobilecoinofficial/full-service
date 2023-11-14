@@ -718,7 +718,12 @@ where
     }
 
     fn resync_in_progress(&self) -> Result<bool, AccountServiceError> {
-        let mut pooled_conn = self.get_pooled_conn()?;
+        let mut pooled_conn = match self.get_pooled_conn() {
+            Ok(pooled_conn) => Ok(pooled_conn),
+            Err(WalletDbError::WalletFunctionsDisabled) => return Ok(false),
+            Err(err) => Err(err),
+        }?;
+
         let conn = pooled_conn.deref_mut();
         Ok(Account::resync_in_progress(conn)?)
     }
