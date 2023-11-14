@@ -356,6 +356,8 @@ pub trait AccountService {
         &self, 
         account_id: &AccountID
     ) -> Result<bool, AccountServiceError>;
+
+    fn resync_in_progress(&self) -> Result<bool, AccountServiceError>;
 }
 
 #[async_trait]
@@ -713,6 +715,17 @@ where
             account.delete(conn)?;
             Ok(true)
         })
+    }
+
+    fn resync_in_progress(&self) -> Result<bool, AccountServiceError> {
+        let mut pooled_conn = match self.get_pooled_conn() {
+            Ok(pooled_conn) => Ok(pooled_conn),
+            Err(WalletDbError::WalletFunctionsDisabled) => return Ok(false),
+            Err(err) => Err(err),
+        }?;
+
+        let conn = pooled_conn.deref_mut();
+        Ok(Account::resync_in_progress(conn)?)
     }
 }
 

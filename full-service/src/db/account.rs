@@ -17,7 +17,10 @@ use crate::{
 };
 use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use bip39::Mnemonic;
-use diesel::prelude::*;
+use diesel::{
+    dsl::{exists, select},
+    prelude::*,
+};
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
@@ -435,6 +438,10 @@ pub trait AccountModel {
     fn get_shared_secret(&self, tx_public_key: &RistrettoPublic) -> Result<RistrettoPublic, WalletDbError>;
 
     fn public_address(&self, index: u64) -> Result<PublicAddress, WalletDbError>;
+
+    fn update_resyncing(&self, resyncing: bool, conn: Conn) -> Result<(), WalletDbError>;
+
+    fn resync_in_progress(conn: Conn) -> Result<bool, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -906,6 +913,24 @@ impl AccountModel for Account {
         let account_key = self.account_key()?;
         Ok(account_key.subaddress(index))
     }
+
+    fn update_resyncing(&self, resyncing: bool, conn: Conn) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts;
+
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::resyncing.eq(resyncing))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn resync_in_progress(conn: Conn) -> Result<bool, WalletDbError> {
+        use crate::db::schema::accounts;
+
+        Ok(
+            select(exists(accounts::table.filter(accounts::resyncing.eq(true))))
+                .get_result(conn)?,
+        )
+    }
 }
 
 #[cfg(test)]
@@ -969,6 +994,7 @@ mod tests {
             fog_enabled: false,
             view_only: false,
             managed_by_hardware_wallet: false,
+            resyncing: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -1035,6 +1061,7 @@ mod tests {
             fog_enabled: false,
             view_only: false,
             managed_by_hardware_wallet: false,
+            resyncing: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -1201,6 +1228,7 @@ mod tests {
             fog_enabled: true,
             view_only: false,
             managed_by_hardware_wallet: false,
+            resyncing: false,
         };
         assert_eq!(expected_account, acc);
     }
@@ -1258,6 +1286,7 @@ mod tests {
             fog_enabled: false,
             view_only: true,
             managed_by_hardware_wallet: false,
+            resyncing: false,
         };
         assert_eq!(expected_account, account);
     }
@@ -1317,6 +1346,7 @@ mod tests {
             fog_enabled: true,
             view_only: true,
             managed_by_hardware_wallet: true,
+            resyncing: false,
         };
 
         // Check to make sure the account in the database is correct

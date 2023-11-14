@@ -38,6 +38,7 @@ pub struct Account {
     /// and is required in order to spend funds and generate key images for this
     /// account.
     pub managed_by_hardware_wallet: bool,
+    pub resyncing: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`

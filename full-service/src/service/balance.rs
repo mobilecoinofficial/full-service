@@ -144,6 +144,12 @@ pub struct WalletStatus {
     pub account_map: HashMap<AccountID, Account>,
 }
 
+impl WalletStatus {
+    pub fn percent_synced(&self) -> u64 {
+        self.min_synced_block_index * 100 / self.local_block_height
+    }
+}
+
 /// Trait defining the ways in which the wallet can interact with and manage
 /// balances.
 #[rustfmt::skip]
