@@ -741,6 +741,8 @@ pub trait TxoModel {
     /// If we created the txo, it would be the address at which we received it. Otherwise,
     /// it will require a lookup of who we sent it to in the transaction_txo_outputs table
     fn recipient_public_address(&self, conn: Conn) -> Result<Option<PublicAddress>, WalletDbError>;
+
+    fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError>;
 }
 
 impl TxoModel for Txo {
@@ -2148,6 +2150,16 @@ impl TxoModel for Txo {
             // The rest are either orphaned txos or invalid states we should never hit, which we
             // both want to ignore
             _ => Ok(None),
+        }
+    }
+
+    fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError> {
+        match &self.account_id {
+            Some(account_id) => Ok(Some(Account::get(
+                &AccountID(account_id.to_string()),
+                conn,
+            )?)),
+            None => Ok(None),
         }
     }
 }

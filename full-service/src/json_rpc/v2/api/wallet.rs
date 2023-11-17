@@ -1435,12 +1435,11 @@ where
             JsonCommandResponse::validate_confirmation { validated: result }
         }
         JsonCommandRequest::validate_sender_memo {
-            account_id,
             txo_id,
             sender_address,
         } => {
             let result = service
-                .validate_sender_memo(&AccountID(account_id), &txo_id, &sender_address)
+                .validate_sender_memo(&txo_id, &sender_address)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
         }
