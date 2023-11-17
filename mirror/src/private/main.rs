@@ -40,6 +40,7 @@ const SUPPORTED_ENDPOINTS: &[&str] = &[
     "get_transaction_log",
     "get_wallet_status",
     "validate_confirmation",
+    "validate_sender_memo",
     "verify_address",
     "get_txos",
     "get_all_accounts",
