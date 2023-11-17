@@ -2154,14 +2154,12 @@ impl TxoModel for Txo {
     }
 
     fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError> {
-        match &self.account_id {
-            Some(account_id) => Ok(Some(Account::get(
-                &AccountID(account_id.to_string()),
-                conn,
-            )?)),
-            None => Ok(None),
-        }
-    }
+        Ok(self
+            .account_id
+            .as_ref()
+            .map(|account_id| Account::get(&AccountID(account_id.to_string()), conn))
+            .transpose()?)
+     }
 }
 
 fn add_authenticated_memo_to_database(
