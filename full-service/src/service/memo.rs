@@ -96,9 +96,8 @@ where
         let conn = pooled_conn.deref_mut();
 
         let txo = Txo::get(txo_id_hex, conn)?;
-        let account = match txo.account(conn)? {
-            Some(account) => account,
-            None => return Ok(false),
+        let Some(account) = txo.account(conn)? else {
+            return Ok(false);
         };
 
         let account_key = account.account_key()?;
