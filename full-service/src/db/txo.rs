@@ -2159,7 +2159,7 @@ impl TxoModel for Txo {
             .as_ref()
             .map(|account_id| Account::get(&AccountID(account_id.to_string()), conn))
             .transpose()?)
-     }
+    }
 }
 
 fn add_authenticated_memo_to_database(
