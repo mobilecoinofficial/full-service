@@ -8,13 +8,12 @@ description: >-
 
 ## Transaction Output TXO
 
-In order to construct a transaction, the wallet will select "Unspent Transaction Outputs" and perform a cryptographic
-operation to mark them as "spent" in the ledger. Then, it will mint new TXOs for the recipient.
+In order to construct a transaction, the wallet will select "Unspent Transaction Outputs" and perform a cryptographic operation to mark them as "spent" in the ledger. Then, it will mint new TXOs for the recipient.
 
 ### Attributes <a href="#object_method" id="object_method"></a>
 
 | _Name_                              | _Type_          | _Description_                                                                                                                                                                                                                                                                                                                                                                                                                  |
-|-------------------------------------|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `id`                                | string          |                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `value`                             | string (uint64) | Available value for this account at the current `account_block_height`. If the account is syncing, this value may change.                                                                                                                                                                                                                                                                                                      |
 | `token_id`                          | string (uint64) |                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -29,6 +28,7 @@ operation to mark them as "spent" in the ledger. Then, it will mint new TXOs for
 | `key_image` (only on pending/spent) | string (hex)    | A fingerprint of the TXO derived from your private spend key materials, required to spend a TXO                                                                                                                                                                                                                                                                                                                                |
 | `confirmation`                      | string (hex)    | A confirmation that the sender of the TXO can provide to validate that they participated in the construction of this TXO.                                                                                                                                                                                                                                                                                                      |
 | `shared_secret`                     | string (hex)    | The proto-encoded shared secret used to decode the masked amount in the TXO                                                                                                                                                                                                                                                                                                                                                    |
+| `memo`                              | Memo            | The decrypted memo that is a part of this txo, if available.                                                                                                                                                                                                                                                                                                                                                                   |
 
 ### Example <a href="#object_method" id="object_method"></a>
 
@@ -57,7 +57,14 @@ operation to mark them as "spent" in the ledger. Then, it will mint new TXOs for
   "assigned_subaddress": "7BeDc5jpZ...",
   "key_image": "6d6f6269...",
   "confirmation": "23fd34a...",
-  "shared_secret": "0a20eaa9..."
+  "shared_secret": "0a20eaa9...",
+  "memo": {
+    "AuthenticatedSender": {
+      "sender_address_hash": "9b8e8d98...",
+      "payment_request_id": null,
+      "payment_intent_id": null
+    }
+  }
 }
 ```
 
@@ -100,13 +107,13 @@ a minimal txo entity useful for view-only-accounts
 
 ### Attributes <a href="#object_method" id="object_method"></a>
 
-| _Name_                     | _Type_                           | _Description_                                                                                                                |
-|----------------------------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------|
-| `object`                   | string, value is "view_only_txo" | String representing the object's type. Objects of the same type share the same value.                                        |
-| `public_key`               | string (hex)                     | The public key for this TXO, can be used as an identifier to find the TXO in the ledger.                                     |
-| `value_pmob`               | string (uint64)                  | Available pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
-| `view_only_account_id_hex` | string                           | The local ID for view only account that has the private view key capable of decrypting this txo.                             |
-| `spent`                    | string                           | Whether or not this txo has been manually marked as spent.                                                                   |
-| `txo_id_hex`               | string                           | A synthetic ID created from properties of the TXO. This will be the same for a given TXO across systems.                     |
+| _Name_                     | _Type_                             | _Description_                                                                                                                |
+| -------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `object`                   | string, value is "view\_only\_txo" | String representing the object's type. Objects of the same type share the same value.                                        |
+| `public_key`               | string (hex)                       | The public key for this TXO, can be used as an identifier to find the TXO in the ledger.                                     |
+| `value_pmob`               | string (uint64)                    | Available pico MOB for this account at the current `account_block_height`. If the account is syncing, this value may change. |
+| `view_only_account_id_hex` | string                             | The local ID for view only account that has the private view key capable of decrypting this txo.                             |
+| `spent`                    | string                             | Whether or not this txo has been manually marked as spent.                                                                   |
+| `txo_id_hex`               | string                             | A synthetic ID created from properties of the TXO. This will be the same for a given TXO across systems.                     |
 
 ### Example <a href="#object_method" id="object_method"></a>

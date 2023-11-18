@@ -38,6 +38,8 @@
       * [Build Unsigned Transaction](api-endpoints/v2/transaction/transaction/build\_unsigned\_transaction.md)
       * [Build Unsigned Burn Transaction](api-endpoints/v2/transaction/transaction/build\_unsigned\_burn\_transaction.md)
     * [Transaction Output TXO](api-endpoints/v2/transaction/txo/README.md)
+      * [Memo](api-endpoints/v2/transaction/txo/memo/README.md)
+        * [Validate Sender Memo](api-endpoints/v2/transaction/txo/memo/validate-sender-memo.md)
       * [Get TXO](api-endpoints/v2/transaction/txo/get\_txo.md)
       * [Get TXOs](api-endpoints/v2/transaction/txo/get\_txos.md)
       * [Get MobileCoin Protocol TXO](api-endpoints/v2/transaction/txo/get\_mc\_protocol\_txo.md)
@@ -164,6 +166,8 @@
 * [Logging](usage/logging/README.md)
   * [Text Logs (syslog style)](usage/logging/text-logs.md)
   * [Crash Reports](usage/logging/crash-reports.md)
+* [T3](usage/t3.md)
+* [Sender Memos](usage/sender-memos.md)
 
 ## FAQ
 
