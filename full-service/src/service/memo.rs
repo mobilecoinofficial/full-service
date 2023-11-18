@@ -1,15 +1,10 @@
 use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        models::Account,
-        WalletDbError,
-    },
+    db::{account::AccountModel, models::Txo, txo::TxoModel, WalletDbError},
     service::ledger::{LedgerService, LedgerServiceError},
     util::b58::{b58_decode_public_address, B58Error},
     WalletService,
 };
 use displaydoc::Display;
-use mc_account_keys::AccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -80,7 +75,6 @@ impl From<MemoDecodingError> for MemoServiceError {
 pub trait MemoService {
     fn validate_sender_memo(
         &self,
-        account_id: &AccountID,
         txo_id_hex: &str,
         sender_address: &str,
     ) -> Result<bool, MemoServiceError>;
@@ -93,7 +87,6 @@ where
 {
     fn validate_sender_memo(
         &self,
-        account_id: &AccountID,
         txo_id_hex: &str,
         sender_address: &str,
     ) -> Result<bool, MemoServiceError> {
@@ -102,13 +95,17 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
-        let account = Account::get(account_id, conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let txo = Txo::get(txo_id_hex, conn)?;
+        let Some(account) = txo.account(conn)? else {
+            return Ok(false);
+        };
 
-        let txo = self.get_txo_object(txo_id_hex)?;
+        let account_key = account.account_key()?;
+
+        let tx_out = self.get_txo_object(txo_id_hex)?;
         let shared_secret =
-            account.get_shared_secret(&RistrettoPublic::try_from(&txo.public_key)?)?;
-        let memo_payload = match txo.e_memo {
+            account.get_shared_secret(&RistrettoPublic::try_from(&tx_out.public_key)?)?;
+        let memo_payload = match tx_out.e_memo {
             Some(e_memo) => e_memo.decrypt(&shared_secret),
             None => UnusedMemo.into(),
         };
@@ -118,7 +115,7 @@ where
                 .validate(
                     &sender_address,
                     account_key.view_private_key(),
-                    &txo.public_key,
+                    &tx_out.public_key,
                 )
                 .into()),
             Ok(_) => Err(MemoServiceError::InvalidMemoTypeForValidation),
