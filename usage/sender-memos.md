@@ -4,6 +4,8 @@ Authenticated Sender Memos are a type of memo that is typically included in a tx
 
 To validate a sender memo using Full Service, you can call [validate\_sender\_memo](../api-endpoints/v2/transaction/txo/memo/validate-sender-memo.md) with a given txo id and expected sender public address.
 
+Decoding and validating authenticated sender memos requires using Full Service version v2.9.0 or newer and is only available via the v2 API.
+
 ### Verifiability
 
 The `authenticated sender memo` includes a hash of the sender's public address, and an HMAC value. These are used to inform the recipient of who the sender is in a verifiable way.
