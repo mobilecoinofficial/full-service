@@ -1,6 +1,6 @@
 # Sender Memos
 
-Authenticated Sender Memos are a type of memo that may be included in a txo. It allows the recipient of a txo to validate that it came from the person that is claiming it came from.&#x20;
+Authenticated Sender Memos are a type of memo that is typically included in a txo sent between counterparties by wallets that use MobileCoin APIs and SDKs. They identify the sender of the txo using a hash of their wallet address and allow the recipient of a txo to further validate that it came from the person that is claiming it came from using the sender's public address.
 
 To validate a sender memo using Full Service, you can call [validate\_sender\_memo](../api-endpoints/v2/transaction/txo/memo/validate-sender-memo.md) with a given txo id and expected sender public address.
 
