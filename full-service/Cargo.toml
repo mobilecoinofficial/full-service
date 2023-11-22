@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service"
-version = "2.8.0"
+version = "2.9.1"
 authors = ["MobileCoin"]
 edition = "2018"
 build = "build.rs"
