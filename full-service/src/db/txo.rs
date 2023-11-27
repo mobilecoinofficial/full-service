@@ -2171,11 +2171,10 @@ impl TxoModel for Txo {
     }
 
     fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError> {
-        Ok(self
-            .account_id
+        self.account_id
             .as_ref()
             .map(|account_id| Account::get(&AccountID(account_id.to_string()), conn))
-            .transpose()?)
+            .transpose()
     }
 }
 
@@ -2203,6 +2202,7 @@ fn add_authenticated_memo_to_database(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn add_destination_memo_to_database(
     txo_id: &str,
     recipient_address_hash: &str,

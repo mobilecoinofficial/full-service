@@ -8,13 +8,19 @@ mod e2e_transaction {
         db::{account::AccountID, txo::TxoStatus},
         json_rpc::v2::{
             api::test_utils::{dispatch, setup},
-            models::tx_proposal::TxProposal as TxProposalJSON,
+            models::{
+                memo::{DestinationMemo, Memo},
+                transaction_log::TransactionLog as TransactionLogJSON,
+                tx_proposal::TxProposal as TxProposalJSON,
+                txo::Txo as TxoJSON,
+            },
         },
         service::models::tx_proposal::TxProposal,
         test_utils::{add_block_to_ledger_db, add_block_with_tx, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
 
+    use mc_account_keys::ShortAddressHash;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -593,5 +599,103 @@ mod e2e_transaction {
         let balance_mob = balance_per_token.get(Mob::ID.to_string()).unwrap();
         let unspent = balance_mob["unspent"].as_str().unwrap();
         assert_eq!(unspent, "100");
+    }
+
+    #[test_with_logger]
+    fn test_txo_info_includes_correct_memos(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Alice Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
+        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+        let short_address_hash: ShortAddressHash = (&public_address).into();
+
+        // Add a block with a txo for this address (note that value is smaller than
+        // MINIMUM_FEE, so it is a "dust" TxOut that should get opportunistically swept
+        // up when we construct the transaction)
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Add a block with significantly more MOB
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![public_address.clone()],
+            100_000_000_000_000, // 100.0 MOB
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Create a tx proposal to ourselves
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_and_submit_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": b58_public_address,
+                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let transaction_log: TransactionLogJSON =
+            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+
+        let change_txo = transaction_log.change_txos[0].clone();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "get_txo",
+            "params": {
+                "txo_id": change_txo.txo_id,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let txo: TxoJSON = serde_json::from_value(result.get("txo").unwrap().clone()).unwrap();
+
+        let expected_memo = Memo::Destination(DestinationMemo {
+            recipient_address_hash: short_address_hash.to_string(),
+            num_recipients: "1".to_string(),
+            fee: "400000000".to_string(),
+            total_outlay: "42000400000000".to_string(),
+            payment_request_id: None,
+            payment_intent_id: None,
+        });
+
+        assert_eq!(txo.memo, expected_memo);
     }
 }
