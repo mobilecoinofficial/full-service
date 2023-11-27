@@ -37,6 +37,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    destination_memos (txo_id) {
+        txo_id -> Text,
+        recipient_address_hash -> Text,
+        num_recipients -> Integer,
+        fee -> BigInt,
+        total_outlay -> BigInt,
+        payment_request_id -> Nullable<BigInt>,
+        payment_intent_id -> Nullable<BigInt>,
+    }
+}
+
+diesel::table! {
     gift_codes (id) {
         id -> Integer,
         gift_code_b58 -> Text,
@@ -115,6 +127,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     accounts,
     assigned_subaddresses,
     authenticated_sender_memos,
+    destination_memos,
     gift_codes,
     transaction_input_txos,
     transaction_logs,
