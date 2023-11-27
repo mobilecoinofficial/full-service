@@ -264,7 +264,7 @@ pub struct NewAuthenticatedSenderMemo<'a> {
 pub struct DestinationMemo {
     pub txo_id: String,
     pub recipient_address_hash: String,
-    pub num_recipients: i8,
+    pub num_recipients: i32,
     pub fee: i64,
     pub total_outlay: i64,
     pub payment_request_id: Option<i64>,
@@ -276,7 +276,7 @@ pub struct DestinationMemo {
 pub struct NewDestinationMemo<'a> {
     pub txo_id: &'a str,
     pub recipient_address_hash: &'a str,
-    pub num_recipients: i8,
+    pub num_recipients: i32,
     pub fee: i64,
     pub total_outlay: i64,
     pub payment_request_id: Option<i64>,

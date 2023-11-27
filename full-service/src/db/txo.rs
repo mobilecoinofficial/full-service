@@ -19,8 +19,9 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::{
     AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentIntentIdMemo,
-    AuthenticatedSenderWithPaymentRequestIdMemo, MemoType, RegisteredMemoType,
-    TxOutConfirmationNumber, UnusedMemo,
+    AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
+    DestinationWithPaymentIntentIdMemo, DestinationWithPaymentRequestIdMemo, MemoType,
+    RegisteredMemoType, TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
@@ -31,7 +32,8 @@ use crate::{
         assigned_subaddress::AssignedSubaddressModel,
         models::{
             Account, AssignedSubaddress, AuthenticatedSenderMemo as AuthenticatedSenderMemoModel,
-            NewAuthenticatedSenderMemo, NewTransactionOutputTxo, NewTxo, TransactionOutputTxo, Txo,
+            DestinationMemo as DestinationMemoModel, NewAuthenticatedSenderMemo,
+            NewDestinationMemo, NewTransactionOutputTxo, NewTxo, TransactionOutputTxo, Txo,
         },
         transaction_log::TransactionId,
         Conn, WalletDbError,
@@ -75,6 +77,7 @@ pub enum TxoStatus {
 pub enum TxoMemo {
     Unused,
     AuthenticatedSender(AuthenticatedSenderMemoModel),
+    Destination(DestinationMemoModel),
 }
 
 impl fmt::Display for TxoStatus {
@@ -1968,7 +1971,8 @@ impl TxoModel for Txo {
 
     fn delete_unreferenced(conn: Conn) -> Result<(), WalletDbError> {
         use crate::db::schema::{
-            authenticated_sender_memos, transaction_input_txos, transaction_output_txos, txos,
+            authenticated_sender_memos, destination_memos, transaction_input_txos,
+            transaction_output_txos, txos,
         };
 
         /*
@@ -1990,9 +1994,13 @@ impl TxoModel for Txo {
         let unreferenced_authenticated_sender_memos = authenticated_sender_memos::table
             .filter(authenticated_sender_memos::txo_id.eq_any(unreferenced_txos.select(txos::id)));
 
+        let unreferenced_destination_memos = destination_memos::table
+            .filter(destination_memos::txo_id.eq_any(unreferenced_txos.select(txos::id)));
+
         // Delete all associated memos in the database with these unreferenced txos, and
         // then delete the unreferenced txos themselves.
         diesel::delete(unreferenced_authenticated_sender_memos).execute(conn)?;
+        diesel::delete(unreferenced_destination_memos).execute(conn)?;
         diesel::delete(unreferenced_txos).execute(conn)?;
 
         Ok(())
@@ -2071,7 +2079,7 @@ impl TxoModel for Txo {
     }
 
     fn memo(&self, conn: Conn) -> Result<TxoMemo, WalletDbError> {
-        use crate::db::schema::authenticated_sender_memos;
+        use crate::db::schema::{authenticated_sender_memos, destination_memos};
         Ok(
             match self.memo_type {
                 None => TxoMemo::Unused,
@@ -2085,6 +2093,15 @@ impl TxoModel for Txo {
                                     authenticated_sender_memos::txo_id.eq(&self.id),
                                     ).first::<AuthenticatedSenderMemoModel>(conn)?;
                                 TxoMemo::AuthenticatedSender(db_memo)
+                            },
+                        <DestinationMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
+                        <DestinationWithPaymentIntentIdMemo as RegisteredMemoType>::MEMO_TYPE_BYTES |
+                        <DestinationWithPaymentRequestIdMemo as RegisteredMemoType>::MEMO_TYPE_BYTES
+                            => {
+                                let db_memo = destination_memos::table.filter(
+                                    destination_memos::txo_id.eq(&self.id),
+                                    ).first::<DestinationMemoModel>(conn)?;
+                                TxoMemo::Destination(db_memo)
                             },
                         _ => TxoMemo::Unused,
                     }
@@ -2186,6 +2203,36 @@ fn add_authenticated_memo_to_database(
     Ok(())
 }
 
+fn add_destination_memo_to_database(
+    txo_id: &str,
+    recipient_address_hash: &str,
+    num_recipients: i32,
+    fee: i64,
+    total_outlay: i64,
+    payment_request_id: Option<i64>,
+    payment_intent_id: Option<i64>,
+    conn: Conn,
+) -> Result<(), WalletDbError> {
+    use crate::db::schema::destination_memos;
+
+    let new_memo = NewDestinationMemo {
+        txo_id,
+        recipient_address_hash,
+        num_recipients,
+        fee,
+        total_outlay,
+        payment_request_id,
+        payment_intent_id,
+    };
+
+    diesel::insert_into(destination_memos::table)
+        .values(&new_memo)
+        .on_conflict_do_nothing()
+        .execute(conn)?;
+
+    Ok(())
+}
+
 fn i32_to_two_bytes(value: i32) -> [u8; 2] {
     [(value >> 8) as u8, (value & 0xFF) as u8]
 }
@@ -2227,6 +2274,36 @@ fn add_memo_to_database(
                 conn,
             )
         }
+        Ok(MemoType::Destination(memo)) => add_destination_memo_to_database(
+            txo_id,
+            &memo.get_address_hash().to_string(),
+            memo.get_num_recipients() as i32,
+            memo.get_fee() as i64,
+            memo.get_total_outlay() as i64,
+            None,
+            None,
+            conn,
+        ),
+        Ok(MemoType::DestinationWithPaymentRequestId(memo)) => add_destination_memo_to_database(
+            txo_id,
+            &memo.get_address_hash().to_string(),
+            memo.get_num_recipients() as i32,
+            memo.get_fee() as i64,
+            memo.get_total_outlay() as i64,
+            Some(memo.get_payment_request_id() as i64),
+            None,
+            conn,
+        ),
+        Ok(MemoType::DestinationWithPaymentIntentId(memo)) => add_destination_memo_to_database(
+            txo_id,
+            &memo.get_address_hash().to_string(),
+            memo.get_num_recipients() as i32,
+            memo.get_fee() as i64,
+            memo.get_total_outlay() as i64,
+            None,
+            Some(memo.get_payment_intent_id() as i64),
+            conn,
+        ),
         Ok(_) => Ok(()),
         Err(e) => Err(e.into()),
     }
