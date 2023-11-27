@@ -4,7 +4,8 @@
 
 use super::schema::{
     __diesel_schema_migrations, accounts, assigned_subaddresses, authenticated_sender_memos,
-    gift_codes, transaction_input_txos, transaction_logs, transaction_output_txos, txos,
+    destination_memos, gift_codes, transaction_input_txos, transaction_logs,
+    transaction_output_txos, txos,
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use serde::Serialize;
@@ -252,6 +253,32 @@ pub struct AuthenticatedSenderMemo {
 pub struct NewAuthenticatedSenderMemo<'a> {
     pub txo_id: &'a str,
     pub sender_address_hash: &'a str,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
+}
+
+#[derive(Clone, Serialize, Associations, Identifiable, Queryable, PartialEq, Eq, Debug)]
+#[diesel(belongs_to(Txo, foreign_key = txo_id))]
+#[diesel(table_name = destination_memos)]
+#[diesel(primary_key(txo_id))]
+pub struct DestinationMemo {
+    pub txo_id: String,
+    pub recipient_address_hash: String,
+    pub num_recipients: i8,
+    pub fee: i64,
+    pub total_outlay: i64,
+    pub payment_request_id: Option<i64>,
+    pub payment_intent_id: Option<i64>,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = destination_memos)]
+pub struct NewDestinationMemo<'a> {
+    pub txo_id: &'a str,
+    pub recipient_address_hash: &'a str,
+    pub num_recipients: i8,
+    pub fee: i64,
+    pub total_outlay: i64,
     pub payment_request_id: Option<i64>,
     pub payment_intent_id: Option<i64>,
 }
