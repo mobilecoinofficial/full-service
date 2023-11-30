@@ -2,7 +2,8 @@
 
 //! Config definition and processing for Wallet Service.
 
-use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_core::MrSigner;
+use mc_attestation_verifier::{TrustedIdentity, TrustedMrSignerIdentity};
 use mc_blockchain_types::BlockData;
 use mc_common::{
     logger::{log, Logger},
@@ -112,19 +113,18 @@ fn load_css_file(filename: &str) -> Result<Signature, String> {
 impl APIConfig {
     /// Get the attestation verifier used to verify fog reports when sending to
     /// fog recipients.
-    pub fn get_fog_ingest_verifier(&self) -> Option<Verifier> {
+    pub fn get_fog_ingest_identity(&self) -> Option<TrustedIdentity> {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
-            let mr_signer_verifier = {
-                let mut mr_signer_verifier = MrSignerVerifier::from(signature);
-                mr_signer_verifier.allow_hardening_advisories(
+            let config_advisories: Vec<&str> = vec![];
+            TrustedIdentity::MrSigner(
+                TrustedMrSignerIdentity::new(
+                    MrSigner::from(signature.mrsigner()),
+                    signature.product_id(),
+                    signature.version(),
+                    config_advisories,
                     mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
-                );
-                mr_signer_verifier
-            };
-
-            let mut verifier = Verifier::default();
-            verifier.debug(DEBUG_ENCLAVE).mr_signer(mr_signer_verifier);
-            verifier
+                )
+            )
         })
     }
 
@@ -147,17 +147,17 @@ impl APIConfig {
         let conn =
             GrpcFogReportConnection::new(self.peers_config.chain_id.clone(), env, logger.clone());
 
-        let verifier = self.get_fog_ingest_verifier();
+        let trusted_identity = self.get_fog_ingest_identity();
 
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
             if fog_uris.is_empty() {
                 Ok(Default::default())
-            } else if let Some(verifier) = verifier.as_ref() {
+            } else if let Some(trusted_identity) = trusted_identity.as_ref() {
                 let report_responses = conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| format!("Failed fetching fog reports: {err}"))?;
                 log::debug!(logger, "Got report responses {:?}", report_responses);
-                Ok(FogResolver::new(report_responses, verifier)
+                Ok(FogResolver::new(report_responses, vec![trusted_identity])
                     .expect("Could not construct fog resolver"))
             } else {
                 Err(
@@ -241,7 +241,7 @@ impl PeersConfig {
 
     pub fn create_peers(
         &self,
-        verifier: Verifier,
+        trusted_identity: TrustedIdentity,
         grpc_env: Arc<grpcio::Environment>,
         logger: Logger,
     ) -> Vec<ThickClient<HardcodedCredentialsProvider>> {
@@ -253,7 +253,7 @@ impl PeersConfig {
                 ThickClient::new(
                     self.chain_id.clone(),
                     client_uri.clone(),
-                    verifier.clone(),
+                    vec![trusted_identity.clone()],
                     grpc_env.clone(),
                     HardcodedCredentialsProvider::from(client_uri),
                     logger.clone(),
@@ -265,7 +265,7 @@ impl PeersConfig {
 
     pub fn create_peer_manager(
         &self,
-        verifier: Verifier,
+        trusted_identity: TrustedIdentity,
         logger: &Logger,
     ) -> ConnectionManager<ThickClient<HardcodedCredentialsProvider>> {
         let grpc_env = Arc::new(
@@ -274,7 +274,7 @@ impl PeersConfig {
                 .name_prefix("peer")
                 .build(),
         );
-        let peers = self.create_peers(verifier, grpc_env, logger.clone());
+        let peers = self.create_peers(trusted_identity, grpc_env, logger.clone());
 
         ConnectionManager::new(peers, logger.clone())
     }
