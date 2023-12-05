@@ -2,8 +2,6 @@
 
 //! Service for managing confirmation numbers.
 
-use std::{convert::TryInto, ops::DerefMut};
-
 use crate::{
     db::{
         account::AccountID,
@@ -23,6 +21,7 @@ use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::Ledger;
 use mc_transaction_extra::TxOutConfirmationNumber;
+use std::{convert::TryInto, ops::DerefMut};
 
 /// Errors for the Txo Service.
 #[derive(Display, Debug)]
@@ -164,7 +163,8 @@ where
             let txo_info = self.get_txo(&TxoID(associated_txo.id.clone()))?;
             if let Some(confirmation) = txo_info.txo.confirmation {
                 let confirmation: TxOutConfirmationNumber = mc_util_serial::decode(&confirmation)?;
-                let pubkey: CompressedRistrettoPublic = txo.public_key.as_slice().try_into()?;
+                let pubkey: CompressedRistrettoPublic =
+                    txo_info.txo.public_key.as_slice().try_into()?;
                 let txo_index = self.ledger_db.get_tx_out_index_by_public_key(&pubkey)?;
                 results.push(Confirmation {
                     txo_id: TxoID(txo_info.txo.id),

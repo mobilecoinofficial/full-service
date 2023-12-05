@@ -491,7 +491,7 @@ mod tests {
         assert_eq!(confirmations.len(), 1);
 
         let txo_pubkey = txos_and_statuses[0]
-            .0
+            .txo
             .public_key
             .as_slice()
             .try_into()
