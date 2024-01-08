@@ -83,19 +83,19 @@ pub trait MemoService {
     ) -> Result<bool, MemoServiceError>;
 }
 
-// validate_sender_memo
-//
-// validating the sender memo includes:
-// 1. Is there a sender memo?
-// 2. Does the provided sender public address hash to the
-//    same value as the memo's sender address hash?
-// 3. When we recreate the HMAC, does it match the
-//    HMAC conveyed in the memo?
 impl<T, FPR> MemoService for WalletService<T, FPR>
 where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    // validate_sender_memo
+    //
+    // validating the sender memo includes:
+    // 1. Is there a sender memo?
+    // 2. Does the provided sender public address hash to the
+    //    same value as the memo's sender address hash?
+    // 3. When we recreate the HMAC, does it match the
+    //    HMAC conveyed in the memo?
     fn validate_sender_memo(
         &self,
         txo_id_hex: &str,
@@ -114,10 +114,8 @@ where
         // validating the HMAC requires the receipient's subaddress
         // view private key, so fetch the recipient subaddress_index
         // of the txo, and fail if this is not available (orphaned txo)
-        let subaddress_index = match txo.subaddress_index {
-            Some(subaddress_index) => subaddress_index as u64,
-            // None => return Ok(false),
-            None => return Err(MemoServiceError::TxoOrphaned(txo_id_hex.to_string())),
+        let Some(subaddress_index) = txo.subaddress_index else {
+            return Err(MemoServiceError::TxoOrphaned(txo_id_hex.to_string()));
         };
 
         let account_key = account.account_key()?;
@@ -134,7 +132,7 @@ where
             Ok(MemoType::AuthenticatedSender(memo)) => Ok(memo
                 .validate(
                     &sender_address,
-                    &account_key.subaddress_view_private(subaddress_index),
+                    &account_key.subaddress_view_private(subaddress_index as u64),
                     &tx_out.public_key,
                 )
                 .into()),
