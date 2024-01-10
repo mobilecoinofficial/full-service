@@ -136,6 +136,20 @@ where
                     &tx_out.public_key,
                 )
                 .into()),
+            Ok(MemoType::AuthenticatedSenderWithPaymentIntentId(memo)) => Ok(memo
+                .validate(
+                    &sender_address,
+                    &account_key.subaddress_view_private(subaddress_index as u64),
+                    &tx_out.public_key,
+                )
+                .into()),
+            Ok(MemoType::AuthenticatedSenderWithPaymentRequestId(memo)) => Ok(memo
+                .validate(
+                    &sender_address,
+                    &account_key.subaddress_view_private(subaddress_index as u64),
+                    &tx_out.public_key,
+                )
+                .into()),
             Ok(_) => Err(MemoServiceError::InvalidMemoTypeForValidation),
             Err(e) => Err(e.into()),
         }
