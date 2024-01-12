@@ -19,7 +19,7 @@ Destination Memos are a type of memo that are typically included in change txos 
 {% tabs %}
 {% tab title="Authenticated Sender Memo" %}
 ```json
- ...
+...
     "memo": {
       "AuthenticatedSender": {
           "sender_address_hash": "12df8df8ddcc6d8830f8cdd1cd00cc51",
