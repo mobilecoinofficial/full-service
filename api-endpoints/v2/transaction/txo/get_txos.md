@@ -62,7 +62,18 @@ description: Get TXOs for a given account with offset and limit parameters
         "e_fog_hint": "0a544df264ab0cb8c9490774fe6242cd2e2951dafe92f976e0ec84698d39b5ce1b19c68be029c5aed4c327fde66917e8e907a19643c1c3d37bca5b0a460b59829d236f2aeafaa924184cbd4637b0af8dd408885e0100",
         "subaddress_index": "18446744073709551614",
         "key_image": "0a209ec60610aa59dee42f74e7d3b9b513614d0720a0147f91c521a841a02130f835",
-        "confirmation": "0a207fad0212bc57c75731e247930ba1fd6f3c6b08181171eb55243d721f9c96e3cd"
+        "confirmation": "0a207fad0212bc57c75731e247930ba1fd6f3c6b08181171eb55243d721f9c96e3cd",
+        "shared_secret": "0a20d662b5dc2d2ada8b72cecde0a84d822aad7018e37c3ac58445740064fa26ba78",
+        "memo": {
+          "Destination": {
+            "recipient_address_hash": "8a515f44149956609f75b27d214daed6",
+            "num_recipients": "1",
+            "fee": "400000000",
+            "total_outlay": "1400000000",
+            "payment_request_id": null,
+            "payment_intent_id": null
+          }
+        }
       },
       "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb": {
         "id": "85b708102903c1169a61ddf665d62cbd0a920a0f7dd760b9083cb567769be1fb",
@@ -77,7 +88,18 @@ description: Get TXOs for a given account with offset and limit parameters
         "e_fog_hint": "0a54643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d90100",
         "subaddress_index": "18446744073709551614",
         "key_image": "0a20fafbf66b4da787c3a7d0c6a12d67620efcb47c3299ab4382627e468c718d4d1e",
-        "confirmation": "0a207e8073157c3c938cc06c10c17094ba6940ec6ea15985df4760e43aaddd9bdccb"
+        "confirmation": "0a207e8073157c3c938cc06c10c17094ba6940ec6ea15985df4760e43aaddd9bdccb",
+        "shared_secret": "0a20a6d0637fe8358b1ca1cf90ba2e8efdb52a2c369a004fc1dd5cd18557116a9b34",
+        "memo": {
+          "Destination": {
+            "recipient_address_hash": "12df8df8ddcc6d8830f8cdd1cd00cc51",
+            "num_recipients": "1",
+            "fee": "400000000",
+            "total_outlay": "1000400000000",
+            "payment_request_id": null,
+            "payment_intent_id": null
+          }
+        }
       },
       "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b": {
         "id": "6603da459bb4bb88ddfaff2ac702238de4198b67b37e93d789e7311f8978641b",
@@ -92,7 +114,15 @@ description: Get TXOs for a given account with offset and limit parameters
         "e_fog_hint": "0a54ca6975a5fafa891973e0a2ff03875b01fe891bf32be9e9480d8b0c8421679799c9944efa497a1b3b561c6df053c58351e5f8dbebe0f55b05f88986472cc3fc3fd6157e110cf47fd1c7bff07bba1bd05cd5e50100",
         "subaddress_index": "0",
         "key_image": "0a20a08be966b837b31e306de665ccc3cfb2e0b515ddc3d959e7858114bae0069d16",
-        "confirmation": "0a208f9ded89e086fbf3e6d6b18cb73a797490ba4d45d182e6ba8ae907534be9dd11"
+        "confirmation": "0a208f9ded89e086fbf3e6d6b18cb73a797490ba4d45d182e6ba8ae907534be9dd11",
+        "shared_secret": "0a20e6269296b8152741cbd679322af61117230cfc4a92e4c8e296d78eae8326ef08",
+        "memo": {
+          "AuthenticatedSender": {
+            "sender_address_hash": "12df8df8ddcc6d8830f8cdd1cd00cc51",
+            "payment_request_id": null,
+            "payment_intent_id": null
+          }
+        }
       }
     }
   },

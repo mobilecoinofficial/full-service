@@ -46,8 +46,18 @@ description: Get details of a given TXO.
       "e_fog_hint": "0a54643db209825ced0df98a277c989b9d1876ac4009397137af1fabd3856c7c97dd629be47752cd532aa1f4bb1412d4dac9a76d50e67b4b99da017dc3a40caa99b4933ef6b4b51c56a338fc8648244eba5a22d90100",
       "subaddress_index": "18446744073709551614",
       "key_image": "0a20fafbf66b4da787c3a7d0c6a12d67620efcb47c3299ab4382627e468c718d4d1e",
-      "confirmation": "0a207e8073157c3c938cc06c10c17094ba6940ec6ea15985df4760e43aaddd9bdccb"
-    }
+      "confirmation": "0a207e8073157c3c938cc06c10c17094ba6940ec6ea15985df4760e43aaddd9bdccb",
+      "shared_secret": "0a20d662b5dc2d2ada8b72cecde0a84d822aad7018e37c3ac58445740064fa26ba78",
+      "memo": {
+          "Destination": {
+              "recipient_address_hash": "8a515f44149956609f75b27d214daed6",
+              "num_recipients": "1",
+              "fee": "400000000",
+              "total_outlay": "1400000000",
+              "payment_request_id": null,
+              "payment_intent_id": null
+          }
+      }
   },
   "jsonrpc": "2.0",
   "id": 1
