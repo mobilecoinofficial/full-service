@@ -92,7 +92,6 @@ async def source_account(client):
 
 @pytest.fixture(scope='session')
 async def account_factory(client, source_account, fees):
-
     network_status = await client.get_network_status()
     local_block_height = int(network_status['local_block_height'])
 
@@ -114,11 +113,14 @@ async def account_factory(client, source_account, fees):
             return temp_account
 
         async def create_fog(self):
+            fog_info = {
+                "report_url": os.environ["MC_FOG_REPORT_URL"],
+                "authority_spki": os.environ["MC_FOG_AUTHORITY_SPKI"],
+            }
             temp_fog_account = await client.import_account(
                 mnemonic=self.next_mnemonic(),
                 first_block_index=local_block_height - 1000,
-                fog_report_url=os.environ['MC_FOG_REPORT_URL'],
-                fog_authority_spki=os.environ['MC_FOG_AUTHORITY_SPKI'],
+                fog_info=fog_info,
             )
             self.temp_accounts.append(temp_fog_account)
             return temp_fog_account
