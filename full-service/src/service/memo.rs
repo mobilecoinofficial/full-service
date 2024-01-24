@@ -34,6 +34,9 @@ pub enum MemoServiceError {
 
     /// Invalid memo type for validation, expecting AuthenticatedSenderMemo.
     InvalidMemoTypeForValidation,
+
+    /// Unknown subaddress index for txo_id {0}. Can't validate.
+    TxoOrphaned(String),
 }
 
 impl From<WalletDbError> for MemoServiceError {
@@ -85,6 +88,14 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
+    // validate_sender_memo
+    //
+    // validating the sender memo includes:
+    // 1. Is there a sender memo?
+    // 2. Does the provided sender public address hash to the
+    //    same value as the memo's sender address hash?
+    // 3. When we recreate the HMAC, does it match the
+    //    HMAC conveyed in the memo?
     fn validate_sender_memo(
         &self,
         txo_id_hex: &str,
@@ -98,6 +109,13 @@ where
         let txo = Txo::get(txo_id_hex, conn)?;
         let Some(account) = txo.account(conn)? else {
             return Ok(false);
+        };
+
+        // validating the HMAC requires the receipient's subaddress
+        // view private key, so fetch the recipient subaddress_index
+        // of the txo, and fail if this is not available (orphaned txo)
+        let Some(subaddress_index) = txo.subaddress_index else {
+            return Err(MemoServiceError::TxoOrphaned(txo_id_hex.to_string()));
         };
 
         let account_key = account.account_key()?;
@@ -114,7 +132,21 @@ where
             Ok(MemoType::AuthenticatedSender(memo)) => Ok(memo
                 .validate(
                     &sender_address,
-                    account_key.view_private_key(),
+                    &account_key.subaddress_view_private(subaddress_index as u64),
+                    &tx_out.public_key,
+                )
+                .into()),
+            Ok(MemoType::AuthenticatedSenderWithPaymentIntentId(memo)) => Ok(memo
+                .validate(
+                    &sender_address,
+                    &account_key.subaddress_view_private(subaddress_index as u64),
+                    &tx_out.public_key,
+                )
+                .into()),
+            Ok(MemoType::AuthenticatedSenderWithPaymentRequestId(memo)) => Ok(memo
+                .validate(
+                    &sender_address,
+                    &account_key.subaddress_view_private(subaddress_index as u64),
                     &tx_out.public_key,
                 )
                 .into()),
