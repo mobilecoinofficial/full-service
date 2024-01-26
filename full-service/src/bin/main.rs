@@ -141,22 +141,23 @@ fn consensus_backed_full_service(
     rocket_config: rocket::Config,
     logger: Logger,
 ) -> Rocket<Build> {
-    
     // Create enclave trusted identity.
     let config_advisories: Vec<&str> = vec![];
     let signature = mc_consensus_enclave_measurement::sigstruct();
     let trusted_identity = TrustedIdentity::MrSigner(TrustedMrSignerIdentity::new(
         MrSigner::from(signature.mrsigner()),
-                    signature.product_id(),
-                    signature.version(),
-                    config_advisories,
-                    mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
+        signature.product_id(),
+        signature.version(),
+        config_advisories,
+        mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
     ));
 
     log::debug!(logger, "TrustedIdentity: {:?}", trusted_identity);
 
     // Create peer manager.
-    let peer_manager = config.peers_config.create_peer_manager(trusted_identity, &logger);
+    let peer_manager = config
+        .peers_config
+        .create_peer_manager(trusted_identity, &logger);
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(

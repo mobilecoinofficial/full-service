@@ -116,15 +116,13 @@ impl APIConfig {
     pub fn get_fog_ingest_identity(&self) -> Option<TrustedIdentity> {
         self.fog_ingest_enclave_css.as_ref().map(|signature| {
             let config_advisories: Vec<&str> = vec![];
-            TrustedIdentity::MrSigner(
-                TrustedMrSignerIdentity::new(
-                    MrSigner::from(signature.mrsigner()),
-                    signature.product_id(),
-                    signature.version(),
-                    config_advisories,
-                    mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
-                )
-            )
+            TrustedIdentity::MrSigner(TrustedMrSignerIdentity::new(
+                MrSigner::from(signature.mrsigner()),
+                signature.product_id(),
+                signature.version(),
+                config_advisories,
+                mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
+            ))
         })
     }
 
