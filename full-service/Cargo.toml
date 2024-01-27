@@ -64,7 +64,7 @@ base64 = "0.21.5"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.4", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
-diesel = { version = "2.1.0", features = ["chrono", "sqlite", "r2d2"] }
+diesel = { version = "2.1.2", features = ["chrono", "sqlite", "r2d2"] }
 diesel-derive-enum = { version = "2", features = ["sqlite"] }
 diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
