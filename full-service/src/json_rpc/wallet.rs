@@ -67,19 +67,19 @@ impl<'r> FromRequest<'r> for ApiKeyGuard {
 
     async fn from_request(
         req: &'r Request<'_>,
-    ) -> Outcome<Self, (rocket::http::Status, Self::Error), ()> {
+    ) -> Outcome<Self, (rocket::http::Status, Self::Error), rocket::http::Status> {
         let client_key = req.headers().get_one(API_KEY_HEADER).unwrap_or_default();
         // let outcome = req.guard::<State<APIKeyState>>().await;
         let local_key = match req.guard::<&State<APIKeyState>>().await {
             Outcome::Success(api_key_state) => api_key_state.0.clone(),
-            Outcome::Failure(_) => {
-                return Outcome::Failure((
+            Outcome::Error(_) => {
+                return Outcome::Error((
                     Status::Unauthorized,
                     ApiKeyError::ApiKeyStateConfigInvalid,
                 ))
             }
             Outcome::Forward(_) => {
-                return Outcome::Failure((
+                return Outcome::Error((
                     Status::Unauthorized,
                     ApiKeyError::ApiKeyStateConfigInvalid,
                 ))
@@ -89,7 +89,7 @@ impl<'r> FromRequest<'r> for ApiKeyGuard {
         if local_key == client_key {
             Outcome::Success(ApiKeyGuard {})
         } else {
-            Outcome::Failure((Status::Unauthorized, ApiKeyError::Invalid))
+            Outcome::Error((Status::Unauthorized, ApiKeyError::Invalid))
         }
     }
 }

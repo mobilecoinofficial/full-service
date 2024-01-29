@@ -164,7 +164,6 @@ pub fn sync_account_next_chunk(
         let start = account.next_block_index as u64;
         let end = start + BLOCKS_CHUNK_SIZE;
         for block_index in start..end {
-            let block_index = block_index;
             let block_contents = match ledger_db.get_block_contents(block_index) {
                 Ok(block_contents) => block_contents,
                 Err(mc_ledger_db::Error::NotFound) => {
