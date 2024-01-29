@@ -182,9 +182,7 @@ impl Ord for ValidatorConnection {
 }
 
 impl PartialOrd for ValidatorConnection {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.uri.addr().partial_cmp(&other.uri.addr())
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl Connection for ValidatorConnection {

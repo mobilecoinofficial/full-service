@@ -139,9 +139,7 @@ impl Ord for T3Connection {
 }
 
 impl PartialOrd for T3Connection {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.uri.addr().partial_cmp(&other.uri.addr())
-    }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
 }
 
 impl Connection for T3Connection {

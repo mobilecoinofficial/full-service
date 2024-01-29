@@ -101,7 +101,7 @@ impl ValidatorLedgerSyncThread {
     fn get_next_blocks(
         ledger_db: &LedgerDB,
         validator_conn: &ValidatorConnection,
-        network_state: &mut Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
+        network_state: &Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: &Logger,
     ) -> Vec<BlockData> {
         let num_blocks = ledger_db

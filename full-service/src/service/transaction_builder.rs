@@ -270,7 +270,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .inputs
             .clone()
             .into_iter()
-            .zip(proofs.into_iter())
+            .zip(proofs)
             .collect();
 
         let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
@@ -500,7 +500,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // Create an iterator that returns (index, proof) elements.
         let mut indexes_and_proofs_iterator =
-            sampled_indices_vec.into_iter().zip(proofs.into_iter());
+            sampled_indices_vec.into_iter().zip(proofs);
 
         // Convert that into a Vec<Vec<TxOut, TxOutMembershipProof>>
         let mut rings_with_proofs = Vec::new();
