@@ -54,7 +54,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
-use mc_account_keys::{burn_address, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{ShortAddressHash, burn_address, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -691,6 +691,7 @@ where
 
             JsonCommandResponse::get_address_details {
                 details: PublicAddress::from(&address),
+                short_address_hash: hex::encode(ShortAddressHash::from(&address).as_ref()),
             }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {

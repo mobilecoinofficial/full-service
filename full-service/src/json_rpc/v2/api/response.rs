@@ -102,6 +102,7 @@ pub enum JsonCommandResponse {
     },
     get_address_details {
         details: PublicAddress,
+        short_address_hash: String,
     },
     get_address {
         address: Address,
