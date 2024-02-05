@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service-mirror"
-version = "2.9.1"
+version = "2.10.0"
 authors = ["MobileCoin"]
 edition = "2018"
 resolver = "2"
