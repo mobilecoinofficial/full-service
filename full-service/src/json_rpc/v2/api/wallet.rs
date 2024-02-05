@@ -54,7 +54,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
-use mc_account_keys::{ShortAddressHash, burn_address, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{burn_address, ShortAddressHash, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -1444,18 +1444,18 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => {
-            match service.verify_address(&address) {
-                Ok(public_address) => JsonCommandResponse::verify_address {
-                    verified: true,
-                    short_address_hash: Some(hex::encode(ShortAddressHash::from(&public_address).as_ref())),
-                },
-                Err(_) => JsonCommandResponse::verify_address {
-                    verified: false,
-                    short_address_hash: None,
-                },
-            }
-        }      
+        JsonCommandRequest::verify_address { address } => match service.verify_address(&address) {
+            Ok(public_address) => JsonCommandResponse::verify_address {
+                verified: true,
+                short_address_hash: Some(hex::encode(
+                    ShortAddressHash::from(&public_address).as_ref(),
+                )),
+            },
+            Err(_) => JsonCommandResponse::verify_address {
+                verified: false,
+                short_address_hash: None,
+            },
+        },
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (
