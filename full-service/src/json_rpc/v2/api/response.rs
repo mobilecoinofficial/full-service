@@ -102,7 +102,7 @@ pub enum JsonCommandResponse {
     },
     get_address_details {
         details: PublicAddress,
-        short_address_hash: String,
+        address_hash: String,
     },
     get_address {
         address: Address,
@@ -215,7 +215,7 @@ pub enum JsonCommandResponse {
     },
     verify_address {
         verified: bool,
-        short_address_hash: Option<String>,
+        address_hash: Option<String>,
     },
     version {
         string: String,

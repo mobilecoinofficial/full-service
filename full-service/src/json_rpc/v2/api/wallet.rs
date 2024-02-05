@@ -691,7 +691,7 @@ where
 
             JsonCommandResponse::get_address_details {
                 details: PublicAddress::from(&address),
-                short_address_hash: hex::encode(ShortAddressHash::from(&address).as_ref()),
+                address_hash: hex::encode(ShortAddressHash::from(&address).as_ref()),
             }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
@@ -1447,13 +1447,13 @@ where
         JsonCommandRequest::verify_address { address } => match service.verify_address(&address) {
             Ok(public_address) => JsonCommandResponse::verify_address {
                 verified: true,
-                short_address_hash: Some(hex::encode(
+                address_hash: Some(hex::encode(
                     ShortAddressHash::from(&public_address).as_ref(),
                 )),
             },
             Err(_) => JsonCommandResponse::verify_address {
                 verified: false,
-                short_address_hash: None,
+                address_hash: None,
             },
         },
         JsonCommandRequest::version => JsonCommandResponse::version {
