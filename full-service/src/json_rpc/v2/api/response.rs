@@ -215,6 +215,7 @@ pub enum JsonCommandResponse {
     },
     verify_address {
         verified: bool,
+        short_address_hash: Option<String>,
     },
     version {
         string: String,

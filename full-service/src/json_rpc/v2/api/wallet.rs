@@ -1444,9 +1444,18 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).is_ok(),
-        },
+        JsonCommandRequest::verify_address { address } => {
+            match service.verify_address(&address) {
+                Ok(public_address) => JsonCommandResponse::verify_address {
+                    verified: true,
+                    short_address_hash: Some(hex::encode(ShortAddressHash::from(&public_address).as_ref())),
+                },
+                Err(_) => JsonCommandResponse::verify_address {
+                    verified: false,
+                    short_address_hash: None,
+                },
+            }
+        }      
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),
             number: (
