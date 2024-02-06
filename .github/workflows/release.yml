@@ -9,7 +9,7 @@ on:
 
 jobs:
   release:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: mco-dev-large-x64
     # Needs write permission for publishing release
     permissions:
       contents: write

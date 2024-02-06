@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: [self-hosted, Linux, large]
+    runs-on: mco-dev-large-x64
     container:
       image: mobilecoin/rust-sgx-base:v0.0.28
     steps:
@@ -68,7 +68,7 @@ jobs:
           cargo clippy --all --all-features
 
   test:
-    runs-on: [self-hosted, Linux, large]
+    runs-on: mco-dev-large-x64
     container:
       image: mobilecoin/rust-sgx-base:v0.0.28
 
@@ -125,7 +125,7 @@ jobs:
           CODECOV_TOKEN: 5be757b6-e923-40f2-80ea-5deac1e02b1e
 
   docs:
-    runs-on: [self-hosted, Linux, large]
+    runs-on: mco-dev-large-x64
     container:
       image: mobilecoin/rust-sgx-base:v0.0.28
 
