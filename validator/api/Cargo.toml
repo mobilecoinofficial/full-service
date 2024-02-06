@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-api"
-version = "2.9.1"
+version = "2.10.0"
 authors = ["MobileCoin"]
 build = "build.rs"
 edition = "2018"
