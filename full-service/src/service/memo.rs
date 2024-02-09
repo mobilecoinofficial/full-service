@@ -92,10 +92,9 @@ where
     //
     // validating the sender memo includes:
     // 1. Is there a sender memo?
-    // 2. Does the provided sender public address hash to the
-    //    same value as the memo's sender address hash?
-    // 3. When we recreate the HMAC, does it match the
-    //    HMAC conveyed in the memo?
+    // 2. Does the provided sender public address hash to the same value as the
+    //    memo's sender address hash?
+    // 3. When we recreate the HMAC, does it match the HMAC conveyed in the memo?
     fn validate_sender_memo(
         &self,
         txo_id_hex: &str,

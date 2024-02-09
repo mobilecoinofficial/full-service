@@ -3,7 +3,8 @@
 //! The entrypoint for the Ledger Validator Service.
 
 use clap::Parser;
-use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_core::MrSigner;
+use mc_attestation_verifier::{TrustedIdentity, TrustedMrSignerIdentity};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_full_service::check_host;
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
@@ -32,19 +33,23 @@ fn main() {
 
     log::info!(logger, "Read Configs: {:?}", config);
 
-    // Create enclave verifier.
-    let mut mr_signer_verifier =
-        MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
-    mr_signer_verifier
-        .allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+    // Create enclave trusted identity.
+    let config_advisories: Vec<&str> = vec![];
+    let signature = mc_consensus_enclave_measurement::sigstruct();
+    let trusted_identity = TrustedIdentity::MrSigner(TrustedMrSignerIdentity::new(
+        MrSigner::from(signature.mrsigner()),
+        signature.product_id(),
+        signature.version(),
+        config_advisories,
+        mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
+    ));
 
-    let mut verifier = Verifier::default();
-    verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);
-
-    log::debug!(logger, "Verifier: {:?}", verifier);
+    log::debug!(logger, "TrustedIdentity: {:?}", trusted_identity);
 
     // Create peer manager.
-    let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
+    let peer_manager = config
+        .peers_config
+        .create_peer_manager(trusted_identity, &logger);
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(

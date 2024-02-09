@@ -266,12 +266,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
         let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
 
-        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> = self
-            .inputs
-            .clone()
-            .into_iter()
-            .zip(proofs.into_iter())
-            .collect();
+        let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> =
+            self.inputs.clone().into_iter().zip(proofs).collect();
 
         let excluded_tx_out_indices: Vec<u64> = inputs_and_proofs
             .iter()
@@ -499,8 +495,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             .get_tx_out_proof_of_memberships(&sampled_indices_vec)?;
 
         // Create an iterator that returns (index, proof) elements.
-        let mut indexes_and_proofs_iterator =
-            sampled_indices_vec.into_iter().zip(proofs.into_iter());
+        let mut indexes_and_proofs_iterator = sampled_indices_vec.into_iter().zip(proofs);
 
         // Convert that into a Vec<Vec<TxOut, TxOutMembershipProof>>
         let mut rings_with_proofs = Vec::new();

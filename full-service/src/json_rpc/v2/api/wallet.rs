@@ -54,7 +54,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
-use mc_account_keys::{burn_address, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{burn_address, ShortAddressHash, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -691,6 +691,7 @@ where
 
             JsonCommandResponse::get_address_details {
                 details: PublicAddress::from(&address),
+                address_hash: hex::encode(ShortAddressHash::from(&address).as_ref()),
             }
         }
         JsonCommandRequest::get_address_for_account { account_id, index } => {
@@ -1443,8 +1444,17 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
         }
-        JsonCommandRequest::verify_address { address } => JsonCommandResponse::verify_address {
-            verified: service.verify_address(&address).is_ok(),
+        JsonCommandRequest::verify_address { address } => match service.verify_address(&address) {
+            Ok(public_address) => JsonCommandResponse::verify_address {
+                verified: true,
+                address_hash: Some(hex::encode(
+                    ShortAddressHash::from(&public_address).as_ref(),
+                )),
+            },
+            Err(_) => JsonCommandResponse::verify_address {
+                verified: false,
+                address_hash: None,
+            },
         },
         JsonCommandRequest::version => JsonCommandResponse::version {
             string: env!("CARGO_PKG_VERSION").to_string(),

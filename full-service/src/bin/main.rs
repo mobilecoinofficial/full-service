@@ -6,7 +6,8 @@
 use clap::Parser;
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use dotenv::dotenv;
-use mc_attest_verifier::{MrSignerVerifier, Verifier, DEBUG_ENCLAVE};
+use mc_attest_core::MrSigner;
+use mc_attestation_verifier::{TrustedIdentity, TrustedMrSignerIdentity};
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_connection::ConnectionManager;
 use mc_consensus_scp::QuorumSet;
@@ -140,19 +141,23 @@ fn consensus_backed_full_service(
     rocket_config: rocket::Config,
     logger: Logger,
 ) -> Rocket<Build> {
-    // Verifier
-    let mut mr_signer_verifier =
-        MrSignerVerifier::from(mc_consensus_enclave_measurement::sigstruct());
-    mr_signer_verifier
-        .allow_hardening_advisories(mc_consensus_enclave_measurement::HARDENING_ADVISORIES);
+    // Create enclave trusted identity.
+    let config_advisories: Vec<&str> = vec![];
+    let signature = mc_consensus_enclave_measurement::sigstruct();
+    let trusted_identity = TrustedIdentity::MrSigner(TrustedMrSignerIdentity::new(
+        MrSigner::from(signature.mrsigner()),
+        signature.product_id(),
+        signature.version(),
+        config_advisories,
+        mc_consensus_enclave_measurement::HARDENING_ADVISORIES,
+    ));
 
-    let mut verifier = Verifier::default();
-    verifier.mr_signer(mr_signer_verifier).debug(DEBUG_ENCLAVE);
-
-    log::debug!(logger, "Verifier: {:?}", verifier);
+    log::debug!(logger, "TrustedIdentity: {:?}", trusted_identity);
 
     // Create peer manager.
-    let peer_manager = config.peers_config.create_peer_manager(verifier, &logger);
+    let peer_manager = config
+        .peers_config
+        .create_peer_manager(trusted_identity, &logger);
 
     // Create network state, transactions fetcher and ledger sync.
     let network_state = Arc::new(RwLock::new(PollingNetworkState::new(
@@ -306,7 +311,7 @@ fn validator_backed_full_service(
         logger.clone(),
     );
 
-    let fog_ingest_verifier = config.get_fog_ingest_verifier();
+    let fog_ingest_identity = config.get_fog_ingest_identity();
     let logger2 = logger.clone();
     let service = WalletService::new(
         wallet_db,
@@ -318,7 +323,7 @@ fn validator_backed_full_service(
         Arc::new(move |fog_uris| -> Result<FogResolver, String> {
             if fog_uris.is_empty() {
                 Ok(Default::default())
-            } else if let Some(verifier) = fog_ingest_verifier.as_ref() {
+            } else if let Some(trusted_identity) = fog_ingest_identity.as_ref() {
                 let report_responses = validator_conn
                     .fetch_fog_reports(fog_uris.iter().cloned())
                     .map_err(|err| {
@@ -326,7 +331,7 @@ fn validator_backed_full_service(
                 })?;
 
                 log::debug!(logger2, "Got report responses {:?}", report_responses);
-                Ok(FogResolver::new(report_responses, verifier)
+                Ok(FogResolver::new(report_responses, vec![trusted_identity])
                     .expect("Could not construct fog resolver"))
             } else {
                 Err(

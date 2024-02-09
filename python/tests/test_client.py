@@ -75,6 +75,7 @@ async def test_account_status(client, source_account):
         'id',
         'key_derivation_version',
         'main_address',
+        'managed_by_hardware_wallet',
         'name',
         'next_block_index',
         'next_subaddress_index',

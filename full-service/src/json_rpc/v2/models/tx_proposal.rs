@@ -13,6 +13,7 @@ use std::convert::TryFrom;
 #[derive(Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct UnsignedInputTxo {
     pub tx_out_proto: String,
+    pub tx_out_public_key: String,
     pub amount: AmountJSON,
     pub subaddress_index: String,
 }
@@ -20,6 +21,7 @@ pub struct UnsignedInputTxo {
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct InputTxo {
     pub tx_out_proto: String,
+    pub tx_out_public_key: String,
     pub amount: AmountJSON,
     pub subaddress_index: String,
     #[serde(serialize_with = "expose_secret")]
@@ -29,6 +31,7 @@ pub struct InputTxo {
 #[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct OutputTxo {
     pub tx_out_proto: String,
+    pub tx_out_public_key: String,
     pub amount: AmountJSON,
     pub recipient_public_address_b58: String,
     pub confirmation_number: String,
@@ -54,6 +57,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
             .iter()
             .map(|input_txo| UnsignedInputTxo {
                 tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
+                tx_out_public_key: hex::encode(input_txo.tx_out.public_key.as_bytes()),
                 amount: AmountJSON::from(&input_txo.amount),
                 subaddress_index: input_txo.subaddress_index.to_string(),
             })
@@ -65,6 +69,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
             .map(|output_txo| {
                 Ok(OutputTxo {
                     tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    tx_out_public_key: hex::encode(output_txo.tx_out.public_key.as_bytes()),
                     amount: AmountJSON::from(&output_txo.amount),
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,
@@ -84,6 +89,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
             .map(|output_txo| {
                 Ok(OutputTxo {
                     tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    tx_out_public_key: hex::encode(output_txo.tx_out.public_key.as_bytes()),
                     amount: AmountJSON::from(&output_txo.amount),
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,
@@ -131,6 +137,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
             .iter()
             .map(|input_txo| InputTxo {
                 tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
+                tx_out_public_key: hex::encode(input_txo.tx_out.public_key.as_bytes()),
                 amount: AmountJSON::from(&input_txo.amount),
                 subaddress_index: input_txo.subaddress_index.to_string(),
                 key_image: hex::encode(input_txo.key_image.as_bytes()).into(),
@@ -143,6 +150,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
             .map(|output_txo| {
                 Ok(OutputTxo {
                     tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    tx_out_public_key: hex::encode(output_txo.tx_out.public_key.as_bytes()),
                     amount: AmountJSON::from(&output_txo.amount),
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,
@@ -162,6 +170,7 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
             .map(|output_txo| {
                 Ok(OutputTxo {
                     tx_out_proto: hex::encode(mc_util_serial::encode(&output_txo.tx_out)),
+                    tx_out_public_key: hex::encode(output_txo.tx_out.public_key.as_bytes()),
                     amount: AmountJSON::from(&output_txo.amount),
                     recipient_public_address_b58: b58_encode_public_address(
                         &output_txo.recipient_public_address,

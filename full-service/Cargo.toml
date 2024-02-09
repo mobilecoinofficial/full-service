@@ -1,6 +1,6 @@
 [package]
 name = "mc-full-service"
-version = "2.9.1"
+version = "2.10.0"
 authors = ["MobileCoin"]
 edition = "2018"
 build = "build.rs"
@@ -12,7 +12,9 @@ path = "src/bin/main.rs"
 [dependencies]
 mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-api = { path = "../mobilecoin/api" }
+mc-attest-core = { path = "../mobilecoin/attest/core", default-features = false }
 mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
+mc-attestation-verifier = "0.4.1"
 mc-blockchain-types = { path = "../mobilecoin/blockchain/types" }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = [
     "loggers",
@@ -37,6 +39,7 @@ mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
 mc-rand = "1.1.0"
+mc-sgx-core-types = "0.9.0"
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }

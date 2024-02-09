@@ -26,7 +26,7 @@ usage()
     echo "                SGX_MODE IAS_MODE CONSENSUS_ENCLAVE_CSS INGEST_ENCLAVE_CSS"
     echo "    check"
     echo "                Sets build parameters to those used for network=local, and"
-    echo "                runs `cargo check`"
+    echo "                runs 'cargo check'"
 }
 
 while (( "$#" ))
