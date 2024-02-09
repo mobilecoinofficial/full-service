@@ -6,7 +6,7 @@ use diesel::{
     dsl::{count, exists, not},
     prelude::*,
 };
-use mc_account_keys::{AccountKey, PublicAddress};
+use mc_account_keys::{ViewAccountKey, AccountKey, PublicAddress};
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
@@ -1953,7 +1953,7 @@ impl TxoModel for Txo {
         let txo = Txo::get(txo_id_hex, conn)?;
         let public_key: RistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
         let account = Account::get(account_id, conn)?;
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
     }
 
