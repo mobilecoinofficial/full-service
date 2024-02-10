@@ -59,15 +59,15 @@ RUN  --mount=type=cache,target=/opt/cargo/git \
   --mount=type=cache,target=/opt/cargo/registry/index \
   --mount=type=cache,target=/opt/cargo/registry/cache \
   --mount=type=cache,target=/app/target \
-  cargo build --locked --release ${BUILD_OPTS}
-
-RUN cp /app/target/release/full-service /usr/local/bin/
-RUN cp /app/target/release/signer /usr/local/bin/
-RUN cp /app/target/release/signer-service /usr/local/bin/
-RUN cp /app/target/release/validator-service /usr/local/bin/
-RUN cp /app/target/release/wallet-service-mirror-private /usr/local/bin/
-RUN cp /app/target/release/wallet-service-mirror-public /usr/local/bin/
-RUN cp /app/target/release/generate-rsa-keypair /usr/local/bin/
+  cargo build --locked --release ${BUILD_OPTS} \
+  && cp /app/target/release/full-service \ 
+        /app/target/release/signer \
+        /app/target/release/signer-service \
+        /app/target/release/validator-service \
+        /app/target/release/wallet-service-mirror-private \
+        /app/target/release/wallet-service-mirror-public \
+        /app/target/release/generate-rsa-keypair \
+          /usr/local/bin/ 
 
 # This is the runtime container.
 # Adding/updating OS will not affect the ability to verify the build environment.
