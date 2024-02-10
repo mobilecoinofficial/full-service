@@ -15,7 +15,7 @@ on:
 
 jobs:
   refresh-ledger:
-    runs-on: [self-hosted, Linux, small]
+    runs-on: mco-dev-small-x64
     container:
       image: mobilecoin/gha-azure-helper:latest
     strategy:

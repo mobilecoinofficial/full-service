@@ -25,9 +25,9 @@
 #         network:
 #           - chain_id: test
 #         # - chain_id: main
-#     runs-on: [self-hosted, Linux, large-cd]
+#     runs-on: mco-dev-large-x64
 #     container:
-#       image: mobilecoin/rust-sgx-base:v0.0.28
+#       image: mobilecoin/rust-sgx-base:v0.0.32
 #     steps:
 #       - name: Checkout
 #         uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -71,7 +71,7 @@
 #         # - chain_id: main
 #         #   peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
 #         #   tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     needs:
 #       - build
 #     steps:
@@ -156,7 +156,7 @@
 #         chart:
 #           - full-service
 #           # - full-service-mirror
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     needs:
 #       - publish
 #     env:
@@ -257,7 +257,7 @@
 #         #   mnemonic_secret: MAIN_ACCOUNT_MNEMONIC
 #         #   account_first_block_var: MAIN_ACCOUNT_FIRST_BLOCK_INDEX
 #         #   fog_authority_spki_var: MAIN_FOG_AUTHORITY_SPKI
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     needs:
 #       - deploy
 #     container:
@@ -333,7 +333,7 @@
 #         chart:
 #           - full-service
 #           # - full-service-mirror
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     needs:
 #       - integration-test
 #     steps:

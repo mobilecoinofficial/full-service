@@ -10,7 +10,7 @@
 # jobs:
 #   metadata:
 #     if: startsWith(github.event.ref, 'feature/')
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     outputs:
 #       namespace: ${{ steps.meta.outputs.namespace }}
 #     steps:
@@ -24,7 +24,7 @@
 #   delete:
 #     needs:
 #       - metadata
-#     runs-on: [self-hosted, Linux, small]
+#     runs-on: mco-dev-small-x64
 #     steps:
 #       - name: Delete namespace
 #         uses: mobilecoinofficial/gha-k8s-toolbox@v1
