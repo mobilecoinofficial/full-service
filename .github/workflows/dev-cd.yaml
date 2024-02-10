@@ -25,7 +25,7 @@
 #         network:
 #           - chain_id: test
 #         # - chain_id: main
-#     runs-on: [self-hosted, Linux, large-cd]
+#     runs-on: mco-dev-large-x64
 #     container:
 #       image: mobilecoin/rust-sgx-base:v0.0.32
 #     steps:
