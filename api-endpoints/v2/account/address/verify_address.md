@@ -1,5 +1,7 @@
 ---
-description: Verify whether an address is correctly b58-encoded.
+description: >-
+  Verify whether an address is correctly b58-encoded and return the address_hash
+  of the provided address.
 ---
 
 # Verify Address
@@ -11,6 +13,13 @@ description: Verify whether an address is correctly b58-encoded.
 | `address`      | The address on which to perform this action. |              |
 
 ## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+
+`Result` attributes:
+
+| Name           | Type                           | Description                                                                                                     |
+| -------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `verified`     | boolean                        | `true` if supplied address is a valid B58-encoded public address, otherwise `false`                             |
+| `address_hash` | 16 bytes as hex-encoded string | hash of the provided public address, as used by [memos](../../transaction/txo/memo/) to identify counterparties |
 
 ## Example
 
@@ -33,7 +42,8 @@ description: Verify whether an address is correctly b58-encoded.
 {
   "method": "verify_address",
   "result": {
-    "verified": true
+    "verified": true,
+    "address_hash": "52383c63bf75ca49771e8f6e4c2df0ca"
   },
   "error": null,
   "jsonrpc": "2.0",

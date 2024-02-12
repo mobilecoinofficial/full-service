@@ -14,6 +14,12 @@ Decoding and validating authenticated sender memos requires using Full Service v
 
 Destination Memos are a type of memo that are typically included in change txos sent from a wallet back to itself, using the account's change subaddress index. They document, using the blockchain, the payment made by the wallet, recording an address hash of the payee, the fee paid, and the total outlay.
 
+
+
+### Address Hashes
+
+Memos identify senders and recipients using address hashes, 16 byte values represented by full-service as  32 character hex-encoded strings. Use [verify\_address](../../../account/address/verify\_address.md) to get the address hash for a provided B58-encoded public address.
+
 ## Example get\_txo memo attribute return contents
 
 {% tabs %}
