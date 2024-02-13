@@ -29,8 +29,10 @@ async def test_network_status(client):
 
 
 async def test_network_status_fees(fees):
-    assert sorted( t.short_code for t in fees.keys() ) == ['FauxUSD', 'MOB', 'eUSD']
-    assert all( isinstance(a, Amount) for a in fees.values() )
+    # filter out FauxUSD as not on mainnet
+    fee_tokens = [t.short_code for t in fees.keys() if t.short_code != 'FauxUSD']
+    assert sorted(fee_tokens) == ['MOB', 'eUSD']
+    assert all(isinstance(a, Amount) for a in fees.values())
 
 
 async def test_get_block(client):
