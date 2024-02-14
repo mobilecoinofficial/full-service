@@ -52,6 +52,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
   {{- end }}
 {{- end }}
 
+{{- define "fullService.secret.name" -}}
+  {{- if .Values.fullService.secret.external }}
+    {{- .Values.fullService.secret.name }}
+  {{- else }}
+    {{- include "fullService.fullname" . }}
+  {{- end }}
+{{- end }}
+
 {{/* backupSidecar Secret Name */}}
 {{- define "fullService.backupsSidecar.secret.name" -}}
   {{- if .Values.backupsSidecar.secret.external }}

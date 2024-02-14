@@ -1,0 +1,126 @@
+name: build-docker-release
+
+on:
+  push:
+    tags:
+    - "v*"
+
+env:
+  DOCKERHUB_REPO: mobilecoin/full-service
+  DOCKER_ORG: mobilecoin
+  CACHE_PATH: rust-bin-cache
+  CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.32
+    strategy:
+      matrix:
+        include:
+        - chain_id: test
+        - chain_id: main
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        additional_keys: ${{ matrix.chain_id }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        path: ${{ env.CACHE_PATH }}
+
+    - name: Build full-service and friends
+      if: steps.rust_artifact_cache.outputs.cache-hit != 'true'
+      run: |
+        ./tools/build-fs.sh ${{ matrix.chain_id }}
+
+    - name: Copy artifacts to cache
+      if: steps.rust_artifact_cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        bin_artifacts=${CACHE_PATH}/${{ matrix.chain_id }}
+
+        mkdir -p "${bin_artifacts}"
+        find target/release -maxdepth 1 -executable -type f -exec cp "{}" "${bin_artifacts}/" \;
+        find target/release -name "*.css" -maxdepth 1 -type f -exec cp "{}" "${bin_artifacts}/" \;
+
+    - name: Check artifacts
+      shell: bash
+      run: |
+        ls -alR ${CACHE_PATH}
+
+  publish:
+    runs-on: mco-dev-small-x64
+    needs:
+    - build
+    strategy:
+      matrix:
+        include:
+        - chain_id: test
+          peer: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+          tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+        - chain_id: main
+          peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
+          tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Cache rust build binaries
+      id: rust_artifact_cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        additional_keys: ${{ matrix.chain_id }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        path: ${{ env.CACHE_PATH }}
+
+    - name: Check artifacts
+      shell: bash
+      run: |
+        ls -alR ${CACHE_PATH}
+
+    - name: Docker - build and publish full-service
+      uses: mobilecoinofficial/gh-actions/docker@v0
+      with:
+        dockerfile: .internal-ci/docker/Dockerfile.full-service
+        images: ${{ env.DOCKER_ORG }}/full-service
+        build_args: |
+          RUST_BIN_PATH=${{ env.CACHE_PATH }}/${{ matrix.chain_id }}
+          MC_CHAIN_ID=${{ matrix.chain_id }}
+          MC_PEER=${{ matrix.peer }}
+          MC_TX_SOURCE_URL=${{ matrix.tx_source_url }}
+        flavor: |
+          latest=false
+          suffix=-${{ matrix.chain_id }}net
+        tags: |
+          ${{ env.TAG }}
+          type=sha
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+
+    - name: Publish helm chart full-service
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-publish
+        chart_app_version: ${{ env.TAG }}-${{ matrix.chain_id }}net
+        chart_path: .internal-ci/helm/full-service
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+        chart_version: ${{ env.TAG }}-${{ matrix.chain_id }}net
+
+    - name: Publish helm chart full-service-mirror
+      uses: mobilecoinofficial/gha-k8s-toolbox@v1
+      with:
+        action: helm-publish
+        chart_app_version: ${{ env.TAG }}-${{ matrix.chain_id }}net
+        chart_path: .internal-ci/helm/full-service-mirror
+        chart_repo: ${{ env.CHART_REPO }}
+        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+        chart_version: ${{ env.TAG }}-${{ matrix.chain_id }}net

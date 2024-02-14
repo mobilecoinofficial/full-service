@@ -45,6 +45,8 @@ spec:
         envFrom:
         - configMapRef:
             name: {{ include "fullService.configMap.name" . }}
+        - secretRef:
+            name: {{ include "fullService.secret.name" . }}
         args:
         ports:
         - name: full-service
