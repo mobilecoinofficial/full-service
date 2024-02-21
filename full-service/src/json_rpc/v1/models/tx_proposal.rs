@@ -81,6 +81,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
             outlay_list.push(mc_mobilecoind::payments::OutlayV2 {
                 receiver: payload_txo.recipient_public_address.clone(),
                 amount: payload_txo.amount,
+                tx_private_key: None,
             });
         }
 
