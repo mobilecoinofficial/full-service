@@ -16,7 +16,7 @@ jobs:
   build:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.32
+      image: mobilecoin/rust-sgx-base:v0.0.33
     strategy:
       matrix:
         include:
