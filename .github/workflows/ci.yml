@@ -22,7 +22,7 @@ jobs:
   lint:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.32
+      image: mobilecoin/rust-sgx-base:v0.0.33
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -70,7 +70,7 @@ jobs:
   test:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.32
+      image: mobilecoin/rust-sgx-base:v0.0.33
 
     steps:
       - name: Checkout
@@ -127,7 +127,7 @@ jobs:
   docs:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.32
+      image: mobilecoin/rust-sgx-base:v0.0.33
 
     permissions:
       contents: write
