@@ -24,7 +24,7 @@ jobs:
           [
             [self-hosted, macOS, X64],
             [self-hosted, macOS, ARM64],
-            [self-hosted, Linux, large],
+            mco-dev-large-x64,
           ]
         namespace: [test, prod]
         include:
@@ -32,7 +32,7 @@ jobs:
             container: ""
           - runner-tags: [self-hosted, macOS, ARM64]
             container: ""
-          - runner-tags: [self-hosted, Linux, large]
+          - runner-tags: mco-dev-large-x64
             container: mobilecoin/rust-sgx-base:v0.0.32
           - namespace: test
             network: testnet
