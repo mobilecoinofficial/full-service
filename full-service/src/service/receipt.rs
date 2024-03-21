@@ -254,7 +254,8 @@ where
             return Ok((
                 ReceiptTransactionStatus::AmountMismatch(format!(
                     "Expected: {}, Got: {}",
-                    expected_value.value, txo_info.txo.value
+                    expected_value.value,
+                    (txo_info.txo.value as u64)
                 )),
                 Some(txo_info),
             ));

@@ -165,7 +165,7 @@ impl TransactionLog {
             output_txos: vec![TxoAbbrev {
                 txo_id_hex: txo.id.to_string(),
                 recipient_address_id: "".to_string(),
-                value_pmob: txo.value.to_string().into(),
+                value_pmob: (txo.value as u64).to_string().into(),
                 public_key: hex::encode(
                     txo.public_key()
                         .map_err(|_| "failed to decode txo public key")?
@@ -174,7 +174,7 @@ impl TransactionLog {
             }],
             change_txos: vec![],
             assigned_address_id: assigned_address,
-            value_pmob: txo.value.to_string().into(),
+            value_pmob: (txo.value as u64).to_string().into(),
             fee_pmob: Secret::new(None),
             submitted_block_index: Secret::new(None),
             finalized_block_index: Secret::new(
