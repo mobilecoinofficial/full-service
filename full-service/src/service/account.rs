@@ -1003,8 +1003,13 @@ mod tests {
         let expected_txo_amount = associated_txos.outputs[0].0.value;
         let expected_target_key = associated_txos.outputs[0].0.target_key.clone();
 
-        let for_b_key_image: KeyImage =
-            mc_util_serial::decode(&associated_txos.inputs[0].key_image.clone().unwrap()).unwrap();
+        let for_b_key_image: KeyImage = associated_txos.inputs[0]
+            .key_image
+            .as_ref()
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
 
         add_block_with_tx_outs(
             &mut ledger_db,

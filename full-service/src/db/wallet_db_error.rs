@@ -170,6 +170,9 @@ pub enum WalletDbError {
 
     /// MemoDecoding: {0}
     MemoDecoding(MemoDecodingError),
+
+    /// Ring Signature error: {0}
+    RingSignature(mc_transaction_core::ring_signature::Error),
 }
 
 impl From<diesel::result::Error> for WalletDbError {
@@ -259,5 +262,11 @@ impl From<DecodeSliceError> for WalletDbError {
 impl From<MemoDecodingError> for WalletDbError {
     fn from(src: MemoDecodingError) -> Self {
         Self::MemoDecoding(src)
+    }
+}
+
+impl From<mc_transaction_core::ring_signature::Error> for WalletDbError {
+    fn from(src: mc_transaction_core::ring_signature::Error) -> Self {
+        Self::RingSignature(src)
     }
 }
