@@ -3134,6 +3134,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc-crypto-memo-mac"
+version = "6.0.0"
+dependencies = [
+ "hmac",
+ "mc-crypto-keys",
+ "sha2",
+]
+
+[[package]]
 name = "mc-crypto-message-cipher"
 version = "6.0.0"
 dependencies = [
@@ -4049,12 +4058,12 @@ dependencies = [
  "cfg-if",
  "curve25519-dalek",
  "displaydoc",
- "hmac",
  "mc-account-keys",
  "mc-core",
  "mc-crypto-digestible",
  "mc-crypto-hashes",
  "mc-crypto-keys",
+ "mc-crypto-memo-mac",
  "mc-crypto-ring-signature",
  "mc-crypto-ring-signature-signer",
  "mc-transaction-core",
@@ -4070,7 +4079,6 @@ dependencies = [
  "rand 0.8.5",
  "rand_core 0.6.4",
  "serde",
- "sha2",
  "subtle",
  "zeroize",
 ]
