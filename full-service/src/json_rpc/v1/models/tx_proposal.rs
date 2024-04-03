@@ -10,6 +10,7 @@ use mc_common::HashMap;
 use mc_mobilecoind_json::data_types::{JsonOutlayV2, JsonTx, JsonUnspentTxOut};
 
 use mc_transaction_extra::TxOutConfirmationNumber;
+use mc_transaction_core::MemoPayload;
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -57,6 +58,7 @@ impl TryFrom<&TxProposalServiceModel> for mc_mobilecoind::payments::TxProposal {
                 attempted_spend_height: 0,
                 attempted_spend_tombstone: 0,
                 token_id: *input_txo.amount.token_id,
+                memo_payload: MemoPayload::default().into()
             })
             .collect();
 
