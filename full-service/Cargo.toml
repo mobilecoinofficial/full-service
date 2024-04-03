@@ -88,7 +88,7 @@ reqwest = { version = "0.11.20", default-features = false, features = [
 ] }
 retry = "2.0"
 rocket = { version = "0.5.0-rc.3", features = ["json"] }
-rocket_sync_db_pools = { version = "0.1.0-rc.3", features = [
+rocket_sync_db_pools = { version = "0.1.0", features = [
     "diesel_sqlite_pool",
 ] }
 serde = { version = "1.0", default-features = false, features = [
