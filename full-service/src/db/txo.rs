@@ -631,6 +631,7 @@ pub trait TxoModel {
     ///| Name                  | Purpose                                                    | Notes                               |
     ///|-----------------------|------------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
+    ///| `subaccount_address`  | The subaddress at which the list of Txos from              | (optional)                          |
     ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
@@ -641,6 +642,7 @@ pub trait TxoModel {
     /// * Vector of TxoOut
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
+        subaccount_address: Option<&str>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
@@ -1858,19 +1860,23 @@ impl TxoModel for Txo {
 
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
+        subaccount_address: Option<&str>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
         default_token_fee: u64,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
+
+        // TODO: Logic - switch on option account_id vs subaccount_address
+
         let SpendableTxosResult {
             mut spendable_txos,
             max_spendable_in_wallet,
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            None,
+            None, // TODO: Note, if !None, this will only get spendable for an address
             token_id,
             default_token_fee,
             conn,

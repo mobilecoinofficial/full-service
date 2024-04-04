@@ -73,6 +73,10 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// connections to fog.
     #[allow(clippy::type_complexity)]
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
+
+    /// Subaccount Address (base58-encoded) from which to restrict TXOs for spending
+    /// (optional)
+    subaccount_address: Option<String>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
