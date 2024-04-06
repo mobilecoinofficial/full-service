@@ -35,7 +35,7 @@ base64 = "0.21.5"
 clap = { version = "4.4", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
 hex = { version = "0.4", default-features = false }
-log = "0.4.19"
+log = "0.4.20"
 rand = { version = "0.8", default-features = false }
 rand_core = "0.6.4"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
