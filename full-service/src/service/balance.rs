@@ -179,18 +179,6 @@ pub trait BalanceService {
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
-
-    /// Get the current balance for a given subaccount.
-    /// 
-    /// # Arguments
-    ///| Name      | Purpose                                      | Notes                                                                   |
-    ///|-----------|----------------------------------------------|-------------------------------------------------------------------------|
-    ///| `subaccount` | The subaccount address on which to perform this action. | Subaccount must be assigned for an account in the wallet. |
-    ///
-    fn get_balance_for_subaccount(
-        &self,
-        subaccount: &str,
-    ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
     
     /// Get the current status of the network.
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
@@ -267,10 +255,6 @@ where
             .collect::<Result<BTreeMap<TokenId, Balance>, BalanceServiceError>>()?;
 
         Ok(balances)
-    }
-
-    fn get_balance_for_subaccount(&self, subaccount: &str) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError> {
-        todo!()
     }
 
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError> {
@@ -584,10 +568,4 @@ mod tests {
             Err(e) => panic!("Unexpected error {:?}", e),
         }
     }
-    // The balance for a subaccount should be accurate.
-    #[test_with_logger]
-    fn test_subaccount_balance(logger: Logger) {
-        // TODO: Implement this test
-    }
-
 }
