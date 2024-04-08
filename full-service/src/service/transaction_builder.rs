@@ -19,6 +19,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::transaction::TransactionMemo,
+    util::b58::b58_decode_public_address,
 };
 use mc_account_keys::PublicAddress;
 use mc_common::{logger::global_log, HashSet};
@@ -102,7 +103,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// Sets the subaddress from which to restrict TXOs for spending.
     pub fn set_spend_only_from_subaddress(
         &mut self,
-        subaddress: String
+        subaddress: String,
     ) -> Result<(), WalletTransactionBuilderError> {
         self.spend_only_from_subaddress = Some(subaddress);
         Ok(())
@@ -445,20 +446,38 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             }
 
             let change_amount = Amount::new(change_value as u64, token_id);
-            let tx_out_context = transaction_builder.add_change_output(
-                change_amount,
-                &reserved_subaddresses,
-                &mut rng,
-            )?;
+            if let Some(spend_from_subaddress) = self.spend_only_from_subaddress.as_ref() {
+                // Send the change back to the subaddress that is spending the inputs.
+                // In the future, we may want to allow this to be a bit more configurable
+                let change_address = b58_decode_public_address(&spend_from_subaddress)?;
+                let tx_out_context =
+                    transaction_builder.add_output(change_amount, &change_address, &mut rng)?;
 
-            let change_txo = OutputTxo {
-                tx_out: tx_out_context.tx_out,
-                recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
-                confirmation_number: tx_out_context.confirmation,
-                amount: change_amount,
-                shared_secret: Some(tx_out_context.shared_secret),
-            };
-            change_txos.push(change_txo);
+                let change_txo = OutputTxo {
+                    tx_out: tx_out_context.tx_out,
+                    recipient_public_address: change_address,
+                    confirmation_number: tx_out_context.confirmation,
+                    amount: change_amount,
+                    shared_secret: Some(tx_out_context.shared_secret),
+                };
+                change_txos.push(change_txo);
+            } else {
+                // Send the change to the reserved change subaddress for the account
+                let tx_out_context = transaction_builder.add_change_output(
+                    change_amount,
+                    &reserved_subaddresses,
+                    &mut rng,
+                )?;
+
+                let change_txo = OutputTxo {
+                    tx_out: tx_out_context.tx_out,
+                    recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
+                    confirmation_number: tx_out_context.confirmation,
+                    amount: change_amount,
+                    shared_secret: Some(tx_out_context.shared_secret),
+                };
+                change_txos.push(change_txo);
+            }
         }
 
         let unsigned_tx = transaction_builder.build_unsigned::<DefaultTxOutputsOrdering>()?;
