@@ -561,7 +561,7 @@ where
             max_spendable_value,
             memo,
             block_version,
-            spend_only_from_subaddress
+            spend_only_from_subaddress,
         )?;
 
         let mut pooled_conn = self.get_pooled_conn()?;
@@ -664,7 +664,7 @@ where
                 max_spendable_value,
                 memo,
                 block_version,
-                spend_only_from_subaddress
+                spend_only_from_subaddress,
             )
             .await?;
 
@@ -821,6 +821,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -853,6 +854,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -884,6 +886,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -976,6 +979,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1077,6 +1081,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1188,6 +1193,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
         {
@@ -1257,6 +1263,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
         {
@@ -1293,6 +1300,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1392,6 +1400,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
                 },
+                None,
                 None,
             )
             .await
@@ -1582,6 +1591,7 @@ mod tests {
                     subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
                     payment_request_id,
                 },
+                None,
                 None,
             )
             .await

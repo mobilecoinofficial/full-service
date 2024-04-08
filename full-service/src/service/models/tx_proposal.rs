@@ -547,6 +547,7 @@ mod tests {
                     subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
                 },
                 None,
+                None,
             )
             .unwrap();
 
