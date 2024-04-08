@@ -74,9 +74,9 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     #[allow(clippy::type_complexity)]
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
 
-    /// Subaccount Address (base58-encoded) from which to restrict TXOs for spending
+    /// Subaddress (base58-encoded) from which to restrict TXOs for spending
     /// (optional)
-    subaccount_address: Option<String>,
+    spend_only_from_subaddress: Option<String>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -95,8 +95,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee: None,
             block_version: None,
             fog_resolver_factory,
-            subaccount_address: None,
+            spend_only_from_subaddress: None,
         }
+    }
+
+    /// Sets the subaddress from which to restrict TXOs for spending.
+    pub fn set_spend_only_from_subaddress(
+        &mut self,
+        subaddress: String
+    ) -> Result<(), WalletTransactionBuilderError> {
+        self.spend_only_from_subaddress = Some(subaddress);
+        Ok(())
     }
 
     /// Sets inputs to the txos associated with the given txo_ids. Only unspent

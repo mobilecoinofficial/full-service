@@ -172,6 +172,7 @@ where
             block_version,
             sender_memo_credential_subaddress_index,
             payment_request_id,
+            spend_only_from_subaddress,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -218,6 +219,7 @@ where
                     comment,
                     transaction_memo,
                     block_version,
+                    spend_only_from_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -241,6 +243,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
+            spend_only_from_subaddress,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -276,6 +279,7 @@ where
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
+                    spend_only_from_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -298,6 +302,7 @@ where
             block_version,
             sender_memo_credential_subaddress_index,
             payment_request_id,
+            spend_only_from_subaddress,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -343,6 +348,7 @@ where
                     max_spendable_value,
                     transaction_memo,
                     block_version,
+                    spend_only_from_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -362,6 +368,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
+            spend_only_from_subaddress,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -397,6 +404,7 @@ where
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
+                    spend_only_from_subaddress,
                 )
                 .map_err(format_error)?)
                 .try_into()
@@ -418,6 +426,7 @@ where
             input_txo_ids,
             max_spendable_value,
             block_version,
+            spend_only_from_subaddress,
         } => {
             let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
@@ -443,6 +452,7 @@ where
                     max_spendable_value,
                     TransactionMemo::Empty,
                     block_version,
+                    spend_only_from_subaddress,
                 )
                 .map_err(format_error)?)
                 .try_into()

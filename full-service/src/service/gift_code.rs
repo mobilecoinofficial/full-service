@@ -544,6 +544,7 @@ where
                 subaddress_index: None,
             },
             None,
+            None, // FIXME: is spend_only_from_subaddress something a giftcode might want?
         )?;
 
         let tx_proposal = unsigned_tx_proposal.sign(&from_account).await?;
