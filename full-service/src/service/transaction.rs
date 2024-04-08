@@ -707,7 +707,10 @@ fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceErr
 mod tests {
     use super::*;
     use crate::{
-        db::{account::AccountID, models::Txo, txo::TxoModel},
+        db::{
+            account::AccountID, assigned_subaddress::AssignedSubaddressModel, models::Txo,
+            txo::TxoModel,
+        },
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
             transaction_log::TransactionLogService,
@@ -1699,5 +1702,181 @@ mod tests {
             payment_request_id,
             authenticated_sender_memo.payment_request_id()
         );
+    }
+
+    // Test sending a transaction from only a specified subaddress, and that change
+    // arrives back to that subaddress.
+    #[async_test_with_logger]
+    async fn test_send_transaction_from_only_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+
+        // Create our main account for the wallet
+        let exchange_account = service
+            .create_account(
+                Some("Exchange's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+
+        let exchange_account_key: AccountKey =
+            mc_util_serial::decode(&exchange_account.account_key).unwrap();
+        let exchange_account_id = AccountID::from(&exchange_account_key);
+
+        // Create a subaddress that the exchange is reserving for Alice to send to
+        let alice_subaddress = service
+            .assign_address_for_account(&exchange_account_id, Some("Alice's Subaddress"))
+            .expect("Could not assign address for Alice");
+
+        // Add a block with a transaction for Alice
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_subaddress.clone().public_address().unwrap()],
+            100 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Verify balance for the Alice Subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
+
+        // Add a subaddress for Bob
+        let bob_subaddress = service
+            .assign_address_for_account(&exchange_account_id, Some("Bob's Subaddress"))
+            .expect("Could not assign address for Bob");
+
+        // Send a transaction from Alice to Bob - this is the subaccount model where
+        // Alice is spending from her balance
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &exchange_account.id,
+                &[(
+                    bob_subaddress.public_address_b58.clone(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                },
+                None,
+                Some(alice_subaddress.public_address_b58.clone()),
+            )
+            .await
+            .unwrap();
+        log::info!(
+            logger,
+            "Built and submitted transaction from Alice's Subaddress to Bob's Subaddress"
+        );
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        {
+            log::info!(logger, "Adding block from transaction log");
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image)
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
+        }
+
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Get the Txos from the transaction log
+        let transaction_txos = transaction_log
+            .get_associated_txos(service.get_pooled_conn().unwrap().deref_mut())
+            .unwrap();
+        let secreted = transaction_txos
+            .outputs
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(secreted.len(), 1);
+        assert_eq!(secreted[0].value as u64, 42 * MOB);
+
+        let change = transaction_txos
+            .change
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(change.len(), 1);
+        assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
+
+        let inputs = transaction_txos
+            .inputs
+            .iter()
+            .map(|t| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].value as u64, 100 * MOB);
+
+        // Verify balance for Alice's subaddress = original balance - fee - txo_value
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
+
+        // Bob's balance should be = output_txo_value
+        let bob_balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(bob_balance_pmob.unspent, 42000000000000);
+
+        // Decrypt the memo from the transaction txo and verify.
+        let txo = &tx_proposal.payload_txos[0].tx_out;
+
+        let shared_secret = get_tx_out_shared_secret(
+            exchange_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&txo.public_key).unwrap(),
+        );
+
+        let memo = txo.decrypt_memo(&shared_secret);
+        let authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
+        let validation = authenticated_sender_memo.validate(
+            &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
+            &exchange_account_key.subaddress_view_private(bob_subaddress.subaddress_index as u64),
+            &txo.public_key,
+        );
+
+        assert!(bool::from(validation));
     }
 }
