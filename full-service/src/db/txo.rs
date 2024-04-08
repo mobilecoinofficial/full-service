@@ -631,22 +631,22 @@ pub trait TxoModel {
     ///| Name                  | Purpose                                                    | Notes                               |
     ///|-----------------------|------------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
-    ///| `subaccount_address`  | The subaccount address at which the list of Txos from      | (optional)                          |
     ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
+    ///| `only_from_subaddress`| The subaddress from which spendable txos can be sourced    | (optional)                          |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
     ///
     /// # Returns:
     /// * Vector of TxoOut
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        subaccount_address: Option<String>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
         default_token_fee: u64,
+        only_from_subaddress: Option<&str>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -1813,6 +1813,7 @@ impl TxoModel for Txo {
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::token_id.eq(token_id as i64));
 
+        // Filter TXOs to only those belonging to the given subaddress
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             query = query
@@ -1860,15 +1861,13 @@ impl TxoModel for Txo {
 
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        subaccount_address: Option<String>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
         default_token_fee: u64,
+        only_from_subaddress_b58: Option<&str>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
-
-        // TODO: Logic - switch on option account_id vs subaccount_address
 
         let SpendableTxosResult {
             mut spendable_txos,
@@ -1876,7 +1875,7 @@ impl TxoModel for Txo {
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            None, // TODO: Note, if !None, this will only get spendable for an address
+            only_from_subaddress_b58, // Note, if !None, this will only get spendable for an address
             token_id,
             default_token_fee,
             conn,
@@ -3027,6 +3026,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3040,6 +3040,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3056,6 +3057,7 @@ mod tests {
             Some(200 * MOB),
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3073,6 +3075,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3142,6 +3145,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3152,6 +3156,7 @@ mod tests {
             Some(100 * MOB),
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3205,6 +3210,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         match res {
@@ -4000,6 +4006,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4018,6 +4025,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -4036,6 +4044,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4052,6 +4061,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -4069,6 +4079,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();

@@ -150,11 +150,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
-                self.subaccount_address,
                 target_value,
                 max_spendable_value,
                 *token_id,
                 fee_value,
+                None, // FIXME: here's where we want to switch on the subaddress?
                 conn,
             )?;
         }
