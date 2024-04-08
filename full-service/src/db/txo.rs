@@ -631,7 +631,7 @@ pub trait TxoModel {
     ///| Name                  | Purpose                                                    | Notes                               |
     ///|-----------------------|------------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
-    ///| `subaccount_address`  | The subaddress at which the list of Txos from              | (optional)                          |
+    ///| `subaccount_address`  | The subaccount address at which the list of Txos from      | (optional)                          |
     ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
@@ -642,7 +642,7 @@ pub trait TxoModel {
     /// * Vector of TxoOut
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        subaccount_address: Option<&str>,
+        subaccount_address: Option<String>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
@@ -1860,7 +1860,7 @@ impl TxoModel for Txo {
 
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
-        subaccount_address: Option<&str>,
+        subaccount_address: Option<String>,
         target_value: u128,
         max_spendable_value: Option<u64>,
         token_id: u64,
