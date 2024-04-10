@@ -1868,14 +1868,14 @@ impl TxoModel for Txo {
         only_from_subaddress_b58: Option<&str>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
-
         let SpendableTxosResult {
             mut spendable_txos,
             max_spendable_in_wallet,
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            only_from_subaddress_b58, // Note, if !None, this will only get spendable for an address
+            only_from_subaddress_b58, /* Note, if !None, this will only get spendable for an
+                                       * address */
             token_id,
             default_token_fee,
             conn,
