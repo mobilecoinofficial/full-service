@@ -460,6 +460,12 @@ where
         block_version: Option<BlockVersion>,
         spend_only_from_subaddress: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError> {
+        log::info!(
+            self.logger,
+            "Now building build_transaction with spend_only_from_subaddress {:?}",
+            spend_only_from_subaddress
+        );
+
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -551,6 +557,12 @@ where
         block_version: Option<BlockVersion>,
         spend_only_from_subaddress: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
+        log::info!(
+            self.logger,
+            "Now building with spend_only_from_subaddress {:?}",
+            spend_only_from_subaddress
+        );
+
         let unsigned_tx_proposal = self.build_transaction(
             account_id_hex,
             addresses_and_amounts,
@@ -653,6 +665,12 @@ where
         spend_only_from_subaddress: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
+        log::info!(
+            self.logger,
+            "Now building and submitting with spend_only_from_subaddress {:?}",
+            spend_only_from_subaddress
+        );
+
         let tx_proposal = self
             .build_and_sign_transaction(
                 account_id_hex,
@@ -1760,6 +1778,12 @@ mod tests {
         let bob_subaddress = service
             .assign_address_for_account(&exchange_account_id, Some("Bob's Subaddress"))
             .expect("Could not assign address for Bob");
+        // Bob's subaddress balance should be 0
+        let balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 0 as u128);
 
         // Send a transaction from Alice to Bob - this is the subaccount model where
         // Alice is spending from her balance
@@ -1859,7 +1883,7 @@ mod tests {
             .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
-        assert_eq!(bob_balance_pmob.unspent, 42000000000000);
+        assert_eq!(bob_balance_pmob.unspent, 42 * MOB as u128);
 
         // Decrypt the memo from the transaction txo and verify.
         let txo = &tx_proposal.payload_txos[0].tx_out;
@@ -1878,5 +1902,102 @@ mod tests {
         );
 
         assert!(bool::from(validation));
+
+        // Add another block with a transaction for Alice
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_subaddress.clone().public_address().unwrap()],
+            200 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Verify balance for the Alice Subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            balance_pmob.unspent,
+            ((258 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
+        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &exchange_account.id,
+                &[(
+                    bob_subaddress.public_address_b58.clone(),
+                    AmountJSON::new(333 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                },
+                None,
+                Some(alice_subaddress.public_address_b58.clone()),
+            )
+            .await
+            .unwrap();
+        log::info!(
+            logger,
+            "Built and submitted transaction from Alice's Subaddress to Bob's Subaddress"
+        );
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        {
+            log::info!(logger, "Adding block from transaction log");
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image)
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
+        }
+
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Balance should remain the same because it shouldn't have been able to find
+        // enough TXOs in Alice's subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            balance_pmob.unspent,
+            ((258 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
     }
+
+    // TODO: test attempt to spend more than alice has, but there's enough in
+    // the wallet
 }

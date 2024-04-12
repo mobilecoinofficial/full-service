@@ -179,7 +179,7 @@ pub trait BalanceService {
         &self,
         address: &str,
     ) -> Result<BTreeMap<TokenId, Balance>, BalanceServiceError>;
-    
+
     /// Get the current status of the network.
     fn get_network_status(&self) -> Result<NetworkStatus, BalanceServiceError>;
 
