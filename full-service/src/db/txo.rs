@@ -3336,7 +3336,7 @@ mod tests {
             ((600 * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
-        // Max spendable for Alice should be her single TXO
+        // Max spendable for Alice should be her single TXO minus the fee
         let spendable_txos = Txo::list_spendable(
             Some(&account_id_hex.to_string()),
             None,
@@ -3346,13 +3346,42 @@ mod tests {
             conn,
         )
         .unwrap();
-        // Max spendable from only Alice SHOULD be Alice's subaddress TXO minus fee
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
             ((100 * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
-        // Select TXOs for a transaction
+        // Max spendable for Bob should be his single TXO minus the fee
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            Some(&bob_public_address_b58),
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            ((200 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Max spendable for Carol should be her single TXO minus the fee
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            Some(&carol_public_address_b58),
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            ((300 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Select TXOs from only Alice for a transaction
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
             42 * MOB as u128,
@@ -3366,16 +3395,40 @@ mod tests {
         let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
         assert_eq!(result_set, HashSet::from_iter([100 * MOB]));
 
-        // TODO: what happens when we exceed the amount that alice has
-        // TODO: what happens if we want to spend from bob an amount that alice could
-        // cover TODO: what happens when we select from the full account (sanity
-        // check)
+        // Select TXOs from only Bob for a transaction
+        let txos_for_value = Txo::select_spendable_txos_for_value(
+            &account_id_hex.to_string(),
+            42 * MOB as u128,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            Some(&bob_public_address_b58),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
+        assert_eq!(result_set, HashSet::from_iter([200 * MOB]));
 
-        // Exceed the amount that Alice has, even though the full wallet could cover it
+        // Select TXOs from only Carol for a transaction
+        let txos_for_value = Txo::select_spendable_txos_for_value(
+            &account_id_hex.to_string(),
+            42 * MOB as u128,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            Some(&carol_public_address_b58),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
+        assert_eq!(result_set, HashSet::from_iter([300 * MOB]));
+
+        // Exceed the amount that Alice has, even though the full wallet or Bob or Carol
+        // could cover it
         let res = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
-            (300 * MOB + Mob::MINIMUM_FEE) as u128,
-            Some(200 * MOB),
+            (150 * MOB + Mob::MINIMUM_FEE) as u128,
+            None,
             0,
             Mob::MINIMUM_FEE,
             Some(&alice_public_address_b58),
