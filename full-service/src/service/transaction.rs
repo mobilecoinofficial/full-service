@@ -1722,8 +1722,8 @@ mod tests {
         );
     }
 
-    // Test sending a transaction from only a specified subaddress, and that change
-    // arrives back to that subaddress.
+    // Test sending a transaction from only a specified subaddress, and that the
+    // transaction change arrives back to that subaddress.
     #[async_test_with_logger]
     async fn test_send_transaction_from_only_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1741,7 +1741,6 @@ mod tests {
                 "".to_string(),
             )
             .unwrap();
-
         let exchange_account_key: AccountKey =
             mc_util_serial::decode(&exchange_account.account_key).unwrap();
         let exchange_account_id = AccountID::from(&exchange_account_key);
@@ -1759,7 +1758,6 @@ mod tests {
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-
         manually_sync_account(
             &ledger_db,
             service.wallet_db.as_ref().unwrap(),
@@ -1835,7 +1833,6 @@ mod tests {
                 &mut rng,
             );
         }
-
         manually_sync_account(
             &ledger_db,
             service.wallet_db.as_ref().unwrap(),
@@ -1911,7 +1908,6 @@ mod tests {
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
-
         manually_sync_account(
             &ledger_db,
             service.wallet_db.as_ref().unwrap(),
@@ -1930,7 +1926,8 @@ mod tests {
         );
 
         // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
-        let (_transaction_log, _associated_txos, _value_map, tx_proposal) = service
+        // and trigger InsufficientFunds Error
+        let res = service
             .build_sign_and_submit_transaction(
                 &exchange_account.id,
                 &[(
@@ -1949,41 +1946,22 @@ mod tests {
                 None,
                 Some(alice_subaddress.public_address_b58.clone()),
             )
-            .await
-            .unwrap();
+            .await;
+        match res {
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::WalletDb(
+                    WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+                ),
+            )) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(e) => panic!(
+                "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
+                e
+            ),
+        }
         log::info!(
             logger,
             "Built and submitted transaction from Alice's Subaddress to Bob's Subaddress"
-        );
-
-        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
-        // block to the ledger, because no consensus is occurring, so this is the
-        // workaround.
-        {
-            log::info!(logger, "Adding block from transaction log");
-            let key_images: Vec<KeyImage> = tx_proposal
-                .input_txos
-                .iter()
-                .map(|txo| txo.key_image)
-                .collect();
-
-            // Note: This block doesn't contain the fee output.
-            add_block_with_tx_outs(
-                &mut ledger_db,
-                &[
-                    tx_proposal.change_txos[0].tx_out.clone(),
-                    tx_proposal.payload_txos[0].tx_out.clone(),
-                ],
-                &key_images,
-                &mut rng,
-            );
-        }
-
-        manually_sync_account(
-            &ledger_db,
-            service.wallet_db.as_ref().unwrap(),
-            &exchange_account_id,
-            &logger,
         );
 
         // Balance should remain the same because it shouldn't have been able to find
@@ -1996,8 +1974,7 @@ mod tests {
             balance_pmob.unspent,
             ((258 * MOB) - Mob::MINIMUM_FEE) as u128
         );
-    }
 
-    // TODO: test attempt to spend more than alice has, but there's enough in
-    // the wallet
+        // TODO: ensure change and memos are correct
+    }
 }
