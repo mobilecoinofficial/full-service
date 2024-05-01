@@ -30,7 +30,7 @@ mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
 
-anyhow = "1.0.75"
+anyhow = "1.0.82"
 base64 = "0.21.5"
 clap = { version = "4.4", features = [ "derive" ] }
 displaydoc = { version = "0.2", default-features = false }
@@ -49,5 +49,5 @@ tiny-bip39 = "1.0"
 zeroize = { version = "1", default-features = false }
 
 [build-dependencies]
-anyhow = "1.0"
+anyhow = "1.0.82"
 vergen = { version = "8.2.6", features = ["build", "cargo", "git", "gitcl", "rustc", "si"] }

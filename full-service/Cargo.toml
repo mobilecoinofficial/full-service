@@ -118,7 +118,7 @@ tokio = "1.27"
 url = "2.3"
 
 [build-dependencies]
-anyhow = "1.0"
+anyhow = "1.0.82"
 vergen = { version = "8.2.6", features = [
     "build",
     "cargo",
