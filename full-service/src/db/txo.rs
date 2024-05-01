@@ -3053,6 +3053,7 @@ mod tests {
             spendable_txos.max_spendable_in_wallet,
             ((77 * MOB) - Mob::MINIMUM_FEE) as u128
         );
+        // Note, not checking each TXO because the only way to get this sum is both
 
         // Add some coins at Bob's subaddress
         let (bob_public_address_b58, bob_subaddress_index) =
@@ -3244,7 +3245,149 @@ mod tests {
         );
     }
 
-    // TODO: Test select txos for spend_only_from_subaddress
+    #[test_with_logger]
+    fn test_select_txos_for_spend_only_from_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Exchange Account",
+            "".to_string(),
+            "".to_string(),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        // Assign an address for Alice, Bob, and Carol
+        let (alice_public_address_b58, alice_subaddress_index) =
+            AssignedSubaddress::create_next_for_account(
+                &account_id_hex.to_string(),
+                "Alice's Subaddress",
+                &ledger_db,
+                &mut wallet_db.get_pooled_conn().unwrap(),
+            )
+            .unwrap();
+        let (bob_public_address_b58, bob_subaddress_index) =
+            AssignedSubaddress::create_next_for_account(
+                &account_id_hex.to_string(),
+                "Bob's Subaddress",
+                &ledger_db,
+                &mut wallet_db.get_pooled_conn().unwrap(),
+            )
+            .unwrap();
+        let (carol_public_address_b58, carol_subaddress_index) =
+            AssignedSubaddress::create_next_for_account(
+                &account_id_hex.to_string(),
+                "Carol's Subaddress",
+                &ledger_db,
+                &mut wallet_db.get_pooled_conn().unwrap(),
+            )
+            .unwrap();
+
+        // Create a TXO for each of Alice, Bob, and Carol
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            alice_subaddress_index as u64,
+            Amount::new(100 * MOB, Mob::ID),
+            145,
+            &mut rng,
+            &wallet_db,
+        );
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            bob_subaddress_index as u64,
+            Amount::new(200 * MOB, Mob::ID),
+            146,
+            &mut rng,
+            &wallet_db,
+        );
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            carol_subaddress_index as u64,
+            Amount::new(300 * MOB, Mob::ID),
+            147,
+            &mut rng,
+            &wallet_db,
+        );
+
+        // Max spendable SHOULD be the sum of all TXOs in the wallet minus the fee
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            ((600 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Max spendable for Alice should be her single TXO
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            Some(&alice_public_address_b58),
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        // Max spendable from only Alice SHOULD be Alice's subaddress TXO minus fee
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            ((100 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Select TXOs for a transaction
+        let txos_for_value = Txo::select_spendable_txos_for_value(
+            &account_id_hex.to_string(),
+            42 * MOB as u128,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            Some(&alice_public_address_b58),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
+        assert_eq!(result_set, HashSet::from_iter([100 * MOB]));
+
+        // TODO: what happens when we exceed the amount that alice has
+        // TODO: what happens if we want to spend from bob an amount that alice could
+        // cover TODO: what happens when we select from the full account (sanity
+        // check)
+
+        // Exceed the amount that Alice has, even though the full wallet could cover it
+        let res = Txo::select_spendable_txos_for_value(
+            &account_id_hex.to_string(),
+            (300 * MOB + Mob::MINIMUM_FEE) as u128,
+            Some(200 * MOB),
+            0,
+            Mob::MINIMUM_FEE,
+            Some(&alice_public_address_b58),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        );
+
+        match res {
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_)) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+        }
+    }
 
     #[test_with_logger]
     fn test_select_txos_locked_when_flagged(logger: Logger) {
