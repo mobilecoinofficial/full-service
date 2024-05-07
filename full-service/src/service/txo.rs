@@ -339,8 +339,7 @@ where
                 subaddress_index: None,
             },
             None,
-            None, /* FIXME: I don't believe we need to provide spend_only_from_subaddress for
-                   * splitting */
+            None,
         )?;
 
         let account = Account::get(&AccountID(account_id_hex), conn)?;

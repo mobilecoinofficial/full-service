@@ -460,12 +460,6 @@ where
         block_version: Option<BlockVersion>,
         spend_only_from_subaddress: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError> {
-        log::info!(
-            self.logger,
-            "Now building build_transaction with spend_only_from_subaddress {:?}",
-            spend_only_from_subaddress
-        );
-
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -557,12 +551,6 @@ where
         block_version: Option<BlockVersion>,
         spend_only_from_subaddress: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
-        log::info!(
-            self.logger,
-            "Now building with spend_only_from_subaddress {:?}",
-            spend_only_from_subaddress
-        );
-
         let unsigned_tx_proposal = self.build_transaction(
             account_id_hex,
             addresses_and_amounts,
@@ -665,12 +653,6 @@ where
         spend_only_from_subaddress: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
-        log::info!(
-            self.logger,
-            "Now building and submitting with spend_only_from_subaddress {:?}",
-            spend_only_from_subaddress
-        );
-
         let tx_proposal = self
             .build_and_sign_transaction(
                 account_id_hex,

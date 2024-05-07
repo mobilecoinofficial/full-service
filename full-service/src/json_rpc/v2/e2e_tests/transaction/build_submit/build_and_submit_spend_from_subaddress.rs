@@ -30,6 +30,10 @@ mod e2e_transaction {
 
     use std::convert::{TryFrom, TryInto};
 
+    // The narrative for this test is that an exchange creates subaccounts for its
+    // users, Alice, Bob, and Carol. They receive 100, 200, and 300 MOB
+    // respectively from an external source. Bob sends 42 MOB to Alice, and the
+    // balances should end up as [Alice: 142 MOB, Bob: 158 MOB, Carol: 300 MOB].
     #[test_with_logger]
     fn test_build_and_submit_transaction_with_spend_only_from_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
@@ -300,9 +304,9 @@ mod e2e_transaction {
         // unspent balance should be the original balance - the fee
         // The state of the wallet should now be:
         //
-        // Overall Balance: 600 MOB - 0.0001 MOB
+        // Overall Balance: 600 MOB - 0.0004 MOB
         // Alice Balance: 142 MOB
-        // Bob Balance: 158 MOB - 0.0001 MOB
+        // Bob Balance: 158 MOB - 0.0004 MOB
         // Carol Balance: 300 MOB
         let body = json!({
             "jsonrpc": "2.0",
@@ -324,9 +328,9 @@ mod e2e_transaction {
         assert_eq!(unspent, &(600 * MOB - Mob::MINIMUM_FEE).to_string());
         assert_eq!(pending, "0");
         // The SPENT value is calculated by the txos who have key_images that have been
-        // burned. It does not take into account change. Bob's 100 MOB TXO was
+        // burned. It does not take into account change. Bob's 200 MOB TXO was
         // burned to send 42 MOB to Alice.
-        assert_eq!(spent, (100 * MOB).to_string()); //FIXME: then shouldn't this be 200?
+        assert_eq!(spent, (200 * MOB).to_string()); //FIXME: then shouldn't this be 200?
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
 
@@ -348,9 +352,11 @@ mod e2e_transaction {
         let spent = balance_mob["spent"].as_str().unwrap();
         let secreted = balance_mob["secreted"].as_str().unwrap();
         let orphaned = balance_mob["orphaned"].as_str().unwrap();
-        assert_eq!(unspent, (42 * MOB).to_string(),); // FIXME: shouldn't this be 142?
+        assert_eq!(unspent, (142 * MOB).to_string(),); // FIXME: shouldn't this be 142?
         assert_eq!(pending, "0");
-        assert_eq!(spent, (100 * MOB).to_string(),); // FIXME: Why was it spent from Alice's balance?
+        assert_eq!(spent, (0).to_string(),); // FIXME: Why was it spent from Alice's balance?
+                                             //assert_eq!(spent, (100 * MOB).to_string(),); // FIXME: Why was it spent from
+                                             // Alice's balance?
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
 
@@ -371,13 +377,12 @@ mod e2e_transaction {
         let spent = balance_mob["spent"].as_str().unwrap();
         let secreted = balance_mob["secreted"].as_str().unwrap();
         let orphaned = balance_mob["orphaned"].as_str().unwrap();
-        // assert_eq!(unspent, (138 * MOB - Mob::MINIMUM_FEE).to_string(),);
         assert_eq!(
             unspent,
-            ((300 * MOB) - (42 * MOB) - Mob::MINIMUM_FEE).to_string(),
-        ); // Should be 200 - 42
+            ((200 * MOB) - (42 * MOB) - Mob::MINIMUM_FEE).to_string(),
+        );
         assert_eq!(pending, "0");
-        assert_eq!(spent, "0");
+        assert_eq!(spent, (200 * MOB).to_string());
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
 
