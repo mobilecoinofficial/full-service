@@ -731,7 +731,7 @@ mod tests {
         },
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
-            transaction_log::TransactionLogService, txo::TxoService,
+            transaction_log::TransactionLogService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
@@ -747,7 +747,7 @@ mod tests {
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
     use mc_transaction_extra::{
-        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
+        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
@@ -1729,17 +1729,20 @@ mod tests {
     // 1. Create exchange account
     // 2. Create subaddresses for Alice and Bob
     // 3. Add a block with a transaction for 100 MOB from some external source for
-    //    Alice
-    // 4. Send 42 MOB from Alice to Bob
+    //    Alice. Balances [Alice: 100, Bob: 0]
+    // 4. Send 42 MOB from Alice to Bob. Balances [Alice: 58, Bob: 42]
     // 5. Confirm 42 went to Bob, 58 went back to Alice, and the 100 that belonged
     //    to Alice was spent
     // 6. Confirm the memo from Alice to Bob verifies with the exchange's account
     //    key
     // 7. Confirm the change from Alice to Bob has the correct transaction history
     // 8. Add a block with a transaction for 200 MOB from some external source for
-    //    Bob
+    //    Bob. Balances [Alice: 58, Bob: 242]
     // 9. Attempt to spend more than Alice has (but enough in the wallet) and
-    //    confirm it fails
+    //    confirm it fails. [Alice -> 250 -> Bob (Fails)]
+    // 10. Attempt to spend more than Alice has (but enough that Bob has) and
+    //     confirm it fails. [Alice -> 66 -> Bob (Fails)]
+    // 11. Confirm final balances [Alice: 58, Bob: 242]
     #[async_test_with_logger]
     async fn test_send_transaction_from_only_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1931,26 +1934,27 @@ mod tests {
         // sender memo.
         let change_memo = alice_to_bob_change_txo.decrypt_memo(&change_shared_secret);
         // let destination_memo = DestinationMemo::from(change_memo.get_memo_data());
-        // log::info!(
-        //     logger,
-        //     "Verifying the change subaddress memo {:?}",
-        //     destination_memo
-        // );
         // assert_eq!(destination_memo.get_num_recipients(), 1);
         // assert_eq!(destination_memo.get_total_outlay(), 58 * MOB);
         // assert_eq!(destination_memo.get_address_hash(),
         // ShortAddressHash::from(&bob_subaddress.public_address().unwrap()));
 
         // FIXME: The memo should be a DestinationMemo, not a sender memo
-        let change_authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
+        let change_authenticated_sender_memo =
+            AuthenticatedSenderMemo::from(change_memo.get_memo_data());
+        log::info!(
+            logger,
+            "Verifying the change subaddress memo {:?}",
+            change_authenticated_sender_memo
+        );
         let validation = change_authenticated_sender_memo.validate(
             &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
-            &exchange_account_key.subaddress_view_private(bob_subaddress.subaddress_index as u64),
-            &alice_to_bob_txo.public_key,
+            &exchange_account_key.subaddress_view_private(alice_subaddress.subaddress_index as u64),
+            &alice_to_bob_change_txo.public_key,
         );
         assert!(bool::from(validation));
 
-        // Add another block with a transaction for Alice from external to the wallet
+        // Add another block with a transaction for Bob from external to the wallet
         add_block_to_ledger_db(
             &mut ledger_db,
             &vec![bob_subaddress.clone().public_address().unwrap()],
@@ -1970,10 +1974,7 @@ mod tests {
             .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
-        assert_eq!(
-            balance_pmob.unspent,
-            ((242 * MOB) - Mob::MINIMUM_FEE) as u128
-        );
+        assert_eq!(balance_pmob.unspent, (242 * MOB) as u128);
 
         // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
         // and trigger InsufficientFunds Error
@@ -2009,12 +2010,43 @@ mod tests {
                 e
             ),
         }
-        log::info!(
-            logger,
-            "Built and submitted transaction from Alice's Subaddress to Bob's Subaddress"
-        );
 
-        // Balance should remain the same because it shouldn't have been able to find
+        // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
+        // and trigger InsufficientFunds Error
+        let res = service
+            .build_sign_and_submit_transaction(
+                &exchange_account.id,
+                &[(
+                    bob_subaddress.public_address_b58.clone(),
+                    AmountJSON::new(66 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                },
+                None,
+                Some(alice_subaddress.public_address_b58.clone()),
+            )
+            .await;
+        match res {
+            Err(TransactionServiceError::TransactionBuilder(
+                WalletTransactionBuilderError::WalletDb(
+                    WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+                ),
+            )) => {}
+            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+            Err(e) => panic!(
+                "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
+                e
+            ),
+        }
+
+        // Balances should remain the same because it shouldn't have been able to find
         // enough TXOs in Alice's subaddress
         let balance = service
             .get_balance_for_address(&alice_subaddress.public_address_b58)
@@ -2022,7 +2054,12 @@ mod tests {
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(
             balance_pmob.unspent,
-            ((258 * MOB) - Mob::MINIMUM_FEE) as u128
+            ((58 * MOB) - Mob::MINIMUM_FEE) as u128
         );
+        let balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (242 * MOB) as u128);
     }
 }

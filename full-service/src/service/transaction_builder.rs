@@ -164,7 +164,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 max_spendable_value,
                 *token_id,
                 fee_value,
-                self.spend_only_from_subaddress.as_ref(),
+                self.spend_only_from_subaddress.as_ref().map(|x| x.as_str()),
                 conn,
             )?;
         }
