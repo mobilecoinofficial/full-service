@@ -145,6 +145,7 @@ impl Txo {
     }
 }
 
+#[derive(Debug)]
 pub struct TxoInfo {
     pub txo: Txo,
     pub memo: TxoMemo,

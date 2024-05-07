@@ -731,7 +731,7 @@ mod tests {
         },
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
-            transaction_log::TransactionLogService,
+            transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
@@ -747,7 +747,7 @@ mod tests {
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
     use mc_transaction_extra::{
-        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
+        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
@@ -1724,6 +1724,22 @@ mod tests {
 
     // Test sending a transaction from only a specified subaddress, and that the
     // transaction change arrives back to that subaddress.
+    // This is a long, complicated test, so I'll list out the steps here for
+    // readability:
+    // 1. Create exchange account
+    // 2. Create subaddresses for Alice and Bob
+    // 3. Add a block with a transaction for 100 MOB from some external source for
+    //    Alice
+    // 4. Send 42 MOB from Alice to Bob
+    // 5. Confirm 42 went to Bob, 58 went back to Alice, and the 100 that belonged
+    //    to Alice was spent
+    // 6. Confirm the memo from Alice to Bob verifies with the exchange's account
+    //    key
+    // 7. Confirm the change from Alice to Bob has the correct transaction history
+    // 8. Add a block with a transaction for 200 MOB from some external source for
+    //    Bob
+    // 9. Attempt to spend more than Alice has (but enough in the wallet) and
+    //    confirm it fails
     #[async_test_with_logger]
     async fn test_send_transaction_from_only_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1869,6 +1885,8 @@ mod tests {
         assert_eq!(inputs[0].value as u64, 100 * MOB);
 
         // Verify balance for Alice's subaddress = original balance - fee - txo_value
+        // NOTE: This confirms that the change went back to Alice's subaddress, as it
+        // should have, rather than the default change subaddress
         let balance = service
             .get_balance_for_address(&alice_subaddress.public_address_b58)
             .unwrap();
@@ -1882,28 +1900,60 @@ mod tests {
         let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
         assert_eq!(bob_balance_pmob.unspent, 42 * MOB as u128);
 
-        // Decrypt the memo from the transaction txo and verify.
-        let txo = &tx_proposal.payload_txos[0].tx_out;
+        // Decrypt the memo from the transaction txo (from Alice to Bob) and verify.
+        let alice_to_bob_txo = &tx_proposal.payload_txos[0].tx_out;
 
         let shared_secret = get_tx_out_shared_secret(
             exchange_account_key.view_private_key(),
-            &RistrettoPublic::try_from(&txo.public_key).unwrap(),
+            &RistrettoPublic::try_from(&alice_to_bob_txo.public_key).unwrap(),
         );
 
-        let memo = txo.decrypt_memo(&shared_secret);
+        let memo = alice_to_bob_txo.decrypt_memo(&shared_secret);
         let authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
         let validation = authenticated_sender_memo.validate(
             &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
             &exchange_account_key.subaddress_view_private(bob_subaddress.subaddress_index as u64),
-            &txo.public_key,
+            &alice_to_bob_txo.public_key,
         );
-
         assert!(bool::from(validation));
 
-        // Add another block with a transaction for Alice
+        // Decrypt the memo from the change txo (From Alice back to Alice) and verify
+        let alice_to_bob_change_txo = &tx_proposal.change_txos[0].tx_out;
+
+        let change_shared_secret = get_tx_out_shared_secret(
+            exchange_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&alice_to_bob_change_txo.public_key).unwrap(),
+        );
+
+        // FIXME: This is ideally how this works once we update the
+        // `transaction_builder.add_change_output` to accept a non-change
+        // subaddress. For now, we're just decrypting the memo as an authenticated
+        // sender memo.
+        let change_memo = alice_to_bob_change_txo.decrypt_memo(&change_shared_secret);
+        // let destination_memo = DestinationMemo::from(change_memo.get_memo_data());
+        // log::info!(
+        //     logger,
+        //     "Verifying the change subaddress memo {:?}",
+        //     destination_memo
+        // );
+        // assert_eq!(destination_memo.get_num_recipients(), 1);
+        // assert_eq!(destination_memo.get_total_outlay(), 58 * MOB);
+        // assert_eq!(destination_memo.get_address_hash(),
+        // ShortAddressHash::from(&bob_subaddress.public_address().unwrap()));
+
+        // FIXME: The memo should be a DestinationMemo, not a sender memo
+        let change_authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
+        let validation = change_authenticated_sender_memo.validate(
+            &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
+            &exchange_account_key.subaddress_view_private(bob_subaddress.subaddress_index as u64),
+            &alice_to_bob_txo.public_key,
+        );
+        assert!(bool::from(validation));
+
+        // Add another block with a transaction for Alice from external to the wallet
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![alice_subaddress.clone().public_address().unwrap()],
+            &vec![bob_subaddress.clone().public_address().unwrap()],
             200 * MOB,
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
@@ -1915,14 +1965,14 @@ mod tests {
             &logger,
         );
 
-        // Verify balance for the Alice Subaddress
+        // Verify balance for the Bob Subaddress now includes the new incoming amount
         let balance = service
-            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(
             balance_pmob.unspent,
-            ((258 * MOB) - Mob::MINIMUM_FEE) as u128
+            ((242 * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
         // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
@@ -1932,7 +1982,7 @@ mod tests {
                 &exchange_account.id,
                 &[(
                     bob_subaddress.public_address_b58.clone(),
-                    AmountJSON::new(333 * MOB, Mob::ID),
+                    AmountJSON::new(250 * MOB, Mob::ID),
                 )],
                 None,
                 None,
@@ -1974,7 +2024,5 @@ mod tests {
             balance_pmob.unspent,
             ((258 * MOB) - Mob::MINIMUM_FEE) as u128
         );
-
-        // TODO: ensure change and memos are correct
     }
 }

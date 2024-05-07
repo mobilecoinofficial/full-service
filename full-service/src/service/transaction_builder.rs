@@ -164,7 +164,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 max_spendable_value,
                 *token_id,
                 fee_value,
-                None, // FIXME: here's where we want to switch on the subaddress?
+                self.spend_only_from_subaddress.as_ref(),
                 conn,
             )?;
         }
@@ -450,6 +450,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // Send the change back to the subaddress that is spending the inputs.
                 // In the future, we may want to allow this to be a bit more configurable
                 let change_address = b58_decode_public_address(&spend_from_subaddress)?;
+
+                // FIXME: We should change `transaction_builder.add_change_output` to accept
+                // a subaddress rather than the default change address. For now, the memo for
+                // transaction history will be incorrect on this change output, and it will
+                // instead validate only with the authenticated sender memo
                 let tx_out_context =
                     transaction_builder.add_output(change_amount, &change_address, &mut rng)?;
 
