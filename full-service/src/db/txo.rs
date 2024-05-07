@@ -1814,7 +1814,6 @@ impl TxoModel for Txo {
             .filter(txos::subaddress_index.is_not_null())
             .filter(txos::token_id.eq(token_id as i64));
 
-        // Filter TXOs to only those belonging to the given subaddress
         if let Some(subaddress_b58) = assigned_subaddress_b58 {
             let subaddress = AssignedSubaddress::get(subaddress_b58, conn)?;
             query = query
@@ -1875,8 +1874,7 @@ impl TxoModel for Txo {
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            only_from_subaddress_b58, /* Note, if !None, this will only get spendable for an
-                                       * address */
+            only_from_subaddress_b58,
             token_id,
             default_token_fee,
             conn,
@@ -2986,6 +2984,13 @@ mod tests {
         );
     }
 
+    // The narrative for this test is that an exchange creates two assigned
+    // subaddresses for their customers, Alice and Bob.
+    // Alice receives 33 MOB from some external entity, followed by 44 MOB.
+    // Bob receives 55 MOB, then 66 MOB from some external entity.
+    // Confirm max spendable for Alice: 77 MOB
+    // Confirm max spendable for Bob: 121 MOB
+    // Confrim max spendable in entire exchange wallet: 198 MOB
     #[test_with_logger]
     fn test_list_spendable_for_spend_only_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -3060,7 +3065,7 @@ mod tests {
         let (bob_public_address_b58, bob_subaddress_index) =
             AssignedSubaddress::create_next_for_account(
                 &account_id_hex.to_string(),
-                "Alice's Subaddress",
+                "Bob's Subaddress",
                 &ledger_db,
                 &mut wallet_db.get_pooled_conn().unwrap(),
             )
