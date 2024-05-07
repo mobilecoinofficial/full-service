@@ -3251,6 +3251,13 @@ mod tests {
         );
     }
 
+    // The narrative for this test is that an exchange creates three assigned
+    // subaddresses, Alice, Bob, and Carol. Alice receives 100 MOB, Bob receives
+    // 200 MOB, and Carol receives 300 MOB. We then confirm the max spendable is
+    // as expected for the exchange and each subaddress.
+    // We then confirm that we can select TXOs from only each respective subaddress,
+    // and last, we verify that if we try to select txos for an amount larger
+    // than Alice, but smaller than Carol and Bob, we get insufficient funds.
     #[test_with_logger]
     fn test_select_txos_for_spend_only_from_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
