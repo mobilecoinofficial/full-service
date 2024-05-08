@@ -78,6 +78,10 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// Subaddress (base58-encoded) from which to restrict TXOs for spending
     /// (optional)
     spend_only_from_subaddress: Option<String>,
+
+    /// Subaddress (index) from which to restrict TXOs for spending
+    /// (optional)
+    spend_only_from_subaddress_index: Option<u64>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -97,6 +101,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             block_version: None,
             fog_resolver_factory,
             spend_only_from_subaddress: None,
+            spend_only_from_subaddress_index: None,
         }
     }
 
@@ -104,8 +109,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     pub fn set_spend_only_from_subaddress(
         &mut self,
         subaddress: String,
+        subaddress_index: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
         self.spend_only_from_subaddress = Some(subaddress);
+        self.spend_only_from_subaddress_index = Some(subaddress_index);
         Ok(())
     }
 
@@ -450,13 +457,22 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // Send the change back to the subaddress that is spending the inputs.
                 // In the future, we may want to allow this to be a bit more configurable
                 let change_address = b58_decode_public_address(&spend_from_subaddress)?;
+                let reserved_subaddresses_for_spend_from_subaddress_mode =
+                    ReservedSubaddresses::from_subaddress_index(
+                        &account.account_key()?,
+                        self.spend_only_from_subaddress_index,
+                        None,
+                    );
 
                 // FIXME: We should change `transaction_builder.add_change_output` to accept
                 // a subaddress rather than the default change address. For now, the memo for
                 // transaction history will be incorrect on this change output, and it will
                 // instead validate only with the authenticated sender memo
-                let tx_out_context =
-                    transaction_builder.add_output(change_amount, &change_address, &mut rng)?;
+                let tx_out_context = transaction_builder.add_change_output(
+                    change_amount,
+                    &reserved_subaddresses_for_spend_from_subaddress_mode,
+                    &mut rng,
+                )?;
 
                 let change_txo = OutputTxo {
                     tx_out: tx_out_context.tx_out,

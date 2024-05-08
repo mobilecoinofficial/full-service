@@ -39,6 +39,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
 
+use crate::db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
@@ -520,8 +521,14 @@ where
                 builder.set_txos(conn, inputs)?;
             } else {
                 if let Some(subaddress) = spend_only_from_subaddress {
+                    let assigned_subadress = AssignedSubaddress::get(&subaddress, conn)?;
                     // Ensure the builder will filter to txos only from the specified subaddress
-                    builder.set_spend_only_from_subaddress(subaddress)?;
+                    // FIXME: I think we only need to pass in the u64, then derive the address from
+                    // it in the builder
+                    builder.set_spend_only_from_subaddress(
+                        subaddress,
+                        assigned_subadress.subaddress_index as u64,
+                    )?;
                 }
 
                 let max_spendable = if let Some(msv) = max_spendable_value {
@@ -723,13 +730,14 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
+    use mc_core::account::ShortAddressHash;
     use mc_crypto_keys::RistrettoPublic;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
     use mc_transaction_extra::{
-        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
+        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
@@ -1910,31 +1918,24 @@ mod tests {
             &RistrettoPublic::try_from(&alice_to_bob_change_txo.public_key).unwrap(),
         );
 
-        // FIXME: This is ideally how this works once we update the
-        // `transaction_builder.add_change_output` to accept a non-change
-        // subaddress. For now, we're just decrypting the memo as an authenticated
-        // sender memo.
         let change_memo = alice_to_bob_change_txo.decrypt_memo(&change_shared_secret);
-        // let destination_memo = DestinationMemo::from(change_memo.get_memo_data());
-        // assert_eq!(destination_memo.get_num_recipients(), 1);
-        // assert_eq!(destination_memo.get_total_outlay(), 58 * MOB);
-        // assert_eq!(destination_memo.get_address_hash(),
-        // ShortAddressHash::from(&bob_subaddress.public_address().unwrap()));
-
-        // FIXME: The memo should be a DestinationMemo, not a sender memo
-        let change_authenticated_sender_memo =
-            AuthenticatedSenderMemo::from(change_memo.get_memo_data());
+        let destination_memo = DestinationMemo::from(change_memo.get_memo_data());
         log::info!(
             logger,
             "Verifying the change subaddress memo {:?}",
-            change_authenticated_sender_memo
+            destination_memo
         );
-        let validation = change_authenticated_sender_memo.validate(
-            &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
-            &exchange_account_key.subaddress_view_private(alice_subaddress.subaddress_index as u64),
-            &alice_to_bob_change_txo.public_key,
+        assert_eq!(destination_memo.get_num_recipients(), 1);
+        // The Destination Memo tracks how much the outlay of the sent TXO was for
+        // transaction history
+        assert_eq!(
+            destination_memo.get_total_outlay(),
+            (42 * MOB) + Mob::MINIMUM_FEE
         );
-        assert!(bool::from(validation));
+        assert_eq!(
+            destination_memo.get_address_hash(),
+            &ShortAddressHash::from(&bob_subaddress.clone().public_address().unwrap())
+        );
 
         // Add another block with a transaction for Bob from external to the wallet
         add_block_to_ledger_db(
