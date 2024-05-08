@@ -18,5 +18,3 @@ For a guide level explanation of the JSON schema and its usage, see:\
 | -------- | ---- | ------------- | ---------- |
 | 0        | MOB  | Pico (10^-12) | .0004      |
 | 1        | eUSD | Micro (10^-6) | .00256     |
-
-\\
