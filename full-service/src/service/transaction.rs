@@ -737,6 +737,7 @@ mod tests {
         AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
+    use rocket::futures::future::join_all;
     use std::convert::TryFrom;
 
     #[async_test_with_logger]
@@ -1725,10 +1726,10 @@ mod tests {
     // 7. Confirm the change from Alice to Bob has the correct transaction history
     // 8. Add a block with a transaction for 200 MOB from some external source for
     //    Bob. Balances [Alice: 58, Bob: 242]
-    // 9. Attempt to spend more than Alice has (but enough in the wallet) and
-    //    confirm it fails. [Alice -> 250 -> Bob (Fails)]
+    // 9. Attempt to spend more than Alice or Bob has (but enough in the wallet,
+    //    Alice + Bob) and confirm it fails. [Alice -> 300 (+fee) -> Bob (Fails)]
     // 10. Attempt to spend more than Alice has (but enough that Bob has) and
-    //     confirm it fails. [Alice -> 66 -> Bob (Fails)]
+    //     confirm it fails. [Alice -> 58 (+fee) -> Bob (Fails)]
     // 11. Confirm final balances [Alice: 58, Bob: 242]
     #[async_test_with_logger]
     async fn test_send_transaction_with_subaddress_to_spend_from(logger: Logger) {
@@ -1951,75 +1952,50 @@ mod tests {
         let balance_pmob = balance.get(&Mob::ID).unwrap();
         assert_eq!(balance_pmob.unspent, (242 * MOB) as u128);
 
-        // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
-        // and trigger InsufficientFunds Error
-        let res = service
-            .build_sign_and_submit_transaction(
-                &exchange_account.id,
-                &[(
-                    bob_subaddress.public_address_b58.clone(),
-                    AmountJSON::new(250 * MOB, Mob::ID),
-                )],
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                TransactionMemo::RTH {
-                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
-                },
-                None,
-                Some(alice_subaddress.public_address_b58.clone()),
-            )
-            .await;
-        match res {
-            Err(TransactionServiceError::TransactionBuilder(
-                WalletTransactionBuilderError::WalletDb(
-                    WalletDbError::InsufficientFundsUnderMaxSpendable(_),
-                ),
-            )) => {}
-            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
-            Err(e) => panic!(
-                "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
-                e
-            ),
-        }
-
-        // Attempt to spend more than Alice has (but enough that the wallet has) to Bob
-        // and trigger InsufficientFunds Error
-        let res = service
-            .build_sign_and_submit_transaction(
-                &exchange_account.id,
-                &[(
-                    bob_subaddress.public_address_b58.clone(),
-                    AmountJSON::new(66 * MOB, Mob::ID),
-                )],
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                TransactionMemo::RTH {
-                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
-                },
-                None,
-                Some(alice_subaddress.public_address_b58.clone()),
-            )
-            .await;
-        match res {
-            Err(TransactionServiceError::TransactionBuilder(
-                WalletTransactionBuilderError::WalletDb(
-                    WalletDbError::InsufficientFundsUnderMaxSpendable(_),
-                ),
-            )) => {}
-            Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
-            Err(e) => panic!(
-                "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
-                e
-            ),
-        }
+        // Attempt to spend more than Alice or Bob has (but enough that the wallet has)
+        // (300 - fee) to Bob and trigger InsufficientFunds Error, then attempt
+        // to spend more than Alice has but enough that Bob could cover (58), and
+        // trigger InsufficientFunds error
+        join_all(
+            [299, 58]
+                .iter()
+                .map(|value| async {
+                    let res = service
+                        .build_sign_and_submit_transaction(
+                            &exchange_account.id,
+                            &[(
+                                bob_subaddress.public_address_b58.clone(),
+                                AmountJSON::new(value * MOB, Mob::ID),
+                            )],
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            TransactionMemo::RTH {
+                                subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                            },
+                            None,
+                            Some(alice_subaddress.public_address_b58.clone()),
+                        )
+                        .await;
+                    match res {
+                        Err(TransactionServiceError::TransactionBuilder(
+                            WalletTransactionBuilderError::WalletDb(
+                                WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+                            ),
+                        )) => {}
+                        Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+                        Err(e) => panic!(
+                            "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
+                            e
+                        ),
+                    }
+                })
+                .collect::<Vec<_>>(),
+        )
+        .await;
 
         // Balances should remain the same because it shouldn't have been able to find
         // enough TXOs in Alice's subaddress
