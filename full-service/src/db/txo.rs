@@ -636,7 +636,7 @@ pub trait TxoModel {
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
-    ///| `only_from_subaddress`| The subaddress from which spendable txos can be sourced    | (optional)                          |
+    ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from                    |                                      |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
     ///
     /// # Returns:
