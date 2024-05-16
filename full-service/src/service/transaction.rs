@@ -737,7 +737,6 @@ mod tests {
         AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
-    use rocket::futures::future::join_all;
     use std::convert::TryFrom;
 
     #[async_test_with_logger]
@@ -1956,46 +1955,40 @@ mod tests {
         // (300 - fee) to Bob and trigger InsufficientFunds Error, then attempt
         // to spend more than Alice has but enough that Bob could cover (58), and
         // trigger InsufficientFunds error
-        join_all(
-            [299, 58]
-                .iter()
-                .map(|value| async {
-                    let res = service
-                        .build_sign_and_submit_transaction(
-                            &exchange_account.id,
-                            &[(
-                                bob_subaddress.public_address_b58.clone(),
-                                AmountJSON::new(value * MOB, Mob::ID),
-                            )],
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                            TransactionMemo::RTH {
-                                subaddress_index: Some(alice_subaddress.subaddress_index as u64),
-                            },
-                            None,
-                            Some(alice_subaddress.public_address_b58.clone()),
-                        )
-                        .await;
-                    match res {
-                        Err(TransactionServiceError::TransactionBuilder(
-                            WalletTransactionBuilderError::WalletDb(
-                                WalletDbError::InsufficientFundsUnderMaxSpendable(_),
-                            ),
-                        )) => {}
-                        Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
-                        Err(e) => panic!(
-                            "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
-                            e
+        for value in [299, 58] {
+            let res = service
+                .build_sign_and_submit_transaction(
+                    &exchange_account.id,
+                    &[(
+                        bob_subaddress.public_address_b58.clone(),
+                        AmountJSON::new(value * MOB, Mob::ID),
+                    )],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    TransactionMemo::RTH {
+                        subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                    },
+                    None,
+                    Some(alice_subaddress.public_address_b58.clone()),
+                )
+                .await;
+            match res {
+                Err(TransactionServiceError::TransactionBuilder(
+                        WalletTransactionBuilderError::WalletDb(
+                            WalletDbError::InsufficientFundsUnderMaxSpendable(_),
                         ),
-                    }
-                })
-                .collect::<Vec<_>>(),
-        )
-        .await;
+                    )) => {}
+                Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+                Err(e) => panic!(
+                    "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
+                    e
+                ),
+            }
+        }
 
         // Balances should remain the same because it shouldn't have been able to find
         // enough TXOs in Alice's subaddress
