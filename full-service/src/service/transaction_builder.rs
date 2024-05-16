@@ -76,8 +76,8 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
 
     /// Subaddress (index) from which to restrict TXOs for spending
-    /// (optional)
-    spend_only_from_subaddress_index: Option<u64>,
+    /// (optional).
+    subaddress_index_to_spend_from: Option<u64>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -96,16 +96,16 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee: None,
             block_version: None,
             fog_resolver_factory,
-            spend_only_from_subaddress_index: None,
+            subaddress_index_to_spend_from: None,
         }
     }
 
     /// Sets the subaddress from which to restrict TXOs for spending.
-    pub fn set_spend_only_from_subaddress(
+    pub fn set_subaddress_to_spend_from(
         &mut self,
         subaddress_index: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
-        self.spend_only_from_subaddress_index = Some(subaddress_index);
+        self.subaddress_index_to_spend_from = Some(subaddress_index);
         Ok(())
     }
 
@@ -158,16 +158,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 0
             };
 
-            let spend_only_from_subaddress = if let Some(spend_only_from_subaddress_index) =
-                self.spend_only_from_subaddress_index
-            {
-                let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
-                let subaddress = account.public_address(spend_only_from_subaddress_index)?;
-                let b58_subaddress = b58_encode_public_address(&subaddress)?;
-                Some(b58_subaddress)
-            } else {
-                None
-            };
+            let subaddress_to_spend_from =
+                if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
+                    let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+                    let subaddress = account.public_address(subaddress_index_to_spend_from)?;
+                    let b58_subaddress = b58_encode_public_address(&subaddress)?;
+                    Some(b58_subaddress)
+                } else {
+                    None
+                };
 
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
@@ -175,7 +174,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 max_spendable_value,
                 *token_id,
                 fee_value,
-                spend_only_from_subaddress.as_deref(),
+                subaddress_to_spend_from.as_deref(),
                 conn,
             )?;
         }
@@ -457,14 +456,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             }
 
             let change_amount = Amount::new(change_value as u64, token_id);
-            if let Some(spend_only_from_subaddress_index) = self.spend_only_from_subaddress_index {
+            if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
                 // Send the change back to the subaddress that is spending the inputs.
                 // In the future, we may want to allow this to be a bit more configurable
-                let change_address = account.public_address(spend_only_from_subaddress_index)?;
+                let change_address = account.public_address(subaddress_index_to_spend_from)?;
                 let reserved_subaddresses_for_spend_from_subaddress_mode =
                     ReservedSubaddresses::from_subaddress_index(
                         &account.account_key()?,
-                        self.spend_only_from_subaddress_index,
+                        self.subaddress_index_to_spend_from,
                         None,
                     );
 

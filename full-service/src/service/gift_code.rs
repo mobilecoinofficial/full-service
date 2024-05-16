@@ -544,7 +544,7 @@ where
                 subaddress_index: None,
             },
             None,
-            None, /* NOTE: Assuming for now that we will not support spend_only_from_subaddress
+            None, /* NOTE: Assuming for now that we will not support subaddress_to_spend_from
                    * in gift_code construction */
         )?;
 

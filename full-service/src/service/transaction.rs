@@ -342,7 +342,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
-    ///| `spend_only_from_subaddress` | The subaddress index to spend from.                          | (optional)                                                                                        |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
@@ -356,7 +356,7 @@ pub trait TransactionService {
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError>;
 
     /// Build a transaction and sign it before submitting it to the network.
@@ -374,7 +374,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
-    ///| `spend_only_from_subaddress` | The subaddress index to spend from.                          | (optional)                                                                                        |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     async fn build_and_sign_transaction(
@@ -388,7 +388,7 @@ pub trait TransactionService {
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -423,7 +423,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
-    ///| `spend_only_from_subaddress` | The subaddress index to spend from.                          | (optional)                                                                                        |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     async fn build_sign_and_submit_transaction(
@@ -438,7 +438,7 @@ pub trait TransactionService {
         comment: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
@@ -459,7 +459,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
@@ -520,10 +520,10 @@ where
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(conn, inputs)?;
             } else {
-                if let Some(subaddress) = spend_only_from_subaddress {
+                if let Some(subaddress) = subaddress_to_spend_from {
                     let assigned_subaddress = AssignedSubaddress::get(&subaddress, conn)?;
                     // Ensure the builder will filter to txos only from the specified subaddress
-                    builder.set_spend_only_from_subaddress(
+                    builder.set_subaddress_to_spend_from(
                         assigned_subaddress.subaddress_index as u64,
                     )?;
                 }
@@ -553,7 +553,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
         let unsigned_tx_proposal = self.build_transaction(
             account_id_hex,
@@ -565,7 +565,7 @@ where
             max_spendable_value,
             memo,
             block_version,
-            spend_only_from_subaddress,
+            subaddress_to_spend_from,
         )?;
 
         let mut pooled_conn = self.get_pooled_conn()?;
@@ -654,7 +654,7 @@ where
         comment: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
         let tx_proposal = self
@@ -668,7 +668,7 @@ where
                 max_spendable_value,
                 memo,
                 block_version,
-                spend_only_from_subaddress,
+                subaddress_to_spend_from,
             )
             .await?;
 

@@ -2993,7 +2993,7 @@ mod tests {
     // Confirm max spendable for Bob: 121 MOB
     // Confrim max spendable in entire exchange wallet: 198 MOB
     #[test_with_logger]
-    fn test_list_spendable_for_spend_only_subaddress(logger: Logger) {
+    fn test_list_spendable_for_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -3229,7 +3229,7 @@ mod tests {
     // and last, we verify that if we try to select txos for an amount larger
     // than Alice, but smaller than Carol and Bob, we get insufficient funds.
     #[test_with_logger]
-    fn test_select_txos_for_spend_only_from_subaddress(logger: Logger) {
+    fn test_select_txos_for_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();

@@ -57,7 +57,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -69,7 +69,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     },
     build_transaction {
         account_id: String,
@@ -84,7 +84,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
@@ -96,7 +96,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     },
     build_unsigned_transaction {
         account_id: String,
@@ -109,7 +109,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        spend_only_from_subaddress: Option<String>,
+        subaddress_to_spend_from: Option<String>,
     },
     check_b58_type {
         b58_code: String,
