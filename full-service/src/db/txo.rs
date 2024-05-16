@@ -3035,23 +3035,20 @@ mod tests {
             .unwrap();
 
         // Create two TXOs for Alice's assigned address
-        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-            &account_key,
-            alice_subaddress_index as u64,
-            Amount::new(33 * MOB, Mob::ID),
-            145,
-            &mut rng,
-            &wallet_db,
-        );
-
-        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-            &account_key,
-            alice_subaddress_index as u64,
-            Amount::new(44 * MOB, Mob::ID),
-            146,
-            &mut rng,
-            &wallet_db,
-        );
+        let mut block_index = 145;
+        let alice_balance = [33, 44].iter().fold(0, |acc, value| {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                alice_subaddress_index as u64,
+                Amount::new(value * MOB, Mob::ID),
+                block_index,
+                &mut rng,
+                &wallet_db,
+            );
+            block_index += 1;
+            acc + value
+        });
+        assert_eq!(77, alice_balance);
 
         let spendable_txos = Txo::list_spendable(
             Some(&account_id_hex.to_string()),
@@ -3063,29 +3060,25 @@ mod tests {
         )
         .unwrap();
 
-        // Max spendable SHOULD be the sum of all TXOs at Alice's subaddress
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
-            ((77 * MOB) - Mob::MINIMUM_FEE) as u128
+            ((alice_balance * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
-        // Add some coins at Bob's subaddress
-        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-            &account_key,
-            bob_subaddress_index as u64,
-            Amount::new(55 * MOB, Mob::ID),
-            147,
-            &mut rng,
-            &wallet_db,
-        );
-        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
-            &account_key,
-            bob_subaddress_index as u64,
-            Amount::new(66 * MOB, Mob::ID),
-            148,
-            &mut rng,
-            &wallet_db,
-        );
+        // Add two coins at Bob's subaddress
+        let bob_balance = [55, 66].iter().fold(0, |acc, value| {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                bob_subaddress_index as u64,
+                Amount::new(value * MOB, Mob::ID),
+                block_index,
+                &mut rng,
+                &wallet_db,
+            );
+            block_index += 1;
+            acc + value
+        });
+        assert_eq!(121, bob_balance);
 
         // Max spendable SHOULD be the same at Alice's subaddress
         let spendable_txos = Txo::list_spendable(
@@ -3099,7 +3092,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
-            ((77 * MOB) - Mob::MINIMUM_FEE) as u128
+            ((alice_balance * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
         // Max spendable for Bob should be the sum of all TXOs at Bob's subaddress
@@ -3114,7 +3107,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
-            ((121 * MOB) - Mob::MINIMUM_FEE) as u128
+            ((bob_balance * MOB) - Mob::MINIMUM_FEE) as u128
         );
 
         // Max spendable for the account should be the sum of all Alice's and Bob's
@@ -3129,7 +3122,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
-            ((198 * MOB) - Mob::MINIMUM_FEE) as u128
+            (((alice_balance + bob_balance) * MOB) - Mob::MINIMUM_FEE) as u128
         );
     }
 
