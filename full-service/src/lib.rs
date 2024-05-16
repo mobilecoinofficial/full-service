@@ -3,6 +3,7 @@
 //! Full Service Wallet.
 
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(assert_matches)]
 
 pub mod check_host;
 pub mod config;
