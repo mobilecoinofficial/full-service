@@ -521,13 +521,11 @@ where
                 builder.set_txos(conn, inputs)?;
             } else {
                 if let Some(subaddress) = spend_only_from_subaddress {
-                    let assigned_subadress = AssignedSubaddress::get(&subaddress, conn)?;
+                    let assigned_subaddress = AssignedSubaddress::get(&subaddress, conn)?;
                     // Ensure the builder will filter to txos only from the specified subaddress
-                    // FIXME: I think we only need to pass in the u64, then derive the address from
-                    // it in the builder
                     builder.set_spend_only_from_subaddress(
-                        subaddress,
-                        assigned_subadress.subaddress_index as u64,
+                        assigned_subaddress.clone().public_address().unwrap(), // FIXME REMOVE
+                        assigned_subaddress.subaddress_index as u64,
                     )?;
                 }
 

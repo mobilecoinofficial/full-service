@@ -327,7 +327,7 @@ mod e2e_transaction {
         let orphaned = balance_mob["orphaned"].as_str().unwrap();
         assert_eq!(unspent, &(600 * MOB - Mob::MINIMUM_FEE).to_string());
         assert_eq!(pending, "0");
-        // The SPENT value is calculated by the txos who have key_images that have been
+        // The SPENT value is calculated by the txos that have key_images that have been
         // burned. It does not take into account change. Bob's 200 MOB TXO was
         // burned to send 42 MOB to Alice.
         assert_eq!(spent, (200 * MOB).to_string()); //FIXME: then shouldn't this be 200?

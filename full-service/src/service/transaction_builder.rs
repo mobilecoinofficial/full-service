@@ -19,7 +19,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::transaction::TransactionMemo,
-    util::b58::b58_decode_public_address,
+    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::PublicAddress;
 use mc_common::{logger::global_log, HashSet};
@@ -77,7 +77,7 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
 
     /// Subaddress (base58-encoded) from which to restrict TXOs for spending
     /// (optional)
-    spend_only_from_subaddress: Option<String>,
+    spend_only_from_subaddress: Option<PublicAddress>,
 
     /// Subaddress (index) from which to restrict TXOs for spending
     /// (optional)
@@ -108,10 +108,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     /// Sets the subaddress from which to restrict TXOs for spending.
     pub fn set_spend_only_from_subaddress(
         &mut self,
-        subaddress: String,
+        spend_only_from_subaddress: PublicAddress,
         subaddress_index: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
-        self.spend_only_from_subaddress = Some(subaddress);
+        self.spend_only_from_subaddress = Some(spend_only_from_subaddress);
         self.spend_only_from_subaddress_index = Some(subaddress_index);
         Ok(())
     }
@@ -165,13 +165,21 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 0
             };
 
+            // FIXME only do this if not None
+            let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+            let spend_only_from_subaddress = self
+                .spend_only_from_subaddress_index
+                .clone()
+                .map(|x| b58_encode_public_address(&account.public_address(x).unwrap()).unwrap());
+            //FIXME Fix up unwraps
+
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
                 target_value,
                 max_spendable_value,
                 *token_id,
                 fee_value,
-                self.spend_only_from_subaddress.as_ref().map(|x| x.as_str()),
+                spend_only_from_subaddress.as_deref(),
                 conn,
             )?;
         }
@@ -453,10 +461,14 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             }
 
             let change_amount = Amount::new(change_value as u64, token_id);
-            if let Some(spend_from_subaddress) = self.spend_only_from_subaddress.as_ref() {
+            if let Some(spend_only_from_subaddress_index) = self.spend_only_from_subaddress_index {
                 // Send the change back to the subaddress that is spending the inputs.
                 // In the future, we may want to allow this to be a bit more configurable
-                let change_address = b58_decode_public_address(&spend_from_subaddress)?;
+                let change_address = account.public_address(spend_only_from_subaddress_index)?;
+                assert_eq!(
+                    self.spend_only_from_subaddress,
+                    Some(change_address.clone())
+                );
                 let reserved_subaddresses_for_spend_from_subaddress_mode =
                     ReservedSubaddresses::from_subaddress_index(
                         &account.account_key()?,
@@ -464,10 +476,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                         None,
                     );
 
-                // FIXME: We should change `transaction_builder.add_change_output` to accept
-                // a subaddress rather than the default change address. For now, the memo for
-                // transaction history will be incorrect on this change output, and it will
-                // instead validate only with the authenticated sender memo
+                // NOTE: This sets the change to return to the subaddress that is spending the
+                // inputs, with the DestinationMemo properly constructed as a Change Output
                 let tx_out_context = transaction_builder.add_change_output(
                     change_amount,
                     &reserved_subaddresses_for_spend_from_subaddress_mode,
