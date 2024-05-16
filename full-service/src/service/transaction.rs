@@ -1731,13 +1731,15 @@ mod tests {
     //     confirm it fails. [Alice -> 66 -> Bob (Fails)]
     // 11. Confirm final balances [Alice: 58, Bob: 242]
     #[async_test_with_logger]
-    async fn test_send_transaction_from_only_subaddress(logger: Logger) {
+    async fn test_send_transaction_with_subaddress_to_spend_from(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let mut pooled_conn = service.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
 
         // Create our main account for the wallet
         let exchange_account = service
@@ -1842,13 +1844,11 @@ mod tests {
         );
 
         // Get the Txos from the transaction log
-        let transaction_txos = transaction_log
-            .get_associated_txos(service.get_pooled_conn().unwrap().deref_mut())
-            .unwrap();
+        let transaction_txos = transaction_log.get_associated_txos(conn).unwrap();
         let secreted = transaction_txos
             .outputs
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, conn).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(secreted.len(), 1);
         assert_eq!(secreted[0].value as u64, 42 * MOB);
@@ -1856,7 +1856,7 @@ mod tests {
         let change = transaction_txos
             .change
             .iter()
-            .map(|(t, _)| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .map(|(t, _)| Txo::get(&t.id, conn).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(change.len(), 1);
         assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
@@ -1864,7 +1864,7 @@ mod tests {
         let inputs = transaction_txos
             .inputs
             .iter()
-            .map(|t| Txo::get(&t.id, service.get_pooled_conn().unwrap().deref_mut()).unwrap())
+            .map(|t| Txo::get(&t.id, conn).unwrap())
             .collect::<Vec<Txo>>();
         assert_eq!(inputs.len(), 1);
         assert_eq!(inputs[0].value as u64, 100 * MOB);
