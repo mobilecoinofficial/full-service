@@ -645,9 +645,9 @@ pub trait TxoModel {
         account_id_hex: &str,
         target_value: u128,
         max_spendable_value: Option<u64>,
+        assigned_subaddress_b58: Option<&str>,
         token_id: u64,
         default_token_fee: u64,
-        only_from_subaddress: Option<&str>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
