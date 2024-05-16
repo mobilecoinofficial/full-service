@@ -172,9 +172,9 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 &self.account_id_hex,
                 target_value,
                 max_spendable_value,
+                subaddress_to_spend_from.as_deref(),
                 *token_id,
                 fee_value,
-                subaddress_to_spend_from.as_deref(),
                 conn,
             )?;
         }

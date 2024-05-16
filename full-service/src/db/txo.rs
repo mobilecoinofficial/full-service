@@ -634,9 +634,9 @@ pub trait TxoModel {
     ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
     ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
+    ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from |                                      |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
-    ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from                    |                                      |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
     ///
     /// # Returns:
@@ -1874,7 +1874,7 @@ impl TxoModel for Txo {
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            only_from_subaddress_b58,
+            assigned_subaddress_b58,
             token_id,
             default_token_fee,
             conn,
@@ -3142,9 +3142,9 @@ mod tests {
             &account_id_hex.to_string(),
             300 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3156,9 +3156,9 @@ mod tests {
             &account_id_hex.to_string(),
             (300 * MOB + Mob::MINIMUM_FEE) as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3173,9 +3173,9 @@ mod tests {
             &account_id_hex.to_string(),
             (300 * MOB + Mob::MINIMUM_FEE) as u128,
             Some(200 * MOB),
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3191,9 +3191,9 @@ mod tests {
             &account_id_hex.to_string(),
             16800 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3312,9 +3312,9 @@ mod tests {
                 &account_id_hex.to_string(),
                 42 * MOB as u128,
                 None,
+                Some(subaddress),
                 0,
                 Mob::MINIMUM_FEE,
-                Some(subaddress),
                 conn,
             )
             .unwrap();
@@ -3328,9 +3328,9 @@ mod tests {
             &account_id_hex.to_string(),
             (100 * MOB + Mob::MINIMUM_FEE) as u128,
             None,
+            Some(&alice_public_address_b58),
             0,
             Mob::MINIMUM_FEE,
-            Some(&alice_public_address_b58),
             conn,
         );
 
@@ -3380,9 +3380,9 @@ mod tests {
             &account_id_hex.to_string(),
             16800 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3391,9 +3391,9 @@ mod tests {
             &account_id_hex.to_string(),
             16800 * MOB as u128,
             Some(100 * MOB),
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3445,9 +3445,9 @@ mod tests {
             &account_id_hex.to_string(),
             1800 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         match res {
@@ -4241,9 +4241,9 @@ mod tests {
             &account_id.to_string(),
             target_value,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4260,9 +4260,9 @@ mod tests {
             &account_id.to_string(),
             201 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -4279,9 +4279,9 @@ mod tests {
             &account_id.to_string(),
             3,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4296,9 +4296,9 @@ mod tests {
             &account_id.to_string(),
             500 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -4314,9 +4314,9 @@ mod tests {
             &account_id.to_string(),
             12400000000,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
-            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
