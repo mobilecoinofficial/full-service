@@ -3059,7 +3059,6 @@ mod tests {
             conn,
         )
         .unwrap();
-
         assert_eq!(
             spendable_txos.max_spendable_in_wallet,
             ((alice_balance * MOB) - Mob::MINIMUM_FEE) as u128
@@ -3080,50 +3079,28 @@ mod tests {
         });
         assert_eq!(121, bob_balance);
 
-        // Max spendable SHOULD be the same at Alice's subaddress
-        let spendable_txos = Txo::list_spendable(
-            Some(&account_id_hex.to_string()),
-            None,
-            Some(&alice_public_address_b58),
-            0,
-            Mob::MINIMUM_FEE,
-            conn,
-        )
-        .unwrap();
-        assert_eq!(
-            spendable_txos.max_spendable_in_wallet,
-            ((alice_balance * MOB) - Mob::MINIMUM_FEE) as u128
-        );
-
-        // Max spendable for Bob should be the sum of all TXOs at Bob's subaddress
-        let spendable_txos = Txo::list_spendable(
-            Some(&account_id_hex.to_string()),
-            None,
-            Some(&bob_public_address_b58),
-            0,
-            Mob::MINIMUM_FEE,
-            conn,
-        )
-        .unwrap();
-        assert_eq!(
-            spendable_txos.max_spendable_in_wallet,
-            ((bob_balance * MOB) - Mob::MINIMUM_FEE) as u128
-        );
-
-        // Max spendable for the account should be the sum of all Alice's and Bob's
-        let spendable_txos = Txo::list_spendable(
-            Some(&account_id_hex.to_string()),
-            None,
-            None,
-            0,
-            Mob::MINIMUM_FEE,
-            conn,
-        )
-        .unwrap();
-        assert_eq!(
-            spendable_txos.max_spendable_in_wallet,
-            (((alice_balance + bob_balance) * MOB) - Mob::MINIMUM_FEE) as u128
-        );
+        // Verify max spendable for each subaddress and the account overall
+        for (subaddress, expected_balance) in [
+            (Some(alice_public_address_b58.as_str()), alice_balance),
+            (Some(&bob_public_address_b58), bob_balance),
+            (None, alice_balance + bob_balance),
+        ]
+        .iter()
+        {
+            let spendable_txos = Txo::list_spendable(
+                Some(&account_id_hex.to_string()),
+                None,
+                subaddress.clone(),
+                0,
+                Mob::MINIMUM_FEE,
+                conn,
+            )
+            .unwrap();
+            assert_eq!(
+                spendable_txos.max_spendable_in_wallet,
+                ((expected_balance * MOB) - Mob::MINIMUM_FEE) as u128
+            );
+        }
     }
 
     #[test_with_logger]
