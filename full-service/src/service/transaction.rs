@@ -1812,16 +1812,11 @@ mod tests {
             )
             .await
             .unwrap();
-        log::info!(
-            logger,
-            "Built and submitted transaction from Alice's Subaddress to Bob's Subaddress"
-        );
 
         // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
         // block to the ledger, because no consensus is occurring, so this is the
         // workaround.
         {
-            log::info!(logger, "Adding block from transaction log");
             let key_images: Vec<KeyImage> = tx_proposal
                 .input_txos
                 .iter()
