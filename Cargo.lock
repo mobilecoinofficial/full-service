@@ -3475,6 +3475,7 @@ dependencies = [
  "ed25519-dalek",
  "grpcio",
  "hex",
+ "itertools 0.10.5",
  "ledger-mob",
  "libsqlite3-sys",
  "mc-account-keys",
