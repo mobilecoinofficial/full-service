@@ -524,7 +524,6 @@ where
                     let assigned_subaddress = AssignedSubaddress::get(&subaddress, conn)?;
                     // Ensure the builder will filter to txos only from the specified subaddress
                     builder.set_spend_only_from_subaddress(
-                        assigned_subaddress.clone().public_address().unwrap(), // FIXME REMOVE
                         assigned_subaddress.subaddress_index as u64,
                     )?;
                 }
