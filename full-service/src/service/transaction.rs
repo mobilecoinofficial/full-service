@@ -1978,10 +1978,10 @@ mod tests {
                 .await;
             match res {
                 Err(TransactionServiceError::TransactionBuilder(
-                        WalletTransactionBuilderError::WalletDb(
-                            WalletDbError::InsufficientFundsUnderMaxSpendable(_),
-                        ),
-                    )) => {}
+                    WalletTransactionBuilderError::WalletDb(
+                        WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+                    ),
+                )) => {}
                 Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
                 Err(e) => panic!(
                     "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
