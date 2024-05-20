@@ -27,7 +27,7 @@
 #         # - chain_id: main
 #     runs-on: mco-dev-large-x64
 #     container:
-#       image: mobilecoin/rust-sgx-base:v0.0.32
+#       image: mobilecoin/rust-sgx-base:v0.0.36
 #     steps:
 #       - name: Checkout
 #         uses: mobilecoinofficial/gh-actions/checkout@v0
