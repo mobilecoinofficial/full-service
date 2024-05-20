@@ -19,8 +19,6 @@ option java_multiple_files = true;
 service TransactionService {
   // Retrieve one or many T3 Transactions
   rpc FindTransactions(FindTransactionsRequest) returns (FindTransactionsResponse) {
-    // FIXME: we coudl also have a get: endpoint, but then we have to pass query parameters, and
-    // it's less intuitive than passing json
     option (google.api.http) = {
       post: "/lookup"
     };
@@ -63,8 +61,7 @@ message TransparentTransaction {
   uint64 amount = 4;
 
   // The transaction identifier (tx_pubkey) corresponding to the TxOut in the blockchain represented by this transaction, as bytes.
-  // TODO: Remove in favor of public_key_hex
-  external.v1.CompressedRistretto public_key = 5;
+  external.v1.CompressedRistretto public_key = 5 [deprecated = true];
 
   // The transaction identifier (tx_pubkey) corresponding to the TxOut in the blockchain represented by this transaction, as a hex-encoded string.
   string public_key_hex = 7;
@@ -75,7 +72,7 @@ message TransparentTransaction {
   repeated CrossChainSwap cross_chain_swaps = 8;
 
   // Identity of who reported this transaction to T3 (see ReporterType enum for types of reporters)
-  // The reporter value holds a human readable name of the entity reporting the transaction but is empty for MOBY type.
+  // The reporter value holds a human readable name of the entity reporting the transaction but is empty for SENTZ type.
   string reporter_identity = 9;
   ReporterType reporter_type = 10;
 
@@ -112,6 +109,7 @@ message AssetDetails {
 
 // TODO: Share/Dedupe definition with Twix
 enum Asset {
+  // Must update enum file in entities/Asset.kt
   ASSET_UNSPECIFIED = 0;
   ASSET_MOBILECOIN = 1;
   ASSET_BTC = 2;
@@ -164,12 +162,141 @@ enum Asset {
   ASSET_VND = 49;
   ASSET_ZAR = 50;
   ASSET_USDT_POLYGON = 51;
+  ASSET_INR = 52;
+  ASSET_PHP = 53;
+  ASSET_USDC_POLYGON_NON_POS = 54;
+  ASSET_ARS = 55;
+  ASSET_CLP = 56;
+  ASSET_BDT = 57;
+  ASSET_SGD = 58;
+  ASSET_MMK = 59;
+  ASSET_BMD = 60;
+  ASSET_UAH = 61;
+  ASSET_HUF = 62;
+  ASSET_VEF = 63;
+  ASSET_SAR = 64;
+  ASSET_RUB = 65;
+  ASSET_AED = 66;
+  ASSET_BHD = 67;
+  ASSET_AFN = 68;
+  ASSET_ALL = 69;
+  ASSET_AMD = 70;
+  ASSET_ANG = 71;
+  ASSET_AOA = 72;
+  ASSET_AWG = 73;
+  ASSET_AZN = 74;
+  ASSET_BAM = 75;
+  ASSET_BBD = 76;
+  ASSET_BIF = 77;
+  ASSET_BND = 78;
+  ASSET_BOB = 79;
+  ASSET_BSD = 80;
+  ASSET_BTN = 81;
+  ASSET_BWP = 82;
+  ASSET_BYN = 83;
+  ASSET_BZD = 84;
+  ASSET_CDF = 85;
+  ASSET_CLF = 86;
+  ASSET_CNH = 87;
+  ASSET_CRC = 88;
+  ASSET_CUC = 89;
+  ASSET_CUP = 90;
+  ASSET_CVE = 91;
+  ASSET_DJF = 92;
+  ASSET_DZD = 93;
+  ASSET_ERN = 94;
+  ASSET_ETB = 95;
+  ASSET_FJD = 96;
+  ASSET_FKP = 97;
+  ASSET_GEL = 98;
+  ASSET_GGP = 99;
+  ASSET_GHS = 100;
+  ASSET_GIP = 101;
+  ASSET_GMD = 102;
+  ASSET_GNF = 103;
+  ASSET_GTQ = 104;
+  ASSET_GYD = 105;
+  ASSET_HNL = 106;
+  ASSET_HRK = 107;
+  ASSET_HTG = 108;
+  ASSET_IMP = 109;
+  ASSET_IQD = 110;
+  ASSET_IRR = 111;
+  ASSET_ISK = 112;
+  ASSET_JEP = 113;
+  ASSET_JMD = 114;
+  ASSET_KGS = 115;
+  ASSET_KHR = 116;
+  ASSET_KMF = 117;
+  ASSET_KPW = 118;
+  ASSET_KYD = 119;
+  ASSET_KZT = 120;
+  ASSET_LAK = 121;
+  ASSET_LBP = 122;
+  ASSET_LRD = 123;
+  ASSET_LSL = 124;
+  ASSET_LYD = 125;
+  ASSET_MDL = 126;
+  ASSET_MGA = 127;
+  ASSET_MKD = 128;
+  ASSET_MNT = 129;
+  ASSET_MOP = 130;
+  ASSET_MRU = 131;
+  ASSET_MUR = 132;
+  ASSET_MVR = 133;
+  ASSET_MWK = 134;
+  ASSET_MZN = 135;
+  ASSET_NAD = 136;
+  ASSET_NIO = 137;
+  ASSET_NPR = 138;
+  ASSET_PAB = 139;
+  ASSET_PGK = 140;
+  ASSET_PYG = 141;
+  ASSET_QAR = 142;
+  ASSET_RSD = 143;
+  ASSET_RWF = 144;
+  ASSET_SBD = 145;
+  ASSET_SCR = 146;
+  ASSET_SDG = 147;
+  ASSET_SHP = 148;
+  ASSET_SLL = 149;
+  ASSET_SOS = 150;
+  ASSET_SRD = 151;
+  ASSET_SSP = 152;
+  ASSET_STN = 153;
+  ASSET_SVC = 154;
+  ASSET_SYP = 155;
+  ASSET_SZL = 156;
+  ASSET_TJS = 157;
+  ASSET_TMT = 158;
+  ASSET_TND = 159;
+  ASSET_TOP = 160;
+  ASSET_TTD = 161;
+  ASSET_TZS = 162;
+  ASSET_UGX = 163;
+  ASSET_UYU = 164;
+  ASSET_UZS = 165;
+  ASSET_VES = 166;
+  ASSET_VUV = 167;
+  ASSET_WST = 168;
+  ASSET_XAF = 169;
+  ASSET_XCD = 170;
+  ASSET_XOF = 171;
+  ASSET_XPF = 172;
+  ASSET_YER = 173;
+  ASSET_ZMW = 174;
+  ASSET_ZWL = 175;
+  ASSET_USDT_BEP20 = 176;
+  ASSET_BNB = 177;
+  ASSET_MOB = 178;
+  ASSET_EUSD = 179;
+  // Must update enum file in entities/Asset.kt
 }
 
 enum ReporterType {
   REPORTER_TYPE_UNSPECIFIED = 0; // Should never occur
   REPORTER_TYPE_MISSING = 1; // Default value during migration of pre-reporter dataset
-  REPORTER_TYPE_MOBY = 2;
+  REPORTER_TYPE_SENTZ = 2;
   REPORTER_TYPE_API = 3;
 }
 
@@ -184,6 +311,10 @@ message FindTransactionsRequest {
 
   // Optional hex-encoded transaction identifier(s) for which to retrieve data
   repeated string public_key_hex = 3;
+
+  // Optional address(es) for which to retrieve data
+  // Same as using address_hashes but we do the hashing inside T3
+  repeated string addresses = 4;
 }
 
 message FindTransactionsResponse {
@@ -249,6 +380,10 @@ enum KnownInstitution {
   KNOWN_INSTITUTION_MIXIN = 2;
   KNOWN_INSTITUTION_MOONPAY = 3;
   KNOWN_INSTITUTION_PAYBIS = 4;
+  KNOWN_INSTITUTION_BINANCE = 5;
+  KNOWN_INSTITUTION_XENDBRIDGE = 6;
+  KNOWN_INSTITUTION_FUSPAY = 7;
+  KNOWN_INSTITUTION_MUSSUB = 8;
 }
 
 enum ReportedDirection {
