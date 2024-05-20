@@ -42,7 +42,7 @@ rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 structopt = "0.3"
-strum = { version = "0.25.0", features = ["derive"] }
+strum = { version = "0.26.0", features = ["derive"] }
 strum_macros = "0.25.1"
 subtle = { version = "2.5.0", default-features = false, features = ["i128"] }
 tiny-bip39 = "1.0"
