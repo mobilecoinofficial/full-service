@@ -181,6 +181,7 @@ where
                         subaddress_index: None,
                     },
                     None,
+                    None, // Note: Not including subaddress_to_spend_from in V1 API
                 )
                 .await
                 .map_err(format_error)?;
@@ -297,6 +298,7 @@ where
                         subaddress_index: None,
                     },
                     None,
+                    None, // Note: not including subaddress_to_spend_from in V1 API
                 )
                 .await
                 .map_err(format_error)?;

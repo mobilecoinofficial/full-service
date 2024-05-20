@@ -19,6 +19,7 @@ use crate::{
     },
     error::WalletTransactionBuilderError,
     service::transaction::TransactionMemo,
+    util::b58::b58_encode_public_address,
 };
 use mc_account_keys::PublicAddress;
 use mc_common::{logger::global_log, HashSet};
@@ -73,6 +74,10 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// connections to fog.
     #[allow(clippy::type_complexity)]
     fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
+
+    /// Subaddress (index) from which to restrict TXOs for spending
+    /// (optional).
+    subaddress_index_to_spend_from: Option<u64>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -91,7 +96,17 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             fee: None,
             block_version: None,
             fog_resolver_factory,
+            subaddress_index_to_spend_from: None,
         }
+    }
+
+    /// Sets the subaddress from which to restrict TXOs for spending.
+    pub fn set_subaddress_to_spend_from(
+        &mut self,
+        subaddress_index: u64,
+    ) -> Result<(), WalletTransactionBuilderError> {
+        self.subaddress_index_to_spend_from = Some(subaddress_index);
+        Ok(())
     }
 
     /// Sets inputs to the txos associated with the given txo_ids. Only unspent
@@ -143,10 +158,21 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 0
             };
 
+            let subaddress_to_spend_from =
+                if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
+                    let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
+                    let subaddress = account.public_address(subaddress_index_to_spend_from)?;
+                    let b58_subaddress = b58_encode_public_address(&subaddress)?;
+                    Some(b58_subaddress)
+                } else {
+                    None
+                };
+
             self.inputs = Txo::select_spendable_txos_for_value(
                 &self.account_id_hex,
                 target_value,
                 max_spendable_value,
+                subaddress_to_spend_from.as_deref(),
                 *token_id,
                 fee_value,
                 conn,
@@ -430,20 +456,50 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             }
 
             let change_amount = Amount::new(change_value as u64, token_id);
-            let tx_out_context = transaction_builder.add_change_output(
-                change_amount,
-                &reserved_subaddresses,
-                &mut rng,
-            )?;
+            if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
+                // Send the change back to the subaddress that is spending the inputs.
+                // In the future, we may want to allow this to be a bit more configurable
+                let change_address = account.public_address(subaddress_index_to_spend_from)?;
+                let reserved_subaddresses_for_spend_from_subaddress_mode =
+                    ReservedSubaddresses::from_subaddress_index(
+                        &account.account_key()?,
+                        self.subaddress_index_to_spend_from,
+                        None,
+                    );
 
-            let change_txo = OutputTxo {
-                tx_out: tx_out_context.tx_out,
-                recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
-                confirmation_number: tx_out_context.confirmation,
-                amount: change_amount,
-                shared_secret: Some(tx_out_context.shared_secret),
-            };
-            change_txos.push(change_txo);
+                // NOTE: This sets the change to return to the subaddress that is spending the
+                // inputs, with the DestinationMemo properly constructed as a Change Output
+                let tx_out_context = transaction_builder.add_change_output(
+                    change_amount,
+                    &reserved_subaddresses_for_spend_from_subaddress_mode,
+                    &mut rng,
+                )?;
+
+                let change_txo = OutputTxo {
+                    tx_out: tx_out_context.tx_out,
+                    recipient_public_address: change_address,
+                    confirmation_number: tx_out_context.confirmation,
+                    amount: change_amount,
+                    shared_secret: Some(tx_out_context.shared_secret),
+                };
+                change_txos.push(change_txo);
+            } else {
+                // Send the change to the reserved change subaddress for the account
+                let tx_out_context = transaction_builder.add_change_output(
+                    change_amount,
+                    &reserved_subaddresses,
+                    &mut rng,
+                )?;
+
+                let change_txo = OutputTxo {
+                    tx_out: tx_out_context.tx_out,
+                    recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
+                    confirmation_number: tx_out_context.confirmation,
+                    amount: change_amount,
+                    shared_secret: Some(tx_out_context.shared_secret),
+                };
+                change_txos.push(change_txo);
+            }
         }
 
         let unsigned_tx = transaction_builder.build_unsigned::<DefaultTxOutputsOrdering>()?;
