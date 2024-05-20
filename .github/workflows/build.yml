@@ -33,7 +33,7 @@ jobs:
           - runner-tags: [self-hosted, macOS, ARM64]
             container: ""
           - runner-tags: mco-dev-large-x64
-            container: mobilecoin/rust-sgx-base:v0.0.32
+            container: mobilecoin/rust-sgx-base:v0.0.36
           - namespace: test
             network: testnet
           - namespace: prod
