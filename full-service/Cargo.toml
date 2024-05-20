@@ -75,6 +75,7 @@ dotenv = "0.15.0"
 ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
 grpcio = "0.13"
 hex = { version = "0.4", default-features = false }
+itertools = "0.10.5"
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
 prost = "0.11"

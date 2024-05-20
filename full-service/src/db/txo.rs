@@ -145,6 +145,7 @@ impl Txo {
     }
 }
 
+#[derive(Debug)]
 pub struct TxoInfo {
     pub txo: Txo,
     pub memo: TxoMemo,
@@ -633,6 +634,7 @@ pub trait TxoModel {
     ///| `account_id_hex`      | The account id where the Txos from                         | Account must exist in the database. |
     ///| `target_value`        | The value used to filter spendable Txos on its value       |                                     |
     ///| `max_spendable_value` | The upper limit for the spendable TxOut value to filter on |                                     |
+    ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from |                                      |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
@@ -643,6 +645,7 @@ pub trait TxoModel {
         account_id_hex: &str,
         target_value: u128,
         max_spendable_value: Option<u64>,
+        assigned_subaddress_b58: Option<&str>,
         token_id: u64,
         default_token_fee: u64,
         conn: Conn,
@@ -1860,6 +1863,7 @@ impl TxoModel for Txo {
         account_id_hex: &str,
         target_value: u128,
         max_spendable_value: Option<u64>,
+        assigned_subaddress_b58: Option<&str>,
         token_id: u64,
         default_token_fee: u64,
         conn: Conn,
@@ -1870,7 +1874,7 @@ impl TxoModel for Txo {
         } = Txo::list_spendable(
             Some(account_id_hex),
             max_spendable_value,
-            None,
+            assigned_subaddress_b58,
             token_id,
             default_token_fee,
             conn,
@@ -2311,6 +2315,7 @@ fn add_memo_to_database(
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use mc_account_keys::{
         AccountKey, PublicAddress, RootIdentity, ShortAddressHash, CHANGE_SUBADDRESS_INDEX,
     };
@@ -2329,7 +2334,7 @@ mod tests {
     };
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{iter::FromIterator, ops::DerefMut, time::Duration};
+    use std::{assert_matches::assert_matches, iter::FromIterator, ops::DerefMut, time::Duration};
 
     use crate::{
         db::{
@@ -2980,6 +2985,124 @@ mod tests {
         );
     }
 
+    // The narrative for this test is that an exchange creates two assigned
+    // subaddresses for their customers, Alice and Bob.
+    // Alice receives 33 MOB from some external entity, followed by 44 MOB.
+    // Bob receives 55 MOB, then 66 MOB from some external entity.
+    // Confirm max spendable for Alice: 77 MOB
+    // Confirm max spendable for Bob: 121 MOB
+    // Confrim max spendable in entire exchange wallet: 198 MOB
+    #[test_with_logger]
+    fn test_list_spendable_for_assigned_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Exchange Account",
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Assign addresses for exchange customers Alice and Bob
+        let (
+            (alice_public_address_b58, alice_subaddress_index),
+            (bob_public_address_b58, bob_subaddress_index),
+        ) = ["Alice's Subaddress", "Bob's Subaddress"]
+            .iter()
+            .map(|comment| {
+                AssignedSubaddress::create_next_for_account(
+                    &account_id_hex.to_string(),
+                    comment,
+                    &ledger_db,
+                    conn,
+                )
+                .unwrap()
+            })
+            .collect_tuple()
+            .unwrap();
+
+        // Create two TXOs for Alice's assigned address
+        let mut block_index = 145;
+        let alice_balance = [33, 44].iter().fold(0, |acc, value| {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                alice_subaddress_index as u64,
+                Amount::new(value * MOB, Mob::ID),
+                block_index,
+                &mut rng,
+                &wallet_db,
+            );
+            block_index += 1;
+            acc + value
+        });
+        assert_eq!(77, alice_balance);
+
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id_hex.to_string()),
+            None,
+            Some(&alice_public_address_b58),
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(
+            spendable_txos.max_spendable_in_wallet,
+            ((alice_balance * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+
+        // Add two coins at Bob's subaddress
+        let bob_balance = [55, 66].iter().fold(0, |acc, value| {
+            let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+                &account_key,
+                bob_subaddress_index as u64,
+                Amount::new(value * MOB, Mob::ID),
+                block_index,
+                &mut rng,
+                &wallet_db,
+            );
+            block_index += 1;
+            acc + value
+        });
+        assert_eq!(121, bob_balance);
+
+        // Verify max spendable for each subaddress and the account overall
+        for (subaddress, expected_balance) in [
+            (Some(alice_public_address_b58.as_str()), alice_balance),
+            (Some(&bob_public_address_b58), bob_balance),
+            (None, alice_balance + bob_balance),
+        ]
+        .iter()
+        {
+            let spendable_txos = Txo::list_spendable(
+                Some(&account_id_hex.to_string()),
+                None,
+                subaddress.clone(),
+                0,
+                Mob::MINIMUM_FEE,
+                conn,
+            )
+            .unwrap();
+            assert_eq!(
+                spendable_txos.max_spendable_in_wallet,
+                ((expected_balance * MOB) - Mob::MINIMUM_FEE) as u128
+            );
+        }
+    }
+
     #[test_with_logger]
     fn test_select_txos_for_value(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -3019,6 +3142,7 @@ mod tests {
             &account_id_hex.to_string(),
             300 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3031,6 +3155,7 @@ mod tests {
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
             (300 * MOB + Mob::MINIMUM_FEE) as u128,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -3048,6 +3173,7 @@ mod tests {
             &account_id_hex.to_string(),
             (300 * MOB + Mob::MINIMUM_FEE) as u128,
             Some(200 * MOB),
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3064,6 +3190,7 @@ mod tests {
         let txos_for_value = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
             16800 * MOB as u128,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -3091,6 +3218,125 @@ mod tests {
                 1700 * MOB,
                 1800 * MOB,
             ])
+        );
+    }
+
+    // The narrative for this test is that an exchange creates three assigned
+    // subaddresses, Alice, Bob, and Carol. Alice receives 100 MOB, Bob receives
+    // 200 MOB, and Carol receives 300 MOB. We then confirm the max spendable is
+    // as expected for the exchange and each subaddress.
+    // We then confirm that we can select TXOs from only each respective subaddress,
+    // and last, we verify that if we try to select txos for an amount larger
+    // than Alice, but smaller than Carol and Bob, we get insufficient funds.
+    #[test_with_logger]
+    fn test_select_txos_for_assigned_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+        let ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id_hex, _public_address_b58) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(1),
+            None,
+            None,
+            "Exchange Account",
+            "".to_string(),
+            "".to_string(),
+            conn,
+        )
+        .unwrap();
+
+        // Assign an address for Alice, Bob, and Carol
+        let (
+            (alice_public_address_b58, alice_subaddress_index),
+            (bob_public_address_b58, bob_subaddress_index),
+            (carol_public_address_b58, carol_subaddress_index),
+        ) = [
+            "Alice's Subaddress",
+            "Bob's Subaddress",
+            "Carol's Subaddress",
+        ]
+        .iter()
+        .map(|comment| {
+            AssignedSubaddress::create_next_for_account(
+                &account_id_hex.to_string(),
+                comment,
+                &ledger_db,
+                conn,
+            )
+            .unwrap()
+        })
+        .collect_tuple()
+        .unwrap();
+
+        // Create a TXO for each of Alice, Bob, and Carol
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            alice_subaddress_index as u64,
+            Amount::new(100 * MOB, Mob::ID),
+            145,
+            &mut rng,
+            &wallet_db,
+        );
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            bob_subaddress_index as u64,
+            Amount::new(200 * MOB, Mob::ID),
+            146,
+            &mut rng,
+            &wallet_db,
+        );
+        let (_txo_hex, _txo, _key_image) = create_test_received_txo(
+            &account_key,
+            carol_subaddress_index as u64,
+            Amount::new(300 * MOB, Mob::ID),
+            147,
+            &mut rng,
+            &wallet_db,
+        );
+
+        // Select TXOs from each of only Alice/Bob/Carol, ensuring that for
+        // a value each of them could spend, you get back the TXO amount they own
+        for (subaddress, amount) in [
+            (&alice_public_address_b58, 100),
+            (&bob_public_address_b58, 200),
+            (&carol_public_address_b58, 300),
+        ] {
+            let txos_for_value = Txo::select_spendable_txos_for_value(
+                &account_id_hex.to_string(),
+                42 * MOB as u128,
+                None,
+                Some(subaddress),
+                0,
+                Mob::MINIMUM_FEE,
+                conn,
+            )
+            .unwrap();
+            let result_set = HashSet::from_iter(txos_for_value.iter().map(|t| t.value as u64));
+            assert_eq!(result_set, HashSet::from_iter([amount * MOB]));
+        }
+
+        // Exceed the amount that Alice has, even though the full wallet or Bob or Carol
+        // could cover it
+        let res = Txo::select_spendable_txos_for_value(
+            &account_id_hex.to_string(),
+            (100 * MOB + Mob::MINIMUM_FEE) as u128,
+            None,
+            Some(&alice_public_address_b58),
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        );
+
+        assert_matches!(
+            res,
+            Err(WalletDbError::InsufficientFundsUnderMaxSpendable(_))
         );
     }
 
@@ -3134,6 +3380,7 @@ mod tests {
             &account_id_hex.to_string(),
             16800 * MOB as u128,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3144,6 +3391,7 @@ mod tests {
             &account_id_hex.to_string(),
             16800 * MOB as u128,
             Some(100 * MOB),
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -3196,6 +3444,7 @@ mod tests {
         let res = Txo::select_spendable_txos_for_value(
             &account_id_hex.to_string(),
             1800 * MOB as u128,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -3992,6 +4241,7 @@ mod tests {
             &account_id.to_string(),
             target_value,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -4009,6 +4259,7 @@ mod tests {
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
             201 * MOB as u128,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -4028,6 +4279,7 @@ mod tests {
             &account_id.to_string(),
             3,
             None,
+            None,
             0,
             Mob::MINIMUM_FEE,
             &mut wallet_db.get_pooled_conn().unwrap(),
@@ -4043,6 +4295,7 @@ mod tests {
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
             500 * MOB as u128,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,
@@ -4060,6 +4313,7 @@ mod tests {
         let result = Txo::select_spendable_txos_for_value(
             &account_id.to_string(),
             12400000000,
+            None,
             None,
             0,
             Mob::MINIMUM_FEE,

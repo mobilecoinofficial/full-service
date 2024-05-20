@@ -339,6 +339,7 @@ where
                 subaddress_index: None,
             },
             None,
+            None,
         )?;
 
         let account = Account::get(&AccountID(account_id_hex), conn)?;
@@ -450,6 +451,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await

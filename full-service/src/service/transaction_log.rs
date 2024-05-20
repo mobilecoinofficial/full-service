@@ -210,6 +210,7 @@ mod tests {
                         subaddress_index: None,
                     },
                     None,
+                    None,
                 )
                 .await
                 .unwrap();
