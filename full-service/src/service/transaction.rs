@@ -39,6 +39,7 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
 
+use crate::db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress};
 use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
@@ -341,6 +342,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     fn build_transaction(
@@ -354,6 +356,7 @@ pub trait TransactionService {
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError>;
 
     /// Build a transaction and sign it before submitting it to the network.
@@ -371,6 +374,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     async fn build_and_sign_transaction(
@@ -384,6 +388,7 @@ pub trait TransactionService {
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError>;
 
     /// Submits a pre-built TxProposal to the MobileCoin Consensus Network.
@@ -418,6 +423,7 @@ pub trait TransactionService {
     ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
     ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
     ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///| `subaddress_to_spend_from` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
     async fn build_sign_and_submit_transaction(
@@ -432,6 +438,7 @@ pub trait TransactionService {
         comment: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
 }
 
@@ -452,6 +459,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<UnsignedTxProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
@@ -512,6 +520,14 @@ where
             if let Some(inputs) = input_txo_ids {
                 builder.set_txos(conn, inputs)?;
             } else {
+                if let Some(subaddress) = subaddress_to_spend_from {
+                    let assigned_subaddress = AssignedSubaddress::get(&subaddress, conn)?;
+                    // Ensure the builder will filter to txos only from the specified subaddress
+                    builder.set_subaddress_to_spend_from(
+                        assigned_subaddress.subaddress_index as u64,
+                    )?;
+                }
+
                 let max_spendable = if let Some(msv) = max_spendable_value {
                     Some(msv.parse::<u64>()?)
                 } else {
@@ -537,6 +553,7 @@ where
         max_spendable_value: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
         let unsigned_tx_proposal = self.build_transaction(
             account_id_hex,
@@ -548,6 +565,7 @@ where
             max_spendable_value,
             memo,
             block_version,
+            subaddress_to_spend_from,
         )?;
 
         let mut pooled_conn = self.get_pooled_conn()?;
@@ -636,6 +654,7 @@ where
         comment: Option<String>,
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
+        subaddress_to_spend_from: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>
     {
         let tx_proposal = self
@@ -649,6 +668,7 @@ where
                 max_spendable_value,
                 memo,
                 block_version,
+                subaddress_to_spend_from,
             )
             .await?;
 
@@ -691,7 +711,10 @@ fn validate_number_outputs(num_outputs: u64) -> Result<(), TransactionServiceErr
 mod tests {
     use super::*;
     use crate::{
-        db::{account::AccountID, models::Txo, txo::TxoModel},
+        db::{
+            account::AccountID, assigned_subaddress::AssignedSubaddressModel, models::Txo,
+            txo::TxoModel,
+        },
         service::{
             account::AccountService, address::AddressService, balance::BalanceService,
             transaction_log::TransactionLogService,
@@ -704,13 +727,14 @@ mod tests {
     };
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
+    use mc_core::account::ShortAddressHash;
     use mc_crypto_keys::RistrettoPublic;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
     use mc_transaction_extra::{
-        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo,
+        AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
     use rand::{rngs::StdRng, SeedableRng};
     use std::convert::TryFrom;
@@ -805,6 +829,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -837,6 +862,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -868,6 +894,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -960,6 +987,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1061,6 +1089,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1172,6 +1201,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
         {
@@ -1241,6 +1271,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
         {
@@ -1277,6 +1308,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -1376,6 +1408,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
                 },
+                None,
                 None,
             )
             .await
@@ -1567,6 +1600,7 @@ mod tests {
                     payment_request_id,
                 },
                 None,
+                None,
             )
             .await
             .unwrap();
@@ -1673,5 +1707,303 @@ mod tests {
             payment_request_id,
             authenticated_sender_memo.payment_request_id()
         );
+    }
+
+    // Test sending a transaction from only a specified subaddress, and that the
+    // transaction change arrives back to that subaddress.
+    // This is a long, complicated test, so I'll list out the steps here for
+    // readability:
+    // 1. Create exchange account
+    // 2. Create subaddresses for Alice and Bob
+    // 3. Add a block with a transaction for 100 MOB from some external source for
+    //    Alice. Balances [Alice: 100, Bob: 0]
+    // 4. Send 42 MOB from Alice to Bob. Balances [Alice: 58, Bob: 42]
+    // 5. Confirm 42 went to Bob, 58 went back to Alice, and the 100 that belonged
+    //    to Alice was spent
+    // 6. Confirm the memo from Alice to Bob verifies with the exchange's account
+    //    key
+    // 7. Confirm the change from Alice to Bob has the correct transaction history
+    // 8. Add a block with a transaction for 200 MOB from some external source for
+    //    Bob. Balances [Alice: 58, Bob: 242]
+    // 9. Attempt to spend more than Alice or Bob has (but enough in the wallet,
+    //    Alice + Bob) and confirm it fails. [Alice -> 300 (+fee) -> Bob (Fails)]
+    // 10. Attempt to spend more than Alice has (but enough that Bob has) and
+    //     confirm it fails. [Alice -> 58 (+fee) -> Bob (Fails)]
+    // 11. Confirm final balances [Alice: 58, Bob: 242]
+    #[async_test_with_logger]
+    async fn test_send_transaction_with_subaddress_to_spend_from(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let mut pooled_conn = service.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        // Create our main account for the wallet
+        let exchange_account = service
+            .create_account(
+                Some("Exchange's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+            )
+            .unwrap();
+        let exchange_account_key: AccountKey =
+            mc_util_serial::decode(&exchange_account.account_key).unwrap();
+        let exchange_account_id = AccountID::from(&exchange_account_key);
+
+        // Create a subaddress that the exchange is reserving for Alice to send to
+        let alice_subaddress = service
+            .assign_address_for_account(&exchange_account_id, Some("Alice's Subaddress"))
+            .expect("Could not assign address for Alice");
+
+        // Add a block with a transaction for Alice
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_subaddress.clone().public_address().unwrap()],
+            100 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Verify balance for the Alice Subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 100 * MOB as u128);
+
+        // Add a subaddress for Bob
+        let bob_subaddress = service
+            .assign_address_for_account(&exchange_account_id, Some("Bob's Subaddress"))
+            .expect("Could not assign address for Bob");
+        // Bob's subaddress balance should be 0
+        let balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, 0 as u128);
+
+        // Send a transaction from Alice to Bob - this is the subaccount model where
+        // Alice is spending from her balance
+        let (transaction_log, _associated_txos, _value_map, tx_proposal) = service
+            .build_sign_and_submit_transaction(
+                &exchange_account.id,
+                &[(
+                    bob_subaddress.public_address_b58.clone(),
+                    AmountJSON::new(42 * MOB, Mob::ID),
+                )],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                TransactionMemo::RTH {
+                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                },
+                None,
+                Some(alice_subaddress.public_address_b58.clone()),
+            )
+            .await
+            .unwrap();
+
+        // NOTE: Submitting to the test ledger via propose_tx doesn't actually add the
+        // block to the ledger, because no consensus is occurring, so this is the
+        // workaround.
+        {
+            let key_images: Vec<KeyImage> = tx_proposal
+                .input_txos
+                .iter()
+                .map(|txo| txo.key_image)
+                .collect();
+
+            // Note: This block doesn't contain the fee output.
+            add_block_with_tx_outs(
+                &mut ledger_db,
+                &[
+                    tx_proposal.change_txos[0].tx_out.clone(),
+                    tx_proposal.payload_txos[0].tx_out.clone(),
+                ],
+                &key_images,
+                &mut rng,
+            );
+        }
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Get the Txos from the transaction log
+        let transaction_txos = transaction_log.get_associated_txos(conn).unwrap();
+        let secreted = transaction_txos
+            .outputs
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, conn).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(secreted.len(), 1);
+        assert_eq!(secreted[0].value as u64, 42 * MOB);
+
+        let change = transaction_txos
+            .change
+            .iter()
+            .map(|(t, _)| Txo::get(&t.id, conn).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(change.len(), 1);
+        assert_eq!(change[0].value as u64, 58 * MOB - Mob::MINIMUM_FEE);
+
+        let inputs = transaction_txos
+            .inputs
+            .iter()
+            .map(|t| Txo::get(&t.id, conn).unwrap())
+            .collect::<Vec<Txo>>();
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].value as u64, 100 * MOB);
+
+        // Verify balance for Alice's subaddress = original balance - fee - txo_value
+        // NOTE: This confirms that the change went back to Alice's subaddress, as it
+        // should have, rather than the default change subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (58 * MOB - Mob::MINIMUM_FEE) as u128);
+
+        // Bob's balance should be = output_txo_value
+        let bob_balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let bob_balance_pmob = bob_balance.get(&Mob::ID).unwrap();
+        assert_eq!(bob_balance_pmob.unspent, 42 * MOB as u128);
+
+        // Decrypt the memo from the transaction txo (from Alice to Bob) and verify.
+        let alice_to_bob_txo = &tx_proposal.payload_txos[0].tx_out;
+
+        let shared_secret = get_tx_out_shared_secret(
+            exchange_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&alice_to_bob_txo.public_key).unwrap(),
+        );
+
+        let memo = alice_to_bob_txo.decrypt_memo(&shared_secret);
+        let authenticated_sender_memo = AuthenticatedSenderMemo::from(memo.get_memo_data());
+        let validation = authenticated_sender_memo.validate(
+            &exchange_account_key.subaddress(alice_subaddress.subaddress_index as u64),
+            &exchange_account_key.subaddress_view_private(bob_subaddress.subaddress_index as u64),
+            &alice_to_bob_txo.public_key,
+        );
+        assert!(bool::from(validation));
+
+        // Decrypt the memo from the change txo (From Alice back to Alice) and verify
+        let alice_to_bob_change_txo = &tx_proposal.change_txos[0].tx_out;
+
+        let change_shared_secret = get_tx_out_shared_secret(
+            exchange_account_key.view_private_key(),
+            &RistrettoPublic::try_from(&alice_to_bob_change_txo.public_key).unwrap(),
+        );
+
+        let change_memo = alice_to_bob_change_txo.decrypt_memo(&change_shared_secret);
+        let destination_memo = DestinationMemo::from(change_memo.get_memo_data());
+        log::info!(
+            logger,
+            "Verifying the change subaddress memo {:?}",
+            destination_memo
+        );
+        assert_eq!(destination_memo.get_num_recipients(), 1);
+        // The Destination Memo tracks how much the outlay of the sent TXO was for
+        // transaction history
+        assert_eq!(
+            destination_memo.get_total_outlay(),
+            (42 * MOB) + Mob::MINIMUM_FEE
+        );
+        assert_eq!(
+            destination_memo.get_address_hash(),
+            &ShortAddressHash::from(&bob_subaddress.clone().public_address().unwrap())
+        );
+
+        // Add another block with a transaction for Bob from external to the wallet
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![bob_subaddress.clone().public_address().unwrap()],
+            200 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &exchange_account_id,
+            &logger,
+        );
+
+        // Verify balance for the Bob Subaddress now includes the new incoming amount
+        let balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (242 * MOB) as u128);
+
+        // Attempt to spend more than Alice or Bob has (but enough that the wallet has)
+        // (300 - fee) to Bob and trigger InsufficientFunds Error, then attempt
+        // to spend more than Alice has but enough that Bob could cover (58), and
+        // trigger InsufficientFunds error
+        for value in [299, 58] {
+            let res = service
+                .build_sign_and_submit_transaction(
+                    &exchange_account.id,
+                    &[(
+                        bob_subaddress.public_address_b58.clone(),
+                        AmountJSON::new(value * MOB, Mob::ID),
+                    )],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    TransactionMemo::RTH {
+                        subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                    },
+                    None,
+                    Some(alice_subaddress.public_address_b58.clone()),
+                )
+                .await;
+            match res {
+                Err(TransactionServiceError::TransactionBuilder(
+                    WalletTransactionBuilderError::WalletDb(
+                        WalletDbError::InsufficientFundsUnderMaxSpendable(_),
+                    ),
+                )) => {}
+                Ok(_) => panic!("Should error with InsufficientFundsUnderMaxSpendable"),
+                Err(e) => panic!(
+                    "Should error with InsufficientFundsUnderMaxSpendable but got {:?}",
+                    e
+                ),
+            }
+        }
+
+        // Balances should remain the same because it shouldn't have been able to find
+        // enough TXOs in Alice's subaddress
+        let balance = service
+            .get_balance_for_address(&alice_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(
+            balance_pmob.unspent,
+            ((58 * MOB) - Mob::MINIMUM_FEE) as u128
+        );
+        let balance = service
+            .get_balance_for_address(&bob_subaddress.public_address_b58)
+            .unwrap();
+        let balance_pmob = balance.get(&Mob::ID).unwrap();
+        assert_eq!(balance_pmob.unspent, (242 * MOB) as u128);
     }
 }

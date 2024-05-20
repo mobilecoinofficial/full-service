@@ -544,6 +544,8 @@ where
                 subaddress_index: None,
             },
             None,
+            None, /* NOTE: Assuming for now that we will not support subaddress_to_spend_from
+                   * in gift_code construction */
         )?;
 
         let tx_proposal = unsigned_tx_proposal.sign(&from_account).await?;

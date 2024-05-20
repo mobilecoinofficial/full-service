@@ -433,6 +433,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .expect("Could not build transaction");
@@ -565,6 +566,7 @@ mod tests {
                     subaddress_index: None,
                 },
                 None,
+                None,
             )
             .await
             .expect("Could not build transaction");
@@ -689,6 +691,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
@@ -834,6 +837,7 @@ mod tests {
                 TransactionMemo::RTH {
                     subaddress_index: None,
                 },
+                None,
                 None,
             )
             .await
