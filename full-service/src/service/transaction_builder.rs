@@ -101,7 +101,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Sets the subaddress from which to restrict TXOs for spending.
-    pub fn set_subaddress_to_spend_from(
+    pub fn set_spend_from_subaddress(
         &mut self,
         subaddress_index: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
@@ -158,7 +158,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 0
             };
 
-            let subaddress_to_spend_from =
+            let spend_from_subaddress =
                 if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
                     let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
                     let subaddress = account.public_address(subaddress_index_to_spend_from)?;
@@ -172,7 +172,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 &self.account_id_hex,
                 target_value,
                 max_spendable_value,
-                subaddress_to_spend_from.as_deref(),
+                spend_from_subaddress.as_deref(),
                 *token_id,
                 fee_value,
                 conn,

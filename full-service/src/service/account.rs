@@ -162,14 +162,14 @@ pub trait AccountService {
     ///| `name`               | A label for this account.              | A label can have duplicates, but it is not recommended.          |
     ///| `fog_report_url`     | Fog Report server url.                 | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki` | Fog Authority Subject Public Key Info. | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `spend_only_from_subaddress_mode` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
+    ///| `require_spend_subaddresses` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     fn create_account(
         &self,
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -184,7 +184,7 @@ pub trait AccountService {
     ///| `next_subaddress_index`  | The next known unused subaddress index for the account.                                    |                                                                  |
     ///| `fog_report_url`         | Fog Report server url.                                                                     | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`     | Fog Authority Subject Public Key Info.                                                     | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `spend_only_from_subaddress_mode` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
+    ///| `require_spend_subaddresses` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account(
@@ -195,7 +195,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
@@ -210,7 +210,7 @@ pub trait AccountService {
     ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
     ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `spend_only_from_subaddress_mode` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
+    ///| `require_spend_subaddresses` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account_from_legacy_root_entropy(
@@ -221,7 +221,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -377,7 +377,7 @@ where
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
 
@@ -415,7 +415,7 @@ where
                 &name.unwrap_or_default(),
                 fog_report_url,
                 fog_authority_spki,
-                spend_only_from_subaddress_mode,
+                require_spend_subaddresses,
                 conn,
             )?;
             let account = Account::get(&account_id, conn)?;
@@ -431,7 +431,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -465,7 +465,7 @@ where
                 next_subaddress_index,
                 fog_report_url,
                 fog_authority_spki,
-                spend_only_from_subaddress_mode,
+                require_spend_subaddresses,
                 conn,
             )?)
         })
@@ -479,7 +479,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -506,7 +506,7 @@ where
                 next_subaddress_index,
                 fog_report_url,
                 fog_authority_spki,
-                spend_only_from_subaddress_mode,
+                require_spend_subaddresses,
                 conn,
             )?)
         })

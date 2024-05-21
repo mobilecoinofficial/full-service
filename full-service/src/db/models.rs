@@ -41,7 +41,7 @@ pub struct Account {
     pub managed_by_hardware_wallet: bool,
     pub resyncing: bool,
     /// If true, this account is only allowed to spend from subaddresses.
-    pub spend_only_from_subaddress: bool,
+    pub require_spend_subaddresses: bool,
 }
 
 /// A structure that can be inserted to create a new entity in the `accounts`

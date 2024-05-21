@@ -57,7 +57,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_from_subaddress: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -69,7 +69,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_from_subaddress: Option<String>,
     },
     build_transaction {
         account_id: String,
@@ -84,7 +84,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_from_subaddress: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
@@ -96,7 +96,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_from_subaddress: Option<String>,
     },
     build_unsigned_transaction {
         account_id: String,
@@ -109,7 +109,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_from_subaddress: Option<String>,
     },
     check_b58_type {
         b58_code: String,
@@ -122,7 +122,7 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         fog_info: Option<FogInfo>,
         #[serde(default = "bool::default")] // default is false
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     },
     create_payment_request {
         account_id: String,
@@ -229,7 +229,7 @@ pub enum JsonCommandRequest {
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
         #[serde(default = "bool::default")] // default is false
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     },
     import_account {
         mnemonic: String,
@@ -238,7 +238,7 @@ pub enum JsonCommandRequest {
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
         #[serde(default = "bool::default")] // default is false
-        spend_only_from_subaddress_mode: bool,
+        require_spend_subaddresses: bool,
     },
     import_view_only_account {
         view_private_key: String,
