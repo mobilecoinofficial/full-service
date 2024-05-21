@@ -125,9 +125,6 @@ pub enum TransactionServiceError {
 
     /// Ring CT Error: {0}
     RingCT(mc_transaction_core::ring_ct::Error),
-
-    /// Hardware Wallet Service Error: {0}
-    HardwareWalletService(crate::service::hardware_wallet::HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for TransactionServiceError {
@@ -217,11 +214,6 @@ impl From<mc_connection::RetryError<mc_connection::Error>> for TransactionServic
 impl From<mc_transaction_core::ring_ct::Error> for TransactionServiceError {
     fn from(src: mc_transaction_core::ring_ct::Error) -> Self {
         Self::RingCT(src)
-    }
-}
-impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for TransactionServiceError {
-    fn from(src: crate::service::hardware_wallet::HardwareWalletServiceError) -> Self {
-        Self::HardwareWalletService(src)
     }
 }
 

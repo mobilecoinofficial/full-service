@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        account::{AccountID, AccountModel},
+        account::AccountID,
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -36,7 +36,6 @@ use crate::{
         address::AddressService,
         balance::BalanceService,
         confirmation_number::ConfirmationService,
-        hardware_wallet::sync_txos,
         ledger::LedgerService,
         memo::MemoService,
         models::tx_proposal::TxProposal,
@@ -1250,37 +1249,6 @@ where
 
             JsonCommandResponse::import_view_only_account { account }
         }
-        JsonCommandRequest::import_view_only_account_from_hardware_wallet {
-            name,
-            first_block_index,
-            fog_info,
-        } => {
-            let fb = first_block_index
-                .map(|fb| fb.parse::<u64>())
-                .transpose()
-                .map_err(format_error)?;
-
-            let account = service
-                .import_view_only_account_from_hardware_wallet(name, fb, fog_info)
-                .await
-                .map_err(format_error)?;
-
-            let next_subaddress_index = 1;
-
-            let main_public_address: mc_account_keys::PublicAddress = (&service
-                .get_address_for_account(
-                    &account.id.clone().into(),
-                    DEFAULT_SUBADDRESS_INDEX as i64,
-                )
-                .map_err(format_error)?)
-                .try_into()
-                .map_err(format_error)?;
-
-            let account = Account::new(&account, &main_public_address, next_subaddress_index)
-                .map_err(format_error)?;
-
-            JsonCommandResponse::import_view_only_account_from_hardware_wallet { account }
-        }
         JsonCommandRequest::remove_account { account_id } => JsonCommandResponse::remove_account {
             removed: service
                 .remove_account(&AccountID(account_id))
@@ -1361,59 +1329,6 @@ where
             JsonCommandResponse::submit_transaction {
                 transaction_log: result,
             }
-        }
-        JsonCommandRequest::sync_view_only_account {
-            account_id,
-            synced_txos,
-        } => {
-            let synced_txos = match synced_txos {
-                Some(synced_txos) => synced_txos,
-                None => {
-                    let account = service
-                        .get_account(&AccountID(account_id.clone()))
-                        .map_err(format_error)?;
-                    let view_account_keys = account.view_account_key().map_err(format_error)?;
-
-                    let unverified_txos = service
-                        .list_txos(
-                            Some(account_id.clone()),
-                            None,
-                            Some(TxoStatus::Unverified),
-                            None,
-                            None,
-                            None,
-                            None,
-                            None,
-                        )
-                        .map_err(format_error)?;
-
-                    let unsynced_txos = unverified_txos
-                        .iter()
-                        .map(|txo_info| {
-                            let subaddress_index = match txo_info.txo.subaddress_index {
-                                Some(subaddress_index) => subaddress_index,
-                                None => {
-                                    return Err(format_error(
-                                        "Unsynced txo is missing subaddress index, which is required to sync",
-                                    ))
-                                }
-                            };
-                            let txo = service.get_txo_object(&txo_info.txo.id).map_err(format_error)?;
-                            Ok((txo, subaddress_index as u64))
-                        })
-                        .collect::<Result<Vec<_>, JsonRPCError>>()?;
-
-                    sync_txos(unsynced_txos, &view_account_keys)
-                        .await
-                        .map_err(format_error)?
-                }
-            };
-
-            service
-                .sync_account(&AccountID(account_id), synced_txos)
-                .map_err(format_error)?;
-
-            JsonCommandResponse::sync_view_only_account
         }
         JsonCommandRequest::update_account_name { account_id, name } => {
             let account_id = AccountID(account_id);

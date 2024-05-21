@@ -60,8 +60,6 @@ mc-watcher-api = { path = "../mobilecoin/watcher/api" }
 t3-api = { path = "../t3/api" }
 t3-connection = { path = "../t3/connection" }
 
-ledger-mob = { path = "../ledger-mob/lib" }
-
 async-trait = "0.1.59"
 base64 = "0.21.5"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }

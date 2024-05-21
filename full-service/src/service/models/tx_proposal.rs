@@ -18,7 +18,7 @@ use protobuf::Message;
 
 use crate::{
     db::{account::AccountModel, models::Account},
-    service::{hardware_wallet, transaction::TransactionServiceError},
+    service::{transaction::TransactionServiceError},
     util::b58::b58_decode_public_address,
 };
 
@@ -64,16 +64,8 @@ pub struct UnsignedTxProposal {
 
 impl UnsignedTxProposal {
     pub async fn sign(self, account: &Account) -> Result<TxProposal, TransactionServiceError> {
-        match account.view_only {
-            true => {
-                global_log::debug!("signing tx proposal with hardware wallet");
-                Ok(hardware_wallet::sign_tx_proposal(self, &account.view_account_key()?).await?)
-            }
-            false => {
-                global_log::debug!("signing tx proposal with local signer");
-                self.sign_with_local_signer(&account.account_key()?)
-            }
-        }
+        global_log::debug!("signing tx proposal with local signer");
+        self.sign_with_local_signer(&account.account_key()?)
     }
 
     pub fn sign_with_local_signer(

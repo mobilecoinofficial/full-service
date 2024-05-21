@@ -11,7 +11,6 @@ use crate::json_rpc::{
 };
 
 use mc_mobilecoind_json::data_types::JsonTxOut;
-use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -241,11 +240,6 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
     },
-    import_view_only_account_from_hardware_wallet {
-        name: Option<String>,
-        first_block_index: Option<String>,
-        fog_info: Option<FogInfo>,
-    },
     remove_account {
         account_id: String,
     },
@@ -263,10 +257,6 @@ pub enum JsonCommandRequest {
         tx_proposal: TxProposal,
         comment: Option<String>,
         account_id: Option<String>,
-    },
-    sync_view_only_account {
-        account_id: String,
-        synced_txos: Option<Vec<TxoSynced>>,
     },
     update_account_name {
         account_id: String,

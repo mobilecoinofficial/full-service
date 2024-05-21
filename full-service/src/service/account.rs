@@ -14,33 +14,27 @@ use crate::{
     },
     json_rpc::{
         json_rpc_request::JsonRPCRequest,
-        v2::{api::request::JsonCommandRequest, models::account_key::FogInfo},
+        v2::api::request::JsonCommandRequest,
     },
     service::{
-        hardware_wallet::{
-            get_view_only_account_keys, get_view_only_subaddress_keys, HardwareWalletServiceError,
-        },
         ledger::{LedgerService, LedgerServiceError},
         WalletService,
     },
 };
 
-use base64::{engine::general_purpose, Engine};
 use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
+    AccountKey, RootEntropy, ViewAccountKey,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_core::{
-    account::{RingCtAddress, ViewSubaddress},
     keys::{RootSpendPublic, RootViewPrivate},
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_fog_sig_authority::Signer;
 use mc_ledger_db::Ledger;
 use mc_transaction_signer::types::TxoSynced;
 
@@ -84,9 +78,6 @@ pub enum AccountServiceError {
 
     /// Key Error: {0}
     Key(mc_crypto_keys::KeyError),
-
-    /// Error with the HardwareWalletService: {0}
-    HardwareWalletService(HardwareWalletServiceError),
 }
 
 impl From<WalletDbError> for AccountServiceError {
@@ -143,11 +134,6 @@ impl From<mc_crypto_keys::KeyError> for AccountServiceError {
     }
 }
 
-impl From<HardwareWalletServiceError> for AccountServiceError {
-    fn from(src: HardwareWalletServiceError) -> Self {
-        Self::HardwareWalletService(src)
-    }
-}
 
 /// AccountService trait defining the ways in which the wallet can interact with and manage
 #[rustfmt::skip]
@@ -237,13 +223,6 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
-    ) -> Result<Account, AccountServiceError>;
-
-    async fn import_view_only_account_from_hardware_wallet(
-        &self,
-        name: Option<String>,
-        first_block_index: Option<u64>,
-        fog_info: Option<FogInfo>,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -535,60 +514,6 @@ where
         })
     }
 
-    async fn import_view_only_account_from_hardware_wallet(
-        &self,
-        name: Option<String>,
-        first_block_index: Option<u64>,
-        fog_info: Option<FogInfo>,
-    ) -> Result<Account, AccountServiceError> {
-        let view_account = get_view_only_account_keys().await?;
-
-        let view_account_keys = ViewAccountKey::new(
-            *view_account.view_private_key().as_ref(),
-            *view_account.spend_public_key().as_ref(),
-        );
-
-        let mut pooled_conn = self.get_pooled_conn()?;
-        let conn = pooled_conn.deref_mut();
-        let import_block_index = self.ledger_db.num_blocks()? - 1;
-
-        match fog_info {
-            Some(fog_info) => {
-                let fog_authority_spki =
-                    general_purpose::STANDARD.decode(fog_info.authority_spki)?;
-                let default_subaddress_keys =
-                    get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX).await?;
-
-                let default_public_address = get_public_fog_address(
-                    &default_subaddress_keys,
-                    fog_info.report_url,
-                    &fog_authority_spki,
-                );
-                exclusive_transaction(conn, |conn| {
-                    Ok(Account::import_view_only_from_hardware_wallet_with_fog(
-                        &view_account_keys,
-                        name,
-                        import_block_index,
-                        first_block_index,
-                        &default_public_address,
-                        conn,
-                    )?)
-                })
-            }
-            None => exclusive_transaction(conn, |conn| {
-                Ok(Account::import_view_only(
-                    &view_account_keys,
-                    name,
-                    import_block_index,
-                    first_block_index,
-                    None,
-                    true,
-                    conn,
-                )?)
-            }),
-        }
-    }
-
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
@@ -729,32 +654,6 @@ where
     }
 }
 
-fn get_public_fog_address(
-    subaddress_keys: &ViewSubaddress,
-    fog_report_url: String,
-    fog_authority_spki_bytes: &[u8],
-) -> PublicAddress {
-    let fog_authority_sig = {
-        let sig = subaddress_keys
-            .view_private
-            .as_ref()
-            .sign_authority(fog_authority_spki_bytes)
-            .unwrap();
-        let sig_bytes: &[u8] = sig.as_ref();
-        sig_bytes.to_vec()
-    };
-
-    let subaddress_view_public = subaddress_keys.view_public_key();
-    let subaddress_spend_public = subaddress_keys.spend_public_key();
-
-    PublicAddress::new_with_fog(
-        subaddress_spend_public.as_ref(),
-        subaddress_view_public.as_ref(),
-        fog_report_url,
-        "".to_string(),
-        fog_authority_sig,
-    )
-}
 
 #[cfg(test)]
 mod tests {
