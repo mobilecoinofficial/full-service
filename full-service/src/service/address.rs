@@ -220,7 +220,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(None, "".to_string(), "".to_string(), None)
+            .create_account(None, "".to_string(), "".to_string(), false)
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);
 

@@ -95,7 +95,7 @@ pub trait AccountModel {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -126,7 +126,7 @@ pub trait AccountModel {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -159,7 +159,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -190,7 +190,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -221,7 +221,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -463,7 +463,7 @@ impl AccountModel for Account {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -498,7 +498,7 @@ impl AccountModel for Account {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -534,7 +534,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
@@ -563,7 +563,7 @@ impl AccountModel for Account {
             fog_enabled,
             view_only: false,
             managed_by_hardware_wallet: false,
-            spend_only_from_subaddress: spend_only_from_subaddress_mode.unwrap_or(false),
+            spend_only_from_subaddress: spend_only_from_subaddress_mode,
         };
 
         diesel::insert_into(accounts::table)
@@ -599,7 +599,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
@@ -624,7 +624,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
@@ -986,7 +986,7 @@ mod tests {
                 "Alice's Main Account",
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
                 conn,
             )
             .unwrap();
@@ -1061,7 +1061,7 @@ mod tests {
                 "",
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
                 wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
@@ -1151,7 +1151,7 @@ mod tests {
                 "Alice's Main Account",
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
                 conn,
             )
             .unwrap();
@@ -1187,7 +1187,7 @@ mod tests {
                 "Alice's FOG Account",
                 "fog//some.fog.url".to_string(),
                 "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
-                None,
+                false,
                 conn,
             )
                 .unwrap();

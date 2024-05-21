@@ -169,7 +169,7 @@ pub trait AccountService {
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -195,7 +195,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
@@ -221,7 +221,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -377,7 +377,7 @@ where
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
 
@@ -431,7 +431,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -479,7 +479,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
-        spend_only_from_subaddress_mode: Option<bool>,
+        spend_only_from_subaddress_mode: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -859,7 +859,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
             )
             .unwrap();
         let account_id = AccountID(account.id);
@@ -887,7 +887,7 @@ mod tests {
 
         // create an account that has its first_block_index set to later in the ledger
         let account2 = service
-            .create_account(None, "".to_string(), "".to_string(), None)
+            .create_account(None, "".to_string(), "".to_string(), false)
             .unwrap();
         assert_eq!(
             account2.first_block_index as u64,
@@ -958,7 +958,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
             )
             .unwrap();
         let account_a_id = AccountID(account_a.id.clone());
@@ -971,7 +971,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
             )
             .unwrap();
         let account_b_id = AccountID(account_b.id.clone());
@@ -1110,7 +1110,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), None)
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // Add a transaction, with transaction status.
@@ -1166,7 +1166,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), None)
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // Even though we don't have a network connection, it sets the block indices
@@ -1198,7 +1198,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), None)
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // The block indices are set to zero because we have no ledger information

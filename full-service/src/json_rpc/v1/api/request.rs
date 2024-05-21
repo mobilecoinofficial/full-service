@@ -102,7 +102,6 @@ pub enum JsonCommandRequest {
         fog_report_url: Option<String>,
         fog_report_id: Option<String>, // Deprecated
         fog_authority_spki: Option<String>,
-        spend_only_from_subaddress_mode: Option<bool>,
     },
     create_payment_request {
         account_id: String,

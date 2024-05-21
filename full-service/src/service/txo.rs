@@ -381,7 +381,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
             )
             .unwrap();
 
@@ -432,7 +432,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                None,
+                false,
             )
             .unwrap();
 

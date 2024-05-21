@@ -377,14 +377,13 @@ where
             fog_report_url,
             fog_report_id: _, // Deprecated
             fog_authority_spki,
-            spend_only_from_subaddress_mode,
         } => {
             let account = service
                 .create_account(
                     name,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
-                    spend_only_from_subaddress_mode,
+                    false, // not exposed in V1 API
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1007,7 +1006,7 @@ where
                     ns,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
-                    None,
+                    false,
                 )
                 .map_err(format_error)?;
 
@@ -1048,7 +1047,7 @@ where
                     ns,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
-                    None,
+                    false,
                 )
                 .map_err(format_error)?;
 
