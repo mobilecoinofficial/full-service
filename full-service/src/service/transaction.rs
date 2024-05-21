@@ -468,6 +468,22 @@ where
         let conn = pooled_conn.deref_mut();
 
         exclusive_transaction(conn, |conn| {
+            if Account::get(&AccountID(account_id_hex.to_string()), conn)?
+                .spend_only_from_subaddress
+            {
+                if subaddress_to_spend_from.is_none() {
+                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+                        "This account is configured to spend only from a specific subaddress. Please provide a subaddress to spend from.".to_string()
+                    )));
+                }
+            } else {
+                if subaddress_to_spend_from.is_some() {
+                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
+                        "This account is not configured to spend only from a specific subaddress. Please do not provide a subaddress to spend from.".to_string()
+                    )));
+                }
+            }
+
             let mut builder = WalletTransactionBuilder::new(
                 account_id_hex.to_string(),
                 self.ledger_db.clone(),
@@ -1723,7 +1739,7 @@ mod tests {
     // transaction change arrives back to that subaddress.
     // This is a long, complicated test, so I'll list out the steps here for
     // readability:
-    // 1. Create exchange account
+    // 1. Create exchange account with subaddress_to_spend_from_mode
     // 2. Create subaddresses for Alice and Bob
     // 3. Add a block with a transaction for 100 MOB from some external source for
     //    Alice. Balances [Alice: 100, Bob: 0]
@@ -1757,7 +1773,7 @@ mod tests {
                 Some("Exchange's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
-                None,
+                Some(true),
             )
             .unwrap();
         let exchange_account_key: AccountKey =

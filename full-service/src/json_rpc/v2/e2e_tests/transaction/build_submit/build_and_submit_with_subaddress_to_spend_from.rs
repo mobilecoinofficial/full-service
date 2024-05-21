@@ -42,6 +42,7 @@ mod e2e_transaction {
             "method": "create_account",
             "params": {
                 "name": "Exchange Main Account",
+                "spend_only_from_subaddress_mode": true,
             }
         });
         let res = dispatch(&client, body, &logger);
