@@ -754,6 +754,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -802,6 +803,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
         let bob_account_key: AccountKey =
@@ -924,6 +926,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -959,6 +962,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
         let bob_account_key: AccountKey =
@@ -1166,6 +1170,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -1228,6 +1233,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -1339,6 +1345,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -1374,6 +1381,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
         let bob_account_key: AccountKey =
@@ -1527,6 +1535,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
 
@@ -1562,6 +1571,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
         let bob_account_key: AccountKey =
@@ -1747,6 +1757,7 @@ mod tests {
                 Some("Exchange's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .unwrap();
         let exchange_account_key: AccountKey =

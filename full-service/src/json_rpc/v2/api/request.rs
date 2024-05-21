@@ -121,6 +121,7 @@ pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
         fog_info: Option<FogInfo>,
+        spend_only_from_subaddress_mode: Option<bool>,
     },
     create_payment_request {
         account_id: String,
@@ -226,6 +227,7 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
+        spend_only_from_subaddress_mode: Option<bool>,
     },
     import_account {
         mnemonic: String,
@@ -233,6 +235,7 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
+        spend_only_from_subaddress_mode: Option<bool>,
     },
     import_view_only_account {
         view_private_key: String,

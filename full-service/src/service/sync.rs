@@ -501,6 +501,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
+                None,
             )
             .expect("Could not import account entropy");
 

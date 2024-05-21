@@ -504,11 +504,20 @@ where
                 txo: txo_status_and_memo.map(|txo_info| (&txo_info).into()),
             }
         }
-        JsonCommandRequest::create_account { name, fog_info } => {
+        JsonCommandRequest::create_account {
+            name,
+            fog_info,
+            spend_only_from_subaddress_mode,
+        } => {
             let fog_info = fog_info.unwrap_or_default();
 
             let account = service
-                .create_account(name, fog_info.report_url, fog_info.authority_spki)
+                .create_account(
+                    name,
+                    fog_info.report_url,
+                    fog_info.authority_spki,
+                    spend_only_from_subaddress_mode,
+                )
                 .map_err(format_error)?;
 
             let next_subaddress_index = service
@@ -1109,6 +1118,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_info,
+            spend_only_from_subaddress_mode,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1129,6 +1139,7 @@ where
                     ns,
                     fog_info.report_url,
                     fog_info.authority_spki,
+                    spend_only_from_subaddress_mode,
                 )
                 .map_err(format_error)?;
 
@@ -1156,6 +1167,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_info,
+            spend_only_from_subaddress_mode,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1176,6 +1188,7 @@ where
                     ns,
                     fog_info.report_url,
                     fog_info.authority_spki,
+                    spend_only_from_subaddress_mode,
                 )
                 .map_err(format_error)?;
 
