@@ -182,7 +182,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
-                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
                 "spend_subaddress": bob_b58_public_address,
             }
         });
@@ -381,7 +381,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
-                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -463,7 +463,7 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
-                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
                 "spend_subaddress": bob_b58_public_address,
             }
         });
