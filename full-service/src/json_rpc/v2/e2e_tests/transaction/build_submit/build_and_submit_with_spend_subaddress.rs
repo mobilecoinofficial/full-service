@@ -313,7 +313,7 @@ mod e2e_transaction {
     fn test_build_and_submit_transaction_with_require_spend_subaddress_mismatch_fails_if_set(
         logger: Logger,
     ) {
-        use crate::error::WalletTransactionBuilderError::InvalidArgument as transaction_error;
+        use crate::error::WalletTransactionBuilderError::NullSubaddress as transaction_error;
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -333,34 +333,29 @@ mod e2e_transaction {
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
 
         let (
-            (alice_public_address, alice_b58_public_address),
-            (bob_public_address, bob_b58_public_address),
-            (carol_public_address, carol_b58_public_address),
-        ) = [
-            "Subaddress for Alice",
-            "Subaddress for Bob",
-            "Subaddress for Carol",
-        ]
-        .iter()
-        .map(|metadata| {
-            let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "assign_address_for_account",
-            "params": {
-            "account_id": account_id,
-            "metadata": metadata,
-            }
-            });
-            let res = dispatch(&client, body, &logger);
-            let result = res.get("result").unwrap();
-            let address = result.get("address").unwrap();
-            let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
-            let public_address = b58_decode_public_address(b58_address).unwrap();
-            (public_address, b58_address.to_string())
-        })
-        .collect_tuple()
-        .unwrap();
+            (_alice_public_address, alice_b58_public_address),
+            (bob_public_address, _bob_b58_public_address),
+        ) = ["Subaddress for Alice", "Subaddress for Bob"]
+            .iter()
+            .map(|metadata| {
+                let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                "account_id": account_id,
+                "metadata": metadata,
+                }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let address = result.get("address").unwrap();
+                let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
+                let public_address = b58_decode_public_address(b58_address).unwrap();
+                (public_address, b58_address.to_string())
+            })
+            .collect_tuple()
+            .unwrap();
 
         // Add a block with a txo for Bob
         add_block_to_ledger_db(
@@ -395,14 +390,13 @@ mod e2e_transaction {
         let details = data.get("details").unwrap();
         assert!(details
             .to_string()
-            .contains(&transaction_error("This account is configured to spend only from a specific subaddress. Please provide a subaddress to spend from.".to_string()).to_string()));
+            .contains(&transaction_error("This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()).to_string()));
     }
 
     #[test_with_logger]
     fn test_build_and_submit_transaction_with_require_spend_subaddress_mismatch_fails_if_not_set(
         logger: Logger,
     ) {
-        use crate::error::WalletTransactionBuilderError::InvalidArgument as transaction_error;
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -421,34 +415,29 @@ mod e2e_transaction {
         let account_id = account_obj.get("id").unwrap().as_str().unwrap();
 
         let (
-            (alice_public_address, alice_b58_public_address),
+            (_alice_public_address, alice_b58_public_address),
             (bob_public_address, bob_b58_public_address),
-            (carol_public_address, carol_b58_public_address),
-        ) = [
-            "Subaddress for Alice",
-            "Subaddress for Bob",
-            "Subaddress for Carol",
-        ]
-        .iter()
-        .map(|metadata| {
-            let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "assign_address_for_account",
-            "params": {
-            "account_id": account_id,
-            "metadata": metadata,
-            }
-            });
-            let res = dispatch(&client, body, &logger);
-            let result = res.get("result").unwrap();
-            let address = result.get("address").unwrap();
-            let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
-            let public_address = b58_decode_public_address(b58_address).unwrap();
-            (public_address, b58_address.to_string())
-        })
-        .collect_tuple()
-        .unwrap();
+        ) = ["Subaddress for Alice", "Subaddress for Bob"]
+            .iter()
+            .map(|metadata| {
+                let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                "account_id": account_id,
+                "metadata": metadata,
+                }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let address = result.get("address").unwrap();
+                let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
+                let public_address = b58_decode_public_address(b58_address).unwrap();
+                (public_address, b58_address.to_string())
+            })
+            .collect_tuple()
+            .unwrap();
 
         // Add a block with a txo for Bob
         add_block_to_ledger_db(
@@ -479,11 +468,6 @@ mod e2e_transaction {
             }
         });
         let res = dispatch(&client, body, &logger);
-        let error = res.get("error").unwrap();
-        let data = error.get("data").unwrap();
-        let details = data.get("details").unwrap();
-        assert!(details
-            .to_string()
-            .contains(&transaction_error("This account is not configured to spend only from a specific subaddress. Please do not provide a subaddress to spend from.".to_string()).to_string()));
+        assert!(res.get("result").is_some());
     }
 }

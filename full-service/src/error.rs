@@ -314,7 +314,7 @@ pub enum WalletTransactionBuilderError {
     /// Error interacting with fog: {0}
     FogError(String),
 
-    /// Attempting to build a transaction from a TXO without a subaddress: {0}
+    /// Subaddress is required for spending on this account: {0}
     NullSubaddress(String),
 
     /// Error executing diesel transaction: {0}

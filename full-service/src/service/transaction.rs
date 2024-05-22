@@ -471,14 +471,8 @@ where
             if Account::get(&AccountID(account_id_hex.to_string()), conn)?.require_spend_subaddress
             {
                 if spend_subaddress.is_none() {
-                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-                        "This account is configured to spend only from a specific subaddress. Please provide a subaddress to spend from.".to_string()
-                    )));
-                }
-            } else {
-                if spend_subaddress.is_some() {
-                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::InvalidArgument(
-                        "This account is not configured to spend only from a specific subaddress. Please do not provide a subaddress to spend from.".to_string()
+                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
+                        "This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()
                     )));
                 }
             }

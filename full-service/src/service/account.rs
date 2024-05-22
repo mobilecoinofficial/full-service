@@ -588,7 +588,7 @@ where
                         import_block_index,
                         first_block_index,
                         &default_public_address,
-                        false,
+                        require_spend_subaddress,
                         conn,
                     )?)
                 })
