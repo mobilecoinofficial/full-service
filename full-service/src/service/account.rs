@@ -336,6 +336,21 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
+    /// Update the require_spend_subaddress field for an account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///| `require_spend_subaddress` | Whether to enable require_spend_subaddress mode |                  |
+    ///
+    fn update_require_spend_subaddress(
+        &self,
+        account_id: &AccountID,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError>;
+
     /// complete a sync request for a view only account
     ///
     /// # Arguments
@@ -692,6 +707,18 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         Account::get(account_id, conn)?.update_name(name, conn)?;
+        Ok(Account::get(account_id, conn)?)
+    }
+
+    fn update_require_spend_subaddress(
+        &self,
+        account_id: &AccountID,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError> {
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        Account::get(account_id, conn)?
+            .update_require_spend_subaddress(require_spend_subaddress, conn)?;
         Ok(Account::get(account_id, conn)?)
     }
 

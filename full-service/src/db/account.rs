@@ -316,7 +316,7 @@ pub trait AccountModel {
     ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update the account name for current account.
-    /// * The only updatable field is the name. Any other desired update requires adding a new account, and deleting the existing if desired.
+    /// * The only updatable fields are the name and require_spend_subaddress. Any other desired update requires adding a new account, and deleting the existing if desired.
     ///
     /// # Arguments
     ///| Name       | Purpose                                                  | Notes |
@@ -330,6 +330,23 @@ pub trait AccountModel {
         &self,
         new_name: String,
         conn: Conn
+    ) -> Result<(), WalletDbError>;
+
+    /// Update the account's require_spend_subaddress mode.
+    /// * The only updatable fields are the name and require_spend_subaddress. Any other desired update requires adding a new account, and deleting the existing if desired.
+    ///
+    /// # Arguments
+    ///| Name       | Purpose                                                  | Notes |
+    ///|------------|----------------------------------------------------------|-------|
+    ///| `require_spend_subaddress` | The new account name used to perform this update action. |       |
+    ///| `conn`     | An reference to the pool connection of wallet database   |       |
+    ///
+    /// # Returns:
+    /// * unit
+    fn update_require_spend_subaddress(
+        &self,
+        require_spend_subaddress: bool,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update the next block index in current account that needs to sync.
@@ -827,6 +844,19 @@ impl AccountModel for Account {
 
         diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
             .set(accounts::name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_require_spend_subaddress(
+        &self,
+        require_spend_subaddress: bool,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts;
+
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::require_spend_subaddress.eq(require_spend_subaddress))
             .execute(conn)?;
         Ok(())
     }

@@ -470,4 +470,64 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         assert!(res.get("result").is_some());
     }
+
+    #[test_with_logger]
+    fn test_enable_and_disable_require_spend_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Exchange Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "enable_require_spend_subaddress",
+            "params": {
+                "account_id": account_id.to_string(),
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert_eq!(
+            account_obj
+                .get("require_spend_subaddress")
+                .unwrap()
+                .as_bool()
+                .unwrap(),
+            true
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "disable_require_spend_subaddress",
+            "params": {
+                "account_id": account_id.to_string(),
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert_eq!(
+            account_obj
+                .get("require_spend_subaddress")
+                .unwrap()
+                .as_bool()
+                .unwrap(),
+            false
+        );
+    }
 }
