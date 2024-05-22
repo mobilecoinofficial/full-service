@@ -101,7 +101,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 
     /// Sets the subaddress from which to restrict TXOs for spending.
-    pub fn set_spend_from_subaddress(
+    pub fn set_spend_subaddress(
         &mut self,
         subaddress_index: u64,
     ) -> Result<(), WalletTransactionBuilderError> {
@@ -158,7 +158,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 0
             };
 
-            let spend_from_subaddress =
+            let spend_subaddress =
                 if let Some(subaddress_index_to_spend_from) = self.subaddress_index_to_spend_from {
                     let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
                     let subaddress = account.public_address(subaddress_index_to_spend_from)?;
@@ -172,7 +172,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 &self.account_id_hex,
                 target_value,
                 max_spendable_value,
-                spend_from_subaddress.as_deref(),
+                spend_subaddress.as_deref(),
                 *token_id,
                 fee_value,
                 conn,
@@ -460,7 +460,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // Send the change back to the subaddress that is spending the inputs.
                 // In the future, we may want to allow this to be a bit more configurable
                 let change_address = account.public_address(subaddress_index_to_spend_from)?;
-                let reserved_subaddresses_for_spend_from_subaddress_mode =
+                let reserved_subaddresses_for_spend_subaddress_mode =
                     ReservedSubaddresses::from_subaddress_index(
                         &account.account_key()?,
                         self.subaddress_index_to_spend_from,
@@ -471,7 +471,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // inputs, with the DestinationMemo properly constructed as a Change Output
                 let tx_out_context = transaction_builder.add_change_output(
                     change_amount,
-                    &reserved_subaddresses_for_spend_from_subaddress_mode,
+                    &reserved_subaddresses_for_spend_subaddress_mode,
                     &mut rng,
                 )?;
 

@@ -31,7 +31,7 @@ mod e2e_transaction {
     // respectively from an external source. Bob sends 42 MOB to Alice, and the
     // balances should end up as [Alice: 142 MOB, Bob: 158 MOB, Carol: 300 MOB].
     #[test_with_logger]
-    fn test_build_and_submit_transaction_with_spend_from_subaddress(logger: Logger) {
+    fn test_build_and_submit_transaction_with_spend_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -42,7 +42,7 @@ mod e2e_transaction {
             "method": "create_account",
             "params": {
                 "name": "Exchange Main Account",
-                "require_spend_subaddresses": true,
+                "require_spend_subaddress": true,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -183,7 +183,7 @@ mod e2e_transaction {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
                 "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
-                "spend_from_subaddress": bob_b58_public_address,
+                "spend_subaddress": bob_b58_public_address,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -324,7 +324,7 @@ mod e2e_transaction {
             "method": "create_account",
             "params": {
                 "name": "Exchange Main Account",
-                "require_spend_subaddresses": true,
+                "require_spend_subaddress": true,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -475,7 +475,7 @@ mod e2e_transaction {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
                 "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
-                "spend_from_subaddress": bob_b58_public_address,
+                "spend_subaddress": bob_b58_public_address,
             }
         });
         let res = dispatch(&client, body, &logger);
