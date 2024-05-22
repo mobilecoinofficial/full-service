@@ -1216,6 +1216,7 @@ where
             name,
             first_block_index,
             next_subaddress_index,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1245,7 +1246,7 @@ where
                     name,
                     fb,
                     ns,
-                    false,
+                    require_spend_subaddress,
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1268,6 +1269,7 @@ where
             name,
             first_block_index,
             fog_info,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1275,7 +1277,12 @@ where
                 .map_err(format_error)?;
 
             let account = service
-                .import_view_only_account_from_hardware_wallet(name, fb, fog_info, false)
+                .import_view_only_account_from_hardware_wallet(
+                    name,
+                    fb,
+                    fog_info,
+                    require_spend_subaddress,
+                )
                 .await
                 .map_err(format_error)?;
 

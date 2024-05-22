@@ -246,11 +246,15 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,
         first_block_index: Option<String>,
         fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     remove_account {
         account_id: String,
