@@ -61,8 +61,8 @@ pub struct Account {
     pub managed_by_hardware_wallet: bool,
 
     /// A flag that indicates that the account requires a spend_subaddress be
-    /// specified when building a transaction in order to keep subaddress balances
-    /// correct.
+    /// specified when building a transaction in order to keep subaddress
+    /// balances correct.
     pub require_spend_subaddress: bool,
 }
 
