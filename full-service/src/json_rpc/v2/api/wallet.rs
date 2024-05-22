@@ -1245,6 +1245,7 @@ where
                     name,
                     fb,
                     ns,
+                    false,
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1274,7 +1275,7 @@ where
                 .map_err(format_error)?;
 
             let account = service
-                .import_view_only_account_from_hardware_wallet(name, fb, fog_info)
+                .import_view_only_account_from_hardware_wallet(name, fb, fog_info, false)
                 .await
                 .map_err(format_error)?;
 

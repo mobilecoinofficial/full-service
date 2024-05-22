@@ -238,6 +238,7 @@ pub trait AccountModel {
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                       |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                        |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -250,6 +251,7 @@ pub trait AccountModel {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -259,6 +261,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -648,6 +651,7 @@ impl AccountModel for Account {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
@@ -676,7 +680,7 @@ impl AccountModel for Account {
             fog_enabled: false,
             view_only: true,
             managed_by_hardware_wallet,
-            require_spend_subaddress: false,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
@@ -722,6 +726,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
@@ -747,7 +752,7 @@ impl AccountModel for Account {
             fog_enabled: true,
             view_only: true,
             managed_by_hardware_wallet: true,
-            require_spend_subaddress: false,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
@@ -1285,6 +1290,7 @@ mod tests {
                 None,
                 None,
                 false,
+                false,
                 conn,
             )
             .unwrap()
@@ -1349,6 +1355,7 @@ mod tests {
                 12,
                 None,
                 &default_public_address,
+                false,
                 conn,
             )
             .unwrap()

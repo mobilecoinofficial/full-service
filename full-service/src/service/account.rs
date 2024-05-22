@@ -243,6 +243,7 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     async fn import_view_only_account_from_hardware_wallet(
@@ -250,6 +251,7 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         fog_info: Option<FogInfo>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -519,6 +521,7 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -542,6 +545,7 @@ where
                 first_block_index,
                 next_subaddress_index,
                 false,
+                require_spend_subaddress,
                 conn,
             )?)
         })
@@ -552,6 +556,7 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         fog_info: Option<FogInfo>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         let view_account = get_view_only_account_keys().await?;
 
@@ -583,6 +588,7 @@ where
                         import_block_index,
                         first_block_index,
                         &default_public_address,
+                        false,
                         conn,
                     )?)
                 })
@@ -595,6 +601,7 @@ where
                     first_block_index,
                     None,
                     true,
+                    false,
                     conn,
                 )?)
             }),
@@ -1248,6 +1255,7 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
             )
             .unwrap();
 
