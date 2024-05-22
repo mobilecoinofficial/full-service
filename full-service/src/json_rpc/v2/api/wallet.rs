@@ -616,46 +616,6 @@ where
 
             JsonCommandResponse::create_view_only_account_sync_request { txo_sync_request }
         }
-        JsonCommandRequest::disable_require_spend_subaddress { account_id } => {
-            let account_id = AccountID(account_id);
-            let account = service
-                .update_require_spend_subaddress(&account_id, false)
-                .map_err(format_error)?;
-            let next_subaddress_index = service
-                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
-                .map_err(format_error)?;
-            let main_public_address: mc_account_keys::PublicAddress = (&service
-                .get_address_for_account(
-                    &account.id.clone().into(),
-                    DEFAULT_SUBADDRESS_INDEX as i64,
-                )
-                .map_err(format_error)?)
-                .try_into()
-                .map_err(format_error)?;
-            let account = Account::new(&account, &main_public_address, next_subaddress_index)
-                .map_err(format_error)?;
-            JsonCommandResponse::enable_require_spend_subaddress { account }
-        }
-        JsonCommandRequest::enable_require_spend_subaddress { account_id } => {
-            let account_id = AccountID(account_id);
-            let account = service
-                .update_require_spend_subaddress(&account_id, true)
-                .map_err(format_error)?;
-            let next_subaddress_index = service
-                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
-                .map_err(format_error)?;
-            let main_public_address: mc_account_keys::PublicAddress = (&service
-                .get_address_for_account(
-                    &account.id.clone().into(),
-                    DEFAULT_SUBADDRESS_INDEX as i64,
-                )
-                .map_err(format_error)?)
-                .try_into()
-                .map_err(format_error)?;
-            let account = Account::new(&account, &main_public_address, next_subaddress_index)
-                .map_err(format_error)?;
-            JsonCommandResponse::enable_require_spend_subaddress { account }
-        }
         JsonCommandRequest::export_account_secrets { account_id } => {
             let account = service
                 .get_account(&AccountID(account_id))
@@ -1399,6 +1359,29 @@ where
             JsonCommandResponse::search_ledger {
                 results: results.iter().map(Into::into).collect(),
             }
+        }
+        JsonCommandRequest::set_require_spend_subaddress {
+            account_id,
+            require_spend_subaddress,
+        } => {
+            let account_id = AccountID(account_id);
+            let account = service
+                .update_require_spend_subaddress(&account_id, require_spend_subaddress)
+                .map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
+            JsonCommandResponse::set_require_spend_subaddress { account }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,

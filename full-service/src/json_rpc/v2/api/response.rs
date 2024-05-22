@@ -87,12 +87,6 @@ pub enum JsonCommandResponse {
     create_view_only_account_sync_request {
         txo_sync_request: TxoSyncReq,
     },
-    disable_require_spend_subaddress {
-        account: Account,
-    },
-    enable_require_spend_subaddress {
-        account: Account,
-    },
     export_account_secrets {
         account_secrets: AccountSecrets,
     },
@@ -205,6 +199,9 @@ pub enum JsonCommandResponse {
     },
     search_ledger {
         results: Vec<LedgerSearchResult>,
+    },
+    set_require_spend_subaddress {
+        account: Account,
     },
     submit_transaction {
         transaction_log: Option<TransactionLog>,

@@ -139,12 +139,6 @@ pub enum JsonCommandRequest {
     create_view_only_account_sync_request {
         account_id: String,
     },
-    disable_require_spend_subaddress {
-        account_id: String,
-    },
-    enable_require_spend_subaddress {
-        account_id: String,
-    },
     export_account_secrets {
         account_id: String,
     },
@@ -270,6 +264,10 @@ pub enum JsonCommandRequest {
     },
     search_ledger {
         query: String,
+    },
+    set_require_spend_subaddress {
+        account_id: String,
+        require_spend_subaddress: bool,
     },
     submit_transaction {
         tx_proposal: TxProposal,

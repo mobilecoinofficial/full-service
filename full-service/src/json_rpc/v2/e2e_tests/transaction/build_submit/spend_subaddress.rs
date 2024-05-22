@@ -493,9 +493,10 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "enable_require_spend_subaddress",
+            "method": "set_require_spend_subaddress",
             "params": {
                 "account_id": account_id.to_string(),
+                "require_spend_subaddress": true,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -514,9 +515,10 @@ mod e2e_transaction {
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "method": "disable_require_spend_subaddress",
+            "method": "set_require_spend_subaddress",
             "params": {
                 "account_id": account_id.to_string(),
+                "require_spend_subaddress": false,
             }
         });
         let res = dispatch(&client, body, &logger);
