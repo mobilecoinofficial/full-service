@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-ALTER TABLE accounts DROP COLUMN spend_only_from_subaddress;
+ALTER TABLE accounts DROP COLUMN require_spend_subaddresses;

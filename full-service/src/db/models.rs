@@ -60,7 +60,7 @@ pub struct NewAccount<'a> {
     pub fog_enabled: bool,
     pub view_only: bool,
     pub managed_by_hardware_wallet: bool,
-    pub spend_only_from_subaddress: bool,
+    pub require_spend_subaddresses: bool,
 }
 
 /// A transaction output entity that either was received to an Account in this

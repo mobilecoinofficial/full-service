@@ -563,7 +563,7 @@ impl AccountModel for Account {
             fog_enabled,
             view_only: false,
             managed_by_hardware_wallet: false,
-            spend_only_from_subaddress: require_spend_subaddresses,
+            require_spend_subaddresses: require_spend_subaddresses,
         };
 
         diesel::insert_into(accounts::table)
@@ -676,7 +676,7 @@ impl AccountModel for Account {
             fog_enabled: false,
             view_only: true,
             managed_by_hardware_wallet,
-            spend_only_from_subaddress: false,
+            require_spend_subaddresses: false,
         };
 
         diesel::insert_into(accounts::table)
@@ -747,7 +747,7 @@ impl AccountModel for Account {
             fog_enabled: true,
             view_only: true,
             managed_by_hardware_wallet: true,
-            spend_only_from_subaddress: false,
+            require_spend_subaddresses: false,
         };
 
         diesel::insert_into(accounts::table)

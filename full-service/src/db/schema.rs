@@ -12,7 +12,7 @@ diesel::table! {
         view_only -> Bool,
         managed_by_hardware_wallet -> Bool,
         resyncing -> Bool,
-        spend_only_from_subaddress -> Bool,
+        require_spend_subaddresses -> Bool,
     }
 }
 
