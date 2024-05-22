@@ -15,7 +15,7 @@ mod e2e_transaction {
         util::b58::b58_decode_public_address,
     };
 
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -474,7 +474,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_enable_and_disable_require_spend_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -501,6 +501,7 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
+        log::info!(logger, "account_obj: {:?}", account_obj);
         assert_eq!(
             account_obj
                 .get("require_spend_subaddress")
