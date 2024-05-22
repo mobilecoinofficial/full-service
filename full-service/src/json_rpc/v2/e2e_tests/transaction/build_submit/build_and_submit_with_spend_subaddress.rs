@@ -394,7 +394,7 @@ mod e2e_transaction {
     }
 
     #[test_with_logger]
-    fn test_build_and_submit_transaction_with_require_spend_subaddress_mismatch_fails_if_not_set(
+    fn test_build_and_submit_without_require_spend_subaddress_allows_spending_from_subaddress(
         logger: Logger,
     ) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
