@@ -59,7 +59,8 @@ description: Get the details of all accounts in a given wallet.
         "next_block_index": "1769496",
         "recovery_mode": false,
         "fog_enabled": false,
-        "view_only": false
+        "view_only": false,
+        "require_spend_subaddress": false
       }
     }
   },

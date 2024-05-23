@@ -15,6 +15,7 @@
       * [Get Account Status](api-endpoints/v2/account/account/get\_account\_status.md)
       * [Get Balance](api-endpoints/v2/account/account/get-balance.md)
       * [Update Account Name](api-endpoints/v2/account/account/update\_account\_name.md)
+      * [Set Require Spend Subaddress](api-endpoints/v2/account/account/set-require-spend-subaddress.md)
       * [Remove Account](api-endpoints/v2/account/account/remove\_account.md)
     * [Account Secrets](api-endpoints/v2/account/account-secrets/README.md)
       * [Export Account Secrets](api-endpoints/v2/account/account-secrets/export\_account\_secrets.md)

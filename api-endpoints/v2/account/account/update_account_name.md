@@ -45,7 +45,8 @@ description: Rename an account.
       "next_block_index":"1769454",
       "recovery_mode":false,
       "fog_enabled":false,
-      "view_only":false
+      "view_only":false,
+      "require_spend_subaddress":false
     }
   },
   "jsonrpc":"2.0",

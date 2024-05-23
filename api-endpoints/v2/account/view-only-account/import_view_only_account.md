@@ -35,6 +35,7 @@ description: >-
         "name": "Alice",
         "first_block_index": "1769454",
         "next_subaddress_index": "2"
+        "require_spend_subaddress": false
     },
     "jsonrpc": "2.0",
     "id": 1
@@ -57,7 +58,8 @@ description: >-
       "next_block_index": "1769454",
       "recovery_mode": false,
       "fog_enabled": false,
-      "view_only": true
+      "view_only": true,
+      "require_spend_subaddress": false
     }
   },
   "jsonrpc": "2.0",

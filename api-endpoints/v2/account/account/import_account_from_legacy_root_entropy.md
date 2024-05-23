@@ -52,7 +52,8 @@ description: Import an existing account from the secret entropy.
       "main_address": "8VWJpZDdmLT8sETcZfHdVojWdFmoo54yVEk7nmae7ixiFfxjZyVFLFj9moCiJBzkeg6Vd5BPXbbwrDvoZuxWZWsyU3G3rEvQdqZBmEbfh7x",
       "next_subaddress_index": "2",
       "first_block_index": "3500",
-      "recovery_mode": false
+      "recovery_mode": false,
+      "require_spend_subaddress": false
     }
   },
   "error": null,
