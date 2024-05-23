@@ -45,7 +45,8 @@ description: >-
       "next_block_index": "1769496",
       "recovery_mode":false,
       "fog_enabled":false,
-      "view_only":false
+      "view_only":false,
+      "require_spend_subaddress": false
     },
     "network_block_height":"1352685",
     "local_block_height":"1352685",

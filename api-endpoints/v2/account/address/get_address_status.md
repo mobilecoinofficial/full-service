@@ -1,8 +1,7 @@
 ---
 description: >-
   Get the current balance for a given address. The response will have a map of
-  the total values for each token_id that is present at that address. If no
-  tokens are found at that address, the map will be
+  the total values for each token_id that is present at that address.
 ---
 
 # Get Address Status
@@ -19,6 +18,14 @@ description: >-
 | `max_block_index` | The maximum block index to filter on txos received |              |
 
 ## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
+
+Because full-service, by default, builds transactions selecting input txos without any regard for the subaddress to which they were sent, the `max_spendable`, `unspent`, and `spent` balances should be used with caution.
+
+Wallet implementors that want to track balances on per-subaddress basis can keep their own database that uses the `subaddress_index` in the `get_txos` response to credit funds received to a subaddress and separately track and account for how those funds are depleted.
+
+Wallet implementors can also override the default behavior of the transaction builder by specifying a `spend_subaddress` when composing transactions. Only unspent input txos received at that subaddress will be used as funds for the transaction being built, extending the utility of the `max_spendable`, `unspent`, and `spent` responses from `get_address_status`. &#x20;
+
+It is recommend to [set](../account/set-require-spend-subaddress.md) the `require_spend_subaddress` flag to `true` for accounts where the wallet will use balances from `get_address_status` as this will prevent building transactions that inadvertently omit `spend_subaddress` and throw off the balances of `get_address_status` by building transactions that spend input txos without regard for the subaddress of those inputs.
 
 {% tabs %}
 {% tab title="Request Body" %}

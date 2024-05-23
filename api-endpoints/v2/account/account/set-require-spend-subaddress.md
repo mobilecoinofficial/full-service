@@ -1,17 +1,15 @@
 # Set Require Spend Subaddress
 
-Some wallet providers may wish to enforce a pattern within an account so that subaddresses behave like "subaccounts." The standard behavior for Full Service is to spend funds from any TXO owned by the account, regardless of which subaddress received those funds, and subaddresses only represent the turnstile through which a TXO enters the wallet. This provides definitive clarity on the counterparty who sent the transaction.
+The default behavior of full-service is to treat all unspent txos which belong to an account as eligible inputs for [building an outgoing transaction](../../transaction/transaction/build\_and\_submit\_transaction.md).  There are two optional parameters to the transaction builder which change this behavior.  The first is to specify an explicit list of candidate `input_txo_ids.` The second is to specify a `spend_subaddress` which the transaction builder will use to filter down the account's unspent txos to only those which were sent to the provided subaddress.
 
-With the `require_spend_subaddress` restriction enabled, when you build a transaction, you pass a `spend_subaddress`, which is the subaddress from which to source the funds.
-
-This API endpoint enables a `require_spend_subaddress` mode on the account, enforcing that all build transactions must provide this parameter. If this parameter is not enabled, the wallet provider may still optionally restrict spent TXOs to come from a single subaddress in the transaction.
+When the account has `require_spend_subaddress` set `true,`either using `set_require_spend_subaddress` ; or, by setting it with [`create_account`](create\_account.md) or [`import_account`](import\_account.md), then the `spend_subaddress` request parameter to the transaction builder becomes required and is no longer merely optional.
 
 ## Request
 
-| Required Param             | Purpose                                                        | Requirements                     |
-| -------------------------- | -------------------------------------------------------------- | -------------------------------- |
-| `account_id`               | The account on which to enable `require_spend_subaddress`      | Account must exist in the wallet |
-| `require_spend_subaddress` | Restricts spending to require a given subaddress to spend from | `bool`                           |
+| Required Param             | Purpose                                                                                                                                                                          | Requirements                     |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `account_id`               | The account on which to enable `require_spend_subaddress`                                                                                                                        | Account must exist in the wallet |
+| `require_spend_subaddress` | enable (set `true`) or clear (set `false`) the requirement that the transaction builder must be provided with a `spend_subaddress` when building transactions for `account_id`.  | `bool`                           |
 
 ## Response
 

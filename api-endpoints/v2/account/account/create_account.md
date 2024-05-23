@@ -6,10 +6,11 @@ description: Create a new account in the wallet.
 
 ## Request
 
-| Optional Param | Purpose                                                                                                                                                              | Requirements                                            |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `name`         | A label for this account.                                                                                                                                            | A label can have duplicates, but it is not recommended. |
-| `fog_info`     | The [Fog Info](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/models/account\_key.rs#L67) to include in public addresses |                                                         |
+| Optional Param             | Purpose                                                                                                                                                              | Requirements                                            |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `name`                     | A label for this account.                                                                                                                                            | A label can have duplicates, but it is not recommended. |
+| `fog_info`                 | The [Fog Info](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/models/account\_key.rs#L67) to include in public addresses |                                                         |
+| `require_spend_subaddress` | Indicate if all transactions built using this account must specify a `spend_subaddress`                                                                              | boolean that defaults to false if not included.         |
 
 ## Response
 

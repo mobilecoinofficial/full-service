@@ -10,14 +10,15 @@ description: Import an existing account from the secret entropy.
 | -------------- | ------------------------ | ------------------------------------ |
 | `entropy`      | The secret root entropy. | 32 bytes of randomness, hex-encoded. |
 
-| Optional Param          | Purpose                                                 | Requirements                                                     |
-| ----------------------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
-| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended.          |
-| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
-| `first_block_index`     | The block from which to start scanning the ledger.      |                                                                  |
-| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
-| `fog_report_id`         | Fog Report server ID                                    | Unused                                                           |
-| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
+| Optional Param             | Purpose                                                                                 | Requirements                                                     |
+| -------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `name`                     | A label for this account.                                                               | A label can have duplicates, but it is not recommended.          |
+| `next_subaddress_index`    | The next known unused subaddress index for the account.                                 |                                                                  |
+| `first_block_index`        | The block from which to start scanning the ledger.                                      |                                                                  |
+| `fog_report_url`           | Fog Report server url.                                                                  | Applicable only if user has Fog service, empty string otherwise. |
+| `fog_report_id`            | Fog Report server ID                                                                    | Unused                                                           |
+| `fog_authority_spki`       | Fog Authority Subject Public Key Info.                                                  | Applicable only if user has Fog service, empty string otherwise. |
+| `require_spend_subaddress` | Indicate if all transactions built using this account must specify a `spend_subaddress` | boolean that defaults to false if not included.                  |
 
 ## Response
 
