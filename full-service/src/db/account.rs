@@ -583,7 +583,7 @@ impl AccountModel for Account {
             fog_enabled,
             view_only: false,
             managed_by_hardware_wallet: false,
-            require_spend_subaddress: require_spend_subaddress,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
