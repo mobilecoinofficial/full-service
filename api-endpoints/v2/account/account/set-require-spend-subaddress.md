@@ -19,7 +19,7 @@ When the account has `require_spend_subaddress` set `true,`either using `set_req
 {% tab title="Request Body" %}
 ```
 {
-    "method": "enable_require_spend_subaddress",
+    "method": "set_require_spend_subaddress",
     "params": {
         "account_id": "60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
         "require_spend_subaddress": true,
@@ -33,7 +33,7 @@ When the account has `require_spend_subaddress` set `true,`either using `set_req
 {% tab title="Response" %}
 ```
 {
-  "method":"enable_require_spend_subaddress",
+  "method":"set_require_spend_subaddress",
   "result":{
     "account":{
       "id":"60ef9401f98fc278cd8a1ef51f466111244c9d4b97e8f8886a86bd840238dcaa",
