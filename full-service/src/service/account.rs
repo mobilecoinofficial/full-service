@@ -652,7 +652,8 @@ where
             spend_public_key: hex::encode(spend_public_key.to_bytes()),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
+            next_subaddress_index: Some(account.clone().next_subaddress_index(conn)?.to_string()),
+            require_spend_subaddress: account.require_spend_subaddress,
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
