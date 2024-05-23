@@ -172,7 +172,7 @@ where
             block_version,
             sender_memo_credential_subaddress_index,
             payment_request_id,
-            subaddress_to_spend_from,
+            spend_subaddress,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -219,7 +219,7 @@ where
                     comment,
                     transaction_memo,
                     block_version,
-                    subaddress_to_spend_from,
+                    spend_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -243,7 +243,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
-            subaddress_to_spend_from,
+            spend_subaddress,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -279,7 +279,7 @@ where
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
-                    subaddress_to_spend_from,
+                    spend_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -302,7 +302,7 @@ where
             block_version,
             sender_memo_credential_subaddress_index,
             payment_request_id,
-            subaddress_to_spend_from,
+            spend_subaddress,
         } => {
             // The user can specify a list of addresses and values,
             // or a single address and a single value.
@@ -348,7 +348,7 @@ where
                     max_spendable_value,
                     transaction_memo,
                     block_version,
-                    subaddress_to_spend_from,
+                    spend_subaddress,
                 )
                 .await
                 .map_err(format_error)?;
@@ -368,7 +368,7 @@ where
             tombstone_block,
             max_spendable_value,
             block_version,
-            subaddress_to_spend_from,
+            spend_subaddress,
         } => {
             let mut memo_data = [0; BurnRedemptionMemo::MEMO_DATA_LEN];
             if let Some(redemption_memo_hex) = redemption_memo_hex {
@@ -404,7 +404,7 @@ where
                     max_spendable_value,
                     TransactionMemo::BurnRedemption(memo_data),
                     block_version,
-                    subaddress_to_spend_from,
+                    spend_subaddress,
                 )
                 .map_err(format_error)?)
                 .try_into()
@@ -426,7 +426,7 @@ where
             input_txo_ids,
             max_spendable_value,
             block_version,
-            subaddress_to_spend_from,
+            spend_subaddress,
         } => {
             let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
             if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
@@ -452,7 +452,7 @@ where
                     max_spendable_value,
                     TransactionMemo::Empty,
                     block_version,
-                    subaddress_to_spend_from,
+                    spend_subaddress,
                 )
                 .map_err(format_error)?)
                 .try_into()
@@ -504,11 +504,20 @@ where
                 txo: txo_status_and_memo.map(|txo_info| (&txo_info).into()),
             }
         }
-        JsonCommandRequest::create_account { name, fog_info } => {
+        JsonCommandRequest::create_account {
+            name,
+            fog_info,
+            require_spend_subaddress,
+        } => {
             let fog_info = fog_info.unwrap_or_default();
 
             let account = service
-                .create_account(name, fog_info.report_url, fog_info.authority_spki)
+                .create_account(
+                    name,
+                    fog_info.report_url,
+                    fog_info.authority_spki,
+                    require_spend_subaddress,
+                )
                 .map_err(format_error)?;
 
             let next_subaddress_index = service
@@ -1109,6 +1118,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_info,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1129,6 +1139,7 @@ where
                     ns,
                     fog_info.report_url,
                     fog_info.authority_spki,
+                    require_spend_subaddress,
                 )
                 .map_err(format_error)?;
 
@@ -1156,6 +1167,7 @@ where
             first_block_index,
             next_subaddress_index,
             fog_info,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1176,6 +1188,7 @@ where
                     ns,
                     fog_info.report_url,
                     fog_info.authority_spki,
+                    require_spend_subaddress,
                 )
                 .map_err(format_error)?;
 
@@ -1203,6 +1216,7 @@ where
             name,
             first_block_index,
             next_subaddress_index,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1232,6 +1246,7 @@ where
                     name,
                     fb,
                     ns,
+                    require_spend_subaddress,
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1254,6 +1269,7 @@ where
             name,
             first_block_index,
             fog_info,
+            require_spend_subaddress,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1261,7 +1277,12 @@ where
                 .map_err(format_error)?;
 
             let account = service
-                .import_view_only_account_from_hardware_wallet(name, fb, fog_info)
+                .import_view_only_account_from_hardware_wallet(
+                    name,
+                    fb,
+                    fog_info,
+                    require_spend_subaddress,
+                )
                 .await
                 .map_err(format_error)?;
 
@@ -1345,6 +1366,29 @@ where
             JsonCommandResponse::search_ledger {
                 results: results.iter().map(Into::into).collect(),
             }
+        }
+        JsonCommandRequest::set_require_spend_subaddress {
+            account_id,
+            require_spend_subaddress,
+        } => {
+            let account_id = AccountID(account_id);
+            let account = service
+                .update_require_spend_subaddress(&account_id, require_spend_subaddress)
+                .map_err(format_error)?;
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
+            JsonCommandResponse::set_require_spend_subaddress { account }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,

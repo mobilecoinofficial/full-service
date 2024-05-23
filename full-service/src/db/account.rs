@@ -82,6 +82,7 @@ pub trait AccountModel {
     ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
     ///
     /// # Returns:
     /// * (account_id, main_subaddress_b58)
@@ -94,6 +95,7 @@ pub trait AccountModel {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -110,6 +112,7 @@ pub trait AccountModel {
     ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -123,6 +126,7 @@ pub trait AccountModel {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -140,6 +144,7 @@ pub trait AccountModel {
     ///| `next_subaddress_index`  | This index represents the next subaddress to be assigned as an address.                           | This is useful information in case the account is imported elsewhere. |
     ///| `name`                   | The display name for the account.                                                                 | A label can have duplicates, but it is not recommended.               |
     ///| `fog_enabled`            | Indicate if fog server is enabled or disabled                                                     |                                                                       |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
     ///| `conn`                   | An reference to the pool connection of wallet database                                            |                                                                       |
     ///
     /// # Returns:
@@ -154,6 +159,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError>;
 
@@ -170,6 +176,7 @@ pub trait AccountModel {
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -183,6 +190,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -199,6 +207,7 @@ pub trait AccountModel {
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -212,6 +221,7 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -228,6 +238,7 @@ pub trait AccountModel {
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
     ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                       |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                        |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -240,6 +251,7 @@ pub trait AccountModel {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -249,6 +261,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -303,7 +316,7 @@ pub trait AccountModel {
     ) -> Result<Vec<Account>, WalletDbError>;
 
     /// Update the account name for current account.
-    /// * The only updatable field is the name. Any other desired update requires adding a new account, and deleting the existing if desired.
+    /// * The only updatable fields are the name and require_spend_subaddress. Any other desired update requires adding a new account, and deleting the existing if desired.
     ///
     /// # Arguments
     ///| Name       | Purpose                                                  | Notes |
@@ -317,6 +330,23 @@ pub trait AccountModel {
         &self,
         new_name: String,
         conn: Conn
+    ) -> Result<(), WalletDbError>;
+
+    /// Update the account's require_spend_subaddress mode.
+    /// * The only updatable fields are the name and require_spend_subaddress. Any other desired update requires adding a new account, and deleting the existing if desired.
+    ///
+    /// # Arguments
+    ///| Name       | Purpose                                                  | Notes |
+    ///|------------|----------------------------------------------------------|-------|
+    ///| `require_spend_subaddress` | The new account name used to perform this update action. |       |
+    ///| `conn`     | An reference to the pool connection of wallet database   |       |
+    ///
+    /// # Returns:
+    /// * unit
+    fn update_require_spend_subaddress(
+        &self,
+        require_spend_subaddress: bool,
+        conn: Conn,
     ) -> Result<(), WalletDbError>;
 
     /// Update the next block index in current account that needs to sync.
@@ -453,6 +483,7 @@ impl AccountModel for Account {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -474,6 +505,7 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
+            require_spend_subaddress,
             conn,
         )
     }
@@ -486,6 +518,7 @@ impl AccountModel for Account {
         name: &str,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         let fog_enabled = !fog_report_url.is_empty();
@@ -507,6 +540,7 @@ impl AccountModel for Account {
             next_subaddress_index,
             name,
             fog_enabled,
+            require_spend_subaddress,
             conn,
         )
     }
@@ -520,6 +554,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         name: &str,
         fog_enabled: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<(AccountID, String), WalletDbError> {
         use crate::db::schema::accounts;
@@ -548,6 +583,7 @@ impl AccountModel for Account {
             fog_enabled,
             view_only: false,
             managed_by_hardware_wallet: false,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
@@ -583,6 +619,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_mnemonic(
@@ -593,6 +630,7 @@ impl AccountModel for Account {
             &name.unwrap_or_default(),
             fog_report_url,
             fog_authority_spki,
+            require_spend_subaddress,
             conn,
         )?;
         Account::get(&account_id, conn)
@@ -606,6 +644,7 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         let (account_id, _public_address_b58) = Account::create_from_root_entropy(
@@ -616,6 +655,7 @@ impl AccountModel for Account {
             &name.unwrap_or_default(),
             fog_report_url,
             fog_authority_spki,
+            require_spend_subaddress,
             conn,
         )?;
         Account::get(&account_id, conn)
@@ -628,6 +668,7 @@ impl AccountModel for Account {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
@@ -656,6 +697,7 @@ impl AccountModel for Account {
             fog_enabled: false,
             view_only: true,
             managed_by_hardware_wallet,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
@@ -701,6 +743,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
@@ -726,6 +769,7 @@ impl AccountModel for Account {
             fog_enabled: true,
             view_only: true,
             managed_by_hardware_wallet: true,
+            require_spend_subaddress,
         };
 
         diesel::insert_into(accounts::table)
@@ -800,6 +844,19 @@ impl AccountModel for Account {
 
         diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
             .set(accounts::name.eq(new_name))
+            .execute(conn)?;
+        Ok(())
+    }
+
+    fn update_require_spend_subaddress(
+        &self,
+        require_spend_subaddress: bool,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        use crate::db::schema::accounts;
+
+        diesel::update(accounts::table.filter(accounts::id.eq(&self.id)))
+            .set(accounts::require_spend_subaddress.eq(require_spend_subaddress))
             .execute(conn)?;
         Ok(())
     }
@@ -964,6 +1021,7 @@ mod tests {
                 "Alice's Main Account",
                 "".to_string(),
                 "".to_string(),
+                false,
                 conn,
             )
             .unwrap();
@@ -995,6 +1053,7 @@ mod tests {
             view_only: false,
             managed_by_hardware_wallet: false,
             resyncing: false,
+            require_spend_subaddress: false,
         };
         assert_eq!(expected_account, acc);
 
@@ -1037,6 +1096,7 @@ mod tests {
                 "",
                 "".to_string(),
                 "".to_string(),
+                false,
                 wallet_db.get_pooled_conn().unwrap().deref_mut(),
             )
             .unwrap();
@@ -1062,6 +1122,7 @@ mod tests {
             view_only: false,
             managed_by_hardware_wallet: false,
             resyncing: false,
+            require_spend_subaddress: false,
         };
         assert_eq!(expected_account_secondary, acc_secondary);
 
@@ -1125,6 +1186,7 @@ mod tests {
                 "Alice's Main Account",
                 "".to_string(),
                 "".to_string(),
+                false,
                 conn,
             )
             .unwrap();
@@ -1160,6 +1222,7 @@ mod tests {
                 "Alice's FOG Account",
                 "fog//some.fog.url".to_string(),
                 "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
+                false,
                 conn,
             )
                 .unwrap();
@@ -1229,6 +1292,7 @@ mod tests {
             view_only: false,
             managed_by_hardware_wallet: false,
             resyncing: false,
+            require_spend_subaddress: false,
         };
         assert_eq!(expected_account, acc);
     }
@@ -1255,6 +1319,7 @@ mod tests {
                 12,
                 None,
                 None,
+                false,
                 false,
                 conn,
             )
@@ -1287,6 +1352,7 @@ mod tests {
             view_only: true,
             managed_by_hardware_wallet: false,
             resyncing: false,
+            require_spend_subaddress: false,
         };
         assert_eq!(expected_account, account);
     }
@@ -1319,6 +1385,7 @@ mod tests {
                 12,
                 None,
                 &default_public_address,
+                false,
                 conn,
             )
             .unwrap()
@@ -1347,6 +1414,7 @@ mod tests {
             view_only: true,
             managed_by_hardware_wallet: true,
             resyncing: false,
+            require_spend_subaddress: false,
         };
 
         // Check to make sure the account in the database is correct

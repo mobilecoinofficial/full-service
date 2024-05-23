@@ -59,6 +59,11 @@ pub struct Account {
     /// A flag that indicates if this account's private spend key is managed by
     /// a hardware wallet.
     pub managed_by_hardware_wallet: bool,
+
+    /// A flag that indicates that the account requires a spend_subaddress be
+    /// specified when building a transaction in order to keep subaddress
+    /// balances correct.
+    pub require_spend_subaddress: bool,
 }
 
 impl Account {
@@ -82,6 +87,7 @@ impl Account {
             fog_enabled: src.fog_enabled,
             view_only: src.view_only,
             managed_by_hardware_wallet: src.managed_by_hardware_wallet,
+            require_spend_subaddress: src.require_spend_subaddress,
         })
     }
 }
