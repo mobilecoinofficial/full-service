@@ -21,9 +21,9 @@ description: >-
 
 **Note:**  `max_spendable`, `unspent`, and `spent` balances should be used with caution. The default behavior of full-service, is to:
 
-1. spend utxos within an account without regard for the subaddress to which they were addressed;
-2. send change (amount in the input txos that exceeds the amount being sent to the counterparty) to a reserved, designated change subaddress; and,
-3. automatically defragment the funds in the account by consolidated utxos during each transaction by filling unused input slots -- each transaction can have up to 16 inputs -- with the smallest utxos in the account to create a single bigger change utxo.
+1. build transactions that spend an account's utxos without regard for the subaddress to which those utxos were addressed;
+2. send change (amount in the input txos that exceeds the amount being sent to the counterparty) to a designated change subaddress; and,
+3. automatically defragment the funds in the account by consolidated utxos during each transaction by filling unused input slots -- each transaction can have up to 16 inputs -- with the smallest utxos in the account, reducing the total number of utxos in the account in favor of larger change utxos.
 
 The combination of these three activities will alter balances returned by get\_address\_status without any explicit activity having occured related to the subaddress being queried.
 
