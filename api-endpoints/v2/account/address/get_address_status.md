@@ -19,13 +19,24 @@ description: >-
 
 ## [Response](https://github.com/mobilecoinofficial/full-service/blob/main/full-service/src/json\_rpc/v2/api/response.rs#L41)
 
-Because full-service, by default, builds transactions selecting input txos without any regard for the subaddress to which they were sent, the `max_spendable`, `unspent`, and `spent` balances should be used with caution.
+**Note:**  `max_spendable`, `unspent`, and `spent` balances should be used with caution. The default behavior of full-service, is to:
 
-Wallet implementors that want to track balances on per-subaddress basis can keep their own database that uses the `subaddress_index` in the `get_txos` response to credit funds received to a subaddress and separately track and account for how those funds are depleted.
+1. spend utxos within an account without regard for the subaddress to which they were addressed;
+2. send change (amount in the input txos that exceeds the amount being sent to the counterparty) to a reserved, designated change subaddress; and,
+3. automatically defragment the funds in the account by consolidated utxos during each transaction by filling unused input slots -- each transaction can have up to 16 inputs -- with the smallest utxos in the account to create a single bigger change utxo.
 
-Wallet implementors can also override the default behavior of the transaction builder by specifying a `spend_subaddress` when composing transactions. Only unspent input txos received at that subaddress will be used as funds for the transaction being built, extending the utility of the `max_spendable`, `unspent`, and `spent` responses from `get_address_status`. &#x20;
+The combination of these three activities will alter balances returned by get\_address\_status without any explicit activity having occured related to the subaddress being queried.
 
-It is recommend to [set](../account/set-require-spend-subaddress.md) the `require_spend_subaddress` flag to `true` for accounts where the wallet will use balances from `get_address_status` as this will prevent building transactions that inadvertently omit `spend_subaddress` and throw off the balances of `get_address_status` by building transactions that spend input txos without regard for the subaddress of those inputs.
+Wallet implementors that want to track balances on per-subaddress basis can keep their own database that uses the `subaddress_index` in response to [`get_txos`](../../transaction/txo/get\_txos.md) to credit funds received to a subaddress and separately from full-service track and account for how those funds are depleted.
+
+Wallet implementors can also override the default behavior of the transaction builder by specifying a `spend_subaddress` when composing transactions. When a `spend_subaddress` is specified
+
+1. The transaction builder will only use utxos as inputs that were sent to that subaddress, and
+2. change will be sent back to the `spend_subaddress` instead of the reserved change subaddress.
+
+This enhances the utility of the `max_spendable`, `unspent`, and `spent` balance information reported by `get_address_status`. &#x20;
+
+It is recommend to [set](../account/set-require-spend-subaddress.md) the `require_spend_subaddress` flag to `true` for accounts where the wallet will use balances from `get_address_status` as this will prevent inadvertently  building transactions that omit `spend_subaddress` and throw off the balances of `get_address_status` by building transactions that spend input txos without regard for the subaddress of those inputs.
 
 {% tabs %}
 {% tab title="Request Body" %}
