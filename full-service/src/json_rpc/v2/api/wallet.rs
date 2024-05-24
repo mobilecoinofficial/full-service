@@ -578,7 +578,7 @@ where
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
             let unverified_txos = service
                 .list_txos(
-                    Some(account_id),
+                    Some(account_id.clone()),
                     None,
                     Some(TxoStatus::Unverified),
                     None,
@@ -605,9 +605,7 @@ where
                 });
             }
 
-            // let account_id: AccountId =
-            // account_id.as_str().try_into().map_err(format_error)?;
-            let account_id = AccountId::from([0u8; 32]);
+            let account_id = AccountId::try_from(account_id).map_err(format_error)?;
 
             let txo_sync_request = TxoSyncReq {
                 account_id,
