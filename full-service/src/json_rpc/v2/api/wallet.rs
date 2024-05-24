@@ -605,7 +605,6 @@ where
                 });
             }
 
-            // convert hex encoded string representation of account_id to AccountId struct
             let account_id = AccountId::try_from(account_id).map_err(format_error)?;
 
             let txo_sync_request = TxoSyncReq {
