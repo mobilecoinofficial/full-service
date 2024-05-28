@@ -33,14 +33,17 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 pub enum JsonCommandRequest {
     create_account {},
     get_account {
-        mnemonic: String,
+        mnemonic: Option<String>,
+        bip39_entropy: Option<String>,
     },
     sign_tx {
-        mnemonic: String,
+        mnemonic: Option<String>,
+        bip39_entropy: Option<String>,
         unsigned_tx_proposal: UnsignedTxProposal,
     },
     sync_txos {
-        mnemonic: String,
+        mnemonic: Option<String>,
+        bip39_entropy: Option<String>,
         txos_unsynced: Vec<TxoUnsynced>,
     },
 }
