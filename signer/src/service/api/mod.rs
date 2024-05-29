@@ -75,27 +75,20 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
         JsonCommandRequest::get_account {
             mnemonic,
             bip39_entropy,
-        } => match mnemonic {
-            Some(mnemonic) => match bip39_entropy {
-                Some(_) => {
-                    return Err(anyhow!(
-                        "Only one of mnemonic or bip39_entropy can be provided"
-                    ));
-                }
-                None => {
-                    let account_info = service::get_account_by_mnemonic(&mnemonic)?;
-                    JsonCommandResponse::get_account { account_info }
-                }
-            },
-            None => match bip39_entropy {
-                Some(bip39_entropy) => {
-                    let account_info = service::get_account_by_bip39_entropy(&bip39_entropy)?;
-                    JsonCommandResponse::get_account { account_info }
-                }
-                None => {
-                    return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
-                }
-            },
+        } => match (mnemonic, bip39_entropy) {
+            (Some(mnemonic), None) => {
+                let account_info = service::get_account_by_mnemonic(&mnemonic)?;
+                JsonCommandResponse::get_account { account_info }
+            }
+            (None, Some(bip39_entropy)) => {
+                let account_info = service::get_account_by_bip39_entropy(&bip39_entropy)?;
+                JsonCommandResponse::get_account { account_info }
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
         },
         JsonCommandRequest::sign_tx {
             mnemonic,
