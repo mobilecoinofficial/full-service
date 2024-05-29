@@ -6,15 +6,28 @@ description: Get account info from an existing mnemonic
 
 ## Request
 
-| Param      | Requirements                     |
-|------------|----------------------------------|
-| `mnemonic` | Must be a valid 24 word mnemonic |
+| Param           | Requirements                                                                                                                                                                                                                                                                                          |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mnemonic`      | Must be a valid 24 word mnemonic from which account keys will be derived.                                                                                                                                                                                                                             |
+| `bip39_entropy` | 64 character hex-encoded string containing a 32 byte (256 bit) account secret from which account keys will be derived. Can optionally be provided instead of the above mnemonic. When using the bip39 standard, one can derive the same account keys using the mnemonic or its corresponding entropy. |
 
 ## Response
 
 {% tabs %}
-{% tab title="Request Body" %}
+{% tab title="Request (mnemonic)" %}
+```json
+{
+  "method": "get_account",
+  "params": {
+    "bip39_entropy": "401cb25aa135b3ae2db185074689757723a3a0412d92a2b2aad72f4b1445de68"
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}
+```
+{% endtab %}
 
+{% tab title="Request (bip39_entropy)" %}
 ```json
 {
   "method": "get_account",
@@ -25,11 +38,9 @@ description: Get account info from an existing mnemonic
   "id": 1
 }
 ```
-
 {% endtab %}
 
 {% tab title="Response" %}
-
 ```json
 {
     "method": "get_account",
@@ -44,6 +55,5 @@ description: Get account info from an existing mnemonic
     "id": 1
 }
 ```
-
 {% endtab %}
 {% endtabs %}
