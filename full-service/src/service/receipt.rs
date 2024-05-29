@@ -387,6 +387,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
 
@@ -412,6 +413,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let bob_addresses = service
@@ -520,6 +522,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
 
@@ -545,6 +548,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let bob_addresses = service
@@ -645,6 +649,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
 
@@ -670,6 +675,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let bob_addresses = service
@@ -791,6 +797,7 @@ mod tests {
                 Some("Alice's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
 
@@ -816,6 +823,7 @@ mod tests {
                 Some("Bob's Main Account".to_string()),
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let bob_addresses = service

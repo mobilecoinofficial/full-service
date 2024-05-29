@@ -42,6 +42,11 @@ pub struct AccountSecrets {
     ///  Private keys for receiving and spending MobileCoin.
     #[serde(serialize_with = "expose_secret")]
     pub view_account_key: Secret<Option<ViewAccountKey>>,
+
+    /// Indicates that the account requires a spend_subaddress be
+    /// specified when building a transaction in order to keep subaddress
+    /// balances correct.
+    pub require_spend_subaddress: bool,
 }
 
 impl TryFrom<&Account> for AccountSecrets {
@@ -62,6 +67,7 @@ impl TryFrom<&Account> for AccountSecrets {
                 key_derivation_version: src.key_derivation_version.to_string(),
                 account_key: Secret::new(None),
                 view_account_key: Secret::new(Some(ViewAccountKey::from(&view_account_key))),
+                require_spend_subaddress: src.require_spend_subaddress,
             })
         } else {
             let account_key: mc_account_keys::AccountKey = mc_util_serial::decode(&src.account_key)
@@ -99,6 +105,7 @@ impl TryFrom<&Account> for AccountSecrets {
                     },
                 )?)),
                 view_account_key: Secret::new(None),
+                require_spend_subaddress: src.require_spend_subaddress,
             })
         }
     }

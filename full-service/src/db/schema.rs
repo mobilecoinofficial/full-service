@@ -14,6 +14,7 @@ diesel::table! {
         view_only -> Bool,
         managed_by_hardware_wallet -> Bool,
         resyncing -> Bool,
+        require_spend_subaddress -> Bool,
     }
 }
 
@@ -116,6 +117,7 @@ diesel::table! {
 
 diesel::joinable!(assigned_subaddresses -> accounts (account_id));
 diesel::joinable!(authenticated_sender_memos -> txos (txo_id));
+diesel::joinable!(destination_memos -> txos (txo_id));
 diesel::joinable!(transaction_input_txos -> transaction_logs (transaction_log_id));
 diesel::joinable!(transaction_input_txos -> txos (txo_id));
 diesel::joinable!(transaction_logs -> accounts (account_id));

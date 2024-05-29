@@ -57,7 +57,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_subaddress: Option<String>,
     },
     build_burn_transaction {
         account_id: String,
@@ -69,7 +69,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_subaddress: Option<String>,
     },
     build_transaction {
         account_id: String,
@@ -84,7 +84,7 @@ pub enum JsonCommandRequest {
         block_version: Option<String>,
         sender_memo_credential_subaddress_index: Option<String>,
         payment_request_id: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_subaddress: Option<String>,
     },
     build_unsigned_burn_transaction {
         account_id: String,
@@ -96,7 +96,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_subaddress: Option<String>,
     },
     build_unsigned_transaction {
         account_id: String,
@@ -109,7 +109,7 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
-        subaddress_to_spend_from: Option<String>,
+        spend_subaddress: Option<String>,
     },
     check_b58_type {
         b58_code: String,
@@ -121,6 +121,8 @@ pub enum JsonCommandRequest {
     create_account {
         name: Option<String>,
         fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     create_payment_request {
         account_id: String,
@@ -226,6 +228,8 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     import_account {
         mnemonic: String,
@@ -233,6 +237,8 @@ pub enum JsonCommandRequest {
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
         fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     import_view_only_account {
         view_private_key: String,
@@ -240,11 +246,15 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,
         first_block_index: Option<String>,
         fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
     },
     remove_account {
         account_id: String,
@@ -258,6 +268,10 @@ pub enum JsonCommandRequest {
     },
     search_ledger {
         query: String,
+    },
+    set_require_spend_subaddress {
+        account_id: String,
+        require_spend_subaddress: bool,
     },
     submit_transaction {
         tx_proposal: TxProposal,
