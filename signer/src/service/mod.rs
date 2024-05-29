@@ -24,8 +24,19 @@ pub fn create_account() -> (Mnemonic, AccountInfo) {
     (mnemonic, account_info)
 }
 
-pub fn get_account(mnemonic: &str) -> Result<AccountInfo> {
+pub fn get_account_by_mnemonic(mnemonic: &str) -> Result<AccountInfo> {
     let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    get_account(mnemonic)
+}
+
+pub fn get_account_by_bip39_entropy(bip39_entropy: &str) -> Result<AccountInfo> {
+    let mut entropy = [0u8; 32];
+    hex::decode_to_slice(bip39_entropy, &mut entropy)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    get_account(mnemonic)
+}
+
+fn get_account(mnemonic: Mnemonic) -> Result<AccountInfo> {
     let account = get_account_from_mnemonic(mnemonic);
 
     Ok(AccountInfo {
@@ -34,9 +45,22 @@ pub fn get_account(mnemonic: &str) -> Result<AccountInfo> {
         account_index: 0,
     })
 }
-
-pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
+pub fn sync_txos_by_mnemonic(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
     let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    sync_txos(mnemonic, txos)
+}
+
+pub fn sync_txos_by_bip39_entropy(
+    bip39_entropy: &str,
+    txos: Vec<TxoUnsynced>,
+) -> Result<Vec<TxoSynced>> {
+    let mut entropy = [0u8; 32];
+    hex::decode_to_slice(bip39_entropy, &mut entropy)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    sync_txos(mnemonic, txos)
+}
+
+pub fn sync_txos(mnemonic: Mnemonic, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
     let account = get_account_from_mnemonic(mnemonic);
 
     let mut synced: Vec<TxoSynced> = Vec::new();
@@ -56,8 +80,25 @@ pub fn sync_txos(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced
     Ok(synced)
 }
 
-pub fn sign_tx(mnemonic: &str, unsigned_tx_proposal: UnsignedTxProposal) -> Result<TxProposal> {
+pub fn sign_tx_with_mnemonic(
+    mnemonic: &str,
+    unsigned_tx_proposal: UnsignedTxProposal,
+) -> Result<TxProposal> {
     let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    sign_tx(mnemonic, unsigned_tx_proposal)
+}
+
+pub fn sign_tx_with_bip39_entropy(
+    bip39_entropy: &str,
+    unsigned_tx_proposal: UnsignedTxProposal,
+) -> Result<TxProposal> {
+    let mut entropy = [0u8; 32];
+    hex::decode_to_slice(bip39_entropy, &mut entropy)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    sign_tx(mnemonic, unsigned_tx_proposal)
+}
+
+pub fn sign_tx(mnemonic: Mnemonic, unsigned_tx_proposal: UnsignedTxProposal) -> Result<TxProposal> {
     let account = get_account_from_mnemonic(mnemonic);
     let account_key = AccountKey::new(
         account.spend_private_key().as_ref(),
