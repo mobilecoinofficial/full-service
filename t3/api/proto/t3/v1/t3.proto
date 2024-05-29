@@ -375,6 +375,7 @@ message TestErrorResponse {
 }
 
 enum KnownInstitution {
+  // Must update enum file in entities/KnownInstitution.kt
   KNOWN_INSTITUTION_UNSPECIFIED = 0;
   KNOWN_INSTITUTION_NONE = 1;
   KNOWN_INSTITUTION_MIXIN = 2;
@@ -384,6 +385,9 @@ enum KnownInstitution {
   KNOWN_INSTITUTION_XENDBRIDGE = 6;
   KNOWN_INSTITUTION_FUSPAY = 7;
   KNOWN_INSTITUTION_MUSSUB = 8;
+  KNOWN_INSTITUTION_XEDERIF = 9;
+  KNOWN_INSTITUTION_BITMART = 10;
+  // Must update enum file in entities/KnownInstitution.kt
 }
 
 enum ReportedDirection {
