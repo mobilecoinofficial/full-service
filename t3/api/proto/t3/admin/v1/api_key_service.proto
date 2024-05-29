@@ -21,6 +21,8 @@ message ApiKey {
   int64 created_at_epoch = 6;
   int64 updated_at_epoch = 7; // 0 if never updated
   int64 deleted_at_epoch = 8; // 0 if key is active
+
+  string key_name = 9; // optional name for the api key
 }
 
 message AddApiKeyRequest {

@@ -4,6 +4,7 @@ option java_multiple_files = true;
 
 service MigrationService {
   rpc MigrateBlockTimes(MigrateBlockTimesRequest) returns (MigrateBlockTimesResponse);
+  rpc MigrateReportedDirection(MigrateReportedDirectionRequest) returns (MigrateReportedDirectionResponse);
 }
 
 message MigrateBlockTimesRequest {
@@ -20,4 +21,15 @@ message MigrateBlockTimesResponse {
   int32 updated_count = 3;
   map<string, int32> error_counts = 4;
   int64 next_offset = 5;
+}
+
+message MigrateReportedDirectionRequest { }
+message MigrateReportedDirectionResponse {
+  enum Result {
+    RESULT_UNSPECIFIED = 0;
+    RESULT_OK = 1;
+  }
+  Result result = 1;
+  int32 updated_receive = 2;
+  int32 updated_send = 3;
 }
