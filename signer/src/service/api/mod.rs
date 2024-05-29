@@ -84,6 +84,9 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
                 let account_info = service::get_account_by_bip39_entropy(&bip39_entropy)?;
                 JsonCommandResponse::get_account { account_info }
             }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
             _ => {
                 return Err(anyhow!(
                     "Only one of mnemonic or bip39_entropy can be provided"
@@ -94,7 +97,7 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
             mnemonic,
             bip39_entropy,
             unsigned_tx_proposal,
-        } => match mnemonic {
+        } => match (mnemonic, bip39_entropy) {
             (Some(mnemonic), None) => {
                 let signed_tx = service::sign_tx_with_mnemonic(
                     &mnemonic,
@@ -117,6 +120,9 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
                     tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
                 }
             }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
             _ => {
                 return Err(anyhow!(
                     "Only one of mnemonic or bip39_entropy can be provided"
@@ -127,6 +133,7 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
             mnemonic,
             bip39_entropy,
             txos_unsynced,
+        } => match (mnemonic, bip39_entropy) {
             (Some(mnemonic), None) => {
                 let txos_synced = service::sync_txos_by_mnemonic(&mnemonic, txos_unsynced)?;
                 JsonCommandResponse::sync_txos { txos_synced }
@@ -135,6 +142,9 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
                 let txos_synced =
                     service::sync_txos_by_bip39_entropy(&bip39_entropy, txos_unsynced)?;
                 JsonCommandResponse::sync_txos { txos_synced }
+            }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
             }
             _ => {
                 return Err(anyhow!(
