@@ -34,7 +34,7 @@ description: Sync unverified txos
 ```
 {% endtab %}
 
-{% tab title="undefined" %}
+{% tab title="Request (bip39_entropy)" %}
 ```json
 {
   "method": "sync_txos",

@@ -19,7 +19,7 @@ description: Get account info from an existing mnemonic
 {
   "method": "get_account",
   "params": {
-    "bip39_entropy": "401cb25aa135b3ae2db185074689757723a3a0412d92a2b2aad72f4b1445de68"
+    "mnemonic": "divorce tortoise note draw forest strike replace cost also crowd front unusual demand south again rather pencil next remind future rally carry keen artefact"
   },
   "jsonrpc": "2.0",
   "id": 1
@@ -32,7 +32,7 @@ description: Get account info from an existing mnemonic
 {
   "method": "get_account",
   "params": {
-    "mnemonic": "divorce tortoise note draw forest strike replace cost also crowd front unusual demand south again rather pencil next remind future rally carry keen artefact"
+    "bip39_entropy": "401cb25aa135b3ae2db185074689757723a3a0412d92a2b2aad72f4b1445de68"
   },
   "jsonrpc": "2.0",
   "id": 1
