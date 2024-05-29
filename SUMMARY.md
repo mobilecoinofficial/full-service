@@ -137,9 +137,9 @@
     * [Get Version](api-endpoints/v1/version/version.md)
 * [Signer Service](api-endpoints/signer-service/README.md)
   * [Create Account](api-endpoints/signer-service/create\_account.md)
-  * [Get Account](api-endpoints/signer-service/create\_account-1.md)
-  * [Sign Transaction](api-endpoints/signer-service/create\_account-2.md)
-  * [Sync Txos](api-endpoints/signer-service/create\_account-3.md)
+  * [Get Account](api-endpoints/signer-service/get\_account.md)
+  * [Sign Transaction](api-endpoints/signer-service/sign\_transaction.md)
+  * [Sync Txos](api-endpoints/signer-service/sync\_txos.md)
 
 ## Usage
 
