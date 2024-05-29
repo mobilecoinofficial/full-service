@@ -95,40 +95,33 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
             bip39_entropy,
             unsigned_tx_proposal,
         } => match mnemonic {
-            Some(mnemonic) => match bip39_entropy {
-                Some(_) => {
-                    return Err(anyhow!(
-                        "Only one of mnemonic or bip39_entropy can be provided"
-                    ));
+            (Some(mnemonic), None) => {
+                let signed_tx = service::sign_tx_with_mnemonic(
+                    &mnemonic,
+                    (&unsigned_tx_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
                 }
-                None => {
-                    let signed_tx = service::sign_tx_with_mnemonic(
-                        &mnemonic,
-                        (&unsigned_tx_proposal)
-                            .try_into()
-                            .map_err(|e: String| anyhow!(e))?,
-                    )?;
-                    JsonCommandResponse::sign_tx {
-                        tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
-                    }
+            }
+            (None, Some(bip39_entropy)) => {
+                let signed_tx = service::sign_tx_with_bip39_entropy(
+                    &bip39_entropy,
+                    (&unsigned_tx_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
                 }
-            },
-            None => match bip39_entropy {
-                Some(bip39_entropy) => {
-                    let signed_tx = service::sign_tx_with_bip39_entropy(
-                        &bip39_entropy,
-                        (&unsigned_tx_proposal)
-                            .try_into()
-                            .map_err(|e: String| anyhow!(e))?,
-                    )?;
-                    JsonCommandResponse::sign_tx {
-                        tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
-                    }
-                }
-                None => {
-                    return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
-                }
-            },
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
         },
         JsonCommandRequest::sync_txos {
             mnemonic,
