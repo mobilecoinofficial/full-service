@@ -127,28 +127,20 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
             mnemonic,
             bip39_entropy,
             txos_unsynced,
-        } => match mnemonic {
-            Some(mnemonic) => match bip39_entropy {
-                Some(_) => {
-                    return Err(anyhow!(
-                        "Only one of mnemonic or bip39_entropy can be provided"
-                    ));
-                }
-                None => {
-                    let txos_synced = service::sync_txos_by_mnemonic(&mnemonic, txos_unsynced)?;
-                    JsonCommandResponse::sync_txos { txos_synced }
-                }
-            },
-            None => match bip39_entropy {
-                Some(bip39_entropy) => {
-                    let txos_synced =
-                        service::sync_txos_by_bip39_entropy(&bip39_entropy, txos_unsynced)?;
-                    JsonCommandResponse::sync_txos { txos_synced }
-                }
-                None => {
-                    return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
-                }
-            },
+            (Some(mnemonic), None) => {
+                let txos_synced = service::sync_txos_by_mnemonic(&mnemonic, txos_unsynced)?;
+                JsonCommandResponse::sync_txos { txos_synced }
+            }
+            (None, Some(bip39_entropy)) => {
+                let txos_synced =
+                    service::sync_txos_by_bip39_entropy(&bip39_entropy, txos_unsynced)?;
+                JsonCommandResponse::sync_txos { txos_synced }
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
         },
     };
 
