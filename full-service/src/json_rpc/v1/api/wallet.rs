@@ -181,7 +181,7 @@ where
                         subaddress_index: None,
                     },
                     None,
-                    None, // Note: Not including subaddress_to_spend_from in V1 API
+                    None, // Note: Not including spend_subaddress in V1 API
                 )
                 .await
                 .map_err(format_error)?;
@@ -298,7 +298,7 @@ where
                         subaddress_index: None,
                     },
                     None,
-                    None, // Note: not including subaddress_to_spend_from in V1 API
+                    None, // Note: not including spend_subaddress in V1 API
                 )
                 .await
                 .map_err(format_error)?;
@@ -383,6 +383,7 @@ where
                     name,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
+                    false, // not exposed in V1 API
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service
@@ -1005,6 +1006,7 @@ where
                     ns,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
+                    false,
                 )
                 .map_err(format_error)?;
 
@@ -1045,6 +1047,7 @@ where
                     ns,
                     fog_report_url.unwrap_or_default(),
                     fog_authority_spki.unwrap_or_default(),
+                    false,
                 )
                 .map_err(format_error)?;
 

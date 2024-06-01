@@ -200,6 +200,9 @@ pub enum JsonCommandResponse {
     search_ledger {
         results: Vec<LedgerSearchResult>,
     },
+    set_require_spend_subaddress {
+        account: Account,
+    },
     submit_transaction {
         transaction_log: Option<TransactionLog>,
     },

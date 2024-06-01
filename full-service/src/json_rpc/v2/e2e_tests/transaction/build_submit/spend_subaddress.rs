@@ -15,7 +15,7 @@ mod e2e_transaction {
         util::b58::b58_decode_public_address,
     };
 
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -31,7 +31,7 @@ mod e2e_transaction {
     // respectively from an external source. Bob sends 42 MOB to Alice, and the
     // balances should end up as [Alice: 142 MOB, Bob: 158 MOB, Carol: 300 MOB].
     #[test_with_logger]
-    fn test_build_and_submit_transaction_with_subaddress_to_spend_from(logger: Logger) {
+    fn test_build_and_submit_transaction_with_spend_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
@@ -42,6 +42,7 @@ mod e2e_transaction {
             "method": "create_account",
             "params": {
                 "name": "Exchange Main Account",
+                "require_spend_subaddress": true,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -112,7 +113,7 @@ mod e2e_transaction {
         );
         assert_eq!(ledger_db.num_blocks().unwrap(), 15);
 
-        // Get balance for the exchange, which should include all three suabddress
+        // Get balance for the exchange, which should include all three subaddress
         // balances. The state of the wallet should be:
         //
         // Overall Balance: 600 MOB
@@ -181,8 +182,8 @@ mod e2e_transaction {
             "params": {
                 "account_id": account_id,
                 "recipient_public_address": alice_b58_public_address,
-                "amount": { "value": "42000000000000", "token_id": "0" }, // 42.0 MOB
-                "subaddress_to_spend_from": bob_b58_public_address,
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
+                "spend_subaddress": bob_b58_public_address,
             }
         });
         let res = dispatch(&client, body, &logger);
@@ -306,5 +307,230 @@ mod e2e_transaction {
         assert_eq!(spent, "0");
         assert_eq!(secreted, "0");
         assert_eq!(orphaned, "0");
+    }
+
+    #[test_with_logger]
+    fn test_build_and_submit_transaction_with_require_spend_subaddress_mismatch_fails_if_set(
+        logger: Logger,
+    ) {
+        use crate::error::WalletTransactionBuilderError::NullSubaddress as transaction_error;
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Exchange Main Account",
+                "require_spend_subaddress": true,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+
+        let (
+            (_alice_public_address, alice_b58_public_address),
+            (bob_public_address, _bob_b58_public_address),
+        ) = ["Subaddress for Alice", "Subaddress for Bob"]
+            .iter()
+            .map(|metadata| {
+                let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                "account_id": account_id,
+                "metadata": metadata,
+                }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let address = result.get("address").unwrap();
+                let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
+                let public_address = b58_decode_public_address(b58_address).unwrap();
+                (public_address, b58_address.to_string())
+            })
+            .collect_tuple()
+            .unwrap();
+
+        // Add a block with a txo for Bob
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![bob_public_address.clone()],
+            200 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Imagine that Bob is sending 42.0 MOB to Alice
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_and_submit_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": alice_b58_public_address,
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let error = res.get("error").unwrap();
+        let data = error.get("data").unwrap();
+        let details = data.get("details").unwrap();
+        assert!(details
+            .to_string()
+            .contains(&transaction_error("This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()).to_string()));
+    }
+
+    #[test_with_logger]
+    fn test_build_and_submit_without_require_spend_subaddress_allows_spending_from_subaddress(
+        logger: Logger,
+    ) {
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Exchange Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+
+        let (
+            (_alice_public_address, alice_b58_public_address),
+            (bob_public_address, bob_b58_public_address),
+        ) = ["Subaddress for Alice", "Subaddress for Bob"]
+            .iter()
+            .map(|metadata| {
+                let body = json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "assign_address_for_account",
+                "params": {
+                "account_id": account_id,
+                "metadata": metadata,
+                }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let address = result.get("address").unwrap();
+                let b58_address = address.get("public_address_b58").unwrap().as_str().unwrap();
+                let public_address = b58_decode_public_address(b58_address).unwrap();
+                (public_address, b58_address.to_string())
+            })
+            .collect_tuple()
+            .unwrap();
+
+        // Add a block with a txo for Bob
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![bob_public_address.clone()],
+            200 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            &db_ctx.get_db_instance(logger.clone()),
+            &AccountID(account_id.to_string()),
+            &logger,
+        );
+
+        // Imagine that Bob is sending 42.0 MOB to Alice
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "build_and_submit_transaction",
+            "params": {
+                "account_id": account_id,
+                "recipient_public_address": alice_b58_public_address,
+                "amount": { "value": (42 * MOB).to_string(), "token_id": "0" },
+                "spend_subaddress": bob_b58_public_address,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        assert!(res.get("result").is_some());
+    }
+
+    #[test_with_logger]
+    fn test_enable_and_disable_require_spend_subaddress(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+
+        // Add an account
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "create_account",
+            "params": {
+                "name": "Exchange Main Account",
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_require_spend_subaddress",
+            "params": {
+                "account_id": account_id.to_string(),
+                "require_spend_subaddress": true,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        log::info!(logger, "account_obj: {:?}", account_obj);
+        assert_eq!(
+            account_obj
+                .get("require_spend_subaddress")
+                .unwrap()
+                .as_bool()
+                .unwrap(),
+            true
+        );
+
+        let body = json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "set_require_spend_subaddress",
+            "params": {
+                "account_id": account_id.to_string(),
+                "require_spend_subaddress": false,
+            }
+        });
+        let res = dispatch(&client, body, &logger);
+        let result = res.get("result").unwrap();
+        let account_obj = result.get("account").unwrap();
+        assert_eq!(
+            account_obj
+                .get("require_spend_subaddress")
+                .unwrap()
+                .as_bool()
+                .unwrap(),
+            false
+        );
     }
 }

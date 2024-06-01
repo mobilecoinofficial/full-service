@@ -2481,6 +2481,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2825,6 +2826,7 @@ mod tests {
             "Bob's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -2930,6 +2932,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -3012,6 +3015,7 @@ mod tests {
             "Exchange Account",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -3120,6 +3124,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3248,6 +3253,7 @@ mod tests {
             "Exchange Account",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -3357,6 +3363,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3424,6 +3431,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3482,6 +3490,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3557,6 +3566,7 @@ mod tests {
             "Alice",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3719,6 +3729,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3770,6 +3781,7 @@ mod tests {
             "Alice's Main Account",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3861,6 +3873,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -3917,6 +3930,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -3970,6 +3984,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -4059,6 +4074,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4159,6 +4175,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4346,6 +4363,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4498,6 +4516,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4601,6 +4620,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -4688,6 +4708,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();
@@ -4816,6 +4837,7 @@ mod tests {
             "",
             "".to_string(),
             "".to_string(),
+            false,
             conn,
         )
         .unwrap();

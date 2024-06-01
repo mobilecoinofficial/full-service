@@ -148,12 +148,14 @@ pub trait AccountService {
     ///| `name`               | A label for this account.              | A label can have duplicates, but it is not recommended.          |
     ///| `fog_report_url`     | Fog Report server url.                 | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki` | Fog Authority Subject Public Key Info. | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `require_spend_subaddress` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     fn create_account(
         &self,
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -168,6 +170,7 @@ pub trait AccountService {
     ///| `next_subaddress_index`  | The next known unused subaddress index for the account.                                    |                                                                  |
     ///| `fog_report_url`         | Fog Report server url.                                                                     | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`     | Fog Authority Subject Public Key Info.                                                     | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `require_spend_subaddress` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account(
@@ -178,6 +181,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the entropy.
@@ -192,6 +196,7 @@ pub trait AccountService {
     ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
     ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `require_spend_subaddress` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account_from_legacy_root_entropy(
@@ -202,6 +207,7 @@ pub trait AccountService {
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Import an existing account to the wallet using the mnemonic.
@@ -223,6 +229,7 @@ pub trait AccountService {
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError>;
 
     /// Re-create sync request for a view only account
@@ -307,6 +314,21 @@ pub trait AccountService {
         name: String,
     ) -> Result<Account, AccountServiceError>;
 
+    /// Update the require_spend_subaddress field for an account.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                      | Notes                             |
+    ///|--------------|----------------------------------------------|-----------------------------------|
+    ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
+    ///| `require_spend_subaddress` | Whether to enable require_spend_subaddress mode |                  |
+    ///
+    fn update_require_spend_subaddress(
+        &self,
+        account_id: &AccountID,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError>;
+
     /// complete a sync request for a view only account
     ///
     /// # Arguments
@@ -350,6 +372,7 @@ where
         name: Option<String>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(self.logger, "Creating account {:?}", name,);
 
@@ -387,6 +410,7 @@ where
                 &name.unwrap_or_default(),
                 fog_report_url,
                 fog_authority_spki,
+                require_spend_subaddress,
                 conn,
             )?;
             let account = Account::get(&account_id, conn)?;
@@ -402,6 +426,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -435,6 +460,7 @@ where
                 next_subaddress_index,
                 fog_report_url,
                 fog_authority_spki,
+                require_spend_subaddress,
                 conn,
             )?)
         })
@@ -448,6 +474,7 @@ where
         next_subaddress_index: Option<u64>,
         fog_report_url: String,
         fog_authority_spki: String,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -474,6 +501,7 @@ where
                 next_subaddress_index,
                 fog_report_url,
                 fog_authority_spki,
+                require_spend_subaddress,
                 conn,
             )?)
         })
@@ -486,6 +514,7 @@ where
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
+        require_spend_subaddress: bool,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -509,6 +538,7 @@ where
                 first_block_index,
                 next_subaddress_index,
                 false,
+                require_spend_subaddress,
                 conn,
             )?)
         })
@@ -543,7 +573,8 @@ where
             spend_public_key: hex::encode(spend_public_key.to_bytes()),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),
-            next_subaddress_index: Some(account.next_subaddress_index(conn)?.to_string()),
+            next_subaddress_index: Some(account.clone().next_subaddress_index(conn)?.to_string()),
+            require_spend_subaddress: account.require_spend_subaddress,
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -598,6 +629,18 @@ where
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
         Account::get(account_id, conn)?.update_name(name, conn)?;
+        Ok(Account::get(account_id, conn)?)
+    }
+
+    fn update_require_spend_subaddress(
+        &self,
+        account_id: &AccountID,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError> {
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        Account::get(account_id, conn)?
+            .update_require_spend_subaddress(require_spend_subaddress, conn)?;
         Ok(Account::get(account_id, conn)?)
     }
 
@@ -746,6 +789,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let account_id = AccountID(account.id);
@@ -773,7 +817,7 @@ mod tests {
 
         // create an account that has its first_block_index set to later in the ledger
         let account2 = service
-            .create_account(None, "".to_string(), "".to_string())
+            .create_account(None, "".to_string(), "".to_string(), false)
             .unwrap();
         assert_eq!(
             account2.first_block_index as u64,
@@ -844,6 +888,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let account_a_id = AccountID(account_a.id.clone());
@@ -856,6 +901,7 @@ mod tests {
                 None,
                 "".to_string(),
                 "".to_string(),
+                false,
             )
             .unwrap();
         let account_b_id = AccountID(account_b.id.clone());
@@ -994,7 +1040,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // Add a transaction, with transaction status.
@@ -1050,7 +1096,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // Even though we don't have a network connection, it sets the block indices
@@ -1082,7 +1128,7 @@ mod tests {
 
         // Create an account.
         let account = service
-            .create_account(Some("A".to_string()), "".to_string(), "".to_string())
+            .create_account(Some("A".to_string()), "".to_string(), "".to_string(), false)
             .unwrap();
 
         // The block indices are set to zero because we have no ledger information
@@ -1132,6 +1178,7 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
             )
             .unwrap();
 

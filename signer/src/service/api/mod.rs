@@ -72,31 +72,86 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
                 account_info,
             }
         }
-        JsonCommandRequest::get_account { mnemonic } => {
-            let account_info = service::get_account(&mnemonic)?;
-            JsonCommandResponse::get_account { account_info }
-        }
+        JsonCommandRequest::get_account {
+            mnemonic,
+            bip39_entropy,
+        } => match (mnemonic, bip39_entropy) {
+            (Some(mnemonic), None) => {
+                let account_info = service::get_account_by_mnemonic(&mnemonic)?;
+                JsonCommandResponse::get_account { account_info }
+            }
+            (None, Some(bip39_entropy)) => {
+                let account_info = service::get_account_by_bip39_entropy(&bip39_entropy)?;
+                JsonCommandResponse::get_account { account_info }
+            }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
+        },
         JsonCommandRequest::sign_tx {
             mnemonic,
+            bip39_entropy,
             unsigned_tx_proposal,
-        } => {
-            let signed_tx = service::sign_tx(
-                &mnemonic,
-                (&unsigned_tx_proposal)
-                    .try_into()
-                    .map_err(|e: String| anyhow!(e))?,
-            )?;
-            JsonCommandResponse::sign_tx {
-                tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
+        } => match (mnemonic, bip39_entropy) {
+            (Some(mnemonic), None) => {
+                let signed_tx = service::sign_tx_with_mnemonic(
+                    &mnemonic,
+                    (&unsigned_tx_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
+                }
             }
-        }
+            (None, Some(bip39_entropy)) => {
+                let signed_tx = service::sign_tx_with_bip39_entropy(
+                    &bip39_entropy,
+                    (&unsigned_tx_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
+                }
+            }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
+        },
         JsonCommandRequest::sync_txos {
             mnemonic,
+            bip39_entropy,
             txos_unsynced,
-        } => {
-            let txos_synced = service::sync_txos(&mnemonic, txos_unsynced)?;
-            JsonCommandResponse::sync_txos { txos_synced }
-        }
+        } => match (mnemonic, bip39_entropy) {
+            (Some(mnemonic), None) => {
+                let txos_synced = service::sync_txos_by_mnemonic(&mnemonic, txos_unsynced)?;
+                JsonCommandResponse::sync_txos { txos_synced }
+            }
+            (None, Some(bip39_entropy)) => {
+                let txos_synced =
+                    service::sync_txos_by_bip39_entropy(&bip39_entropy, txos_unsynced)?;
+                JsonCommandResponse::sync_txos { txos_synced }
+            }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
+        },
     };
 
     Ok(response)
