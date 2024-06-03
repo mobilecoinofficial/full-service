@@ -5,7 +5,7 @@
 #
 # assume we have pre-built binary
 
-FROM ubuntu:focal-20230308
+FROM ubuntu:focal-20240427
 
 RUN  addgroup --system --gid 1000 app \
   && adduser --system --ingroup app --uid 1000 app \
