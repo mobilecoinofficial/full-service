@@ -279,18 +279,15 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         }
 
         // Get membership proofs for our inputs
-        let indexes = self
-            .inputs
-            .iter()
-            .map(|utxo| {
-                let txo = self.ledger_db.get_tx_out_by_index(
-                    self.ledger_db
-                        .get_tx_out_index_by_public_key(&utxo.public_key()?)?,
-                )?;
-                self.ledger_db.get_tx_out_index_by_hash(&txo.hash())
-            })
-            .collect::<Result<Vec<u64>, mc_ledger_db::Error>>()?;
-        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indexes)?;
+        let mut indices = Vec::new();
+        for input in &self.inputs {
+            let index = self
+                .ledger_db
+                .get_tx_out_index_by_public_key(&input.public_key()?)?;
+            indices.push(index);
+        }
+
+        let proofs = self.ledger_db.get_tx_out_proof_of_memberships(&indices)?;
 
         let inputs_and_proofs: Vec<(Txo, TxOutMembershipProof)> =
             self.inputs.clone().into_iter().zip(proofs).collect();

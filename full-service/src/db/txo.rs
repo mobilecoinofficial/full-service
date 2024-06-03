@@ -9,7 +9,7 @@ use diesel::{
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{logger::global_log, HashMap};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_crypto_keys::{CompressedRistrettoPublic, KeyError, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_core::{
     constants::MAX_INPUTS,
@@ -24,7 +24,11 @@ use mc_transaction_extra::{
     RegisteredMemoType, TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
-use std::{convert::TryFrom, fmt, str::FromStr};
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt,
+    str::FromStr,
+};
 
 use crate::{
     db::{
@@ -751,6 +755,13 @@ pub trait TxoModel {
     fn account(&self, conn: Conn) -> Result<Option<Account>, WalletDbError>;
 }
 
+impl Txo {
+    pub fn public_key(&self) -> Result<CompressedRistrettoPublic, KeyError> {
+        let public_key: CompressedRistrettoPublic = self.public_key.as_slice().try_into()?;
+        Ok(public_key)
+    }
+}
+
 impl TxoModel for Txo {
     fn create_received(
         txo: TxOut,
@@ -787,9 +798,9 @@ impl TxoModel for Txo {
                     received_block_index,
                     account_id_hex,
                     amount,
-                    &mc_util_serial::encode(&txo.target_key),
-                    &mc_util_serial::encode(&txo.public_key),
-                    &mc_util_serial::encode(&txo.e_fog_hint),
+                    txo.target_key.as_bytes(),
+                    txo.public_key.as_bytes(),
+                    &txo.e_fog_hint.to_bytes(),
                     Some(&shared_secret_vec),
                     memo_type,
                     conn,
@@ -798,16 +809,17 @@ impl TxoModel for Txo {
 
             // If we don't already have this TXO, create a new entry
             Err(WalletDbError::TxoNotFound(_)) => {
-                let key_image_bytes = key_image.map(|k| mc_util_serial::encode(&k));
+                let key_image_bytes = key_image.as_ref().map(|k| k.as_ref());
+
                 let new_txo = NewTxo {
                     id: &txo_id.to_string(),
                     value: amount.value as i64,
                     token_id: *amount.token_id as i64,
-                    target_key: &mc_util_serial::encode(&txo.target_key),
-                    public_key: &mc_util_serial::encode(&txo.public_key),
-                    e_fog_hint: &mc_util_serial::encode(&txo.e_fog_hint),
+                    target_key: txo.target_key.as_bytes(),
+                    public_key: txo.public_key.as_bytes(),
+                    e_fog_hint: &txo.e_fog_hint.to_bytes(),
                     subaddress_index: subaddress_index.map(|i| i as i64),
-                    key_image: key_image_bytes.as_deref(),
+                    key_image: key_image_bytes,
                     received_block_index: Some(received_block_index as i64),
                     spent_block_index: None,
                     confirmation: None,
@@ -865,9 +877,9 @@ impl TxoModel for Txo {
             account_id: None,
             value: output_txo.amount.value as i64,
             token_id: *output_txo.amount.token_id as i64,
-            target_key: &mc_util_serial::encode(&output_txo.tx_out.target_key),
-            public_key: &mc_util_serial::encode(&output_txo.tx_out.public_key),
-            e_fog_hint: &mc_util_serial::encode(&output_txo.tx_out.e_fog_hint),
+            target_key: output_txo.tx_out.target_key.as_bytes(),
+            public_key: output_txo.tx_out.public_key.as_bytes(),
+            e_fog_hint: &output_txo.tx_out.e_fog_hint.to_bytes(),
             subaddress_index: None,
             key_image: None,
             received_block_index: None,
@@ -918,12 +930,12 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let encoded_key_image = received_key_image.map(|k| mc_util_serial::encode(&k));
+        let key_image_bytes = received_key_image.map(|k| k.as_bytes().to_vec());
 
         diesel::update(self)
             .set((
                 txos::subaddress_index.eq(subaddress_index.map(|i| i as i64)),
-                txos::key_image.eq(encoded_key_image),
+                txos::key_image.eq(key_image_bytes),
                 txos::received_block_index.eq(Some(block_index as i64)),
                 txos::account_id.eq(Some(account_id_hex)),
                 txos::value.eq(amount.value as i64),
@@ -959,11 +971,11 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let encoded_key_image = mc_util_serial::encode(key_image);
+        let key_image_bytes = key_image.as_bytes().to_vec();
 
         diesel::update(txos::table.filter(txos::id.eq(txo_id_hex)))
             .set((
-                txos::key_image.eq(Some(encoded_key_image)),
+                txos::key_image.eq(Some(key_image_bytes)),
                 txos::spent_block_index.eq(spent_block_index.map(|i| i as i64)),
             ))
             .execute(conn)?;
@@ -1577,16 +1589,14 @@ impl TxoModel for Txo {
             .order(txos::received_block_index.desc())
             .load(conn)?;
 
-        Ok(results
-            .into_iter()
-            .filter_map(|(key_image, txo_id_hex)| match key_image {
-                Some(key_image_encoded) => {
-                    let key_image = mc_util_serial::decode(key_image_encoded.as_slice()).ok()?;
-                    Some((key_image, txo_id_hex))
-                }
-                None => None,
-            })
-            .collect())
+        let mut map = HashMap::default();
+        for (key_image, txo_id_hex) in results {
+            if let Some(key_image) = key_image {
+                let key_image = key_image.as_slice().try_into()?;
+                map.insert(key_image, txo_id_hex);
+            }
+        }
+        Ok(map)
     }
 
     fn list_spent(
@@ -1763,10 +1773,8 @@ impl TxoModel for Txo {
     ) -> Result<Vec<Txo>, WalletDbError> {
         use crate::db::schema::txos;
 
-        let public_key_blobs: Vec<Vec<u8>> = public_keys
-            .iter()
-            .map(|p| mc_util_serial::encode(*p))
-            .collect();
+        let public_key_blobs: Vec<Vec<u8>> =
+            public_keys.iter().map(|p| p.as_bytes().to_vec()).collect();
         let selected = txos::table
             .filter(txos::public_key.eq_any(public_key_blobs))
             .load(conn)?;
@@ -1955,7 +1963,7 @@ impl TxoModel for Txo {
         conn: Conn,
     ) -> Result<bool, WalletDbError> {
         let txo = Txo::get(txo_id_hex, conn)?;
-        let public_key: RistrettoPublic = mc_util_serial::decode(&txo.public_key)?;
+        let public_key: RistrettoPublic = txo.public_key.as_slice().try_into()?;
         let account = Account::get(account_id, conn)?;
         let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
         Ok(confirmation.validate(&public_key, account_key.view_private_key()))
@@ -2136,10 +2144,10 @@ impl TxoModel for Txo {
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::txos;
 
-        let pubkey = &mc_util_serial::encode(public_key);
+        let pubkey = public_key.as_bytes().to_vec();
 
         let txo = txos::table
-            .filter(txos::public_key.eq(pubkey))
+            .filter(txos::public_key.eq(&pubkey))
             .first::<Txo>(conn)?;
 
         let txo = Txo::get(&txo.id, conn)?;
@@ -2530,11 +2538,11 @@ mod tests {
             id: TxoID::from(&for_alice_txo).to_string(),
             value: 1000 * MOB as i64,
             token_id: 0,
-            target_key: mc_util_serial::encode(&for_alice_txo.target_key),
-            public_key: mc_util_serial::encode(&for_alice_txo.public_key),
-            e_fog_hint: mc_util_serial::encode(&for_alice_txo.e_fog_hint),
+            target_key: for_alice_txo.target_key.as_bytes().to_vec(),
+            public_key: for_alice_txo.public_key.as_bytes().to_vec(),
+            e_fog_hint: for_alice_txo.e_fog_hint.to_bytes().to_vec(),
             subaddress_index: Some(0),
-            key_image: Some(mc_util_serial::encode(&for_alice_key_image)),
+            key_image: Some(for_alice_key_image.to_vec()),
             received_block_index: Some(12),
             spent_block_index: None,
             confirmation: None,
@@ -2707,10 +2715,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(spent.len(), 1);
-        assert_eq!(
-            spent[0].key_image,
-            Some(mc_util_serial::encode(&for_alice_key_image))
-        );
+        assert_eq!(spent[0].key_image, Some(for_alice_key_image.to_vec()));
         assert_eq!(spent[0].spent_block_index.unwrap(), 13);
 
         // Check that we have one orphaned - went from [Minted, Secreted] -> [Minted,
@@ -2746,8 +2751,13 @@ mod tests {
         assert_eq!(unspent.len(), 1);
         assert_eq!(unspent[0].received_block_index.unwrap(), 13);
         // Store the key image for when we spend this Txo below
-        let for_bob_key_image: KeyImage =
-            mc_util_serial::decode(&unspent[0].key_image.clone().unwrap()).unwrap();
+        let for_bob_key_image: KeyImage = unspent[0]
+            .key_image
+            .as_ref()
+            .unwrap()
+            .as_slice()
+            .try_into()
+            .unwrap();
 
         // Note: To receive at Subaddress 4, we need to add an assigned subaddress
         // (currently this Txo is be orphaned). We add thrice, because currently

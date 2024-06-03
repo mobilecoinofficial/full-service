@@ -849,13 +849,12 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::DerefMut;
-
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
     use rand::{rngs::StdRng, SeedableRng};
+    use std::{convert::TryInto, ops::DerefMut};
 
     use crate::{
         db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
@@ -1476,8 +1475,20 @@ mod tests {
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
             &[
-                mc_util_serial::decode(&input_details0.key_image.unwrap()).unwrap(),
-                mc_util_serial::decode(&input_details1.key_image.unwrap()).unwrap(),
+                input_details0
+                    .key_image
+                    .as_ref()
+                    .unwrap()
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
+                input_details1
+                    .key_image
+                    .as_ref()
+                    .unwrap()
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
             ],
             &mut rng,
         );

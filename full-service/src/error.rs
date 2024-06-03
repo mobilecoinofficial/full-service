@@ -180,6 +180,9 @@ pub enum T3SyncError {
 
     /// Txo with ID {0} does not have an authenticated sender memo
     TxoMemoIsNotAuthenticatedSender(String),
+
+    /// Key: {0}
+    Key(mc_crypto_keys::KeyError),
 }
 
 impl From<WalletDbError> for T3SyncError {
@@ -203,6 +206,12 @@ impl From<t3_connection::Error> for T3SyncError {
 impl From<mc_util_serial::DecodeError> for T3SyncError {
     fn from(src: mc_util_serial::DecodeError) -> Self {
         Self::McUtilSerialDecode(src)
+    }
+}
+
+impl From<mc_crypto_keys::KeyError> for T3SyncError {
+    fn from(src: mc_crypto_keys::KeyError) -> Self {
+        Self::Key(src)
     }
 }
 
