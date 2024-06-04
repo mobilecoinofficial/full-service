@@ -1,11 +1,11 @@
-# syntax=docker/dockerfile:1.2
+# syntax=docker/dockerfile:1.7
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 #
 # full-service application docker container.
 #
 # assume we have pre-built binary
 
-FROM ubuntu:focal-20230308
+FROM ubuntu:focal-20240427
 
 RUN  addgroup --system --gid 1000 app \
   && adduser --system --ingroup app --uid 1000 app \
