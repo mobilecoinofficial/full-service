@@ -82,6 +82,7 @@ async def test_account_status(client, source_account):
         'next_block_index',
         'next_subaddress_index',
         'recovery_mode',
+        'require_spend_subaddress',
         'view_only',
     ]
 
