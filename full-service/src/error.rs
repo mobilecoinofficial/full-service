@@ -231,9 +231,6 @@ pub enum SyncError {
 
     /// Error with the B58 Util: {0}
     B58(B58Error),
-
-    /// Error calling webhook: {0}
-    Webhook(reqwest::Error),
 }
 
 impl From<WalletDbError> for SyncError {
@@ -275,12 +272,6 @@ impl From<diesel::result::Error> for SyncError {
 impl From<B58Error> for SyncError {
     fn from(src: B58Error) -> Self {
         Self::B58(src)
-    }
-}
-
-impl From<reqwest::Error> for SyncError {
-    fn from(src: reqwest::Error) -> Self {
-        Self::Webhook(src)
     }
 }
 

@@ -8,7 +8,7 @@ mod e2e_webhook {
         json_rpc::v2::api::test_utils::{dispatch, setup},
         test_utils::MOB,
     };
-    use std::{ops::DerefMut, thread, time::Duration};
+    use std::ops::DerefMut;
 
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
@@ -21,17 +21,15 @@ mod e2e_webhook {
             account::{AccountID, AccountModel},
             models::Account,
         },
-        error::SyncError::Webhook,
-        test_utils::{add_block_to_ledger_db, manually_sync_account},
+        test_utils::add_block_to_ledger_db,
         util::b58::b58_decode_public_address,
     };
-    use httpmock::{Method::GET, Mock, MockServer};
+    use httpmock::{Method::GET, MockServer};
     use rand::{rngs::StdRng, SeedableRng};
     use reqwest::{
         blocking::Client,
         header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     };
-    use rocket::http::{ContentType, Status};
     use serde_json::json;
 
     #[test_with_logger]
@@ -39,7 +37,7 @@ mod e2e_webhook {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         // The mock webhook server is listening for how many txos were received
-        let mut server = MockServer::start();
+        let server = MockServer::start();
         // Create a mock on the server.
         let hello_mock = server.mock(|when, then| {
             when.method(GET).path("/received_txos");
@@ -105,21 +103,19 @@ mod e2e_webhook {
         let conn = pooled_conn.deref_mut();
         loop {
             let account = Account::get(&AccountID(account_id.to_string()), conn).unwrap();
-            // log::debug!(
-            //     logger,
-            //     "next_block_index: {}, ledger blocks = {}",
-            //     account.next_block_index,
-            //     ledger_db.num_blocks().unwrap()
-            // );
             if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
                 break;
             }
-            // thread::sleep(Duration::from_millis(1000));
         }
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 22);
         log::debug!(logger, "webhook was called {} times", hello_mock.hits());
         assert!(hello_mock.hits() >= 2); // One at the top, and at least one
                                          // more during syncing
+
+        // TODO: Would be great to validate how many txos had been flagged, but
+        // it's ok that this is relatively lossy in this test, because
+        // what we care about is that the webhook _is_ getting called
+        // when there are new txos
     }
 }

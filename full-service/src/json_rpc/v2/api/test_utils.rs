@@ -35,19 +35,17 @@ use rocket::{
     local::blocking::Client,
     post, routes,
     serde::json::{json, Json, Value as JsonValue},
-    Build, Request, Response,
+    Build,
 };
 use tempdir::TempDir;
 use url::Url;
 
 use crate::config::WebhookConfig;
-use rocket::fairing::{Fairing, Info, Kind};
-use serde_derive::Deserialize;
 use std::{
     convert::TryFrom,
     sync::{
         atomic::{AtomicUsize, Ordering::SeqCst},
-        Arc, Mutex, RwLock,
+        Arc, RwLock,
     },
     time::Duration,
 };
@@ -59,40 +57,6 @@ pub fn get_free_port() -> u16 {
 
 pub struct TestWalletState {
     pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
-    pub webhook_received_txos: Arc<Mutex<usize>>,
-}
-
-#[derive(Deserialize, Debug)]
-struct WebhookPayload {
-    // How many txos were received in the most recently scanned chunk
-    num_received_txos: usize,
-}
-
-// Dummy webhook handler to verify we're sending the webhook
-#[post("/webhook", format = "json", data = "<payload>")]
-async fn handle_webhook(
-    _guard: ApiKeyGuard,
-    state: &rocket::State<TestWalletState>,
-    payload: Json<WebhookPayload>,
-) -> Status {
-    println!("Received webhook: {:?}", payload);
-    let mut received_txos = state.webhook_received_txos.lock().unwrap();
-    *received_txos += payload.num_received_txos;
-    Status::Ok
-}
-
-#[post("/assert_state", format = "json", data = "<payload>")]
-async fn assert_state(
-    _guard: ApiKeyGuard,
-    state: &rocket::State<TestWalletState>,
-    payload: Json<WebhookPayload>,
-) -> Status {
-    println!("Asserting state: {:?}", payload);
-    assert_eq!(
-        *state.webhook_received_txos.lock().unwrap(),
-        payload.num_received_txos
-    );
-    Status::Ok
 }
 
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the
@@ -125,38 +89,11 @@ async fn test_wallet_api(
     Ok(Json(response))
 }
 
-pub struct CORS {
-    allowed_origin: String,
-}
-
-#[rocket::async_trait]
-impl Fairing for CORS {
-    fn info(&self) -> Info {
-        Info {
-            name: "Cross-Origin-Resource-Sharing Fairing",
-            kind: Kind::Response,
-        }
-    }
-
-    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
-        response.set_header(Header::new(
-            "Access-Control-Allow-Origin",
-            self.allowed_origin.clone(),
-        ));
-        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, OPTIONS"));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
-    }
-}
-
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket<Build> {
-    let mut test_rocket = rocket::custom(rocket_config);
-
-    test_rocket = test_rocket.attach(CORS {
-        allowed_origin: "*".to_string(),
-    });
+    let test_rocket = rocket::custom(rocket_config);
 
     test_rocket
-        .mount("/", routes![test_wallet_api, handle_webhook, assert_state])
+        .mount("/", routes![test_wallet_api])
         .manage(state)
 }
 
@@ -255,13 +192,7 @@ pub fn create_test_setup(
         .extract()
         .unwrap();
 
-    let rocket_instance = test_rocket(
-        rocket_config,
-        TestWalletState {
-            service,
-            webhook_received_txos: Arc::new(Mutex::new(0)),
-        },
-    );
+    let rocket_instance = test_rocket(rocket_config, TestWalletState { service });
 
     (rocket_instance, ledger_db, db_test_context, network_state)
 }

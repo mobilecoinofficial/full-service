@@ -34,8 +34,6 @@ use reqwest::{
     blocking::Client, // FIXME: if we don't want this to be blocking, we'll be awaiting futures
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
 };
-use serde_derive::Deserialize;
-use serde_json::json;
 use std::{
     convert::TryFrom,
     sync::{
@@ -55,9 +53,6 @@ pub struct SyncThread {
 
     /// Stop trigger, used to signal the thread to terminate.
     stop_requested: Arc<AtomicBool>,
-
-    /// The number of txos synced on the last chunk
-    num_txos_synced: Arc<Mutex<AtomicUsize>>, // will be shared on webhook, so sticking with u32
 }
 
 pub struct WebhookThread {
@@ -66,9 +61,6 @@ pub struct WebhookThread {
 
     /// Stop trigger, used to signal the thread to terminate.
     stop_requested: Arc<AtomicBool>,
-
-    /// The number of txos synced on the last chunk
-    num_txos_synced: Arc<Mutex<AtomicUsize>>, // will be shared on webhook, so sticking with u32
 }
 
 impl WebhookThread {
@@ -140,7 +132,6 @@ impl WebhookThread {
         Self {
             join_handle,
             stop_requested,
-            num_txos_synced,
         }
     }
     pub fn stop(&mut self) {
@@ -208,7 +199,6 @@ impl SyncThread {
         Self {
             join_handle,
             stop_requested,
-            num_txos_synced,
         }
     }
 
@@ -257,8 +247,7 @@ pub fn sync_all_accounts(
             continue;
         }
         log::debug!(logger, "@@@@@ ABOUT TO SYNC ACCOUNT NEXT CHUNK");
-        let (num_txos_synced, num_txos_spent) =
-            sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        let num_txos_synced = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
 
         log::debug!(
             logger,
@@ -279,7 +268,7 @@ pub fn sync_account_next_chunk(
     conn: Conn,
     account_id_hex: &str,
     logger: &Logger,
-) -> Result<(usize, usize), SyncError> {
+) -> Result<usize, SyncError> {
     /* FIXME remove return type */
     log::debug!(logger, "attempting to sync next chunk");
     exclusive_transaction(conn, |conn| {
@@ -322,11 +311,11 @@ pub fn sync_account_next_chunk(
 
         // If no blocks were found, exit.
         if end_block_index.is_none() {
-            return Ok((0, 0));
+            return Ok(0);
         }
         let end_block_index = end_block_index.unwrap();
 
-        let (num_received_txos, num_spent_txos) = if account.view_only {
+        let num_received_txos = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
 
             // Attempt to decode each transaction as received by this account.
@@ -417,7 +406,7 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
-            (num_received_txos, num_spent_txos)
+            num_received_txos
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -511,10 +500,10 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
-            (num_received_txos, num_spent_txos)
+            num_received_txos
         };
 
-        Ok((num_received_txos, num_spent_txos))
+        Ok(num_received_txos)
     })
 }
 
