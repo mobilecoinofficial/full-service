@@ -33,7 +33,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_build_and_submit_transaction_with_spend_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -315,7 +315,7 @@ mod e2e_transaction {
     ) {
         use crate::error::WalletTransactionBuilderError::NullSubaddress as transaction_error;
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -398,7 +398,7 @@ mod e2e_transaction {
         logger: Logger,
     ) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -474,7 +474,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_enable_and_disable_require_spend_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([3u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({

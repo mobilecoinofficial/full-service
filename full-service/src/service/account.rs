@@ -880,7 +880,7 @@ mod tests {
             &mut rng,
         );
 
-        let service = setup_wallet_service(ledger_db.clone(), logger);
+        let service = setup_wallet_service(ledger_db.clone(), None, logger);
         let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         assert_eq!(ledger_db.num_blocks().unwrap(), block_count as u64);
@@ -982,7 +982,7 @@ mod tests {
         let initial_block_count = 12;
         let mut ledger_db = get_test_ledger(5, &[], initial_block_count, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
         let wallet_db = service.wallet_db.as_ref().unwrap();
 
         let account_a = service
@@ -1140,7 +1140,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db, logger);
+        let service = setup_wallet_service(ledger_db, None, logger);
         let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Create an account.
@@ -1265,7 +1265,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();

@@ -28,7 +28,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_tx_status_failed_when_tombstone_block_index_exceeded(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -203,7 +203,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_receipts(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({

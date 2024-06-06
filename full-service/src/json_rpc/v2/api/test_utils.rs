@@ -35,17 +35,19 @@ use rocket::{
     local::blocking::Client,
     post, routes,
     serde::json::{json, Json, Value as JsonValue},
-    Build,
+    Build, Request, Response,
 };
 use tempdir::TempDir;
 use url::Url;
 
+use crate::config::WebhookConfig;
+use rocket::fairing::{Fairing, Info, Kind};
 use serde_derive::Deserialize;
 use std::{
     convert::TryFrom,
     sync::{
         atomic::{AtomicUsize, Ordering::SeqCst},
-        Arc, RwLock,
+        Arc, Mutex, RwLock,
     },
     time::Duration,
 };
@@ -57,20 +59,39 @@ pub fn get_free_port() -> u16 {
 
 pub struct TestWalletState {
     pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
+    pub webhook_received_txos: Arc<Mutex<usize>>,
 }
 
-// FIXME: this will live elsewhere in the code
 #[derive(Deserialize, Debug)]
 struct WebhookPayload {
-    // Define the expected fields in the webhook payload
-    field1: String,
-    field2: i32,
+    // How many txos were received in the most recently scanned chunk
+    num_received_txos: usize,
 }
 
 // Dummy webhook handler to verify we're sending the webhook
-#[get("/webhook", format = "json", data = "<payload>")]
-async fn handle_webhook(payload: Json<WebhookPayload>) -> Status {
+#[post("/webhook", format = "json", data = "<payload>")]
+async fn handle_webhook(
+    _guard: ApiKeyGuard,
+    state: &rocket::State<TestWalletState>,
+    payload: Json<WebhookPayload>,
+) -> Status {
     println!("Received webhook: {:?}", payload);
+    let mut received_txos = state.webhook_received_txos.lock().unwrap();
+    *received_txos += payload.num_received_txos;
+    Status::Ok
+}
+
+#[post("/assert_state", format = "json", data = "<payload>")]
+async fn assert_state(
+    _guard: ApiKeyGuard,
+    state: &rocket::State<TestWalletState>,
+    payload: Json<WebhookPayload>,
+) -> Status {
+    println!("Asserting state: {:?}", payload);
+    assert_eq!(
+        *state.webhook_received_txos.lock().unwrap(),
+        payload.num_received_txos
+    );
     Status::Ok
 }
 
@@ -104,9 +125,38 @@ async fn test_wallet_api(
     Ok(Json(response))
 }
 
+pub struct CORS {
+    allowed_origin: String,
+}
+
+#[rocket::async_trait]
+impl Fairing for CORS {
+    fn info(&self) -> Info {
+        Info {
+            name: "Cross-Origin-Resource-Sharing Fairing",
+            kind: Kind::Response,
+        }
+    }
+
+    async fn on_response<'r>(&self, _request: &'r Request<'_>, response: &mut Response<'r>) {
+        response.set_header(Header::new(
+            "Access-Control-Allow-Origin",
+            self.allowed_origin.clone(),
+        ));
+        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, OPTIONS"));
+        response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
+    }
+}
+
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket<Build> {
-    rocket::custom(rocket_config)
-        .mount("/", routes![test_wallet_api, handle_webhook])
+    let mut test_rocket = rocket::custom(rocket_config);
+
+    test_rocket = test_rocket.attach(CORS {
+        allowed_origin: "*".to_string(),
+    });
+
+    test_rocket
+        .mount("/", routes![test_wallet_api, handle_webhook, assert_state])
         .manage(state)
 }
 
@@ -154,6 +204,8 @@ pub fn create_test_setup(
     mut rng: &mut StdRng,
     use_wallet_db: bool,
     use_watcher_db: bool,
+    webhook_config: Option<WebhookConfig>, /* FIXME: debating whether this test setup creates
+                                            * the server or it's done in the tests calling this */
     logger: Logger,
 ) -> (
     rocket::Rocket<Build>,
@@ -194,6 +246,7 @@ pub fn create_test_setup(
         get_resolver_factory(rng).unwrap(),
         false,
         T3Config::default(),
+        webhook_config,
         logger,
     );
 
@@ -202,13 +255,20 @@ pub fn create_test_setup(
         .extract()
         .unwrap();
 
-    let rocket_instance = test_rocket(rocket_config, TestWalletState { service });
+    let rocket_instance = test_rocket(
+        rocket_config,
+        TestWalletState {
+            service,
+            webhook_received_txos: Arc::new(Mutex::new(0)),
+        },
+    );
 
     (rocket_instance, ledger_db, db_test_context, network_state)
 }
 
 pub fn setup(
     rng: &mut StdRng,
+    webhook_config: Option<WebhookConfig>, // FIXME: seems like this should happen internal to this
     logger: Logger,
 ) -> (
     Client,
@@ -217,7 +277,7 @@ pub fn setup(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, true, false, logger);
+        create_test_setup(rng, true, false, webhook_config, logger);
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
@@ -238,7 +298,7 @@ pub fn setup_with_watcher(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, true, true, logger);
+        create_test_setup(rng, true, true, None, logger);
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
@@ -259,7 +319,7 @@ pub fn setup_no_wallet_db(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, false, false, logger);
+        create_test_setup(rng, false, false, None, logger);
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (
@@ -281,7 +341,7 @@ pub fn setup_with_api_key(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, true, false, logger);
+        create_test_setup(rng, true, false, None, logger);
 
     let rocket = rocket_instance.manage(APIKeyState(api_key));
 

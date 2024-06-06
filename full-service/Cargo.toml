@@ -117,6 +117,7 @@ bs58 = "0.5.0"
 tempdir = "0.3"
 tokio = "1.27"
 url = "2.3"
+httpmock = "0.7.0"
 
 [build-dependencies]
 anyhow = "1.0"

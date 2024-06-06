@@ -483,7 +483,7 @@ mod tests {
         ];
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         let account = service
             .import_account_from_legacy_root_entropy(

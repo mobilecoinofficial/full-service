@@ -36,7 +36,7 @@ mod e2e_transaction {
         use diesel::{dsl::count, prelude::*};
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         let wallet_db = db_ctx.get_db_instance(logger.clone());
 
@@ -252,7 +252,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_mark_orphaned_txo_as_spent(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -531,7 +531,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_get_txos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({
@@ -604,7 +604,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_txo_info_includes_correct_memos(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         // Add an account
         let body = json!({

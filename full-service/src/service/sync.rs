@@ -34,6 +34,8 @@ use reqwest::{
     blocking::Client, // FIXME: if we don't want this to be blocking, we'll be awaiting futures
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
 };
+use serde_derive::Deserialize;
+use serde_json::json;
 use std::{
     convert::TryFrom,
     sync::{
@@ -55,11 +57,48 @@ pub struct SyncThread {
     stop_requested: Arc<AtomicBool>,
 }
 
+pub struct WebhookThread {
+    /// The main sync thread handle.
+    join_handle: Option<thread::JoinHandle<()>>,
+
+    /// Stop trigger, used to signal the thread to terminate.
+    stop_requested: Arc<AtomicBool>,
+}
+
+impl WebhookThread {
+    pub fn start(server_url: &str, logger: Logger) -> Self {
+        // Start the webhook thread.
+
+        let stop_requested = Arc::new(AtomicBool::new(false));
+        let thread_stop_requested = stop_requested.clone();
+
+        let join_handle = Some(
+            thread::Builder::new()
+                .name("webhook".to_string())
+                .spawn(move || {
+                    log::debug!(logger, "Webhook thread started.");
+
+                    loop {
+                        if thread_stop_requested.load(Ordering::SeqCst) {
+                            log::debug!(logger, "WebhookThread stop requested.");
+                            break;
+                        }
+                    }
+                })
+                .expect("failed starting webhook thread"),
+        );
+        Self {
+            join_handle,
+            stop_requested,
+        }
+    }
+}
+
 impl SyncThread {
     pub fn start(
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
-        webhook_url: &str,
+        _webhook_url: &str,
         logger: Logger,
     ) -> Self {
         // Start the sync thread.
@@ -145,24 +184,7 @@ pub fn sync_all_accounts(
 
             continue;
         }
-        let (num_received_txos, num_spent_txos) =
-            sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
-        if num_received_txos > 0 || num_spent_txos > 0 {
-            // call webhook
-            // FIXME move this somewhere and configured by config
-            // FIXME: should we be using rocket? or we've already got reqwest throughout
-            // anyway?
-            let client = Client::builder().gzip(true).use_rustls_tls().build()?;
-            let mut json_headers = HeaderMap::new();
-            json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-            let webhook_url = "/webhook";
-            let response = client
-                .get(webhook_url)
-                .headers(json_headers)
-                .send()?
-                .error_for_status()?;
-            assert_eq!(response.status(), 200);
-        }
+        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
     }
 
     Ok(())
@@ -174,6 +196,7 @@ pub fn sync_account_next_chunk(
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<(usize, usize), SyncError> {
+    /* FIXME remove return type */
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -394,6 +417,25 @@ pub fn sync_account_next_chunk(
             (num_received_txos, num_spent_txos)
         };
 
+        if num_received_txos > 0 || num_spent_txos > 0 {
+            // call webhook
+            // FIXME move this somewhere and configured by config
+            // FIXME: should we be using rocket? or we've already got reqwest throughout
+            // anyway?
+            let client = Client::builder().build()?;
+            let mut json_headers = HeaderMap::new();
+            json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+            log::debug!(logger, "calling webhook");
+            let webhook_url = "127.0.0.1:30300/webhook";
+            let response = client
+                .post(webhook_url)
+                .headers(json_headers)
+                .body(json!({"num_received_txos": num_received_txos }).to_string())
+                .send()?
+                .error_for_status()?;
+            assert_eq!(response.status(), 200);
+        }
+
         Ok((num_received_txos, num_spent_txos))
     })
 }
@@ -517,7 +559,7 @@ mod tests {
             &mut rng,
         );
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Import the account

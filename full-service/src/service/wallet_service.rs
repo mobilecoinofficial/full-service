@@ -3,10 +3,10 @@
 //! The Wallet Service for interacting with the wallet.
 
 use crate::{
-    config::NetworkConfig,
+    config::{NetworkConfig, WebhookConfig},
     db::{WalletDb, WalletDbError},
     service::{
-        sync::SyncThread,
+        sync::{SyncThread, WebhookThread},
         t3_sync::{T3Config, T3SyncThread},
     },
 };
@@ -64,6 +64,9 @@ pub struct WalletService<
     /// Background T3 sync thread.
     _t3_sync_thread: Option<T3SyncThread>,
 
+    /// Webhook Service
+    // _webhook_service_thread: Option<WebhookServiceThread>,
+
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
     pub submit_node_offset: Arc<AtomicUsize>,
@@ -91,18 +94,28 @@ impl<
         fog_resolver_factory: Arc<dyn Fn(&[FogUri]) -> Result<FPR, String> + Send + Sync>,
         offline: bool,
         t3_sync_config: T3Config,
+        webhook_config: Option<WebhookConfig>,
         logger: Logger,
     ) -> Self {
-        let sync_thread = if let Some(wallet_db) = wallet_db.clone() {
+        let (sync_thread, webhook_thread) = if let Some(wallet_db) = wallet_db.clone() {
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
-            Some(SyncThread::start(
-                ledger_db.clone(),
-                wallet_db,
-                "/wallet", // FIXME
-                logger.clone(),
-            ))
+            (
+                Some(SyncThread::start(
+                    ledger_db.clone(),
+                    wallet_db,
+                    "/webhook", // FIXME
+                    logger.clone(),
+                )),
+                // As a companion to the account syncing, start the webhook syncing
+                // if configured
+                if let Some(wh_config) = webhook_config {
+                    Some(WebhookThread::start(&wh_config.url, logger.clone()))
+                } else {
+                    None
+                },
+            )
         } else {
-            None
+            (None, None)
         };
 
         let t3_sync_thread = if let (Some(wallet_db), Some(t3_uri), Some(t3_api_key)) = (

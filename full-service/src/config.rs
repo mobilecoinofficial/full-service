@@ -89,6 +89,10 @@ pub struct APIConfig {
     /// T3 Server to connect to and the api key to use for authorization.
     #[clap(flatten)]
     pub t3_sync_config: T3Config,
+
+    /// Webhook configuration.
+    #[clap(long, env = "ACCOUNT_SYNC_WEBHOOK_URL")]
+    pub account_sync_webhook_url: Option<String>, // FIXME: URL
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -391,4 +395,10 @@ impl LedgerDbConfig {
 
         ledger_db
     }
+}
+
+/// The Webhook Setup object.
+#[derive(Default, Clone, Debug, Deserialize, Serialize)]
+pub struct WebhookConfig {
+    pub url: String, // FIXME: URL
 }

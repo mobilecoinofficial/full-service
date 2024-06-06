@@ -36,7 +36,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_wallet_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -113,7 +113,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_network_status(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -141,7 +141,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_txo_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, None, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -205,7 +205,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_block_by_txo_public_key(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, logger.clone());
+        let (client, mut ledger_db, db_ctx, network_state) = setup(&mut rng, None, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -308,7 +308,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_block_by_block_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _, _, _) = setup(&mut rng, logger.clone());
+        let (client, _, _, _) = setup(&mut rng, None, logger.clone());
 
         // A valid block index on the ledger
         let body = json!({
@@ -346,7 +346,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_recent_blocks(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _, _, _) = setup(&mut rng, logger.clone());
+        let (client, _, _, _) = setup(&mut rng, None, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -453,7 +453,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_get_blocks(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _, _, _) = setup(&mut rng, logger.clone());
+        let (client, _, _, _) = setup(&mut rng, None, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -560,7 +560,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_ledger_search(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, ledger_db, _, _) = setup(&mut rng, logger.clone());
+        let (client, ledger_db, _, _) = setup(&mut rng, None, logger.clone());
 
         // Search a non-existent hash
         let body = json!({
@@ -698,7 +698,7 @@ mod e2e_misc {
     #[test_with_logger]
     fn test_payment_request(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
