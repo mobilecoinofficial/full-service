@@ -583,7 +583,10 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
-    use std::ops::DerefMut;
+    use std::{
+        ops::DerefMut,
+        sync::{atomic::AtomicUsize, Mutex},
+    };
 
     use super::*;
     use crate::{
@@ -611,7 +614,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -674,7 +677,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -787,7 +790,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -889,7 +892,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -994,7 +997,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1070,7 +1073,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1153,7 +1156,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1247,7 +1250,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1355,7 +1358,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1416,7 +1419,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 
@@ -1488,7 +1491,7 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            "/webhook",
+            Arc::new(Mutex::new(AtomicUsize::new(0))),
             logger.clone(),
         );
 

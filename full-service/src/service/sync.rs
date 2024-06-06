@@ -39,11 +39,11 @@ use serde_json::json;
 use std::{
     convert::TryFrom,
     sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, Mutex,
     },
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 const BLOCKS_CHUNK_SIZE: u64 = 1_000;
@@ -55,6 +55,9 @@ pub struct SyncThread {
 
     /// Stop trigger, used to signal the thread to terminate.
     stop_requested: Arc<AtomicBool>,
+
+    /// The number of txos synced on the last chunk
+    num_txos_synced: Arc<Mutex<AtomicUsize>>, // will be shared on webhook, so sticking with u32
 }
 
 pub struct WebhookThread {
@@ -63,14 +66,22 @@ pub struct WebhookThread {
 
     /// Stop trigger, used to signal the thread to terminate.
     stop_requested: Arc<AtomicBool>,
+
+    /// The number of txos synced on the last chunk
+    num_txos_synced: Arc<Mutex<AtomicUsize>>, // will be shared on webhook, so sticking with u32
 }
 
 impl WebhookThread {
-    pub fn start(server_url: &str, logger: Logger) -> Self {
+    pub fn start(
+        server_url: String,
+        num_txos_synced: Arc<Mutex<AtomicUsize>>,
+        logger: Logger,
+    ) -> Self {
         // Start the webhook thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
+        let thread_num_txos_synced = num_txos_synced.clone();
 
         let join_handle = Some(
             thread::Builder::new()
@@ -78,11 +89,50 @@ impl WebhookThread {
                 .spawn(move || {
                     log::debug!(logger, "Webhook thread started.");
 
+                    let client = Client::builder()
+                        .build()
+                        .expect("failed building reqwest client");
+                    let mut json_headers = HeaderMap::new();
+                    json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                    log::debug!(logger, "starting webhook thread for {:?}", server_url);
+
                     loop {
+                        log::debug!(logger, "WebhookThread loop start");
+
                         if thread_stop_requested.load(Ordering::SeqCst) {
                             log::debug!(logger, "WebhookThread stop requested.");
                             break;
                         }
+                        log::debug!(logger, "WebhookThread stop not requested.");
+
+                        let num_txos_to_send = thread_num_txos_synced
+                            .lock()
+                            .unwrap()
+                            .swap(0, Ordering::Relaxed);
+                        log::debug!(
+                            logger,
+                            "checked num_txos_to_send atomicusize = {:?}",
+                            num_txos_to_send
+                        );
+
+                        if num_txos_to_send > 0 {
+                            let get_url = format!("{server_url}?num_txos={num_txos_to_send}");
+                            log::debug!(logger, "now sending webhook request to {:?}", get_url);
+
+                            let response = client
+                                .get(get_url)
+                                .send()
+                                .expect("failed sending webhook request")
+                                .error_for_status()
+                                .expect("failed getting webhook response");
+                            assert_eq!(response.status(), 200); // FIXME
+                                                                // proper error
+                                                                // handling
+                        }
+                        // This sleep is to allow other API calls that need access to the database a
+                        // chance to execute, because the sync process requires a write lock on the
+                        // database.
+                        thread::sleep(Duration::from_millis(10));
                     }
                 })
                 .expect("failed starting webhook thread"),
@@ -90,7 +140,20 @@ impl WebhookThread {
         Self {
             join_handle,
             stop_requested,
+            num_txos_synced,
         }
+    }
+    pub fn stop(&mut self) {
+        self.stop_requested.store(true, Ordering::SeqCst);
+        if let Some(join_handle) = self.join_handle.take() {
+            join_handle.join().expect("WebhookThread join failed");
+        }
+    }
+}
+
+impl Drop for WebhookThread {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -98,13 +161,14 @@ impl SyncThread {
     pub fn start(
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
-        _webhook_url: &str,
+        num_txos_synced: Arc<Mutex<AtomicUsize>>,
         logger: Logger,
     ) -> Self {
         // Start the sync thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
+        let thread_num_txos_synced = num_txos_synced.clone();
 
         let join_handle = Some(
             thread::Builder::new()
@@ -121,7 +185,13 @@ impl SyncThread {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        match sync_all_accounts(&ledger_db, conn, &logger) {
+                        // FIXME: is this a problem that we're cloning per loop?
+                        match sync_all_accounts(
+                            &ledger_db,
+                            conn,
+                            thread_num_txos_synced.clone(),
+                            &logger,
+                        ) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
                         }
@@ -138,6 +208,7 @@ impl SyncThread {
         Self {
             join_handle,
             stop_requested,
+            num_txos_synced,
         }
     }
 
@@ -158,6 +229,7 @@ impl Drop for SyncThread {
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
     conn: Conn,
+    num_new_txos: Arc<Mutex<AtomicUsize>>,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
@@ -184,7 +256,19 @@ pub fn sync_all_accounts(
 
             continue;
         }
-        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        log::debug!(logger, "@@@@@ ABOUT TO SYNC ACCOUNT NEXT CHUNK");
+        let (num_txos_synced, num_txos_spent) =
+            sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+
+        log::debug!(
+            logger,
+            "@@@@@ SETTING NUM NEW TXOS to {:?}",
+            num_txos_synced
+        );
+        num_new_txos
+            .lock()
+            .unwrap()
+            .store(num_txos_synced as usize, Ordering::Relaxed);
     }
 
     Ok(())
@@ -197,6 +281,7 @@ pub fn sync_account_next_chunk(
     logger: &Logger,
 ) -> Result<(usize, usize), SyncError> {
     /* FIXME remove return type */
+    log::debug!(logger, "attempting to sync next chunk");
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -205,6 +290,8 @@ pub fn sync_account_next_chunk(
         let start_time = Instant::now();
         let start_block_index = account.next_block_index as u64;
         let mut end_block_index: Option<u64> = None;
+
+        log::debug!(logger, "syncing the next chunk from start block (account next block index) {} to end block (account next block index + BLOCKS_CHUNK_SIZE) {}", start_block_index, start_block_index + BLOCKS_CHUNK_SIZE);
 
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
@@ -307,6 +394,11 @@ pub fn sync_account_next_chunk(
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.
+            log::debug!(
+                logger,
+                ">>>> NOW UPDATING account.next_block_index to {}",
+                end_block_index + 1
+            );
             account.update_next_block_index(end_block_index + 1, conn)?;
 
             let num_blocks_synced = end_block_index - start_block_index + 1;
@@ -396,6 +488,11 @@ pub fn sync_account_next_chunk(
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.
+            log::debug!(
+                logger,
+                ">>>> NOW UPDATING account.next_block_index to {}",
+                end_block_index + 1
+            );
             account.update_next_block_index(end_block_index + 1, conn)?;
 
             let num_blocks_synced = end_block_index - start_block_index + 1;
@@ -416,25 +513,6 @@ pub fn sync_account_next_chunk(
         );
             (num_received_txos, num_spent_txos)
         };
-
-        if num_received_txos > 0 || num_spent_txos > 0 {
-            // call webhook
-            // FIXME move this somewhere and configured by config
-            // FIXME: should we be using rocket? or we've already got reqwest throughout
-            // anyway?
-            let client = Client::builder().build()?;
-            let mut json_headers = HeaderMap::new();
-            json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-            log::debug!(logger, "calling webhook");
-            let webhook_url = "127.0.0.1:30300/webhook";
-            let response = client
-                .post(webhook_url)
-                .headers(json_headers)
-                .body(json!({"num_received_txos": num_received_txos }).to_string())
-                .send()?
-                .error_for_status()?;
-            assert_eq!(response.status(), 200);
-        }
 
         Ok((num_received_txos, num_spent_txos))
     })

@@ -24,7 +24,7 @@ use mc_ledger_sync::PollingNetworkState;
 use mc_rand::rand_core::RngCore;
 use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
-use std::sync::{atomic::AtomicUsize, Arc, RwLock};
+use std::sync::{atomic::AtomicUsize, Arc, Mutex, RwLock};
 
 /// Service for interacting with the wallet
 ///
@@ -64,8 +64,8 @@ pub struct WalletService<
     /// Background T3 sync thread.
     _t3_sync_thread: Option<T3SyncThread>,
 
-    /// Webhook Service
-    // _webhook_service_thread: Option<WebhookServiceThread>,
+    /// Webhook Thread
+    _webhook_thread: Option<WebhookThread>,
 
     /// Monotonically increasing counter. This is used for node round-robin
     /// selection.
@@ -99,17 +99,24 @@ impl<
     ) -> Self {
         let (sync_thread, webhook_thread) = if let Some(wallet_db) = wallet_db.clone() {
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
+
+            let num_txos_synced = Arc::new(Mutex::new(AtomicUsize::new(0)));
+
             (
                 Some(SyncThread::start(
                     ledger_db.clone(),
                     wallet_db,
-                    "/webhook", // FIXME
+                    num_txos_synced.clone(),
                     logger.clone(),
                 )),
                 // As a companion to the account syncing, start the webhook syncing
                 // if configured
                 if let Some(wh_config) = webhook_config {
-                    Some(WebhookThread::start(&wh_config.url, logger.clone()))
+                    Some(WebhookThread::start(
+                        wh_config.url.to_string(),
+                        num_txos_synced.clone(),
+                        logger.clone(),
+                    ))
                 } else {
                     None
                 },
@@ -145,6 +152,7 @@ impl<
             fog_resolver_factory,
             _sync_thread: sync_thread,
             _t3_sync_thread: t3_sync_thread,
+            _webhook_thread: webhook_thread,
             submit_node_offset: Arc::new(AtomicUsize::new(rng.next_u64() as usize)),
             offline,
             logger,

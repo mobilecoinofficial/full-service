@@ -8,7 +8,7 @@ mod e2e_webhook {
         json_rpc::v2::api::test_utils::{dispatch, setup},
         test_utils::MOB,
     };
-    use std::{thread, time::Duration};
+    use std::{ops::DerefMut, thread, time::Duration};
 
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
@@ -17,12 +17,15 @@ mod e2e_webhook {
 
     use crate::{
         config::WebhookConfig,
-        db::account::AccountID,
+        db::{
+            account::{AccountID, AccountModel},
+            models::Account,
+        },
         error::SyncError::Webhook,
         test_utils::{add_block_to_ledger_db, manually_sync_account},
         util::b58::b58_decode_public_address,
     };
-    use httpmock::{Method::GET, MockServer};
+    use httpmock::{Method::GET, Mock, MockServer};
     use rand::{rngs::StdRng, SeedableRng};
     use reqwest::{
         blocking::Client,
@@ -39,14 +42,13 @@ mod e2e_webhook {
         let mut server = MockServer::start();
         // Create a mock on the server.
         let hello_mock = server.mock(|when, then| {
-            when.method(GET)
-                .path("/received_txos")
-                .query_param("num_txos", "10");
+            when.method(GET).path("/received_txos");
+            // .query_param("num_txos", "10");
             then.status(200)
                 .header("content-type", "application/json")
                 .body(json!({"received": "10"}).to_string());
         });
-        let webhook_url = server.url("/received_txos?num_txos=10");
+        let webhook_url = server.url("/received_txos");
         let webhook_config = WebhookConfig {
             url: webhook_url.clone(),
         };
@@ -59,18 +61,18 @@ mod e2e_webhook {
         reqwest_json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         log::debug!(logger, "calling webhook");
 
+        // Sanity check: we can hit the webhook server with reqwest
         let response = reqwest_client
-            .get(webhook_url)
+            .get(format!("{webhook_url}?num_txos=0"))
             .send()
             .unwrap()
             .error_for_status()
             .unwrap();
         assert_eq!(response.status(), 200);
 
-        hello_mock.assert();
+        // hello_mock.assert();
         hello_mock.assert_hits(1);
 
-        assert!(false);
         // Add an account and force it to sync
         let body = json!({
             "jsonrpc": "2.0",
@@ -97,49 +99,27 @@ mod e2e_webhook {
             );
         }
 
-        // Before processing the blocks, the webhook has not been called
-        let payload = json!({"num_received_txos": 0});
-        let res = client
-            .post("/assert_state")
-            .header(ContentType::JSON)
-            .body(payload.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
+        // Wait for the account sync thread to finish syncing
+        let wallet_db = &db_ctx.get_db_instance(logger.clone());
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+        loop {
+            let account = Account::get(&AccountID(account_id.to_string()), conn).unwrap();
+            // log::debug!(
+            //     logger,
+            //     "next_block_index: {}, ledger blocks = {}",
+            //     account.next_block_index,
+            //     ledger_db.num_blocks().unwrap()
+            // );
+            if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
+                break;
+            }
+            // thread::sleep(Duration::from_millis(1000));
+        }
 
-        log::info!(logger, "about to manually sync account");
-        // During "sync_account_next_chunk" the webhook will be called
-        manually_sync_account(
-            &ledger_db,
-            &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
-            &logger,
-        );
         assert_eq!(ledger_db.num_blocks().unwrap(), 22);
-
-        // Fake call to sync
-        let payload = json!({"num_received_txos": 3});
-        let res = client
-            .post("/webhook")
-            .header(ContentType::JSON)
-            .body(payload.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-
-        let payload = json!({"num_received_txos": 3});
-        let res = client
-            .post("/assert_state")
-            .header(ContentType::JSON)
-            .body(payload.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
-
-        // Should fail
-        let payload = json!({"num_received_txos": 0});
-        let res = client
-            .post("/assert_state")
-            .header(ContentType::JSON)
-            .body(payload.to_string())
-            .dispatch();
-        assert_eq!(res.status(), Status::Ok);
+        log::debug!(logger, "webhook was called {} times", hello_mock.hits());
+        assert!(hello_mock.hits() >= 2); // One at the top, and at least one
+                                         // more during syncing
     }
 }
