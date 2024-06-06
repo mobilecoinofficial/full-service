@@ -30,6 +30,10 @@ use mc_transaction_core::{
 };
 use rayon::prelude::*;
 
+use reqwest::{
+    blocking::Client, // FIXME: if we don't want this to be blocking, we'll be awaiting futures
+    header::{HeaderMap, HeaderValue, CONTENT_TYPE},
+};
 use std::{
     convert::TryFrom,
     sync::{
@@ -52,7 +56,12 @@ pub struct SyncThread {
 }
 
 impl SyncThread {
-    pub fn start(ledger_db: LedgerDB, wallet_db: WalletDb, logger: Logger) -> Self {
+    pub fn start(
+        ledger_db: LedgerDB,
+        wallet_db: WalletDb,
+        webhook_url: &str,
+        logger: Logger,
+    ) -> Self {
         // Start the sync thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
@@ -136,7 +145,24 @@ pub fn sync_all_accounts(
 
             continue;
         }
-        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        let (num_received_txos, num_spent_txos) =
+            sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        if num_received_txos > 0 || num_spent_txos > 0 {
+            // call webhook
+            // FIXME move this somewhere and configured by config
+            // FIXME: should we be using rocket? or we've already got reqwest throughout
+            // anyway?
+            let client = Client::builder().gzip(true).use_rustls_tls().build()?;
+            let mut json_headers = HeaderMap::new();
+            json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+            let webhook_url = "/webhook";
+            let response = client
+                .get(webhook_url)
+                .headers(json_headers)
+                .send()?
+                .error_for_status()?;
+            assert_eq!(response.status(), 200);
+        }
     }
 
     Ok(())
@@ -147,7 +173,7 @@ pub fn sync_account_next_chunk(
     conn: Conn,
     account_id_hex: &str,
     logger: &Logger,
-) -> Result<(), SyncError> {
+) -> Result<(usize, usize), SyncError> {
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -186,11 +212,11 @@ pub fn sync_account_next_chunk(
 
         // If no blocks were found, exit.
         if end_block_index.is_none() {
-            return Ok(());
+            return Ok((0, 0));
         }
         let end_block_index = end_block_index.unwrap();
 
-        if account.view_only {
+        let (num_received_txos, num_spent_txos) = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
 
             // Attempt to decode each transaction as received by this account.
@@ -276,6 +302,7 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
+            (num_received_txos, num_spent_txos)
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -364,9 +391,10 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
+            (num_received_txos, num_spent_txos)
         };
 
-        Ok(())
+        Ok((num_received_txos, num_spent_txos))
     })
 }
 

@@ -40,6 +40,7 @@ use rocket::{
 use tempdir::TempDir;
 use url::Url;
 
+use serde_derive::Deserialize;
 use std::{
     convert::TryFrom,
     sync::{
@@ -56,6 +57,21 @@ pub fn get_free_port() -> u16 {
 
 pub struct TestWalletState {
     pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
+}
+
+// FIXME: this will live elsewhere in the code
+#[derive(Deserialize, Debug)]
+struct WebhookPayload {
+    // Define the expected fields in the webhook payload
+    field1: String,
+    field2: i32,
+}
+
+// Dummy webhook handler to verify we're sending the webhook
+#[get("/webhook", format = "json", data = "<payload>")]
+async fn handle_webhook(payload: Json<WebhookPayload>) -> Status {
+    println!("Received webhook: {:?}", payload);
+    Status::Ok
 }
 
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the
@@ -90,7 +106,7 @@ async fn test_wallet_api(
 
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket<Build> {
     rocket::custom(rocket_config)
-        .mount("/", routes![test_wallet_api])
+        .mount("/", routes![test_wallet_api, handle_webhook])
         .manage(state)
 }
 

@@ -98,6 +98,7 @@ impl<
             Some(SyncThread::start(
                 ledger_db.clone(),
                 wallet_db,
+                "/wallet", // FIXME
                 logger.clone(),
             ))
         } else {
