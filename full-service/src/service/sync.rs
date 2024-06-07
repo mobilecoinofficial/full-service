@@ -17,7 +17,7 @@ use crate::{
 use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
     logger::{log, Logger},
-    HashMap,
+    HashMap as MCHashMap,
 };
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -31,13 +31,14 @@ use mc_transaction_core::{
 use rayon::prelude::*;
 
 use std::{
+    collections::HashMap,
     convert::TryFrom,
     sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 const BLOCKS_CHUNK_SIZE: u64 = 1_000;
@@ -52,11 +53,17 @@ pub struct SyncThread {
 }
 
 impl SyncThread {
-    pub fn start(ledger_db: LedgerDB, wallet_db: WalletDb, logger: Logger) -> Self {
+    pub fn start(
+        ledger_db: LedgerDB,
+        wallet_db: WalletDb,
+        accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
+        logger: Logger,
+    ) -> Self {
         // Start the sync thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
+        let thread_accounts_with_deposits = accounts_with_deposits.clone();
 
         let join_handle = Some(
             thread::Builder::new()
@@ -73,14 +80,20 @@ impl SyncThread {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        match sync_all_accounts(&ledger_db, conn, &logger) {
+
+                        match sync_all_accounts(
+                            &ledger_db,
+                            conn,
+                            thread_accounts_with_deposits.clone(),
+                            &logger,
+                        ) {
                             Ok(()) => (),
                             Err(e) => log::error!(&logger, "Error during account sync:\n{:?}", e),
                         }
                         // This sleep is to allow other API calls that need access to the database a
                         // chance to execute, because the sync process requires a write lock on the
                         // database.
-                        thread::sleep(std::time::Duration::from_millis(10));
+                        thread::sleep(Duration::from_millis(10));
                     }
                     log::debug!(logger, "SyncThread stopped.");
                 })
@@ -110,6 +123,7 @@ impl Drop for SyncThread {
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
     conn: Conn,
+    accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
@@ -117,7 +131,8 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
     if num_blocks == 0 {
-        return Ok(());
+        return Ok(()); // FIXME: we want it to fire in this case with empty
+                       // accounts
     }
 
     // Go over our list of accounts and see which ones need to process more blocks.
@@ -130,13 +145,29 @@ pub fn sync_all_accounts(
         // If the account is currently resyncing, we need to set it to false
         // here.
         if account.next_block_index as u64 > num_blocks - 1 {
+            // For any account that we've found deposits, set the "fully-synced" flag
+            // to true, which will enable the webhook to fire for it. The WebhookThread
+            // will then clear that entry from the HashMap.
+            let mut account_set = accounts_with_deposits.lock().unwrap();
+            account_set
+                .entry(AccountID(account.id.clone()))
+                .and_modify(|v| *v = true);
+
             if account.resyncing {
                 account.update_resyncing(false, conn)?;
             }
 
             continue;
         }
-        sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        let found_txos = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        if found_txos > 0 && !account.resyncing {
+            // Start tracking the accounts with deposits, but do not fire the webhook
+            // until they are fully synced.
+            accounts_with_deposits
+                .lock()
+                .unwrap()
+                .insert(AccountID(account.id), false);
+        }
     }
 
     Ok(())
@@ -147,7 +178,7 @@ pub fn sync_account_next_chunk(
     conn: Conn,
     account_id_hex: &str,
     logger: &Logger,
-) -> Result<(), SyncError> {
+) -> Result<usize, SyncError> {
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -186,11 +217,11 @@ pub fn sync_account_next_chunk(
 
         // If no blocks were found, exit.
         if end_block_index.is_none() {
-            return Ok(());
+            return Ok(0);
         }
         let end_block_index = end_block_index.unwrap();
 
-        if account.view_only {
+        let num_received_txos = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
 
             // Attempt to decode each transaction as received by this account.
@@ -231,7 +262,7 @@ pub fn sync_account_next_chunk(
             }
 
             // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: HashMap<KeyImage, String> =
+            let unspent_key_images: MCHashMap<KeyImage, String> =
                 Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
             let spent_txos: Vec<(u64, String)> = key_images
                 .into_par_iter()
@@ -276,6 +307,7 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
+            num_received_txos
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
 
@@ -320,7 +352,7 @@ pub fn sync_account_next_chunk(
             }
 
             // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: HashMap<KeyImage, String> =
+            let unspent_key_images: MCHashMap<KeyImage, String> =
                 Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
             let spent_txos: Vec<(u64, String)> = key_images
                 .into_par_iter()
@@ -364,9 +396,10 @@ pub fn sync_account_next_chunk(
             num_spent_txos,
             unspent_key_images.len()
         );
+            num_received_txos
         };
 
-        Ok(())
+        Ok(num_received_txos)
     })
 }
 
@@ -489,7 +522,7 @@ mod tests {
             &mut rng,
         );
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
         let wallet_db = &service.wallet_db.as_ref().unwrap();
 
         // Import the account

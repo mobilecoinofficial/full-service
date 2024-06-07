@@ -122,6 +122,7 @@ pub fn create_test_setup(
         get_resolver_factory(rng).unwrap(),
         false,
         T3Config::default(),
+        None,
         logger,
     );
 

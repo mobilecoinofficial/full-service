@@ -29,9 +29,10 @@ use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
+use serde_derive::Serialize;
 use std::fmt;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub struct AccountID(pub String);
 
 impl From<&AccountKey> for AccountID {

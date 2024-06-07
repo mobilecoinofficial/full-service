@@ -1,5 +1,6 @@
 use crate::service::t3_sync::T3Config;
 // Copyright (c) 2020-2021 MobileCoin Inc.
+use crate::config::WebhookConfig;
 #[cfg(test)]
 use crate::{
     config::NetworkConfig,
@@ -650,16 +651,17 @@ pub fn get_resolver_factory(
 
 pub fn setup_wallet_service(
     ledger_db: LedgerDB,
+    webhook_config: Option<WebhookConfig>,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, false, false)
+    setup_wallet_service_impl(ledger_db, logger, false, false, webhook_config)
 }
 
 pub fn setup_wallet_service_offline(
     ledger_db: LedgerDB,
     logger: Logger,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
-    setup_wallet_service_impl(ledger_db, logger, true, false)
+    setup_wallet_service_impl(ledger_db, logger, true, false, None)
 }
 
 fn setup_wallet_service_impl(
@@ -667,6 +669,7 @@ fn setup_wallet_service_impl(
     logger: Logger,
     offline: bool,
     no_wallet_db: bool,
+    webhook_config: Option<WebhookConfig>,
 ) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -695,6 +698,7 @@ fn setup_wallet_service_impl(
         get_resolver_factory(&mut rng).unwrap(),
         offline,
         T3Config::default(),
+        webhook_config,
         logger,
     )
 }

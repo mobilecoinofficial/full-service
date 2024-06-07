@@ -583,7 +583,7 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
-    use std::ops::DerefMut;
+    use std::{collections::HashMap, ops::DerefMut, sync::Mutex};
 
     use super::*;
     use crate::{
@@ -608,7 +608,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -666,7 +671,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 25, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         // Give ourselves enough MOB that we have more than u64::MAX, 18_446_745 MOB
         // This is 55_000_000 * MOB
@@ -774,7 +784,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -871,7 +886,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -971,7 +991,12 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         // These are values close to u64::MAX, but easier to work with and test (quick
         // maths)
@@ -1042,7 +1067,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1120,7 +1150,12 @@ mod tests {
         let conn = pooled_conn.deref_mut();
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1209,7 +1244,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1312,7 +1352,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1368,7 +1413,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1435,7 +1485,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,

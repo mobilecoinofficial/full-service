@@ -753,7 +753,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -925,7 +925,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -1169,7 +1169,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -1232,7 +1232,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -1344,7 +1344,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -1534,7 +1534,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
 
         // Create our main account for the wallet
         let alice = service
@@ -1754,7 +1754,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db.clone(), logger.clone());
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
         let mut pooled_conn = service.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 

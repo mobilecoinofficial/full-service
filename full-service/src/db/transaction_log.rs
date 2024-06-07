@@ -849,7 +849,11 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
-    use std::ops::DerefMut;
+    use std::{
+        collections::HashMap,
+        ops::DerefMut,
+        sync::{Arc, Mutex},
+    };
 
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
@@ -892,7 +896,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1075,7 +1084,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1166,7 +1180,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1275,7 +1294,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1350,7 +1374,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1582,7 +1611,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,
@@ -1813,7 +1847,12 @@ mod tests {
         let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
         // Start sync thread
-        let _sync_thread = SyncThread::start(ledger_db.clone(), wallet_db.clone(), logger.clone());
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
 
         let account_key = random_account_with_seed_values(
             &wallet_db,

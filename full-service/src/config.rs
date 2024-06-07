@@ -20,6 +20,7 @@ use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
 use clap::Parser;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
@@ -89,6 +90,33 @@ pub struct APIConfig {
     /// T3 Server to connect to and the api key to use for authorization.
     #[clap(flatten)]
     pub t3_sync_config: T3Config,
+
+    /// Webhook configuration to notify an external server listening for
+    /// deposit notifications.
+    ///
+    /// The format of the webhook is a POST request with the following query
+    /// parameters:
+    ///
+    /// POST /webhook -H "Content-Type: application/json" \
+    ///     -d '{"accounts": [A,B,C], "restart": false}'
+    ///
+    /// The first time full-service is caught up with the network ledger,
+    /// it will send a webhook with {"restart": true, "accounts": [A,]}
+    /// where "accounts" may be empty.
+    ///
+    /// Where the num_txos provided indicate how many txos were received
+    /// in the last scan period for any account in the wallet.
+    ///
+    /// The expected action to take in response to the webhook is to call
+    /// the `get_txos` API endpoint for the given accounts to retrieve more
+    /// details about the TXOs received.
+    ///
+    /// We expect a 200 response code to indicate that the webhook was
+    /// received, and we do not further inspect the response body. Even if
+    /// not a 200 response, we will continue to attempt to reach the webhook
+    /// on subsequent deposits.
+    #[clap(long, value_parser = Url::parse, env = "MC_DEPOSITS_WEBHOOK_URL")]
+    pub deposits_webhook_url: Option<Url>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -391,4 +419,11 @@ impl LedgerDbConfig {
 
         ledger_db
     }
+}
+
+/// The Webhook Setup object.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WebhookConfig {
+    pub url: Url,
+    pub poll_interval: Duration,
 }

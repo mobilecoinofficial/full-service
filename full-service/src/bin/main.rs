@@ -14,7 +14,7 @@ use mc_consensus_scp::QuorumSet;
 use mc_fog_report_resolver::FogResolver;
 use mc_full_service::{
     check_host,
-    config::{APIConfig, NetworkConfig},
+    config::{APIConfig, NetworkConfig, WebhookConfig},
     wallet::{consensus_backed_rocket, validator_backed_rocket, APIKeyState, WalletState},
     ValidatorLedgerSyncThread, WalletDb, WalletService,
 };
@@ -117,6 +117,11 @@ fn rocket() -> Rocket<Build> {
         tx_sources,
     };
 
+    let webhook_config = config.deposits_webhook_url.clone().map(|wu| WebhookConfig {
+        url: wu,
+        poll_interval: config.poll_interval.clone(),
+    });
+
     let rocket = if let Some(validator_uri) = config.validator.as_ref() {
         validator_backed_full_service(
             validator_uri,
@@ -124,10 +129,18 @@ fn rocket() -> Rocket<Build> {
             network_config,
             wallet_db,
             rocket_config,
+            webhook_config,
             logger,
         )
     } else {
-        consensus_backed_full_service(&config, network_config, wallet_db, rocket_config, logger)
+        consensus_backed_full_service(
+            &config,
+            network_config,
+            wallet_db,
+            rocket_config,
+            webhook_config,
+            logger,
+        )
     };
 
     let api_key = env::var("MC_API_KEY").unwrap_or_default();
@@ -139,6 +152,7 @@ fn consensus_backed_full_service(
     network_config: NetworkConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
+    webhook_config: Option<WebhookConfig>,
     logger: Logger,
 ) -> Rocket<Build> {
     // Create enclave trusted identity.
@@ -245,6 +259,7 @@ fn consensus_backed_full_service(
         config.get_fog_resolver_factory(logger.clone()),
         config.offline,
         config.t3_sync_config.clone(),
+        webhook_config,
         logger,
     );
 
@@ -260,6 +275,7 @@ fn validator_backed_full_service(
     network_config: NetworkConfig,
     wallet_db: Option<WalletDb>,
     rocket_config: rocket::Config,
+    webhook_config: Option<WebhookConfig>,
     logger: Logger,
 ) -> Rocket<Build> {
     if config.watcher_db.is_some() {
@@ -342,6 +358,7 @@ fn validator_backed_full_service(
         }),
         false,
         config.t3_sync_config.clone(),
+        webhook_config,
         logger,
     );
 

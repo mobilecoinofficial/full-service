@@ -214,7 +214,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = setup_wallet_service(ledger_db, logger);
+        let service = setup_wallet_service(ledger_db, None, logger);
         let pooled_conn = &mut service.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
@@ -241,7 +241,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
 
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
-        let service = setup_wallet_service(ledger_db, logger);
+        let service = setup_wallet_service(ledger_db, None, logger);
         let pooled_conn = &mut service.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
@@ -279,7 +279,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db, logger);
+        let service = setup_wallet_service(ledger_db, None, logger);
 
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(rng.next_u64());
@@ -297,7 +297,7 @@ mod tests {
         let known_recipients: Vec<PublicAddress> = Vec::new();
         let ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
 
-        let service = setup_wallet_service(ledger_db, logger);
+        let service = setup_wallet_service(ledger_db, None, logger);
 
         // Empty string should fail
         let public_address_b58 = "";
