@@ -94,11 +94,11 @@ pub struct APIConfig {
     /// Webhook configuration to notify an external server listening for
     /// deposit notifications.
     ///
-    /// The format of the webhook is a GET request with the following query
+    /// The format of the webhook is a POST request with the following query
     /// parameters:
     ///
-    /// POST /webhook HTTP/1.1 json/headers -d {"accounts": [A,B,C], "restart":
-    /// false} // FIXME
+    /// POST /webhook -H "Content-Type: application/json" \
+    ///     -d '{"accounts": [A,B,C], "restart": false}'
     ///
     /// The first time full-service is caught up with the network ledger,
     /// it will send a webhook with {"restart": true, "accounts": [A,]}
@@ -112,7 +112,9 @@ pub struct APIConfig {
     /// details about the TXOs received.
     ///
     /// We expect a 200 response code to indicate that the webhook was
-    /// received, and does not do further inspection of the response body.
+    /// received, and we do not further inspect the response body. Even if
+    /// not a 200 response, we will continue to attempt to reach the webhook
+    /// on subsequent deposits.
     #[clap(long, value_parser = Url::parse, env = "MC_DEPOSITS_WEBHOOK_URL")]
     pub deposits_webhook_url: Option<Url>,
 }

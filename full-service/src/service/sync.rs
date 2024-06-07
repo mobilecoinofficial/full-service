@@ -210,7 +210,7 @@ impl SyncThread {
                             log::debug!(logger, "SyncThread stop requested.");
                             break;
                         }
-                        // FIXME: is this a problem that we're cloning per loop?
+
                         match sync_all_accounts(
                             &ledger_db,
                             conn,
@@ -223,7 +223,7 @@ impl SyncThread {
                         // This sleep is to allow other API calls that need access to the database a
                         // chance to execute, because the sync process requires a write lock on the
                         // database.
-                        thread::sleep(std::time::Duration::from_millis(10));
+                        thread::sleep(Duration::from_millis(10));
                     }
                     log::debug!(logger, "SyncThread stopped.");
                 })
@@ -275,24 +275,13 @@ pub fn sync_all_accounts(
         // If the account is currently resyncing, we need to set it to false
         // here.
         if account.next_block_index as u64 > num_blocks - 1 {
-            log::debug!(logger, "@@@ WE MADE IT TO THE END WE ARE FULLY SYNCED and accounts with new deposits = {:?}", accounts_with_deposits);
-
-            // set list of accounts of deposits to be null
-            // if it comes back with more than one, add the account to the list
-            // then give the list of accounts in the webhook
-            log::debug!(
-                logger,
-                "Setting accounts with deposits to {:?}",
-                accounts_with_deposits
-            );
+            // For any account that we've found deposits, set the "fully-synced" flag
+            // to true, which will enable the webhook to fire for it. The WebhookThread
+            // will then clear that entry from the HashMap.
             let mut account_set = accounts_with_deposits.lock().unwrap();
             account_set
                 .entry(AccountID(account.id.clone()))
                 .and_modify(|v| *v = true);
-            // Note, we do not clear the accounts_with_deposit variable
-            // here, because we want to ensure the webhook
-            // fires with the right data, and only the
-            // webhook thread can clear it.
 
             if account.resyncing {
                 account.update_resyncing(false, conn)?;
@@ -300,21 +289,14 @@ pub fn sync_all_accounts(
 
             continue;
         }
-        // FIXME: we don't want to fire this off during resyncing - you could just fire
-        // when caught up [when getting to the end fo the blockchain, fire, but not if
-        // not caught up]
         let found_txos = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
         if found_txos > 0 {
-            log::debug!(logger, "Found some txos!");
+            // Start tracking the accounts with deposits, but do not fire the webhook
+            // until they are fully synced.
             accounts_with_deposits
                 .lock()
                 .unwrap()
                 .insert(AccountID(account.id), false);
-            log::debug!(
-                logger,
-                "\t \t NOW ACCOUNTS WITH NEW DEPOSITS = {:?}",
-                accounts_with_deposits
-            );
         }
     }
 
