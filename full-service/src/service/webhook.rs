@@ -5,10 +5,10 @@
 use crate::db::account::AccountID;
 use mc_common::logger::{log, Logger};
 
+use crate::config::WebhookConfig;
 use reqwest::{
     blocking::Client,
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
-    Url,
 };
 use serde_json::json;
 use std::{
@@ -18,7 +18,6 @@ use std::{
         Arc, Mutex,
     },
     thread,
-    time::Duration,
 };
 
 pub struct WebhookThread {
@@ -31,7 +30,7 @@ pub struct WebhookThread {
 
 impl WebhookThread {
     pub fn start(
-        server_url: Url,
+        webhook_config: WebhookConfig,
         accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
         restart: Arc<Mutex<AtomicBool>>,
         logger: Logger,
@@ -86,11 +85,10 @@ impl WebhookThread {
                         let restart_to_send = restart.lock().unwrap().load(Ordering::Relaxed);
 
                         if accounts_to_send.len() > 0 {
-                            log::debug!(logger, "@@@@ ABOUT TO SEND THE WEBHOOK");
                             // Question: will this keep the connection open? Or will it
                             // close the connection after this request?
                             match client
-                                .post(server_url.clone())
+                                .post(webhook_config.url.clone())
                                 .body(
                                     json!(
                                         {
@@ -117,9 +115,8 @@ impl WebhookThread {
                                 }
                             }
                         }
-                        // FIXME: this duration should be as often as we are polling
                         // for new blocks from consensus
-                        thread::sleep(Duration::from_millis(10));
+                        thread::sleep(webhook_config.poll_interval);
                     }
                 })
                 .expect("failed starting webhook thread"),

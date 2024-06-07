@@ -117,10 +117,10 @@ fn rocket() -> Rocket<Build> {
         tx_sources,
     };
 
-    let webhook_config = config
-        .deposits_webhook_url
-        .clone()
-        .map(|wu| WebhookConfig { url: wu });
+    let webhook_config = config.deposits_webhook_url.clone().map(|wu| WebhookConfig {
+        url: wu,
+        poll_interval: config.poll_interval.clone(),
+    });
 
     let rocket = if let Some(validator_uri) = config.validator.as_ref() {
         validator_backed_full_service(

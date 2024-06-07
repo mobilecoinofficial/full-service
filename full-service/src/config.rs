@@ -425,4 +425,5 @@ impl LedgerDbConfig {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WebhookConfig {
     pub url: Url,
+    pub poll_interval: Duration,
 }

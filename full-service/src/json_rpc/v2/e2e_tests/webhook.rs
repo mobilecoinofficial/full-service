@@ -56,6 +56,7 @@ mod e2e_webhook {
         let webhook_url = Url::parse(&server.url("/received_txos")).unwrap();
         let webhook_config = WebhookConfig {
             url: webhook_url.clone(),
+            poll_interval: Duration::from_millis(10),
         };
 
         let (client, mut ledger_db, db_ctx, _network_state) =

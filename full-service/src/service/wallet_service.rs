@@ -122,7 +122,7 @@ impl<
                 // if configured
                 if let Some(wh_config) = webhook_config {
                     Some(WebhookThread::start(
-                        wh_config.url,
+                        wh_config,
                         accounts_with_deposits.clone(),
                         restart.clone(),
                         logger.clone(),
