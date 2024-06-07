@@ -6,8 +6,9 @@ use crate::{
     config::{NetworkConfig, WebhookConfig},
     db::{account::AccountID, WalletDb, WalletDbError},
     service::{
-        sync::{SyncThread, WebhookThread},
+        sync::SyncThread,
         t3_sync::{T3Config, T3SyncThread},
+        webhook::WebhookThread,
     },
 };
 use diesel::{

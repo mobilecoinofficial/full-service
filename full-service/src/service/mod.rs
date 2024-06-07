@@ -23,5 +23,6 @@ pub mod txo;
 pub mod watcher;
 
 mod wallet_service;
+mod webhook;
 
 pub use wallet_service::WalletService;
