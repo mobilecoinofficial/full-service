@@ -114,10 +114,10 @@ mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", featu
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils" }
 
 bs58 = "0.5.0"
+httpmock = "0.7.0"
 tempdir = "0.3"
 tokio = "1.27"
 url = "2.3"
-httpmock = "0.7.0"
 
 [build-dependencies]
 anyhow = "1.0"
