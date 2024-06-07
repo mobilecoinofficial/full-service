@@ -34,7 +34,6 @@ mod e2e_webhook {
 
         // The mock webhook server is listening for which accounts received txos
         let server = MockServer::start();
-        // Create a mock on the server.
         let mut sanity_webhook_mock = server.mock(|when, then| {
             when.method(POST)
                 .path("/received_txos")
@@ -45,8 +44,7 @@ mod e2e_webhook {
                     }
                 ).to_string());
             then.status(200)
-                .header("content-type", "application/json")
-                .body(json!({"received": true}).to_string()); // FIXME: we don't really care about the response body
+                .body("");
         });
         let webhook_url = Url::parse(&server.url("/received_txos")).unwrap();
         let webhook_config = WebhookConfig {
@@ -56,13 +54,10 @@ mod e2e_webhook {
 
         let (client, mut ledger_db, db_ctx, _network_state) =
             setup_with_webhook(&mut rng, webhook_config, logger.clone());
-        // NOTE: the webhook should fire on startup as soon as it is caught up, before
-        // any accounts are added // FIXME
 
         let reqwest_client = Client::builder().build().unwrap();
         let mut reqwest_json_headers = HeaderMap::new();
         reqwest_json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        log::debug!(logger, "calling webhook sanity check");
 
         // Sanity check: we can hit the webhook server with reqwest
         let response = reqwest_client
@@ -82,7 +77,7 @@ mod e2e_webhook {
         sanity_webhook_mock.assert_hits(1);
         sanity_webhook_mock.delete();
 
-        // Add an account and force it to sync
+        // Add an account and let the sync and webhook threads launch & run
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -98,6 +93,8 @@ mod e2e_webhook {
             b58_decode_public_address(account_obj.get("main_address").unwrap().as_str().unwrap())
                 .unwrap();
 
+        // Set up the server for webhooks that will fire when the account is done
+        // syncing
         let webhook_mock =
             server.mock(|when, then| {
                 when.method(POST).path("/received_txos").body(
@@ -114,6 +111,8 @@ mod e2e_webhook {
                     .body(json!({"received": true}).to_string()); // FIXME: we don't really care about the response body
             });
 
+        // Add blocks for this account - the syncing thread will automatically be
+        // running as these blocks are added
         for i in 0..10 {
             add_block_to_ledger_db(
                 &mut ledger_db,
@@ -141,12 +140,8 @@ mod e2e_webhook {
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 22);
         log::debug!(logger, "webhook was called {} times", webhook_mock.hits());
-        assert!(webhook_mock.hits() >= 1); // Should call at least once during
-                                           // syncing
-
-        // TODO: Would be great to validate how many txos had been flagged, but
-        // it's ok that this is relatively lossy in this test, because
-        // what we care about is that the webhook _is_ getting called
-        // when there are new txos
+        // Should call the webhook at least once during syncing - depends on
+        // the race between the sync thread and the ledger adding blocks
+        assert!(webhook_mock.hits() >= 1);
     }
 }
