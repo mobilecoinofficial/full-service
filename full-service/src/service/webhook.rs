@@ -32,7 +32,6 @@ impl WebhookThread {
     pub fn start(
         webhook_config: WebhookConfig,
         accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
-        restart: Arc<Mutex<AtomicBool>>,
         logger: Logger,
     ) -> Self {
         // Start the webhook thread.
@@ -81,9 +80,6 @@ impl WebhookThread {
                             accounts_with_deposits.lock().unwrap().remove(&key);
                         }
 
-                        // Only read restart, do not set
-                        let restart_to_send = restart.lock().unwrap().load(Ordering::Relaxed);
-
                         if accounts_to_send.len() > 0 {
                             // Question: will this keep the connection open? Or will it
                             // close the connection after this request?
@@ -93,7 +89,6 @@ impl WebhookThread {
                                     json!(
                                         {
                                             "accounts": accounts_to_send,
-                                            "restart": restart_to_send,
                                         }
                                     )
                                     .to_string(),

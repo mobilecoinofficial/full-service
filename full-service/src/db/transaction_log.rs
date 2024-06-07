@@ -852,7 +852,7 @@ mod tests {
     use std::{
         collections::HashMap,
         ops::DerefMut,
-        sync::{atomic::AtomicBool, Arc, Mutex},
+        sync::{Arc, Mutex},
     };
 
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
@@ -900,7 +900,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1089,7 +1088,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1186,7 +1184,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1301,7 +1298,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1382,7 +1378,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1620,7 +1615,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1857,7 +1851,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 

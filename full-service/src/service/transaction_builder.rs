@@ -583,11 +583,7 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashMap,
-        ops::DerefMut,
-        sync::{atomic::AtomicBool, Mutex},
-    };
+    use std::{collections::HashMap, ops::DerefMut, sync::Mutex};
 
     use super::*;
     use crate::{
@@ -616,7 +612,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -680,7 +675,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -794,7 +788,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -897,7 +890,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1003,7 +995,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1080,7 +1071,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1164,7 +1154,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1259,7 +1248,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1368,7 +1356,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1430,7 +1417,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1503,7 +1489,6 @@ mod tests {
             ledger_db.clone(),
             wallet_db.clone(),
             Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
-            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 

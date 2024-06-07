@@ -57,7 +57,6 @@ impl SyncThread {
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
         accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
-        _restart: Arc<Mutex<AtomicBool>>, // FIXME: when does this get set and by what?
         logger: Logger,
     ) -> Self {
         // Start the sync thread.
@@ -161,7 +160,7 @@ pub fn sync_all_accounts(
             continue;
         }
         let found_txos = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
-        if found_txos > 0 {
+        if found_txos > 0 && !account.resyncing {
             // Start tracking the accounts with deposits, but do not fire the webhook
             // until they are fully synced.
             accounts_with_deposits

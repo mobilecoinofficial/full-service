@@ -27,10 +27,7 @@ use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
 use std::{
     collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize},
-        Arc, Mutex, RwLock,
-    },
+    sync::{atomic::AtomicUsize, Arc, Mutex, RwLock},
 };
 
 /// Service for interacting with the wallet
@@ -108,14 +105,12 @@ impl<
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
 
             let accounts_with_deposits = Arc::new(Mutex::new(HashMap::<AccountID, bool>::new()));
-            let restart = Arc::new(Mutex::new(AtomicBool::new(false)));
 
             (
                 Some(SyncThread::start(
                     ledger_db.clone(),
                     wallet_db,
                     accounts_with_deposits.clone(),
-                    restart.clone(),
                     logger.clone(),
                 )),
                 // As a companion to the account syncing, start the webhook syncing
@@ -124,7 +119,6 @@ impl<
                     Some(WebhookThread::start(
                         wh_config,
                         accounts_with_deposits.clone(),
-                        restart.clone(),
                         logger.clone(),
                     ))
                 } else {

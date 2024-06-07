@@ -100,8 +100,7 @@ mod e2e_webhook {
                 when.method(POST).path("/received_txos").body(
                     json!(
                         {
-                            "accounts": [account_id],
-                            "restart": false
+                            "accounts": [account_id]
                         }
                     )
                     .to_string(),
