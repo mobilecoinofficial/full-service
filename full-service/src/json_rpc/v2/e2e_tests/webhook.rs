@@ -29,6 +29,7 @@ mod e2e_webhook {
     use reqwest::{
         blocking::Client,
         header::{HeaderMap, HeaderValue, CONTENT_TYPE},
+        Url,
     };
     use serde_json::json;
 
@@ -46,7 +47,7 @@ mod e2e_webhook {
                 .header("content-type", "application/json")
                 .body(json!({"received": "10"}).to_string());
         });
-        let webhook_url = server.url("/received_txos");
+        let mut webhook_url = Url::parse(&server.url("/received_txos")).unwrap();
         let webhook_config = WebhookConfig {
             url: webhook_url.clone(),
         };
@@ -60,8 +61,9 @@ mod e2e_webhook {
         log::debug!(logger, "calling webhook");
 
         // Sanity check: we can hit the webhook server with reqwest
+        webhook_url.set_query(Some("num_txos=0"));
         let response = reqwest_client
-            .get(format!("{webhook_url}?num_txos=0"))
+            .get(webhook_url)
             .send()
             .unwrap()
             .error_for_status()

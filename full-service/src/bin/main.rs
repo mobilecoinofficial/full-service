@@ -118,7 +118,7 @@ fn rocket() -> Rocket<Build> {
     };
 
     let webhook_config = config
-        .account_sync_webhook_url
+        .deposits_webhook_url
         .clone()
         .map(|wu| WebhookConfig { url: wu });
 

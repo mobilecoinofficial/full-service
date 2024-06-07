@@ -20,6 +20,7 @@ use mc_util_uri::{ConnectionUri, ConsensusClientUri, FogUri};
 use mc_validator_api::ValidatorUri;
 
 use clap::Parser;
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
@@ -90,9 +91,25 @@ pub struct APIConfig {
     #[clap(flatten)]
     pub t3_sync_config: T3Config,
 
-    /// Webhook configuration.
-    #[clap(long, env = "ACCOUNT_SYNC_WEBHOOK_URL")]
-    pub account_sync_webhook_url: Option<String>, // FIXME: URL
+    /// Webhook configuration to notify an external server listening for
+    /// deposit notifications.
+    ///
+    /// The format of the webhook is a GET request with the following query
+    /// parameters:
+    ///
+    /// GET /webhook?num_txos=10
+    ///
+    /// Where the num_txos provided indicate how many txos were received
+    /// in the last scan period for any account in the wallet.
+    ///
+    /// The expected action to take in response to the webhook is to call
+    /// the `get_txos` API endpoint to retrieve more details about these
+    /// TXOs.
+    ///
+    /// We expect a 200 response code to indicate that the webhook was
+    /// received, and does not do further inspection of the response body.
+    #[clap(long, value_parser = Url::parse, env = "MC_DEPOSITS_WEBHOOK_URL")]
+    pub deposits_webhook_url: Option<Url>,
 }
 
 fn parse_quorum_set_from_json(src: &str) -> Result<QuorumSet<ResponderId>, String> {
@@ -398,7 +415,7 @@ impl LedgerDbConfig {
 }
 
 /// The Webhook Setup object.
-#[derive(Default, Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct WebhookConfig {
-    pub url: String, // FIXME: URL
+    pub url: Url,
 }
