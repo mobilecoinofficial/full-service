@@ -83,43 +83,32 @@ impl WebhookThread {
 
                     let client = Client::builder()
                         .build()
-                        .expect("failed building reqwest client");
+                        .expect("Failed creating reqwest client");
                     let mut json_headers = HeaderMap::new();
                     json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-                    log::debug!(logger, "starting webhook thread for {:?}", server_url);
 
                     loop {
-                        log::debug!(logger, "WebhookThread loop start");
-
                         if thread_stop_requested.load(Ordering::SeqCst) {
                             log::debug!(logger, "WebhookThread stop requested.");
                             break;
                         }
-                        log::debug!(logger, "WebhookThread stop not requested.");
-
                         let num_txos_to_send = thread_num_txos_synced
                             .lock()
                             .unwrap()
                             .swap(0, Ordering::Relaxed);
-                        log::debug!(
-                            logger,
-                            "checked num_txos_to_send atomicusize = {:?}",
-                            num_txos_to_send
-                        );
 
                         if num_txos_to_send > 0 {
                             let get_url = format!("{server_url}?num_txos={num_txos_to_send}");
-                            log::debug!(logger, "now sending webhook request to {:?}", get_url);
 
                             let response = client
                                 .get(get_url)
                                 .send()
-                                .expect("failed sending webhook request")
+                                .expect("Failed sending webhook request")
                                 .error_for_status()
-                                .expect("failed getting webhook response");
-                            assert_eq!(response.status(), 200); // FIXME
-                                                                // proper error
-                                                                // handling
+                                .expect("Failed getting webhook response");
+                            assert_eq!(response.status(), 200); // FIXME: how to
+                                                                // handle non-200?
+                                                                //
                         }
                         // This sleep is to allow other API calls that need access to the database a
                         // chance to execute, because the sync process requires a write lock on the
