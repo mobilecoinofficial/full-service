@@ -4,7 +4,7 @@
 
 use crate::{
     config::{NetworkConfig, WebhookConfig},
-    db::{WalletDb, WalletDbError},
+    db::{account::AccountID, WalletDb, WalletDbError},
     service::{
         sync::{SyncThread, WebhookThread},
         t3_sync::{T3Config, T3SyncThread},
@@ -24,7 +24,13 @@ use mc_ledger_sync::PollingNetworkState;
 use mc_rand::rand_core::RngCore;
 use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
-use std::sync::{atomic::AtomicUsize, Arc, Mutex, RwLock};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, AtomicUsize},
+        Arc, Mutex, RwLock,
+    },
+};
 
 /// Service for interacting with the wallet
 ///
@@ -100,21 +106,24 @@ impl<
         let (sync_thread, webhook_thread) = if let Some(wallet_db) = wallet_db.clone() {
             log::info!(logger, "Starting Wallet TXO Sync Task Thread");
 
-            let num_txos_synced = Arc::new(Mutex::new(AtomicUsize::new(0)));
+            let accounts_with_deposits = Arc::new(Mutex::new(HashMap::<AccountID, bool>::new()));
+            let restart = Arc::new(Mutex::new(AtomicBool::new(false)));
 
             (
                 Some(SyncThread::start(
                     ledger_db.clone(),
                     wallet_db,
-                    num_txos_synced.clone(),
+                    accounts_with_deposits.clone(),
+                    restart.clone(),
                     logger.clone(),
                 )),
                 // As a companion to the account syncing, start the webhook syncing
                 // if configured
                 if let Some(wh_config) = webhook_config {
                     Some(WebhookThread::start(
-                        wh_config.url.to_string(),
-                        num_txos_synced.clone(),
+                        wh_config.url,
+                        accounts_with_deposits.clone(),
+                        restart.clone(),
                         logger.clone(),
                     ))
                 } else {

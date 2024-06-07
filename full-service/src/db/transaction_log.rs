@@ -850,8 +850,9 @@ impl TransactionLogModel for TransactionLog {
 #[cfg(test)]
 mod tests {
     use std::{
+        collections::HashMap,
         ops::DerefMut,
-        sync::{atomic::AtomicUsize, Arc, Mutex},
+        sync::{atomic::AtomicBool, Arc, Mutex},
     };
 
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
@@ -898,7 +899,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1086,7 +1088,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1182,7 +1185,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1296,7 +1300,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1376,7 +1381,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1613,7 +1619,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 
@@ -1849,7 +1856,8 @@ mod tests {
         let _sync_thread = SyncThread::start(
             ledger_db.clone(),
             wallet_db.clone(),
-            Arc::new(Mutex::new(AtomicUsize::new(0))),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            Arc::new(Mutex::new(AtomicBool::new(false))),
             logger.clone(),
         );
 

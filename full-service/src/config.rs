@@ -97,14 +97,19 @@ pub struct APIConfig {
     /// The format of the webhook is a GET request with the following query
     /// parameters:
     ///
-    /// GET /webhook?num_txos=10
+    /// POST /webhook HTTP/1.1 json/headers -d {"accounts": [A,B,C], "restart":
+    /// false} // FIXME
+    ///
+    /// The first time full-service is caught up with the network ledger,
+    /// it will send a webhook with {"restart": true, "accounts": [A,]}
+    /// where "accounts" may be empty.
     ///
     /// Where the num_txos provided indicate how many txos were received
     /// in the last scan period for any account in the wallet.
     ///
     /// The expected action to take in response to the webhook is to call
-    /// the `get_txos` API endpoint to retrieve more details about these
-    /// TXOs.
+    /// the `get_txos` API endpoint for the given accounts to retrieve more
+    /// details about the TXOs received.
     ///
     /// We expect a 200 response code to indicate that the webhook was
     /// received, and does not do further inspection of the response body.

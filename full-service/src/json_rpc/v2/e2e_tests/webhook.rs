@@ -8,7 +8,7 @@ mod e2e_webhook {
         json_rpc::v2::api::test_utils::{dispatch, setup},
         test_utils::MOB,
     };
-    use std::ops::DerefMut;
+    use std::{ops::DerefMut, thread, time::Duration};
 
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
@@ -24,7 +24,7 @@ mod e2e_webhook {
         test_utils::add_block_to_ledger_db,
         util::b58::b58_decode_public_address,
     };
-    use httpmock::{Method::GET, MockServer};
+    use httpmock::{Method::POST, MockServer};
     use rand::{rngs::StdRng, SeedableRng};
     use reqwest::{
         blocking::Client,
@@ -37,41 +37,54 @@ mod e2e_webhook {
     fn test_webhook(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
-        // The mock webhook server is listening for how many txos were received
+        // The mock webhook server is listening for which accounts received txos
         let server = MockServer::start();
         // Create a mock on the server.
-        let hello_mock = server.mock(|when, then| {
-            when.method(GET).path("/received_txos");
-            // .query_param("num_txos", "10");
+        let mut sanity_webhook_mock = server.mock(|when, then| {
+            when.method(POST)
+                .path("/received_txos")
+                .body(json!(
+                    {
+                        "accounts": ["6c683070306016817d5fc963b5d3f794eb8c120428fb14c0ff33ed39ce9bd062"],
+                        "restart": false
+                    }
+                ).to_string());
             then.status(200)
                 .header("content-type", "application/json")
-                .body(json!({"received": "10"}).to_string());
+                .body(json!({"received": true}).to_string()); // FIXME: we don't really care about the response body
         });
-        let mut webhook_url = Url::parse(&server.url("/received_txos")).unwrap();
+        let webhook_url = Url::parse(&server.url("/received_txos")).unwrap();
         let webhook_config = WebhookConfig {
             url: webhook_url.clone(),
         };
 
         let (client, mut ledger_db, db_ctx, _network_state) =
             setup(&mut rng, Some(webhook_config), logger.clone());
+        // NOTE: the webhook should fire on startup as soon as it is caught up, before
+        // any accounts are added // FIXME
 
         let reqwest_client = Client::builder().build().unwrap();
         let mut reqwest_json_headers = HeaderMap::new();
         reqwest_json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        log::debug!(logger, "calling webhook");
+        log::debug!(logger, "calling webhook sanity check");
 
         // Sanity check: we can hit the webhook server with reqwest
-        webhook_url.set_query(Some("num_txos=0"));
         let response = reqwest_client
-            .get(webhook_url)
+            .post(webhook_url)
+            .body(json!(
+                {
+                    "accounts": ["6c683070306016817d5fc963b5d3f794eb8c120428fb14c0ff33ed39ce9bd062"],
+                    "restart": false
+                }
+            ).to_string())
             .send()
             .unwrap()
             .error_for_status()
             .unwrap();
         assert_eq!(response.status(), 200);
-
-        // hello_mock.assert();
-        hello_mock.assert_hits(1);
+        sanity_webhook_mock.assert(); // assert exact contents of the "when" above
+        sanity_webhook_mock.assert_hits(1);
+        sanity_webhook_mock.delete();
 
         // Add an account and force it to sync
         let body = json!({
@@ -88,6 +101,22 @@ mod e2e_webhook {
         let public_address =
             b58_decode_public_address(account_obj.get("main_address").unwrap().as_str().unwrap())
                 .unwrap();
+
+        let webhook_mock =
+            server.mock(|when, then| {
+                when.method(POST).path("/received_txos").body(
+                    json!(
+                        {
+                            "accounts": [account_id],
+                            "restart": false
+                        }
+                    )
+                    .to_string(),
+                );
+                then.status(200)
+                    .header("content-type", "application/json")
+                    .body(json!({"received": true}).to_string()); // FIXME: we don't really care about the response body
+            });
 
         for i in 0..10 {
             add_block_to_ledger_db(
@@ -106,14 +135,18 @@ mod e2e_webhook {
         loop {
             let account = Account::get(&AccountID(account_id.to_string()), conn).unwrap();
             if account.next_block_index as u64 >= ledger_db.num_blocks().unwrap() {
+                // We have to give the account sync thread a chance to set
+                // the shared accounts_with_deposits, and then the webhook thread
+                // the chance to fire the webhook
+                thread::sleep(Duration::from_millis(100));
                 break;
             }
         }
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 22);
-        log::debug!(logger, "webhook was called {} times", hello_mock.hits());
-        assert!(hello_mock.hits() >= 2); // One at the top, and at least one
-                                         // more during syncing
+        log::debug!(logger, "webhook was called {} times", webhook_mock.hits());
+        assert!(webhook_mock.hits() >= 1); // Should call at least once during
+                                           // syncing
 
         // TODO: Would be great to validate how many txos had been flagged, but
         // it's ok that this is relatively lossy in this test, because

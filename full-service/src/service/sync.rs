@@ -17,7 +17,7 @@ use crate::{
 use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_common::{
     logger::{log, Logger},
-    HashMap,
+    HashMap as MCHashMap,
 };
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_ledger_db::{Ledger, LedgerDB};
@@ -30,14 +30,17 @@ use mc_transaction_core::{
 };
 use rayon::prelude::*;
 
+use reqwest::Url;
 use reqwest::{
     blocking::Client, // FIXME: if we don't want this to be blocking, we'll be awaiting futures
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
 };
+use serde_json::json;
 use std::{
+    collections::HashMap,
     convert::TryFrom,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
     },
     thread,
@@ -55,6 +58,7 @@ pub struct SyncThread {
     stop_requested: Arc<AtomicBool>,
 }
 
+// FIXME: refactor this to its own file - it's gotten big enough
 pub struct WebhookThread {
     /// The main sync thread handle.
     join_handle: Option<thread::JoinHandle<()>>,
@@ -65,15 +69,23 @@ pub struct WebhookThread {
 
 impl WebhookThread {
     pub fn start(
-        server_url: String,
-        num_txos_synced: Arc<Mutex<AtomicUsize>>,
+        server_url: Url,
+        accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
+        restart: Arc<Mutex<AtomicBool>>,
         logger: Logger,
     ) -> Self {
         // Start the webhook thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
-        let thread_num_txos_synced = num_txos_synced.clone();
+
+        // Question: Should we consider only spawning a thread when there
+        // have been received txos, and therefore something to send?
+        // Answer: For now, we are ok with having this thread running all the time,
+        // because it is lightweight enough. If we find that it is causing issues,
+        // we will revisit. The solution would be to make this async, or to only
+        // spawn the thread when there are txos to send. There may be an advantage to
+        // leaving the connection open.
 
         let join_handle = Some(
             thread::Builder::new()
@@ -92,27 +104,59 @@ impl WebhookThread {
                             log::debug!(logger, "WebhookThread stop requested.");
                             break;
                         }
-                        let num_txos_to_send = thread_num_txos_synced
+                        // Gather the current accounts_to_send, then wipe the contents
+                        let accounts_to_send: Vec<_> = accounts_with_deposits
                             .lock()
                             .unwrap()
-                            .swap(0, Ordering::Relaxed);
+                            .clone()
+                            .iter()
+                            .filter(|&(_k, &v)| v == true)
+                            .map(|(k, _v)| k.clone())
+                            .collect();
 
-                        if num_txos_to_send > 0 {
-                            let get_url = format!("{server_url}?num_txos={num_txos_to_send}");
-
-                            let response = client
-                                .get(get_url)
-                                .send()
-                                .expect("Failed sending webhook request")
-                                .error_for_status()
-                                .expect("Failed getting webhook response");
-                            assert_eq!(response.status(), 200); // FIXME: how to
-                                                                // handle non-200?
-                                                                //
+                        // Delete the keys that we're alerting on
+                        for key in accounts_to_send.iter() {
+                            log::debug!(logger, "Account to send: {:?}", key);
+                            accounts_with_deposits.lock().unwrap().remove(&key);
                         }
-                        // This sleep is to allow other API calls that need access to the database a
-                        // chance to execute, because the sync process requires a write lock on the
-                        // database.
+
+                        // Only read restart, do not set
+                        let restart_to_send = restart.lock().unwrap().load(Ordering::Relaxed);
+
+                        if accounts_to_send.len() > 0 {
+                            log::debug!(logger, "@@@@ ABOUT TO SEND THE WEBHOOK");
+                            // Question: will this keep the connection open? Or will it
+                            // close the connection after this request?
+                            match client
+                                .post(server_url.clone())
+                                .body(
+                                    json!(
+                                        {
+                                            "accounts": accounts_to_send,
+                                            "restart": restart_to_send,
+                                        }
+                                    )
+                                    .to_string(),
+                                )
+                                .send()
+                            {
+                                Ok(response) => match response.error_for_status() {
+                                    Ok(_) => (),
+                                    Err(e) => {
+                                        log::error!(
+                                            logger,
+                                            "Failed getting webhook response: {:?}",
+                                            e
+                                        );
+                                    }
+                                },
+                                Err(e) => {
+                                    log::error!(logger, "Failed sending webhook request: {:?}", e);
+                                }
+                            }
+                        }
+                        // FIXME: this duration should be as often as we are polling
+                        // for new blocks from consensus
                         thread::sleep(Duration::from_millis(10));
                     }
                 })
@@ -141,14 +185,15 @@ impl SyncThread {
     pub fn start(
         ledger_db: LedgerDB,
         wallet_db: WalletDb,
-        num_txos_synced: Arc<Mutex<AtomicUsize>>,
+        accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
+        _restart: Arc<Mutex<AtomicBool>>, // FIXME: when does this get set and by what?
         logger: Logger,
     ) -> Self {
         // Start the sync thread.
 
         let stop_requested = Arc::new(AtomicBool::new(false));
         let thread_stop_requested = stop_requested.clone();
-        let thread_num_txos_synced = num_txos_synced.clone();
+        let thread_accounts_with_deposits = accounts_with_deposits.clone();
 
         let join_handle = Some(
             thread::Builder::new()
@@ -169,7 +214,7 @@ impl SyncThread {
                         match sync_all_accounts(
                             &ledger_db,
                             conn,
-                            thread_num_txos_synced.clone(),
+                            thread_accounts_with_deposits.clone(),
                             &logger,
                         ) {
                             Ok(()) => (),
@@ -208,7 +253,7 @@ impl Drop for SyncThread {
 pub fn sync_all_accounts(
     ledger_db: &LedgerDB,
     conn: Conn,
-    num_new_txos: Arc<Mutex<AtomicUsize>>,
+    accounts_with_deposits: Arc<Mutex<HashMap<AccountID, bool>>>,
     logger: &Logger,
 ) -> Result<(), SyncError> {
     // Get the current number of blocks in ledger.
@@ -216,7 +261,8 @@ pub fn sync_all_accounts(
         .num_blocks()
         .expect("failed getting number of blocks");
     if num_blocks == 0 {
-        return Ok(());
+        return Ok(()); // FIXME: we want it to fire in this case with empty
+                       // accounts
     }
 
     // Go over our list of accounts and see which ones need to process more blocks.
@@ -229,17 +275,47 @@ pub fn sync_all_accounts(
         // If the account is currently resyncing, we need to set it to false
         // here.
         if account.next_block_index as u64 > num_blocks - 1 {
+            log::debug!(logger, "@@@ WE MADE IT TO THE END WE ARE FULLY SYNCED and accounts with new deposits = {:?}", accounts_with_deposits);
+
+            // set list of accounts of deposits to be null
+            // if it comes back with more than one, add the account to the list
+            // then give the list of accounts in the webhook
+            log::debug!(
+                logger,
+                "Setting accounts with deposits to {:?}",
+                accounts_with_deposits
+            );
+            let mut account_set = accounts_with_deposits.lock().unwrap();
+            account_set
+                .entry(AccountID(account.id.clone()))
+                .and_modify(|v| *v = true);
+            // Note, we do not clear the accounts_with_deposit variable
+            // here, because we want to ensure the webhook
+            // fires with the right data, and only the
+            // webhook thread can clear it.
+
             if account.resyncing {
                 account.update_resyncing(false, conn)?;
             }
 
             continue;
         }
-        let num_txos_synced = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
-        num_new_txos
-            .lock()
-            .unwrap()
-            .store(num_txos_synced as usize, Ordering::Relaxed);
+        // FIXME: we don't want to fire this off during resyncing - you could just fire
+        // when caught up [when getting to the end fo the blockchain, fire, but not if
+        // not caught up]
+        let found_txos = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
+        if found_txos > 0 {
+            log::debug!(logger, "Found some txos!");
+            accounts_with_deposits
+                .lock()
+                .unwrap()
+                .insert(AccountID(account.id), false);
+            log::debug!(
+                logger,
+                "\t \t NOW ACCOUNTS WITH NEW DEPOSITS = {:?}",
+                accounts_with_deposits
+            );
+        }
     }
 
     Ok(())
@@ -334,7 +410,7 @@ pub fn sync_account_next_chunk(
             }
 
             // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: HashMap<KeyImage, String> =
+            let unspent_key_images: MCHashMap<KeyImage, String> =
                 Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
             let spent_txos: Vec<(u64, String)> = key_images
                 .into_par_iter()
@@ -424,7 +500,7 @@ pub fn sync_account_next_chunk(
             }
 
             // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: HashMap<KeyImage, String> =
+            let unspent_key_images: MCHashMap<KeyImage, String> =
                 Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
             let spent_txos: Vec<(u64, String)> = key_images
                 .into_par_iter()
