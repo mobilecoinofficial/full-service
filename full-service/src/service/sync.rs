@@ -235,14 +235,7 @@ pub fn sync_all_accounts(
 
             continue;
         }
-        log::debug!(logger, "@@@@@ ABOUT TO SYNC ACCOUNT NEXT CHUNK");
         let num_txos_synced = sync_account_next_chunk(ledger_db, conn, &account.id, logger)?;
-
-        log::debug!(
-            logger,
-            "@@@@@ SETTING NUM NEW TXOS to {:?}",
-            num_txos_synced
-        );
         num_new_txos
             .lock()
             .unwrap()
@@ -258,8 +251,6 @@ pub fn sync_account_next_chunk(
     account_id_hex: &str,
     logger: &Logger,
 ) -> Result<usize, SyncError> {
-    /* FIXME remove return type */
-    log::debug!(logger, "attempting to sync next chunk");
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
@@ -268,8 +259,6 @@ pub fn sync_account_next_chunk(
         let start_time = Instant::now();
         let start_block_index = account.next_block_index as u64;
         let mut end_block_index: Option<u64> = None;
-
-        log::debug!(logger, "syncing the next chunk from start block (account next block index) {} to end block (account next block index + BLOCKS_CHUNK_SIZE) {}", start_block_index, start_block_index + BLOCKS_CHUNK_SIZE);
 
         // Load transaction outputs and key images for this chunk.
         let mut tx_outs: Vec<(u64, TxOut)> = Vec::new();
@@ -372,11 +361,6 @@ pub fn sync_account_next_chunk(
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.
-            log::debug!(
-                logger,
-                ">>>> NOW UPDATING account.next_block_index to {}",
-                end_block_index + 1
-            );
             account.update_next_block_index(end_block_index + 1, conn)?;
 
             let num_blocks_synced = end_block_index - start_block_index + 1;
@@ -466,11 +450,6 @@ pub fn sync_account_next_chunk(
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.
-            log::debug!(
-                logger,
-                ">>>> NOW UPDATING account.next_block_index to {}",
-                end_block_index + 1
-            );
             account.update_next_block_index(end_block_index + 1, conn)?;
 
             let num_blocks_synced = end_block_index - start_block_index + 1;
