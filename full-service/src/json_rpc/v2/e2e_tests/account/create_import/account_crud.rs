@@ -14,7 +14,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_account_crud(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Create Account
         let body = json!({
@@ -133,7 +133,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_create_account_with_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
         // Create Account
         let body = json!({
             "jsonrpc": "2.0",

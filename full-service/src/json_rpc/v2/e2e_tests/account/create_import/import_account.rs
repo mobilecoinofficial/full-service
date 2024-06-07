@@ -22,7 +22,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_import_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -57,7 +57,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_import_account_legacy(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -92,7 +92,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_import_account_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Import an account with fog info.
         let body = json!({
@@ -129,7 +129,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_import_account_legacy_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -165,7 +165,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_import_delete_import(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -224,7 +224,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // create an account
         let body = json!({

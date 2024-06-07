@@ -24,7 +24,7 @@ mod e2e_transaction {
     #[test_with_logger]
     fn test_build_unsigned_transaction(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
         let wallet_db = db_ctx.get_db_instance(logger.clone());
 
         // Create Account

@@ -90,9 +90,7 @@ async fn test_wallet_api(
 }
 
 pub fn test_rocket(rocket_config: rocket::Config, state: TestWalletState) -> rocket::Rocket<Build> {
-    let test_rocket = rocket::custom(rocket_config);
-
-    test_rocket
+    rocket::custom(rocket_config)
         .mount("/", routes![test_wallet_api])
         .manage(state)
 }
@@ -141,8 +139,7 @@ pub fn create_test_setup(
     mut rng: &mut StdRng,
     use_wallet_db: bool,
     use_watcher_db: bool,
-    webhook_config: Option<WebhookConfig>, /* FIXME: debating whether this test setup creates
-                                            * the server or it's done in the tests calling this */
+    webhook_config: Option<WebhookConfig>,
     logger: Logger,
 ) -> (
     rocket::Rocket<Build>,
@@ -199,7 +196,6 @@ pub fn create_test_setup(
 
 pub fn setup(
     rng: &mut StdRng,
-    webhook_config: Option<WebhookConfig>, // FIXME: seems like this should happen internal to this
     logger: Logger,
 ) -> (
     Client,
@@ -208,7 +204,29 @@ pub fn setup(
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
-        create_test_setup(rng, true, false, webhook_config, logger);
+        create_test_setup(rng, true, false, None, logger);
+
+    let rocket = rocket_instance.manage(APIKeyState("".to_string()));
+    (
+        Client::untracked(rocket).expect("valid rocket instance"),
+        ledger_db,
+        db_test_context,
+        network_state,
+    )
+}
+
+pub fn setup_with_webhook(
+    rng: &mut StdRng,
+    webhook_config: WebhookConfig,
+    logger: Logger,
+) -> (
+    Client,
+    LedgerDB,
+    WalletDbTestContext,
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+) {
+    let (rocket_instance, ledger_db, db_test_context, network_state) =
+        create_test_setup(rng, true, false, Some(webhook_config), logger);
 
     let rocket = rocket_instance.manage(APIKeyState("".to_string()));
     (

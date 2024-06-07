@@ -21,7 +21,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_e2e_get_balance(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -76,7 +76,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_balance_for_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({

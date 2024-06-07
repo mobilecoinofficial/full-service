@@ -5,26 +5,20 @@
 #[cfg(test)]
 mod e2e_webhook {
     use crate::{
-        json_rpc::v2::api::test_utils::{dispatch, setup},
-        test_utils::MOB,
-    };
-    use std::{ops::DerefMut, thread, time::Duration};
-
-    use mc_common::logger::{log, test_with_logger, Logger};
-    use mc_ledger_db::Ledger;
-    use mc_rand::RngCore;
-    use mc_transaction_core::ring_signature::KeyImage;
-
-    use crate::{
         config::WebhookConfig,
         db::{
             account::{AccountID, AccountModel},
             models::Account,
         },
-        test_utils::add_block_to_ledger_db,
+        json_rpc::v2::api::test_utils::{dispatch, setup_with_webhook},
+        test_utils::{add_block_to_ledger_db, MOB},
         util::b58::b58_decode_public_address,
     };
     use httpmock::{Method::POST, MockServer};
+    use mc_common::logger::{log, test_with_logger, Logger};
+    use mc_ledger_db::Ledger;
+    use mc_rand::RngCore;
+    use mc_transaction_core::ring_signature::KeyImage;
     use rand::{rngs::StdRng, SeedableRng};
     use reqwest::{
         blocking::Client,
@@ -32,6 +26,7 @@ mod e2e_webhook {
         Url,
     };
     use serde_json::json;
+    use std::{ops::DerefMut, thread, time::Duration};
 
     #[test_with_logger]
     fn test_webhook(logger: Logger) {
@@ -60,7 +55,7 @@ mod e2e_webhook {
         };
 
         let (client, mut ledger_db, db_ctx, _network_state) =
-            setup(&mut rng, Some(webhook_config), logger.clone());
+            setup_with_webhook(&mut rng, webhook_config, logger.clone());
         // NOTE: the webhook should fire on startup as soon as it is caught up, before
         // any accounts are added // FIXME
 

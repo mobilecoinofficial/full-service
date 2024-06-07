@@ -25,7 +25,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_import_account_with_next_subaddress_index(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // create an account
         let body = json!({
@@ -219,7 +219,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_paginate_assigned_addresses(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -285,8 +285,7 @@ mod e2e_account {
         use crate::db::WalletDbError::SubaddressesNotSupportedForFOGEnabledAccounts as subaddress_error;
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut _ledger_db, _db_ctx, _network_state) =
-            setup(&mut rng, None, logger.clone());
+        let (client, mut _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Create Account
         let body = json!({
@@ -329,7 +328,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_create_assigned_subaddress(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -412,7 +411,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_get_address_for_account(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -479,7 +478,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_verify_address(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
@@ -522,7 +521,7 @@ mod e2e_account {
     #[test_with_logger]
     fn test_get_address_details(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, None, logger.clone());
+        let (client, _ledger_db, _db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
         // Add an account
         let body = json!({
