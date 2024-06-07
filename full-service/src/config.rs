@@ -94,22 +94,18 @@ pub struct APIConfig {
     /// Webhook configuration to notify an external server listening for
     /// deposit notifications.
     ///
-    /// The format of the webhook is a POST request with the following query
+    /// The format of the webhook is a POST request with the following
     /// parameters:
     ///
     /// POST /webhook -H "Content-Type: application/json" \
-    ///     -d '{"accounts": [A,B,C], "restart": false}'
-    ///
-    /// The first time full-service is caught up with the network ledger,
-    /// it will send a webhook with {"restart": true, "accounts": [A,]}
-    /// where "accounts" may be empty.
-    ///
-    /// Where the num_txos provided indicate how many txos were received
-    /// in the last scan period for any account in the wallet.
+    ///     -d '{"accounts": [A,B,C]}'
     ///
     /// The expected action to take in response to the webhook is to call
     /// the `get_txos` API endpoint for the given accounts to retrieve more
     /// details about the TXOs received.
+    ///
+    /// It is also expected for the client to call get_txos on startup and
+    /// periodically to ensure that no TXOs are missed.
     ///
     /// We expect a 200 response code to indicate that the webhook was
     /// received, and we do not further inspect the response body. Even if
