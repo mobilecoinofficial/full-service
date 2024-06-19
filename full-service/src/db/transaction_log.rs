@@ -3,13 +3,9 @@
 //! DB impl for the Transaction model.
 
 use diesel::prelude::*;
+use hex_fmt::HexFmt;
 use mc_common::HashMap;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{
-    tx::{Tx, TxPrefix},
-    Amount, TokenId,
-};
-use mc_transaction_extra::UnsignedTx;
+use mc_transaction_core::{Amount, TokenId};
 use std::fmt;
 
 use crate::{
@@ -22,7 +18,7 @@ use crate::{
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
-    service::models::tx_proposal::{TxProposal, UnsignedTxProposal},
+    service::models::tx_proposal::{OutputTxo, TxProposal, UnsignedTxProposal},
 };
 
 #[derive(Debug, PartialEq)]
@@ -36,32 +32,24 @@ impl From<&TransactionLog> for TransactionId {
 
 impl From<&TxProposal> for TransactionId {
     fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(&_tx_proposal.tx.prefix)
+        Self::from(_tx_proposal.payload_txos.clone())
     }
 }
 
 impl From<&UnsignedTxProposal> for TransactionId {
     fn from(_tx_proposal: &UnsignedTxProposal) -> Self {
-        Self::from(&_tx_proposal.unsigned_tx.tx_prefix)
+        Self::from(_tx_proposal.payload_txos.clone())
     }
 }
 
-impl From<&Tx> for TransactionId {
-    fn from(src: &Tx) -> TransactionId {
-        Self::from(&src.prefix)
-    }
-}
-
-impl From<&UnsignedTx> for TransactionId {
-    fn from(src: &UnsignedTx) -> TransactionId {
-        Self::from(&src.tx_prefix)
-    }
-}
-
-impl From<&TxPrefix> for TransactionId {
-    fn from(src: &TxPrefix) -> TransactionId {
-        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"transaction_data");
-        Self(hex::encode(temp))
+// ToDo -- fix issue with _payload_txos.is_empty() being true,
+// which will panic below.
+// Maybe change this and the above traits to tryFrom and have
+// the code that makes use of the traits check for error coming
+// back from the trait.
+impl From<Vec<OutputTxo>> for TransactionId {
+    fn from(_payload_txos: Vec<OutputTxo>) -> TransactionId {
+        Self(HexFmt(_payload_txos[0].tx_out.public_key).to_string())
     }
 }
 
@@ -559,7 +547,7 @@ impl TransactionLogModel for TransactionLog {
         Account::get(account_id, conn)?;
 
         let unsigned_tx = &unsigned_tx_proposal.unsigned_tx;
-        let transaction_log_id = TransactionId::from(unsigned_tx);
+        let transaction_log_id = TransactionId::from(unsigned_tx_proposal);
 
         let new_transaction_log = NewTransactionLog {
             id: &transaction_log_id.to_string(),
@@ -687,7 +675,7 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal.tx);
+        let transaction_log_id = TransactionId::from(tx_proposal);
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
