@@ -8,7 +8,10 @@ use mc_attestation_verifier::{TrustedIdentity, TrustedMrSignerIdentity};
 use mc_common::logger::{create_app_logger, log, o};
 use mc_ledger_sync::{LedgerSyncServiceThread, PollingNetworkState, ReqwestTransactionsFetcher};
 use mc_validator_service::{Config, Service};
-use std::sync::{Arc, RwLock};
+use std::{
+    process::exit,
+    sync::{Arc, RwLock},
+};
 
 // Exit codes.
 
