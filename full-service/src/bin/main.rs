@@ -26,6 +26,7 @@ use rocket::{launch, Build, Rocket};
 use std::{
     env,
     net::IpAddr,
+    process::exit,
     str::FromStr,
     sync::{Arc, RwLock},
 };

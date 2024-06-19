@@ -13,8 +13,6 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-// Exit codes.
-
 fn main() {
     mc_common::setup_panic_handler();
     let _sentry_guard = mc_common::sentry::init();
