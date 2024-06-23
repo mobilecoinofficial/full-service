@@ -846,7 +846,7 @@ mod tests {
     use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
