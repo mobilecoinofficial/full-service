@@ -251,7 +251,9 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -305,7 +307,9 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
@@ -693,7 +697,8 @@ where
                 .map_err(format_error)?;
             let balance_mob = balance_map.get(&Mob::ID).unwrap_or_default();
 
-            let network_status = service.get_network_status().map_err(format_error)?;
+            let network_status = service.get_network_status()
+                .map_err(format_error)?;
             JsonCommandResponse::get_balance_for_account {
                 balance: Balance::new(
                     balance_mob,

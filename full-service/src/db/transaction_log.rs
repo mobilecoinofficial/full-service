@@ -7,6 +7,9 @@ use hex_fmt::HexFmt;
 use mc_common::HashMap;
 use mc_transaction_core::{Amount, TokenId};
 use std::fmt;
+use std::convert::TryFrom;
+
+use std::backtrace::Backtrace;
 
 use crate::{
     db::{
@@ -30,15 +33,19 @@ impl From<&TransactionLog> for TransactionId {
     }
 }
 
-impl From<&TxProposal> for TransactionId {
-    fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(_tx_proposal.payload_txos.clone())
+impl TryFrom<&TxProposal> for TransactionId {
+    type Error = &'static str;
+    fn try_from(_tx_proposal: &TxProposal) -> Result<Self, Self::Error> {
+        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
 
-impl From<&UnsignedTxProposal> for TransactionId {
-    fn from(_tx_proposal: &UnsignedTxProposal) -> Self {
-        Self::from(_tx_proposal.payload_txos.clone())
+impl TryFrom<&UnsignedTxProposal> for TransactionId {
+    type Error = &'static str;
+    fn try_from(_tx_proposal: &UnsignedTxProposal) -> Result<Self, Self::Error> {
+        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
 
@@ -47,9 +54,22 @@ impl From<&UnsignedTxProposal> for TransactionId {
 // Maybe change this and the above traits to tryFrom and have
 // the code that makes use of the traits check for error coming
 // back from the trait.
-impl From<Vec<OutputTxo>> for TransactionId {
-    fn from(_payload_txos: Vec<OutputTxo>) -> TransactionId {
-        Self(HexFmt(_payload_txos[0].tx_out.public_key).to_string())
+impl TryFrom<Vec<OutputTxo>> for TransactionId {
+    type Error = &'static str;
+
+    fn try_from(_payload_txos: Vec<OutputTxo>) -> Result<Self, Self::Error> {
+        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        let backtrace = Backtrace::force_capture();
+        println!("{:?}", backtrace);
+        println!("\nTRACK ====================== END =========================\n\n");
+
+        if _payload_txos.is_empty() {
+            return Err("Payload Txo Vector is empty");
+        }
+
+        // dereferencing the txo array is now safe, but maybe there should
+        // be more error checking?
+        Ok(Self(HexFmt(_payload_txos[0].tx_out.public_key).to_string()))
     }
 }
 
@@ -547,7 +567,8 @@ impl TransactionLogModel for TransactionLog {
         Account::get(account_id, conn)?;
 
         let unsigned_tx = &unsigned_tx_proposal.unsigned_tx;
-        let transaction_log_id = TransactionId::from(unsigned_tx_proposal);
+        let transaction_log_id = TransactionId::try_from(unsigned_tx_proposal)
+            .expect("Failed to convert unsigned_tx_proposal to transaction_log_id");
 
         let new_transaction_log = NewTransactionLog {
             id: &transaction_log_id.to_string(),
@@ -600,7 +621,8 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal);
+        let transaction_log_id = TransactionId::try_from(&tx_proposal)
+            .expect("Failed to convert tx_proposal to TransactionId");
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
@@ -675,7 +697,7 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(tx_proposal);
+        let transaction_log_id = TransactionId::try_from(tx_proposal).expect("Failed to convert tx_proposal to TransactionId");
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
