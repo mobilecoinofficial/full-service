@@ -63,6 +63,9 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
         println!("{:?}", backtrace);
         println!("\nTRACK ====================== END =========================\n\n");
 
+        // Two ways to propagate an empty payload_txo vector error:
+        // return Err("Payload Txo Vector is empty");
+        // panic!("Payload Txo Vector is empty");
         if _payload_txos.is_empty() {
             return Err("Payload Txo Vector is empty");
         }

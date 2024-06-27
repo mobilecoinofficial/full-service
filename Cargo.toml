@@ -16,7 +16,7 @@ exclude = ["ledger-mob", "mobilecoin"]
 
 [profile.dev]
 debug = true
-opt-level = 3
+opt-level = 0
 
 [profile.release]
 debug = true
