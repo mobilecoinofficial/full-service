@@ -6,8 +6,7 @@ use diesel::prelude::*;
 use hex_fmt::HexFmt;
 use mc_common::HashMap;
 use mc_transaction_core::{Amount, TokenId};
-use std::fmt;
-use std::convert::TryFrom;
+use std::{convert::TryFrom, fmt};
 
 use std::backtrace::Backtrace;
 
@@ -36,7 +35,11 @@ impl From<&TransactionLog> for TransactionId {
 impl TryFrom<&TxProposal> for TransactionId {
     type Error = &'static str;
     fn try_from(_tx_proposal: &TxProposal) -> Result<Self, Self::Error> {
-        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        println!(
+            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
+            line!(),
+            file!()
+        );
         Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
@@ -44,7 +47,11 @@ impl TryFrom<&TxProposal> for TransactionId {
 impl TryFrom<&UnsignedTxProposal> for TransactionId {
     type Error = &'static str;
     fn try_from(_tx_proposal: &UnsignedTxProposal) -> Result<Self, Self::Error> {
-        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        println!(
+            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
+            line!(),
+            file!()
+        );
         Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
@@ -58,7 +65,11 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
     type Error = &'static str;
 
     fn try_from(_payload_txos: Vec<OutputTxo>) -> Result<Self, Self::Error> {
-        println!("\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n", line!(), file!());
+        println!(
+            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
+            line!(),
+            file!()
+        );
         let backtrace = Backtrace::force_capture();
         println!("{:?}", backtrace);
         println!("\nTRACK ====================== END =========================\n\n");
@@ -700,7 +711,8 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::try_from(tx_proposal).expect("Failed to convert tx_proposal to TransactionId");
+        let transaction_log_id = TransactionId::try_from(tx_proposal)
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {

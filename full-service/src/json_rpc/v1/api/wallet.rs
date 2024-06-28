@@ -697,8 +697,7 @@ where
                 .map_err(format_error)?;
             let balance_mob = balance_map.get(&Mob::ID).unwrap_or_default();
 
-            let network_status = service.get_network_status()
-                .map_err(format_error)?;
+            let network_status = service.get_network_status().map_err(format_error)?;
             JsonCommandResponse::get_balance_for_account {
                 balance: Balance::new(
                     balance_mob,
