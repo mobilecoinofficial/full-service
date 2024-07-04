@@ -960,8 +960,8 @@ mod tests {
         let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         // Log submitted transaction from tx_proposal
@@ -1678,7 +1678,9 @@ mod tests {
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
             fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
@@ -1696,8 +1698,8 @@ mod tests {
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         let tx_log = TransactionLog::log_signed(
@@ -1709,7 +1711,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1734,7 +1738,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1912,7 +1918,9 @@ mod tests {
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
             fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
@@ -1930,8 +1938,8 @@ mod tests {
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         let tx_log = TransactionLog::log_signed(
@@ -1943,7 +1951,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1968,7 +1978,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
