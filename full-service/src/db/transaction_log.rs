@@ -63,27 +63,18 @@ impl TryFrom<&UnsignedTxProposal> for TransactionId {
 // back from the trait.
 impl TryFrom<Vec<OutputTxo>> for TransactionId {
     type Error = &'static str;
-
     fn try_from(_payload_txos: Vec<OutputTxo>) -> Result<Self, Self::Error> {
-        println!(
-            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
-            line!(),
-            file!()
-        );
-        let backtrace = Backtrace::force_capture();
-        println!("{:?}", backtrace);
-        println!("\nTRACK ====================== END =========================\n\n");
-
-        // Two ways to propagate an empty payload_txo vector error:
-        // return Err("Payload Txo Vector is empty");
-        // panic!("Payload Txo Vector is empty");
-        if _payload_txos.is_empty() {
-            return Err("Payload Txo Vector is empty");
-        }
-
-        // dereferencing the txo array is now safe, but maybe there should
-        // be more error checking?
-        Ok(Self(HexFmt(_payload_txos[0].tx_out.public_key).to_string()))
+        Ok(Self(
+            HexFmt(
+                _payload_txos
+                    .iter()
+                    .min_by_key(|txo| txo.tx_out.public_key)
+                    .ok_or("no payload txos")?
+                    .tx_out
+                    .public_key,
+            )
+            .to_string(),
+        ))
     }
 }
 
