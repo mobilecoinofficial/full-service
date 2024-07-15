@@ -8,8 +8,6 @@ use mc_common::HashMap;
 use mc_transaction_core::{Amount, TokenId};
 use std::{convert::TryFrom, fmt};
 
-use std::backtrace::Backtrace;
-
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -35,11 +33,6 @@ impl From<&TransactionLog> for TransactionId {
 impl TryFrom<&TxProposal> for TransactionId {
     type Error = &'static str;
     fn try_from(_tx_proposal: &TxProposal) -> Result<Self, Self::Error> {
-        println!(
-            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
-            line!(),
-            file!()
-        );
         Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
@@ -47,20 +40,10 @@ impl TryFrom<&TxProposal> for TransactionId {
 impl TryFrom<&UnsignedTxProposal> for TransactionId {
     type Error = &'static str;
     fn try_from(_tx_proposal: &UnsignedTxProposal) -> Result<Self, Self::Error> {
-        println!(
-            "\nTRACK ========== Executing LINE:{} in FILE:{} ==========\n\n",
-            line!(),
-            file!()
-        );
         Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
 
-// ToDo -- fix issue with _payload_txos.is_empty() being true,
-// which will panic below.
-// Maybe change this and the above traits to tryFrom and have
-// the code that makes use of the traits check for error coming
-// back from the trait.
 impl TryFrom<Vec<OutputTxo>> for TransactionId {
     type Error = &'static str;
     fn try_from(_payload_txos: Vec<OutputTxo>) -> Result<Self, Self::Error> {

@@ -8,13 +8,8 @@ from mobilecoin.token import get_token, Amount
 MOB = get_token('MOB')
 EUSD = get_token('EUSD')
 
-import inspect
-import pprint
 
-def line():
-    return inspect.currentframe().f_lineno
-
-async def test_version(client, capsys):
+async def test_version(client):
     version = await client.version()
     assert isinstance(version, dict)
     assert sorted(version.keys()) == ['commit', 'number', 'string']
@@ -132,15 +127,7 @@ async def test_send_transaction_self(client, source_account, fees):
     assert final_balance == initial_balance - fees[MOB]
 
 
-async def _test_send_transaction(client, account, temp_account, capsys):
-
-    # :< --------------
-    function_name = inspect.currentframe().f_code.co_name
-    with capsys.disabled():
-        print("\n")
-        print("============ TRACK: {}:{}".format(function_name, inspect.currentframe().f_lineno) )
-    # >: --------------
-
+async def _test_send_transaction(client, account, temp_account):
     # Send a transaction to the temporary account.
     transaction_log, _ = await client.build_and_submit_transaction(
         account['id'],
@@ -152,10 +139,6 @@ async def _test_send_transaction(client, account, temp_account, capsys):
         MOB,
     )
     assert tx_value == Amount.from_display_units(0.01, MOB)
-    with capsys.disabled():
-        # pprint.pprint(transaction_log)
-        print("           LOG ID: %s" % transaction_log['id'])
-        print("TXO[0] PUBLIC KEY: %s" % transaction_log['output_txos'][0]['public_key'])
     assert transaction_log['output_txos'][0]['public_key'] == transaction_log['id']
 
     # Wait for the temporary account to sync.
@@ -170,17 +153,9 @@ async def _test_send_transaction(client, account, temp_account, capsys):
     assert temp_balance == Amount.from_display_units(0.01, MOB)
 
 
-async def test_send_transaction(client, source_account, account_factory, capsys):
-
-    # :< --------------
-    function_name = inspect.currentframe().f_code.co_name
-    with capsys.disabled():
-        print("\n")
-        print("============ TRACK: {}:{}".format(function_name, inspect.currentframe().f_lineno) )
-    # >: --------------
-
+async def test_send_transaction(client, source_account, account_factory):
     temp_account = await account_factory.create()
-    await _test_send_transaction(client, source_account, temp_account, capsys)
+    await _test_send_transaction(client, source_account, temp_account)
 
 
 @pytest.mark.skipif(
@@ -190,17 +165,9 @@ async def test_send_transaction(client, source_account, account_factory, capsys)
     ),
     reason='Fog server not given.'
 )
-async def test_send_transaction_fog(client, source_account, account_factory, capsys):
-
-    # :< --------------
-    function_name = inspect.currentframe().f_code.co_name
-    with capsys.disabled():
-        print("\n")
-        print("============ TRACK: {}:{}".format(function_name, inspect.currentframe().f_lineno) )
-    # >: --------------
-
+async def test_send_transaction_fog(client, source_account, account_factory):
     temp_fog_account = await account_factory.create_fog()
-    await _test_send_transaction(client, source_account, temp_fog_account, capsys)
+    await _test_send_transaction(client, source_account, temp_fog_account)
 
 
 async def test_send_transaction_subaddress(client, source_account, account_factory):

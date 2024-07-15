@@ -15,7 +15,6 @@ members = [
 exclude = ["ledger-mob", "mobilecoin"]
 
 [profile.dev]
-debug = true
 opt-level = 0
 
 [profile.release]
