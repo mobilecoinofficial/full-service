@@ -52,7 +52,7 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
                 _payload_txos
                     .iter()
                     .min_by_key(|txo| txo.tx_out.public_key)
-                    .ok_or("no payload txos")?
+                    .ok_or("no valid payload_txo")?
                     .tx_out
                     .public_key,
             )
