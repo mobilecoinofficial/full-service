@@ -556,7 +556,7 @@ impl TransactionLogModel for TransactionLog {
 
         let unsigned_tx = &unsigned_tx_proposal.unsigned_tx;
         let transaction_log_id = TransactionId::try_from(unsigned_tx_proposal)
-            .expect("Failed to convert unsigned_tx_proposal to transaction_log_id");
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
 
         let new_transaction_log = NewTransactionLog {
             id: &transaction_log_id.to_string(),
@@ -610,7 +610,7 @@ impl TransactionLogModel for TransactionLog {
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
         let transaction_log_id = TransactionId::try_from(&tx_proposal)
-            .expect("Failed to convert tx_proposal to TransactionId");
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
