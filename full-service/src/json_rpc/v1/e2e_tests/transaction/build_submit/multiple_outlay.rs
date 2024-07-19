@@ -105,6 +105,7 @@ mod e2e_transaction {
         let tx_proposal = result.get("tx_proposal").unwrap();
         let tx = tx_proposal.get("tx").unwrap();
         let tx_prefix = tx.get("prefix").unwrap();
+        let transaction_log_id = result.get("transaction_log_id").unwrap();
 
         // Assert the fee is correct in both places
         let prefix_fee = tx_prefix.get("fee").unwrap().as_str().unwrap();
@@ -214,6 +215,7 @@ mod e2e_transaction {
             .as_str()
             .unwrap();
 
+        assert_eq!(transaction_log_id, transaction_id);
         let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();
         let payments_tx_proposal =

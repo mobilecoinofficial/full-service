@@ -3954,6 +3954,7 @@ dependencies = [
  "ed25519-dalek",
  "grpcio",
  "hex",
+ "hex_fmt",
  "httpmock",
  "itertools 0.10.5",
  "ledger-mob",

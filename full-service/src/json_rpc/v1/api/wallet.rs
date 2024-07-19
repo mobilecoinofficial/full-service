@@ -251,7 +251,9 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_split_txo_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -305,7 +307,9 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {

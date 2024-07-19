@@ -139,6 +139,7 @@ async def _test_send_transaction(client, account, temp_account):
         MOB,
     )
     assert tx_value == Amount.from_display_units(0.01, MOB)
+    assert transaction_log['output_txos'][0]['public_key'] == transaction_log['id']
 
     # Wait for the temporary account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
