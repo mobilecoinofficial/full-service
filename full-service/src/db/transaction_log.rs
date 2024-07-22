@@ -1974,10 +1974,50 @@ mod tests {
     #[test]
     fn try_from_vec_output_txo_for_transaction_id() {
 
-        let mut rng: StdRng = SeedableRng::from_seed([98u8; 32]);
+        let mut rng: StdRng = SeedableRng::from_entropy();
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
 
+        let num_txos = 5;
+        let num_loops = 5;
+        let amount = 77;
+
+        for _ in 1..=num_loops {
+            let mut output_vec: Vec<OutputTxo> = Vec::new();
+
+            for _ in 0..num_txos {
+
+                let (tx_out, _) = create_test_txo_for_recipient(
+                            &recipient_account_key,
+                            0, // subaddress_index
+                            Amount::new(amount * MOB, Mob::ID),
+                            &mut rng,
+                        );
+
+                let output_txo = OutputTxo {
+                    tx_out: tx_out.clone(),
+                    recipient_public_address: recipient_account_key.subaddress(0),
+                    confirmation_number: TxOutConfirmationNumber::default(),
+                    amount: Amount::new(amount * MOB, Mob::ID),
+                    shared_secret: None,
+                };
+
+                output_vec.push(output_txo);
+            }
+
+            for output_txo in &output_vec {
+                println!("{}", output_txo.tx_out.public_key);
+            }
+            println!("\n{}", output_vec.iter().min_by_key(|txo| txo.tx_out.public_key).unwrap().tx_out.public_key);
+
+            let min_public_key = output_vec.iter().min_by_key(|txo| txo.tx_out.public_key).unwrap().tx_out.public_key;
+            let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
+            println!("\n{}", transaction_log_id);
+
+            assert_eq!(min_public_key.to_string(), transaction_log_id.0);
+            println!("\n\n=======================\n\n");
+        }
+/*
         let (tx_out_1, _) = create_test_txo_for_recipient(
                     &recipient_account_key,
                     0, // subaddress_index
@@ -2023,6 +2063,8 @@ mod tests {
         let output_vec = vec![output_txo_1, output_txo_2, output_txo_3];
         let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
         assert_eq!(HexFmt(tx_out_1.public_key).to_string(), transaction_log_id.0);
+*/
+        assert_eq!(num_txos, num_loops );
     }
 }
 
