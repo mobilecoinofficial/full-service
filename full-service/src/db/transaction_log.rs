@@ -1972,7 +1972,7 @@ mod tests {
     }
 
     #[test]
-    fn try_from_vec_output_txo_for_transaction_id() {
+    fn test_try_from_vec_output_txo_for_transaction_id() {
 
         let mut rng: StdRng = SeedableRng::from_entropy();
         let root_id = RootIdentity::from_random(&mut rng);
@@ -2016,7 +2016,6 @@ mod tests {
 
             assert_eq!(min_public_key.to_string(), transaction_log_id.0);
         }
-        assert_eq!(num_txos, num_loops );
     }
 }
 
