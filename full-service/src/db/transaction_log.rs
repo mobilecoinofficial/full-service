@@ -854,10 +854,12 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
+    use mc_util_from_random::FromRandom;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
+    use mc_transaction_extra::TxOutConfirmationNumber;
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -867,8 +869,8 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx_outs, builder_for_random_recipient, get_resolver_factory,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
+            add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
+            get_resolver_factory, get_test_ledger, manually_sync_account, random_account_with_seed_values,
             WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
@@ -1968,4 +1970,60 @@ mod tests {
 
         assert_eq!(tx_log.tx, expected_tx_log.tx);
     }
+
+    #[test]
+    fn try_from_vec_output_txo_for_transaction_id() {
+
+        let mut rng: StdRng = SeedableRng::from_seed([98u8; 32]);
+        let root_id = RootIdentity::from_random(&mut rng);
+        let recipient_account_key = AccountKey::from(&root_id);
+
+        let (tx_out_1, _) = create_test_txo_for_recipient(
+                    &recipient_account_key,
+                    0, // subaddress_index
+                    Amount::new(11 * MOB, Mob::ID),
+                    &mut rng,
+                );
+        let output_txo_1 = OutputTxo {
+            tx_out: tx_out_1.clone(),
+            recipient_public_address: recipient_account_key.subaddress(0),
+            confirmation_number: TxOutConfirmationNumber::default(),
+            amount: Amount::new(11 * MOB, Mob::ID),
+            shared_secret: None,
+        };
+
+        let (tx_out_2, _) = create_test_txo_for_recipient(
+                    &recipient_account_key,
+                    0, // subaddress_index
+                    Amount::new(12 * MOB, Mob::ID),
+                    &mut rng,
+                );
+        let output_txo_2 = OutputTxo {
+            tx_out: tx_out_2.clone(),
+            recipient_public_address: recipient_account_key.subaddress(0),
+            confirmation_number: TxOutConfirmationNumber::default(),
+            amount: Amount::new(12 * MOB, Mob::ID),
+            shared_secret: None,
+        };
+
+        let (tx_out_3, _) = create_test_txo_for_recipient(
+                    &recipient_account_key,
+                    0, // subaddress_index
+                    Amount::new(13 * MOB, Mob::ID),
+                    &mut rng,
+                );
+        let output_txo_3 = OutputTxo {
+            tx_out: tx_out_3.clone(),
+            recipient_public_address: recipient_account_key.subaddress(0),
+            confirmation_number: TxOutConfirmationNumber::default(),
+            amount: Amount::new(13 * MOB, Mob::ID),
+            shared_secret: None,
+        };
+
+        let output_vec = vec![output_txo_1, output_txo_2, output_txo_3];
+        let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
+        assert_eq!(HexFmt(tx_out_1.public_key).to_string(), transaction_log_id.0);
+    }
 }
+
+
