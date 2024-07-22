@@ -1978,14 +1978,15 @@ mod tests {
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
 
-        let num_txos = 5;
-        let num_loops = 5;
+        let num_txos = 5; // txo vector size
+        let num_loops = 5; // number of times to run test
         let amount = 77;
 
-        for _ in 1..=num_loops {
+        for _ in 1..=num_loops { // run test loop
+
             let mut output_vec: Vec<OutputTxo> = Vec::new();
 
-            for _ in 0..num_txos {
+            for _ in 0..num_txos { // loop to build vector and test try_from()
 
                 let (tx_out, _) = create_test_txo_for_recipient(
                             &recipient_account_key,
@@ -2005,67 +2006,17 @@ mod tests {
                 output_vec.push(output_txo);
             }
 
-            for output_txo in &output_vec {
-                println!("{}", output_txo.tx_out.public_key);
-            }
-            println!("\n{}", output_vec.iter().min_by_key(|txo| txo.tx_out.public_key).unwrap().tx_out.public_key);
-
-            let min_public_key = output_vec.iter().min_by_key(|txo| txo.tx_out.public_key).unwrap().tx_out.public_key;
+            let min_public_key = output_vec
+                .iter()
+                .min_by_key(|txo| txo.tx_out.public_key)
+                .unwrap()
+                .tx_out
+                .public_key;
             let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
-            println!("\n{}", transaction_log_id);
 
             assert_eq!(min_public_key.to_string(), transaction_log_id.0);
-            println!("\n\n=======================\n\n");
         }
-/*
-        let (tx_out_1, _) = create_test_txo_for_recipient(
-                    &recipient_account_key,
-                    0, // subaddress_index
-                    Amount::new(11 * MOB, Mob::ID),
-                    &mut rng,
-                );
-        let output_txo_1 = OutputTxo {
-            tx_out: tx_out_1.clone(),
-            recipient_public_address: recipient_account_key.subaddress(0),
-            confirmation_number: TxOutConfirmationNumber::default(),
-            amount: Amount::new(11 * MOB, Mob::ID),
-            shared_secret: None,
-        };
-
-        let (tx_out_2, _) = create_test_txo_for_recipient(
-                    &recipient_account_key,
-                    0, // subaddress_index
-                    Amount::new(12 * MOB, Mob::ID),
-                    &mut rng,
-                );
-        let output_txo_2 = OutputTxo {
-            tx_out: tx_out_2.clone(),
-            recipient_public_address: recipient_account_key.subaddress(0),
-            confirmation_number: TxOutConfirmationNumber::default(),
-            amount: Amount::new(12 * MOB, Mob::ID),
-            shared_secret: None,
-        };
-
-        let (tx_out_3, _) = create_test_txo_for_recipient(
-                    &recipient_account_key,
-                    0, // subaddress_index
-                    Amount::new(13 * MOB, Mob::ID),
-                    &mut rng,
-                );
-        let output_txo_3 = OutputTxo {
-            tx_out: tx_out_3.clone(),
-            recipient_public_address: recipient_account_key.subaddress(0),
-            confirmation_number: TxOutConfirmationNumber::default(),
-            amount: Amount::new(13 * MOB, Mob::ID),
-            shared_secret: None,
-        };
-
-        let output_vec = vec![output_txo_1, output_txo_2, output_txo_3];
-        let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
-        assert_eq!(HexFmt(tx_out_1.public_key).to_string(), transaction_log_id.0);
-*/
         assert_eq!(num_txos, num_loops );
     }
 }
-
 
