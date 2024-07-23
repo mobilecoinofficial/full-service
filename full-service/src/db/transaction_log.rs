@@ -2017,5 +2017,35 @@ mod tests {
             assert_eq!(min_public_key.to_string(), transaction_log_id.0);
         }
     }
+
+    #[test]
+    fn test_try_from_empty_vec_output_txo_for_transaction_id() {
+
+let mut rng: StdRng = SeedableRng::from_entropy();
+let root_id = RootIdentity::from_random(&mut rng);
+let recipient_account_key = AccountKey::from(&root_id);
+let (tx_out, _) = create_test_txo_for_recipient(
+            &recipient_account_key,
+            0, // subaddress_index
+            Amount::new(77 * MOB, Mob::ID),
+            &mut rng,
+        );
+let output_txo = OutputTxo {
+    tx_out: tx_out.clone(),
+    recipient_public_address: recipient_account_key.subaddress(0),
+    confirmation_number: TxOutConfirmationNumber::default(),
+    amount: Amount::new(77 * MOB, Mob::ID),
+    shared_secret: None,
+};
+
+        let mut output_vec: Vec<OutputTxo> = Vec::new();
+output_vec.push(output_txo);
+// output_vec.pop();
+        let transaction_log_id = TransactionId::try_from(output_vec);
+        match transaction_log_id {
+            Ok(_) => assert!(false, "Expected error, but got Ok"),
+            Err(err) => assert_eq!(err, "no valid payload_txo"),
+        }
+    }
 }
 
