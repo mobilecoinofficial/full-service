@@ -857,9 +857,9 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_util_from_random::FromRandom;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
     use mc_transaction_extra::TxOutConfirmationNumber;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -870,8 +870,8 @@ mod tests {
         },
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
-            get_resolver_factory, get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            get_resolver_factory, get_test_ledger, manually_sync_account,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -1973,7 +1973,6 @@ mod tests {
 
     #[test]
     fn test_try_from_vec_output_txo_for_transaction_id() {
-
         let mut rng: StdRng = SeedableRng::from_entropy();
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
@@ -1982,18 +1981,20 @@ mod tests {
         let num_loops = 5; // number of times to run test
         let amount = 77;
 
-        for _ in 1..=num_loops { // run test loop
+        for _ in 1..=num_loops {
+            // run test loop
 
             let mut output_vec: Vec<OutputTxo> = Vec::new();
 
-            for _ in 0..num_txos { // loop to build vector and test try_from()
+            for _ in 0..num_txos {
+                // loop to build vector and test try_from()
 
                 let (tx_out, _) = create_test_txo_for_recipient(
-                            &recipient_account_key,
-                            0, // subaddress_index
-                            Amount::new(amount * MOB, Mob::ID),
-                            &mut rng,
-                        );
+                    &recipient_account_key,
+                    0, // subaddress_index
+                    Amount::new(amount * MOB, Mob::ID),
+                    &mut rng,
+                );
 
                 let output_txo = OutputTxo {
                     tx_out: tx_out.clone(),
@@ -2020,7 +2021,6 @@ mod tests {
 
     #[test]
     fn test_try_from_empty_vec_output_txo_for_transaction_id() {
-
         let output_vec: Vec<OutputTxo> = Vec::new();
         let transaction_log_id = TransactionId::try_from(output_vec);
 
@@ -2030,4 +2030,3 @@ mod tests {
         }
     }
 }
-
