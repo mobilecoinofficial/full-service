@@ -2021,12 +2021,12 @@ mod tests {
 
     #[test]
     fn test_try_from_empty_vec_output_txo_for_transaction_id() {
+
+        use std::assert_matches::assert_matches;
+
         let output_vec: Vec<OutputTxo> = Vec::new();
         let transaction_log_id = TransactionId::try_from(output_vec);
 
-        match transaction_log_id {
-            Ok(_) => assert!(false, "Expected error, but got Ok"),
-            Err(err) => assert_eq!(err, "no valid payload_txo"),
-        }
+        assert_matches!(transaction_log_id, Err("no valid payload_txo"));
     }
 }
