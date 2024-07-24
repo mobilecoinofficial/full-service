@@ -2024,8 +2024,7 @@ mod tests {
 
         use std::assert_matches::assert_matches;
 
-        let output_vec: Vec<OutputTxo> = Vec::new();
-        let transaction_log_id = TransactionId::try_from(output_vec);
+        let transaction_log_id = TransactionId::try_from(vec![]);
 
         assert_matches!(transaction_log_id, Err("no valid payload_txo"));
     }
