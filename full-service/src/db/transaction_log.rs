@@ -1987,9 +1987,10 @@ mod tests {
 
             for _ in 0..txo_vector_size {
 
+                let subaddress_index = 0;
                 let (tx_out, _) = create_test_txo_for_recipient(
                     &recipient_account_key,
-                    0, // subaddress_index
+                    subaddress_index,
                     Amount::new(amount * MOB, Mob::ID),
                     &mut rng,
                 );
