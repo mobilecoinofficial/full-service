@@ -1975,16 +1975,15 @@ mod tests {
         let mut rng: StdRng = SeedableRng::from_entropy();
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
-
-        let txo_vector_size = 5;
-        let num_test_runs = 5;
         let amount = 77;
 
-        for _ in 1..=num_test_runs {
+        let num_loops = 10;
+
+        for loop_number in 1..=num_loops {
 
             let mut output_vec: Vec<OutputTxo> = Vec::new();
 
-            for _ in 0..txo_vector_size {
+            for _ in 1..=loop_number {
 
                 let subaddress_index = 0;
                 let (tx_out, _) = create_test_txo_for_recipient(
