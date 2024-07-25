@@ -848,6 +848,7 @@ impl TransactionLogModel for TransactionLog {
 #[cfg(test)]
 mod tests {
     use std::{
+        assert_matches::assert_matches,
         collections::HashMap,
         ops::DerefMut,
         sync::{Arc, Mutex},
@@ -2015,8 +2016,6 @@ mod tests {
 
     #[test]
     fn test_try_from_empty_vec_output_txo_for_transaction_id() {
-        use std::assert_matches::assert_matches;
-
         let transaction_log_id = TransactionId::try_from(vec![]);
 
         assert_matches!(transaction_log_id, Err("no valid payload_txo"));
