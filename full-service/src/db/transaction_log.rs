@@ -51,10 +51,9 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
             HexFmt(
                 _payload_txos
                     .iter()
-                    .min_by_key(|txo| txo.tx_out.public_key)
+                    .map(|txo| txo.tx_out.public_key)
+                    .min()
                     .ok_or("no valid payload_txo")?
-                    .tx_out
-                    .public_key,
             )
             .to_string(),
         ))
@@ -2008,10 +2007,9 @@ mod tests {
 
             let min_public_key = output_vec
                 .iter()
-                .min_by_key(|txo| txo.tx_out.public_key)
-                .unwrap()
-                .tx_out
-                .public_key;
+                .map(|txo| txo.tx_out.public_key)
+                .min()
+                .unwrap();
             let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
 
             assert_eq!(min_public_key.to_string(), transaction_log_id.0);
