@@ -53,7 +53,7 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
                     .iter()
                     .map(|txo| txo.tx_out.public_key)
                     .min()
-                    .ok_or("no valid payload_txo")?
+                    .ok_or("no valid payload_txo")?,
             )
             .to_string(),
         ))
@@ -1980,11 +1980,9 @@ mod tests {
         let num_loops = 10;
 
         for loop_number in 1..=num_loops {
-
             let mut output_vec: Vec<OutputTxo> = Vec::new();
 
             for _ in 1..=loop_number {
-
                 let subaddress_index = 0;
                 let (tx_out, _) = create_test_txo_for_recipient(
                     &recipient_account_key,
@@ -2017,7 +2015,6 @@ mod tests {
 
     #[test]
     fn test_try_from_empty_vec_output_txo_for_transaction_id() {
-
         use std::assert_matches::assert_matches;
 
         let transaction_log_id = TransactionId::try_from(vec![]);
