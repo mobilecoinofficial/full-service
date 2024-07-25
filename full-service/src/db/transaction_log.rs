@@ -51,10 +51,9 @@ impl TryFrom<Vec<OutputTxo>> for TransactionId {
             HexFmt(
                 _payload_txos
                     .iter()
-                    .min_by_key(|txo| txo.tx_out.public_key)
-                    .ok_or("no valid payload_txo")?
-                    .tx_out
-                    .public_key,
+                    .map(|txo| txo.tx_out.public_key)
+                    .min()
+                    .ok_or("no valid payload_txo")?,
             )
             .to_string(),
         ))
@@ -849,15 +848,18 @@ impl TransactionLogModel for TransactionLog {
 #[cfg(test)]
 mod tests {
     use std::{
+        assert_matches::assert_matches,
         collections::HashMap,
         ops::DerefMut,
         sync::{Arc, Mutex},
     };
 
-    use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
+    use mc_transaction_extra::TxOutConfirmationNumber;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -867,9 +869,9 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx_outs, builder_for_random_recipient, get_resolver_factory,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
+            get_resolver_factory, get_test_ledger, manually_sync_account,
+            random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -1967,5 +1969,55 @@ mod tests {
         };
 
         assert_eq!(tx_log.tx, expected_tx_log.tx);
+    }
+
+    #[test]
+    fn test_try_from_vec_output_txo_for_transaction_id() {
+        let mut rng: StdRng = SeedableRng::from_entropy();
+        let root_id = RootIdentity::from_random(&mut rng);
+        let recipient_account_key = AccountKey::from(&root_id);
+        let amount = 77;
+
+        let num_loops = 10;
+
+        for loop_number in 1..=num_loops {
+            let mut output_vec: Vec<OutputTxo> = Vec::new();
+
+            for _ in 1..=loop_number {
+                let subaddress_index = 0;
+                let (tx_out, _) = create_test_txo_for_recipient(
+                    &recipient_account_key,
+                    subaddress_index,
+                    Amount::new(amount * MOB, Mob::ID),
+                    &mut rng,
+                );
+
+                let output_txo = OutputTxo {
+                    tx_out: tx_out.clone(),
+                    recipient_public_address: recipient_account_key.subaddress(0),
+                    confirmation_number: TxOutConfirmationNumber::default(),
+                    amount: Amount::new(amount * MOB, Mob::ID),
+                    shared_secret: None,
+                };
+
+                output_vec.push(output_txo);
+            }
+
+            let min_public_key = output_vec
+                .iter()
+                .map(|txo| txo.tx_out.public_key)
+                .min()
+                .unwrap();
+            let transaction_id = TransactionId::try_from(output_vec).unwrap();
+
+            assert_eq!(min_public_key.to_string(), transaction_id.0);
+        }
+    }
+
+    #[test]
+    fn test_try_from_empty_vec_output_txo_for_transaction_id() {
+        let transaction_log_id = TransactionId::try_from(vec![]);
+
+        assert_matches!(transaction_log_id, Err("no valid payload_txo"));
     }
 }
