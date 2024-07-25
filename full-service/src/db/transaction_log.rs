@@ -2010,9 +2010,9 @@ mod tests {
                 .map(|txo| txo.tx_out.public_key)
                 .min()
                 .unwrap();
-            let transaction_log_id = TransactionId::try_from(output_vec).unwrap();
+            let transaction_id = TransactionId::try_from(output_vec).unwrap();
 
-            assert_eq!(min_public_key.to_string(), transaction_log_id.0);
+            assert_eq!(min_public_key.to_string(), transaction_id.0);
         }
     }
 
