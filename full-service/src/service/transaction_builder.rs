@@ -1207,7 +1207,7 @@ mod tests {
             )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 23);
+        assert_eq!(proposal.tx.prefix.tombstone_block, 13 + DEFAULT_NEW_TX_BLOCK_ATTEMPTS );
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
