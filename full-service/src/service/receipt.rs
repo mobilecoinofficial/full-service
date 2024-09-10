@@ -496,7 +496,7 @@ mod tests {
         let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
-        assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
+        assert_eq!(receipt.tombstone_block, 113); // Ledger seeded with 12 blocks at tx construction, then one appended + 100
         let public_key = txos_and_statuses[0]
             .txo
             .public_key()

@@ -43,7 +43,7 @@ use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
 // TODO support for making this configurable
-pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 10;
+pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 100;
 
 /// A builder of transactions constructed from this wallet.
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
@@ -1207,7 +1207,10 @@ mod tests {
             )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 23);
+        assert_eq!(
+            proposal.tx.prefix.tombstone_block,
+            13 + DEFAULT_NEW_TX_BLOCK_ATTEMPTS
+        );
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =

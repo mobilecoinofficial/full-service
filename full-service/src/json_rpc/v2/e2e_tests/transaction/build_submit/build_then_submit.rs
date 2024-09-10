@@ -153,9 +153,9 @@ mod e2e_transaction {
 
         assert_eq!(tx_proposal.change_txos.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 100 default
         // tombstone)
-        assert_eq!(tx_proposal.tombstone_block_index, "24");
+        assert_eq!(tx_proposal.tombstone_block_index, "114");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 14);
@@ -404,9 +404,9 @@ mod e2e_transaction {
 
         assert_eq!(tx_proposal.change_txos.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 4 new blocks + 10 default
+        // Tombstone block = ledger height (12 to start + 4 new blocks + 100 default
         // tombstone)
-        assert_eq!(tx_proposal.tombstone_block_index, "26");
+        assert_eq!(tx_proposal.tombstone_block_index, "116");
 
         // Get current balance
         assert_eq!(ledger_db.num_blocks().unwrap(), 16);
