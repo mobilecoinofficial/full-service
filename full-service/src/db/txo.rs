@@ -2,6 +2,21 @@
 
 //! DB impl for the Txo model.
 
+use crate::{
+    db::{
+        account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
+        models::{
+            Account, AssignedSubaddress, AuthenticatedSenderMemo as AuthenticatedSenderMemoModel,
+            DestinationMemo as DestinationMemoModel, NewAuthenticatedSenderMemo,
+            NewDestinationMemo, NewTransactionOutputTxo, NewTxo, TransactionOutputTxo, Txo,
+        },
+        transaction_log::TransactionId,
+        Conn, WalletDbError,
+    },
+    service::models::tx_proposal::OutputTxo,
+    util::b58::b58_encode_public_address,
+};
 use diesel::{
     dsl::{count, exists, not},
     prelude::*,
@@ -25,22 +40,6 @@ use mc_transaction_extra::{
 };
 use mc_util_serial::Message;
 use std::{convert::TryFrom, fmt, str::FromStr};
-
-use crate::{
-    db::{
-        account::{AccountID, AccountModel},
-        assigned_subaddress::AssignedSubaddressModel,
-        models::{
-            Account, AssignedSubaddress, AuthenticatedSenderMemo as AuthenticatedSenderMemoModel,
-            DestinationMemo as DestinationMemoModel, NewAuthenticatedSenderMemo,
-            NewDestinationMemo, NewTransactionOutputTxo, NewTxo, TransactionOutputTxo, Txo,
-        },
-        transaction_log::TransactionId,
-        Conn, WalletDbError,
-    },
-    service::models::tx_proposal::OutputTxo,
-    util::b58::b58_encode_public_address,
-};
 
 #[derive(Debug, PartialEq)]
 pub enum TxoStatus {
@@ -134,6 +133,7 @@ impl fmt::Display for TxoID {
     }
 }
 
+#[derive(Debug)]
 pub struct SpendableTxosResult {
     pub spendable_txos: Vec<Txo>,
     pub max_spendable_in_wallet: u128,
@@ -1805,14 +1805,21 @@ impl TxoModel for Txo {
                     .on(transaction_logs::id.eq(transaction_input_txos::transaction_log_id)),
             );
 
-        query = query
-            .filter(transaction_logs::id.is_null())
-            .or_filter(transaction_logs::failed.eq(true))
-            .or_filter(
-                transaction_logs::id
+        let inflight_txo_ids = transaction_logs::table
+            .into_boxed()
+            .inner_join(transaction_input_txos::table)
+            .filter(
+                transaction_logs::submitted_block_index
                     .is_not_null()
-                    .and(transaction_logs::submitted_block_index.is_null()),
-            );
+                    .and(transaction_logs::failed.eq(false)),
+            )
+            .select(transaction_input_txos::txo_id);
+
+        query = query.filter(
+            transaction_logs::id
+                .is_null()
+                .or(not(txos::id.eq_any(inflight_txo_ids))),
+        );
 
         query = query
             .filter(txos::received_block_index.is_not_null())
@@ -2342,6 +2349,7 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
     use std::{assert_matches::assert_matches, iter::FromIterator, ops::DerefMut, time::Duration};
 
+    use super::*;
     use crate::{
         db::{
             account::{AccountID, AccountModel},
@@ -2359,7 +2367,42 @@ mod tests {
         WalletDb,
     };
 
-    use super::*;
+    fn build_and_submit_transaction(
+        account_key: &AccountKey,
+        value: u64,
+        ledger_db: &LedgerDB,
+        wallet_db: &WalletDb,
+        conn: Conn,
+    ) -> TransactionLog {
+        let (_, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
+            account_key.clone(),
+            account_key.default_subaddress(),
+            value,
+            wallet_db.clone(),
+            ledger_db.clone(),
+        );
+        let tx_proposal = unsigned_tx_proposal
+            .sign_with_local_signer(account_key)
+            .unwrap();
+
+        let _ = TransactionLog::log_signed(
+            tx_proposal.clone(),
+            "".to_string(),
+            &AccountID::from(account_key).to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let transaction_log = TransactionLog::log_submitted(
+            &tx_proposal,
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            &AccountID::from(account_key).to_string(),
+            conn,
+        )
+        .unwrap();
+        transaction_log
+    }
 
     /// We want to test that the conversions to and from using these methods
     /// result in appropriate values to store in the database.
@@ -4058,6 +4101,112 @@ mod tests {
             max_spendable_in_wallet as u64,
             txo_value_low * 5 - Mob::MINIMUM_FEE
         );
+    }
+
+    #[test_with_logger]
+    fn list_spendable_does_not_grab_inflight_txos(logger: Logger) {
+        // This test is meant to prevent a regression bug.
+        // The logic was incorrect in that if there was any failed transaction
+        // log for an unspent txo, it would be included in list_spendable()
+        // In particular we don't want to include txos that are part of a submitted
+        // transaction log
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            conn,
+        )
+        .unwrap();
+
+        let (received_txo, _) = create_test_txo_for_recipient(
+            &account_key,
+            0,
+            Amount::new(100 * MOB, Mob::ID),
+            &mut rng,
+        );
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[received_txo.clone()],
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+        let _ = manually_sync_account(&ledger_db, &wallet_db, &account_id, &logger);
+
+        // Should have the one txo as spendable since nothing is inflight
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(spendable_txos.spendable_txos.len(), 1);
+
+        // Create a transaction log that is inflight, should result in the
+        // single txo not being spendable
+        let transaction_log =
+            build_and_submit_transaction(&account_key, 1 * MOB, &mut ledger_db, &wallet_db, conn);
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(spendable_txos.spendable_txos.len(), 0);
+
+        // Marking the transaction log as failed, should result in the txo being
+        // spendable again
+        let block_index = transaction_log.tombstone_block_index.unwrap() as u64;
+        TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            block_index + 1,
+            conn,
+        )
+        .unwrap();
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(spendable_txos.spendable_txos.len(), 1);
+
+        // Making a new transaction log that is inflight should result in the txo not
+        // being spendable
+        let _ =
+            build_and_submit_transaction(&account_key, 1 * MOB, &mut ledger_db, &wallet_db, conn);
+        let spendable_txos = Txo::list_spendable(
+            Some(&account_id.to_string()),
+            None,
+            None,
+            0,
+            Mob::MINIMUM_FEE,
+            conn,
+        )
+        .unwrap();
+        assert_eq!(spendable_txos.spendable_txos.len(), 0);
     }
 
     #[test_with_logger]
