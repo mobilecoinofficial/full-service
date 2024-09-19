@@ -47,7 +47,7 @@ impl From<ledger_mob::Error> for HardwareWalletServiceError {
     }
 }
 
-async fn get_device_handle() -> Result<DeviceHandle<LedgerHandle>, HardwareWalletServiceError> {
+pub async fn get_device_handle() -> Result<DeviceHandle<LedgerHandle>, HardwareWalletServiceError> {
     let mut ledger_provider = LedgerProvider::init().await;
     let devices = ledger_provider
         .list(Filters::Hid)
