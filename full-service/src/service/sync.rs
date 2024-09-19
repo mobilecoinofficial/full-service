@@ -275,6 +275,10 @@ pub fn sync_account_next_chunk(
             let num_spent_txos = spent_txos.len();
 
             for (block_index, txo_id_hex) in &spent_txos {
+                log::warn!(
+                    logger,
+                    "Updating spent block index {block_index} on txo {txo_id_hex}"
+                );
                 Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,
@@ -284,7 +288,7 @@ pub fn sync_account_next_chunk(
             }
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
-                end_block_index + 1,
+                end_block_index,
                 conn,
             )?;
 
@@ -364,6 +368,10 @@ pub fn sync_account_next_chunk(
                 .collect();
             let num_spent_txos = spent_txos.len();
             for (block_index, txo_id_hex) in &spent_txos {
+                log::warn!(
+                    logger,
+                    "Updating spent block index {block_index} on txo {txo_id_hex}"
+                );
                 Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
                     txo_id_hex,

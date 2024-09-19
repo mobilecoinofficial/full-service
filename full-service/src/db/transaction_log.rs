@@ -4,7 +4,10 @@
 
 use diesel::prelude::*;
 use hex_fmt::HexFmt;
-use mc_common::HashMap;
+use mc_common::{
+    logger::{log, Logger},
+    HashMap,
+};
 use mc_transaction_core::{Amount, TokenId};
 use std::{convert::TryFrom, fmt};
 
@@ -147,7 +150,7 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * TransactionLog
     fn get(
-        id: &TransactionId, 
+        id: &TransactionId,
         conn: Conn
     ) -> Result<TransactionLog, WalletDbError>;
 
@@ -167,7 +170,7 @@ pub trait TransactionLogModel {
     /// Update the block index of where the associate transaction was submitted to a transaction log.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                 | Notes |
     ///|-------------------------|---------------------------------------------------------|-------|
     ///| `submitted_block_index` | The block index of where the transaction was submitted. |       |
@@ -184,7 +187,7 @@ pub trait TransactionLogModel {
     /// Update arbitrary comments to a transaction log of an associate transaction .
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name      | Purpose                                                | Notes |
     ///|-----------|--------------------------------------------------------|-------|
     ///| `comment` | The arbitrary comments of the existing transaction.    |       |
@@ -197,7 +200,7 @@ pub trait TransactionLogModel {
     /// Update encoded value of the associate transaction and the tombstone_block_index to a transaction log.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                                  | Notes                                                   |
     ///|-------------------------|--------------------------------------------------------------------------|---------------------------------------------------------|
     ///| `tx`                    | The encoded value of the associate transaction object.                   | Encoded value of a CryptoNote-style transaction object. |
@@ -214,7 +217,7 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// List all transaction logs and their associated Txos for a given account.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name              | Purpose                                                    | Notes                               |
@@ -238,7 +241,7 @@ pub trait TransactionLogModel {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
     /// Log a transaction that has been built but not yet signed.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name                   | Purpose                                                 | Notes                               |
@@ -256,9 +259,9 @@ pub trait TransactionLogModel {
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a transaction that has been signed
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name             | Purpose                                                   | Notes                               |
     ///|------------------|-----------------------------------------------------------|-------------------------------------|
     ///| `tx_proposal`    | The signed transaction proposal that will be logged.      |                                     |
@@ -273,6 +276,7 @@ pub trait TransactionLogModel {
         comment: String,
         account_id_hex: &str,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a submitted transaction.
@@ -285,9 +289,9 @@ pub trait TransactionLogModel {
     /// recipient, with the rest of the minted txos designated as
     /// change. Other wallets may choose to behave differently, but
     /// our TransactionLogs Table assumes this behavior.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name             | Purpose                                                      | Notes                               |
     ///|------------------|--------------------------------------------------------------|-------------------------------------|
     ///| `tx_proposal`    | The submitted transaction proposal that will be logged.      |                                     |
@@ -304,10 +308,11 @@ pub trait TransactionLogModel {
         comment: String,
         account_id_hex: &str,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Remove all transaction logs for an account.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name             | Purpose                                                | Notes                               |
@@ -318,12 +323,12 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * unit
     fn delete_all_for_account(
-        account_id_hex: &str, 
+        account_id_hex: &str,
         conn: Conn
     ) -> Result<(), WalletDbError>;
 
     /// Update the finalized block index to all pending transaction logs that associate with a given transaction output (txo).
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name                    | Purpose                                                                      | Notes |
@@ -341,7 +346,7 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// Set the status of a transaction log to failed if its tombstone_block_index is less than the given block index.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name          | Purpose                                                                              | Notes |
@@ -357,18 +362,18 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// Retrieve the status of an associated transaction from a transaction log.
-    /// 
+    ///
     /// # Arguments
     /// * None
     ///
     /// # Returns
     /// * TxStatus
     fn status(&self) -> TxStatus;
-    
+
     /// Get the total value of transaction outputs for given token id from current transaction log instances.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name       | Purpose                                                | Notes |
     ///|------------|--------------------------------------------------------|-------|
     ///| `token_id` | The id of a supported type of token.                   |       |
@@ -377,16 +382,16 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * aggreagated value (u64)
     fn value_for_token_id(
-        &self, 
-        token_id: TokenId, 
+        &self,
+        token_id: TokenId,
         conn: Conn
     ) -> Result<u64, WalletDbError>;
-    
+
     /// Get the total value of transaction outputs for each token id from current transaction log instances.
-    /// 
+    ///
     /// # Arguments
     /// * None
-    /// 
+    ///
     /// # Returns
     /// * ValueMap<TokenId, aggreagated value (u64)>
     fn value_map(&self, conn: Conn) -> Result<ValueMap, WalletDbError>;
@@ -604,6 +609,7 @@ impl TransactionLogModel for TransactionLog {
         comment: String,
         account_id_hex: &str,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -620,6 +626,7 @@ impl TransactionLogModel for TransactionLog {
                 // signed tx and the tombstone block index.
                 for input_txo in tx_proposal.input_txos.iter() {
                     let txo_id = TxoID::from(&input_txo.tx_out);
+                    log::warn!(logger, "Updating txo id {txo_id} to block None");
                     Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
                 }
                 transaction_log.update_comment(comment, conn)?;
@@ -649,6 +656,7 @@ impl TransactionLogModel for TransactionLog {
 
                 for txo in tx_proposal.input_txos.iter() {
                     let txo_id = TxoID::from(&txo.tx_out);
+                    log::warn!(logger, "Updating txo id {txo_id} to block None");
                     Txo::update_key_image(&txo_id.to_string(), &txo.key_image, None, conn)?;
                     let transaction_input_txo = NewTransactionInputTxo {
                         transaction_log_id: &transaction_log_id.to_string(),
@@ -680,6 +688,7 @@ impl TransactionLogModel for TransactionLog {
         comment: String,
         account_id_hex: &str,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<TransactionLog, WalletDbError> {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
@@ -714,6 +723,7 @@ impl TransactionLogModel for TransactionLog {
 
                 for input_txo in tx_proposal.input_txos.iter() {
                     let txo_id = TxoID::from(&input_txo.tx_out);
+                    log::warn!(logger, "Updating txo id {txo_id} to block None");
                     Txo::update_key_image(&txo_id.to_string(), &input_txo.key_image, None, conn)?;
                     let transaction_input_txo = NewTransactionInputTxo {
                         transaction_log_id: &transaction_log_id.to_string(),

@@ -263,7 +263,7 @@ pub trait AccountService {
     ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
     ///
     fn resync_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<(), AccountServiceError>;
 
@@ -304,7 +304,7 @@ pub trait AccountService {
     ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
     ///
     fn get_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<Account, AccountServiceError>;
 
@@ -376,7 +376,7 @@ pub trait AccountService {
     ///| `name`       | The new name for this account.               |                                   |
     ///
     fn remove_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<bool, AccountServiceError>;
 
@@ -741,6 +741,11 @@ where
         for synced_txo in synced_txos {
             let spent_block_index = self.ledger_db.check_key_image(&synced_txo.key_image)?;
             let ristretto_public: &RistrettoPublic = synced_txo.tx_out_public_key.as_ref();
+            log::warn!(
+                self.logger,
+                "Update key image {} to block index {spent_block_index:?}",
+                synced_txo.key_image
+            );
             Txo::update_key_image_by_pubkey(
                 &ristretto_public.into(),
                 &synced_txo.key_image,

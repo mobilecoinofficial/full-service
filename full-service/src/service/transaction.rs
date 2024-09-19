@@ -330,7 +330,7 @@ pub trait TransactionService {
     /// Build a transaction to confirm its contents before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -362,7 +362,7 @@ pub trait TransactionService {
     /// Build a transaction and sign it before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -411,7 +411,7 @@ pub trait TransactionService {
     /// Build and sign a transaction and submit it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -583,7 +583,13 @@ where
         let tx_proposal = unsigned_tx_proposal.sign(&account).await?;
 
         exclusive_transaction(conn, |conn| {
-            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
+            TransactionLog::log_signed(
+                tx_proposal.clone(),
+                "".to_string(),
+                account_id_hex,
+                conn,
+                &self.logger,
+            )?;
             Ok(tx_proposal)
         })
     }
@@ -607,12 +613,25 @@ where
         let idx = self.submit_node_offset.fetch_add(1, Ordering::SeqCst);
         let responder_id = &responder_ids[idx % responder_ids.len()];
 
-        let block_index = self
+        let result = self
             .peer_manager
             .conn(responder_id)
             .ok_or(TransactionServiceError::NodeNotFound)?
             .propose_tx(&tx_proposal.tx, Fibonacci::from_millis(10).take(5))
-            .map_err(TransactionServiceError::from)?;
+            .map_err(TransactionServiceError::from);
+
+        let block_index = match result {
+            Ok(block_index) => block_index,
+            Err(e) => {
+                let input_txos = &tx_proposal.input_txos;
+                log::error!(
+                    self.logger,
+                    "Error submitting transaction to responder {:?}",
+                    input_txos,
+                );
+                return Err(e);
+            }
+        };
 
         log::trace!(
             self.logger,
@@ -633,6 +652,7 @@ where
                     comment.unwrap_or_default(),
                     &account_id_hex,
                     conn,
+                    &self.logger,
                 )?;
 
                 let associated_txos = transaction_log.get_associated_txos(conn)?;
