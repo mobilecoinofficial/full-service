@@ -358,6 +358,7 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * unit
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
         logger: &Logger,
@@ -817,6 +818,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
         logger: &Logger,
@@ -824,12 +826,13 @@ impl TransactionLogModel for TransactionLog {
         use crate::db::schema::transaction_logs;
 
         let transaction_log_ids: Vec<String> = transaction_logs::table
+            .filter(transaction_logs::account_id.eq(&account_id.0))
             .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_null())
             .select(transaction_logs::id)
             .load(conn)?;
-        log::warn!(logger, "Failing txo logs {transaction_log_ids:?} for tombstone {block_index}");
+        log::warn!(logger, "Failing txo logs {transaction_log_ids:?} for account {account_id} for tombstone {block_index}");
         diesel::update(
             transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
         )
