@@ -182,7 +182,8 @@ pub fn sync_account_next_chunk(
     exclusive_transaction(conn, |conn| {
         // Get the account data. If it is no longer available, the account has been
         // removed and we can simply return.
-        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let account_id = AccountID(account_id_hex.to_string());
+        let account = Account::get(&account_id, conn)?;
 
         let start_time = Instant::now();
         let start_block_index = account.next_block_index as u64;
@@ -284,7 +285,8 @@ pub fn sync_account_next_chunk(
             }
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
-                end_block_index + 1,
+                &account_id,
+                end_block_index,
                 conn,
             )?;
 
@@ -373,6 +375,7 @@ pub fn sync_account_next_chunk(
             }
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+                &account_id,
                 end_block_index + 1,
                 conn,
             )?;

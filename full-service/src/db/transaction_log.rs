@@ -352,6 +352,7 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * unit
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
@@ -802,6 +803,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
@@ -809,6 +811,7 @@ impl TransactionLogModel for TransactionLog {
 
         diesel::update(
             transaction_logs::table
+                .filter(transaction_logs::account_id.eq(&account_id.0))
                 .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
                 .filter(transaction_logs::failed.eq(false))
                 .filter(transaction_logs::finalized_block_index.is_null()),
@@ -847,6 +850,13 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
+    use mc_ledger_db::Ledger;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
+    use mc_transaction_extra::TxOutConfirmationNumber;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
     use std::{
         assert_matches::assert_matches,
         collections::HashMap,
@@ -854,14 +864,7 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::logger::{async_test_with_logger, Logger};
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
-    use mc_transaction_extra::TxOutConfirmationNumber;
-    use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
-
+    use super::*;
     use crate::{
         db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
         service::{
@@ -870,13 +873,11 @@ mod tests {
         },
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
-            get_resolver_factory, get_test_ledger, manually_sync_account,
-            random_account_with_seed_values, WalletDbTestContext, MOB,
+            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
-
-    use super::*;
 
     #[async_test_with_logger]
     // Test the happy path for log_submitted. When a transaction is submitted to the
@@ -2019,5 +2020,90 @@ mod tests {
         let transaction_log_id = TransactionId::try_from(vec![]);
 
         assert_matches!(transaction_log_id, Err("no valid payload_txo"));
+    }
+
+    #[test_with_logger]
+    fn fail_by_tombstone_block_only_fails_for_given_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+        let account_keys = (0..3)
+            .into_iter()
+            .map(|_| {
+                random_account_with_seed_values(
+                    &wallet_db,
+                    &mut ledger_db,
+                    &[70 * MOB],
+                    &mut rng,
+                    &logger,
+                )
+            })
+            .collect::<Vec<_>>();
+        let accounts_and_logs: Vec<_> = account_keys
+            .iter()
+            .map(|account_key| {
+                let account_id = AccountID::from(account_key);
+                let (_, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
+                    account_key.clone(),
+                    account_key.default_subaddress(),
+                    1 * MOB,
+                    wallet_db.clone(),
+                    ledger_db.clone(),
+                );
+                let tx_proposal = unsigned_tx_proposal
+                    .sign_with_local_signer(&account_key)
+                    .unwrap();
+
+                let _ = TransactionLog::log_signed(
+                    tx_proposal.clone(),
+                    "".to_string(),
+                    &AccountID::from(account_key).to_string(),
+                    conn,
+                )
+                .unwrap();
+
+                let transaction_log = TransactionLog::log_submitted(
+                    &tx_proposal,
+                    ledger_db.num_blocks().unwrap(),
+                    "".to_string(),
+                    &AccountID::from(account_key).to_string(),
+                    conn,
+                )
+                .unwrap();
+                (account_id, transaction_log)
+            })
+            .collect();
+
+        let (account_ids, transaction_logs) = accounts_and_logs
+            .iter()
+            .cloned()
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+
+        // Sanity check that all have the same tombstone block
+        let tombstone_block_index = transaction_logs[0].tombstone_block_index.unwrap();
+        for tx_log in &transaction_logs {
+            assert_eq!(tx_log.tombstone_block_index, Some(tombstone_block_index));
+        }
+
+        TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &account_ids[0],
+            tombstone_block_index as u64 + 1,
+            conn,
+        )
+        .unwrap();
+
+        let updated_transaction_logs = transaction_logs
+            .iter()
+            .map(|t| TransactionLog::get(&TransactionId::from(t), conn).unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(updated_transaction_logs[0].status(), TxStatus::Failed);
+        for tx_log in &updated_transaction_logs[1..] {
+            assert_eq!(tx_log.status(), TxStatus::Pending);
+        }
     }
 }
