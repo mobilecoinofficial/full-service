@@ -284,12 +284,14 @@ pub fn sync_account_next_chunk(
                     txo_id_hex,
                     *block_index,
                     conn,
+                    logger,
                 )?;
             }
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index,
                 conn,
+                logger,
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.
@@ -377,12 +379,14 @@ pub fn sync_account_next_chunk(
                     txo_id_hex,
                     *block_index,
                     conn,
+                    logger,
                 )?;
             }
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 end_block_index + 1,
                 conn,
+                logger,
             )?;
 
             // Done syncing this chunk. Mark these blocks as synced for this account.

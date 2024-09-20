@@ -343,6 +343,7 @@ pub trait TransactionLogModel {
         txo_id_hex: &str,
         finalized_block_index: u64,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<(), WalletDbError>;
 
     /// Set the status of a transaction log to failed if its tombstone_block_index is less than the given block index.
@@ -359,6 +360,7 @@ pub trait TransactionLogModel {
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         block_index: u64,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<(), WalletDbError>;
 
     /// Retrieve the status of an associated transaction from a transaction log.
@@ -789,6 +791,7 @@ impl TransactionLogModel for TransactionLog {
         txo_id_hex: &str,
         finalized_block_index: u64,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Find all submitted transaction logs associated with this txo that have not
@@ -802,6 +805,8 @@ impl TransactionLogModel for TransactionLog {
             .select(transaction_logs::id)
             .load(conn)?;
 
+        log::warn!(logger, "Updating txo log ids {txo_id_hex} to block {finalized_block_index}, {transaction_log_ids:?}");
+
         diesel::update(
             transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
         )
@@ -814,17 +819,22 @@ impl TransactionLogModel for TransactionLog {
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         block_index: u64,
         conn: Conn,
+        logger: &Logger,
     ) -> Result<(), WalletDbError> {
         use crate::db::schema::transaction_logs;
 
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .select(transaction_logs::id)
+            .load(conn)?;
+        log::warn!(logger, "Failing txo logs {transaction_log_ids:?} for tombstone {block_index}");
         diesel::update(
-            transaction_logs::table
-                .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
-                .filter(transaction_logs::failed.eq(false))
-                .filter(transaction_logs::finalized_block_index.is_null()),
+            transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
         )
-        .set((transaction_logs::failed.eq(true),))
-        .execute(conn)?;
+            .set((transaction_logs::failed.eq(true),))
+            .execute(conn)?;
 
         Ok(())
     }
