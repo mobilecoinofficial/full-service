@@ -286,7 +286,7 @@ pub fn sync_account_next_chunk(
 
             TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
                 &account_id,
-                end_block_index,
+                end_block_index + 1,
                 conn,
             )?;
 
