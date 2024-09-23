@@ -4178,6 +4178,7 @@ mod tests {
         // spendable again
         let block_index = transaction_log.tombstone_block_index.unwrap() as u64;
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &account_id,
             block_index + 1,
             conn,
         )
