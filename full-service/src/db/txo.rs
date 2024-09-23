@@ -961,12 +961,18 @@ impl TxoModel for Txo {
 
         let encoded_key_image = mc_util_serial::encode(key_image);
 
-        diesel::update(txos::table.filter(txos::id.eq(txo_id_hex)))
-            .set((
-                txos::key_image.eq(Some(encoded_key_image)),
-                txos::spent_block_index.eq(spent_block_index.map(|i| i as i64)),
-            ))
-            .execute(conn)?;
+        if spent_block_index.is_none() {
+            diesel::update(txos::table.filter(txos::id.eq(txo_id_hex)))
+                .set(txos::key_image.eq(Some(encoded_key_image)))
+                .execute(conn)?;
+        } else {
+            diesel::update(txos::table.filter(txos::id.eq(txo_id_hex)))
+                .set((
+                    txos::key_image.eq(Some(encoded_key_image)),
+                    txos::spent_block_index.eq(spent_block_index.map(|i| i as i64)),
+                ))
+                .execute(conn)?;
+        }
 
         Ok(())
     }
@@ -4174,6 +4180,7 @@ mod tests {
         // spendable again
         let block_index = transaction_log.tombstone_block_index.unwrap() as u64;
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &account_id,
             block_index + 1,
             conn,
         )
