@@ -115,7 +115,7 @@ jobs:
         uses: actions-rs/grcov@v0.1
 
       - name: Codecov
-        uses: codecov/codecov-action@v3.1.4
+        uses: codecov/codecov-action@v3.1.6
         with:
           files: ${{ steps.coverage.outputs.report }}
           verbose: true
