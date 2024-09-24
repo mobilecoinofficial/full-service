@@ -1809,9 +1809,11 @@ impl TxoModel for Txo {
             .into_boxed()
             .inner_join(transaction_input_txos::table)
             .filter(
-                transaction_logs::submitted_block_index
-                    .is_not_null()
-                    .and(transaction_logs::failed.eq(false)),
+                transaction_logs::submitted_block_index.is_not_null().and(
+                    transaction_logs::failed
+                        .eq(false)
+                        .and(transaction_logs::finalized_block_index.is_null()),
+                ),
             )
             .select(transaction_input_txos::txo_id);
 
