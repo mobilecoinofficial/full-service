@@ -157,7 +157,7 @@ sudo xcode-select -s /Applications/Xcode_12.5.1.app/Contents/Developer
     After openSSL has been installed with brew on MacOS, you may need to set some environment variables to allow the rust compiler to find openSSL
 
     Ubuntu:
-    ```
+    ```sh
     PATH="/usr/local/opt/openssl@3/bin:$PATH"
     LDFLAGS="-L/usr/local/opt/openssl@3/lib"
     CPPFLAGS="-I/usr/local/opt/openssl@3/include"
@@ -318,7 +318,7 @@ All available parameters can be set as Environment Variables. Parameters names a
 Any options that can be specified multiple times as a list (`--peer`, `--tx-source-url`) can be specified as comma delimited values.
 
 **TestNet example**
-```
+```sh
 MC_PEER="mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/" \
 MC_TX_SOURCE_URL="https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/" \
 MC_WALLET_DB="./testnet-dbs/wallet.db" \
@@ -358,7 +358,7 @@ To add or edit tables:
 1. Ensure that you have `diesel_cli` installed and that it is using the current sqlite
    version:
 
-   ```
+   ```sh
    cargo install --git="https://github.com/mobilecoinofficial/diesel" --rev="026f6379715d27c8be48396e5ca9059f4a263198" diesel_cli --no-default-features --features sqlite
    ```
 
@@ -374,7 +374,8 @@ To add or edit tables:
    inverse operation with `diesel migration redo --database-url $MIGRATION_TEST_DB`
 
 Make sure that the following is still present in `schema.rs` before committing changes.
-```
+
+```graphql
 table! {
     __diesel_schema_migrations(version) {
         version -> Text,
@@ -389,12 +390,12 @@ Note that full-service/diesel.toml provides the path to the schema.rs which will
 ## Running Tests
 
 The simple way:
-```
+```sh
 ./tools/test.sh
 ```
 
 Under the covers, this runs:
-```
+```sh
 SGX_MODE=HW \
 IAS_MODE=DEV \
 CONSENSUS_ENCLAVE_CSS=$(pwd)/consensus-enclave.css \
@@ -410,7 +411,7 @@ Also note: On OSX there is sometimes weird behavior when first running the test 
 
 ## Linting
 
-```
+```sh
 RUST_LOG=info \
 SGX_MODE=HW \
 IAS_MODE=DEV \
