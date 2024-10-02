@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 MobileCoin Inc.
+// Copyright (c) 2020-2024 MobileCoin Inc.
 
 use anyhow::{anyhow, Result};
 use mc_account_keys::ViewAccountKey;

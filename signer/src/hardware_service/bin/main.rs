@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 MobileCoin Inc.
+// Copyright (c) 2020-2024 MobileCoin Inc.
 
 use clap::Parser;
 use mc_signer::hardware_service::api::{hardware_service_api, version};
