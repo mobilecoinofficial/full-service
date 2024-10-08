@@ -8,11 +8,6 @@ inputs:
 
 runs:
   using: composite
-  env:
-    RUST_BACKTRACE: full
-    SGX_MODE: HW
-    CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
-    INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
   steps:
   - name: Setup ENV
     shell: bash
