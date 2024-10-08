@@ -212,6 +212,7 @@ jobs:
       run: |
         echo "-- remove existing rust installation"
         rm -rf /Users/runner/.cargo
+        rm -rf /Users/runner/.rustup
 
         echo "-- install brew dependencies"
         brew bundle
