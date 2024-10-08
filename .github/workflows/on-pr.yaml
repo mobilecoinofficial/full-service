@@ -209,10 +209,20 @@ jobs:
     - name: Bootstrap macOS
       shell: bash
       run: |
+        echo "-- remove existing rust installation"
         rm -rf /Users/runner/.cargo
+
+        echo "-- install brew dependencies"
         brew bundle
+
+        echo "-- install rustup"
         brew install rustup
+
+        echo "-- install rust toolchain"
         rustup toolchain install "$(cat rust-toolchain)"
+
+        echo "-- add cargo to path"
+        echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
 
     - name: Build Rust
       uses: ./.github/actions/build-rust
