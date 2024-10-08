@@ -29,7 +29,7 @@ jobs:
     - name: Run actionlint with reviewdog
       uses: reviewdog/action-actionlint@v1
       with:
-        fail_on_error: true
+        level: error
         reporter: github-pr-review
 
   lint-helm:
@@ -62,7 +62,7 @@ jobs:
   #   - name: Run shellcheck with reviewdog
   #     uses: reviewdog/action-shellcheck@v1
   #     with:
-  #       fail_on_error: true
+  #       level: error
   #       reporter: github-pr-review
 
   lint-docker:
@@ -79,12 +79,12 @@ jobs:
     - name: Run hadolint with reviewdog
       uses: reviewdog/action-hadolint@v1
       with:
-        fail_on_error: true
+        level: error
         reporter: github-pr-review
         exclude: |
           *.dockerignore
 
-  test-rust:
+  lint-rust:
     runs-on: mco-dev-large-x64
     container:
       image: mobilecoin/rust-sgx-base:v0.0.36
@@ -96,16 +96,18 @@ jobs:
       uses: mobilecoinofficial/gh-actions/checkout@v0
 
     - name: Consensus SigStruct
-      shell: bash
-      run: |
-        SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .consensus.sigstruct)
-        curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${CONSENSUS_ENCLAVE_CSS}"
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        download_path: "${CONSENSUS_ENCLAVE_CSS}"
 
     - name: Ingest SigStruct
-      shell: bash
-      run: |
-        SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r .ingest.sigstruct)
-        curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${INGEST_ENCLAVE_CSS}"
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        download_path: "${INGEST_ENCLAVE_CSS}"
 
     - name: Cargo sort
       shell: bash
@@ -123,6 +125,32 @@ jobs:
       run: |
         cargo clippy --all --all-features
 
+  test-rust:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    env:
+      CSS_BASE_URL: https://enclave-distribution.test.mobilecoin.com
+      SGX_MODE: SW
+
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Consensus SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        download_path: "${CONSENSUS_ENCLAVE_CSS}"
+
+    - name: Ingest SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        download_path: "${INGEST_ENCLAVE_CSS}"
+
     - name: Cargo Test
       shell: bash
       env:
@@ -138,7 +166,6 @@ jobs:
     #   shell: bash
     #   run: |
     #     cargo install grcov
-
 
     # - name: Codecov
     #     uses: codecov/codecov-action@v3.1.4
