@@ -228,11 +228,12 @@ jobs:
         rustup show
 
         cargo=$(rustup which cargo)
+        echo $CARGO_HOME
 
         echo "-- add cargo to path"
         echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
         echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
-        echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+        # echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
         echo "$(dirname "${cargo}")" >> "${GITHUB_PATH}"
 
     - name: Build Rust
