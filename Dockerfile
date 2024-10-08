@@ -1,1 +1,0 @@
-.internal-ci/docker/Dockerfile.full-service-with-build

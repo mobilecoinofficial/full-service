@@ -121,7 +121,7 @@ jobs:
           verbose: true
           fail_ci_if_error: true
         env:
-          CODECOV_TOKEN: 5be757b6-e923-40f2-80ea-5deac1e02b1e
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   docs:
     runs-on: mco-dev-large-x64
