@@ -1,0 +1,16 @@
+# Placeholder for the PR workflow.
+name: on-pr
+
+on:
+  pull_request:
+    branches:
+    - main
+
+jobs:
+  dummy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run a multi-line script
+      run: |
+        true
+
