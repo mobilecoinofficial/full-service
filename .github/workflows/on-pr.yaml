@@ -194,6 +194,7 @@ jobs:
 
   build-rust-macos:
     strategy:
+      fail-fast: false
       matrix:
         runner:
         - [self-hosted, macOS, X64]
@@ -220,6 +221,13 @@ jobs:
 
         echo "-- install rust toolchain"
         rustup toolchain install "$(cat rust-toolchain)"
+
+        echo "-- show rustup details"
+        rustup show
+
+        ls -al "${HOME}/.cargo/bin"
+
+        rustup which cargo
 
         echo "-- add cargo to path"
         echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
