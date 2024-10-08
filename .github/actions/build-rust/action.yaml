@@ -37,6 +37,8 @@ runs:
   - name: Cargo Build
     shell: bash
     run: |
+      echo "${PATH}"
+      ls -al "${HOME}/.cargo/bin"
       cargo build --release --locked
 
   - name: Copy binaries to artifact directory

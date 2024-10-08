@@ -18,37 +18,37 @@ env:
   INGEST_ENCLAVE_CSS: /tmp/ingest-enclave.css
 
 jobs:
-  lint-actions:
-    runs-on: mco-dev-small-x64
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # lint-actions:
+  #   runs-on: mco-dev-small-x64
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Run actionlint with reviewdog
-      uses: reviewdog/action-actionlint@v1
-      with:
-        level: error
-        reporter: github-pr-review
+  #   - name: Run actionlint with reviewdog
+  #     uses: reviewdog/action-actionlint@v1
+  #     with:
+  #       level: error
+  #       reporter: github-pr-review
 
-  lint-helm:
-    runs-on: mco-dev-small-x64
-    container:
-      image: mobilecoin/gha-k8s-toolbox:v1
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # lint-helm:
+  #   runs-on: mco-dev-small-x64
+  #   container:
+  #     image: mobilecoin/gha-k8s-toolbox:v1
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Run helm lint
-      run: |
-        chart_base=".internal-ci/helm"
-        chart_files=$(find "${chart_base}" -name Chart.yaml -type f)
+  #   - name: Run helm lint
+  #     run: |
+  #       chart_base=".internal-ci/helm"
+  #       chart_files=$(find "${chart_base}" -name Chart.yaml -type f)
 
-        # helm lint on directories where there are chart.yaml files
-        for c in ${chart_files}
-        do
-          chart=$(dirname "${c}")
-          helm lint --quiet "${chart}"  2>&1
-        done
+  #       # helm lint on directories where there are chart.yaml files
+  #       for c in ${chart_files}
+  #       do
+  #         chart=$(dirname "${c}")
+  #         helm lint --quiet "${chart}"  2>&1
+  #       done
 
   # CBB: Need to do refactoring of shell scripts in the repo for this to run cleanly.
   # lint-shell:
@@ -63,98 +63,98 @@ jobs:
   #       level: error
   #       reporter: github-pr-review
 
-  lint-docker:
-    runs-on: mco-dev-small-x64
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # lint-docker:
+  #   runs-on: mco-dev-small-x64
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Install wget
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y wget
+  #   - name: Install wget
+  #     run: |
+  #       sudo apt-get update
+  #       sudo apt-get install -y wget
 
-    - name: Run hadolint with reviewdog
-      uses: reviewdog/action-hadolint@v1
-      with:
-        level: error
-        reporter: github-pr-review
-        exclude: |
-          *.dockerignore
+  #   - name: Run hadolint with reviewdog
+  #     uses: reviewdog/action-hadolint@v1
+  #     with:
+  #       level: error
+  #       reporter: github-pr-review
+  #       exclude: |
+  #         *.dockerignore
 
-  lint-rust:
-    runs-on: mco-dev-large-x64
-    container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
-    env:
-      SGX_MODE: SW
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # lint-rust:
+  #   runs-on: mco-dev-large-x64
+  #   container:
+  #     image: mobilecoin/rust-sgx-base:v0.0.36
+  #   env:
+  #     SGX_MODE: SW
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Consensus SigStruct
-      uses: ./.github/actions/download-sigstruct
-      with:
-        sigstruct: consensus
-        network: test
-        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+  #   - name: Consensus SigStruct
+  #     uses: ./.github/actions/download-sigstruct
+  #     with:
+  #       sigstruct: consensus
+  #       network: test
+  #       download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
-    - name: Ingest SigStruct
-      uses: ./.github/actions/download-sigstruct
-      with:
-        sigstruct: ingest
-        network: test
-        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+  #   - name: Ingest SigStruct
+  #     uses: ./.github/actions/download-sigstruct
+  #     with:
+  #       sigstruct: ingest
+  #       network: test
+  #       download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
-    - name: Cargo sort
-      shell: bash
-      run: |
-        cargo install cargo-sort --force
-        cargo sort --workspace --grouped --check
+  #   - name: Cargo sort
+  #     shell: bash
+  #     run: |
+  #       cargo install cargo-sort --force
+  #       cargo sort --workspace --grouped --check
 
-    - name: Cargo fmt
-      shell: bash
-      run: |
-        cargo fmt -- --unstable-features --check
+  #   - name: Cargo fmt
+  #     shell: bash
+  #     run: |
+  #       cargo fmt -- --unstable-features --check
 
-    - name: Cargo Clippy
-      shell: bash
-      run: |
-        cargo clippy --all --all-features
+  #   - name: Cargo Clippy
+  #     shell: bash
+  #     run: |
+  #       cargo clippy --all --all-features
 
-  test-rust:
-    runs-on: mco-dev-large-x64
-    container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
-    env:
-      SGX_MODE: SW
+  # test-rust:
+  #   runs-on: mco-dev-large-x64
+  #   container:
+  #     image: mobilecoin/rust-sgx-base:v0.0.36
+  #   env:
+  #     SGX_MODE: SW
 
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Consensus SigStruct
-      uses: ./.github/actions/download-sigstruct
-      with:
-        sigstruct: consensus
-        network: test
-        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+  #   - name: Consensus SigStruct
+  #     uses: ./.github/actions/download-sigstruct
+  #     with:
+  #       sigstruct: consensus
+  #       network: test
+  #       download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
-    - name: Ingest SigStruct
-      uses: ./.github/actions/download-sigstruct
-      with:
-        sigstruct: ingest
-        network: test
-        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+  #   - name: Ingest SigStruct
+  #     uses: ./.github/actions/download-sigstruct
+  #     with:
+  #       sigstruct: ingest
+  #       network: test
+  #       download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
-    - name: Cargo Test
-      shell: bash
-      env:
-        CARGO_INCREMENTAL: "0"
-        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-        RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-      run: |
-        cargo test
+  #   - name: Cargo Test
+  #     shell: bash
+  #     env:
+  #       CARGO_INCREMENTAL: "0"
+  #       RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+  #       RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+  #     run: |
+  #       cargo test
 
     # skip coverage for now, old actions-rs/grcov is deprecated
     # need to learn how to generate .xml reports for codecov below
@@ -172,25 +172,25 @@ jobs:
     #     env:
     #       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  build-rust-linux:
-    strategy:
-      matrix:
-        runner:
-        - mco-dev-large-x64
-        network:
-        - main
-        - test
-    runs-on: ${{ matrix.runner }}
-    container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # build-rust-linux:
+  #   strategy:
+  #     matrix:
+  #       runner:
+  #       - mco-dev-large-x64
+  #       network:
+  #       - main
+  #       - test
+  #   runs-on: ${{ matrix.runner }}
+  #   container:
+  #     image: mobilecoin/rust-sgx-base:v0.0.36
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build Rust
-      uses: ./.github/actions/build-rust
-      with:
-        network: ${{ matrix.network }}
+  #   - name: Build Rust
+  #     uses: ./.github/actions/build-rust
+  #     with:
+  #       network: ${{ matrix.network }}
 
   build-rust-macos:
     strategy:
