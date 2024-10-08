@@ -13,11 +13,9 @@ permissions:
   contents: read
 
 env:
-  SGX_MODE: SW
   RUST_BACKTRACE: full
   CONSENSUS_ENCLAVE_CSS: /tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /tmp/ingest-enclave.css
-  CSS_BASE_URL: https://enclave-distribution.test.mobilecoin.com
 
 jobs:
   lint-actions:
@@ -89,7 +87,6 @@ jobs:
     container:
       image: mobilecoin/rust-sgx-base:v0.0.36
     env:
-      CSS_BASE_URL: https://enclave-distribution.test.mobilecoin.com
       SGX_MODE: SW
     steps:
     - name: Checkout
@@ -100,14 +97,14 @@ jobs:
       with:
         sigstruct: consensus
         network: test
-        download_path: "${CONSENSUS_ENCLAVE_CSS}"
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
     - name: Ingest SigStruct
       uses: ./.github/actions/download-sigstruct
       with:
         sigstruct: ingest
         network: test
-        download_path: "${INGEST_ENCLAVE_CSS}"
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
     - name: Cargo sort
       shell: bash
@@ -130,7 +127,6 @@ jobs:
     container:
       image: mobilecoin/rust-sgx-base:v0.0.36
     env:
-      CSS_BASE_URL: https://enclave-distribution.test.mobilecoin.com
       SGX_MODE: SW
 
     steps:
@@ -142,14 +138,14 @@ jobs:
       with:
         sigstruct: consensus
         network: test
-        download_path: "${CONSENSUS_ENCLAVE_CSS}"
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
     - name: Ingest SigStruct
       uses: ./.github/actions/download-sigstruct
       with:
         sigstruct: ingest
         network: test
-        download_path: "${INGEST_ENCLAVE_CSS}"
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
     - name: Cargo Test
       shell: bash
@@ -175,6 +171,54 @@ jobs:
     #       fail_ci_if_error: true
     #     env:
     #       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  build-rust-linux:
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-large-x64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+
+  build-rust-macos:
+    strategy:
+      matrix:
+        runner:
+        - [self-hosted, macOS, X64]
+        - [self-hosted, macOS, ARM64]
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Bootstrap macOS
+      shell: bash
+      run: |
+        brew bundle
+        brew install rustup-init
+        rustup-init -y --default-toolchain=$(cat rust-toolchain)
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+
+
 
 # build binaries:
 # testnet, mainnet

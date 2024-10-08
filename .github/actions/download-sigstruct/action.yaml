@@ -1,5 +1,5 @@
-name: Mobilecoin Cargo Package Cache
-description: Standardized rust cargo package cache setup
+name: Download SigStruct
+description: Download SigStruct for enclave distribution
 
 inputs:
   sigstruct:
@@ -38,7 +38,8 @@ runs:
 
       CSS_BASE_URL="https://enclave-distribution.${NETWORK}.mobilecoin.com"
       SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production.json" | jq -r ".${SIGSTRUCT_NAME}.sigstruct")
-      echo ::set-output name=sigstruct_uri::"${CSS_BASE_URL}/${SIGSTRUCT_URI}"
 
       mkdir -p "$(dirname "${DOWNLOAD_PATH}")"
       curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${DOWNLOAD_PATH}"
+
+      echo "sigstruct_uri=${CSS_BASE_URL}/${SIGSTRUCT_URI}" >> "${GITHUB_OUTPUT}"

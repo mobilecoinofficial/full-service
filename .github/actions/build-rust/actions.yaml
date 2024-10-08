@@ -1,0 +1,61 @@
+name: Build Rust
+description: Build rust artifacts
+
+inputs:
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+
+runs:
+  using: composite
+  env:
+    RUST_BACKTRACE: full
+    SGX_MODE: HW
+    CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+    INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+  steps:
+  - name: Consensus SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: consensus
+      network: ${{ inputs.network }}
+      download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+  - name: Ingest SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: ingest
+      network: ${{ inputs.network }}
+      download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+  - name: Cargo Build
+    shell: bash
+    run: |
+      cargo build --release
+
+  - name: Get short SHA
+    shell: bash
+    run: echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
+
+  - name: Copy binaries to artifact directory
+    shell: bash
+    run: |
+      ARTIFACT_DIR="build_artifacts/${GH_SHORT_SHA}-${{ inputs.network }}net"
+
+      mkdir -p "${ARTIFACT_DIR}/mirror"
+      cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${CONSENSUS_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp target/release/full-service "${ARTIFACT_DIR}"
+      cp target/release/signer "${ARTIFACT_DIR}"
+      cp target/release/signer-service "${ARTIFACT_DIR}"
+      cp target/release/validator-service "${ARTIFACT_DIR}"
+      cp target/release/wallet-service-mirror-private "${ARTIFACT_DIR}/mirror"
+      cp target/release/wallet-service-mirror-public "${ARTIFACT_DIR}/mirror"
+      cp target/release/generate-rsa-keypair "${ARTIFACT_DIR}/mirror"
+      cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
+
+  - name: Upload artifacts
+    uses: mobilecoinofficial/gh-actions/upload-artifact@v0
+    with:
+      name: full-service-${{ env.GH_SHORT_SHA }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.network }}
+      path: build_artifacts
