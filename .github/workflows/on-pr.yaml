@@ -209,9 +209,10 @@ jobs:
     - name: Bootstrap macOS
       shell: bash
       run: |
+        rm -rf /Users/runner/.cargo
         brew bundle
-        brew install rustup-init
-        rustup-init -y --default-toolchain=$(cat rust-toolchain)
+        brew install rustup
+        rustup toolchain install "$(cat rust-toolchain)"
 
     - name: Build Rust
       uses: ./.github/actions/build-rust

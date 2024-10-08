@@ -14,6 +14,17 @@ runs:
     CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
     INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
   steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      set -e -o pipefail
+
+      echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
+      echo "RUST_BACKTRACE=full" >> "${GITHUB_ENV}"
+      echo "SGX_MODE=HW" >> "${GITHUB_ENV}"
+      echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
+      echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
+
   - name: Consensus SigStruct
     uses: ./.github/actions/download-sigstruct
     with:
@@ -31,11 +42,7 @@ runs:
   - name: Cargo Build
     shell: bash
     run: |
-      cargo build --release
-
-  - name: Get short SHA
-    shell: bash
-    run: echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
+      cargo build --release --locked
 
   - name: Copy binaries to artifact directory
     shell: bash
