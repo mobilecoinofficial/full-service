@@ -197,7 +197,7 @@ jobs:
       fail-fast: false
       matrix:
         runner:
-        - [self-hosted, macOS, X64]
+        # - [self-hosted, macOS, X64]
         - [self-hosted, macOS, ARM64]
         network:
         - main
@@ -222,6 +222,7 @@ jobs:
 
         echo "-- install rust toolchain"
         rustup toolchain install "$(cat rust-toolchain)"
+        rustup default "$(cat rust-toolchain)"
 
         echo "-- show rustup details"
         rustup show
