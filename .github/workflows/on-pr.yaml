@@ -200,7 +200,7 @@ jobs:
         # - [self-hosted, macOS, X64]
         - [self-hosted, macOS, ARM64]
         network:
-        - main
+        # - main
         - test
     runs-on: ${{ matrix.runner }}
     steps:
@@ -227,14 +227,13 @@ jobs:
         echo "-- show rustup details"
         rustup show
 
-        rustup which cargo
-
-        echo "CARGO_HOME=$CARGO_HOME"
-        echo "RUSTUP_HOME=$RUSTUP_HOME"
-        ls -al "${HOME}/.cargo/bin"
+        cargo=$(rustup which cargo)
 
         echo "-- add cargo to path"
+        echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
+        echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
         echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+        echo "$(dirname "${cargo}")" >> "${GITHUB_PATH}"
 
     - name: Build Rust
       uses: ./.github/actions/build-rust
