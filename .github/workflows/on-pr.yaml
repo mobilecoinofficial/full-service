@@ -227,9 +227,11 @@ jobs:
         echo "-- show rustup details"
         rustup show
 
-        ls -al "${HOME}/.cargo/bin"
-
         rustup which cargo
+
+        echo "CARGO_HOME=$CARGO_HOME"
+        echo "RUSTUP_HOME=$RUSTUP_HOME"
+        ls -al "${HOME}/.cargo/bin"
 
         echo "-- add cargo to path"
         echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
