@@ -195,44 +195,44 @@ jobs:
       with:
         network: ${{ matrix.network }}
 
-  build-rust-macos:
-    strategy:
-      fail-fast: false
-      matrix:
-        runner:
-        - [self-hosted, macOS, X64]
-        - [self-hosted, macOS, ARM64]
-        network:
-        - main
-        - test
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # build-rust-macos:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       runner:
+  #       - [self-hosted, macOS, X64]
+  #       - [self-hosted, macOS, ARM64]
+  #       network:
+  #       - main
+  #       - test
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Bootstrap macOS
-      shell: bash
-      run: |
-        echo "-- install brew dependencies"
-        rm -rf "$(brew --prefix)/var/homebrew/locks"
-        brew bundle --quiet
+  #   - name: Bootstrap macOS
+  #     shell: bash
+  #     run: |
+  #       echo "-- install brew dependencies"
+  #       rm -rf "$(brew --prefix)/var/homebrew/locks"
+  #       brew bundle --quiet
 
-        echo "-- install rust toolchain"
-        rm -rf /Users/runner/.cargo
-        rm -rf /Users/runner/.rustup
-        rustup toolchain install "$(cat rust-toolchain)"
+  #       echo "-- install rust toolchain"
+  #       rm -rf /Users/runner/.cargo
+  #       rm -rf /Users/runner/.rustup
+  #       rustup toolchain install "$(cat rust-toolchain)"
 
-        echo "-- add cargo to path"
-        rustup_cargo=$(rustup which cargo)
-        echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
-        echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
-        echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
-        echo "$(dirname "${rustup_cargo}")" >> "${GITHUB_PATH}"
+  #       echo "-- add cargo to path"
+  #       rustup_cargo=$(rustup which cargo)
+  #       echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
+  #       echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
+  #       echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+  #       echo "$(dirname "${rustup_cargo}")" >> "${GITHUB_PATH}"
 
-    - name: Build Rust
-      uses: ./.github/actions/build-rust
-      with:
-        network: ${{ matrix.network }}
+  #   - name: Build Rust
+  #     uses: ./.github/actions/build-rust
+  #     with:
+  #       network: ${{ matrix.network }}
 
   build-publish-containers:
     needs:
