@@ -42,7 +42,7 @@ runs:
   - name: Copy binaries to artifact directory
     shell: bash
     run: |
-      ARTIFACT_DIR="build_artifacts/${GH_SHORT_SHA}-${{ inputs.network }}net"
+      ARTIFACT_DIR="build_artifacts/${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
 
       mkdir -p "${ARTIFACT_DIR}/mirror"
       cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
@@ -59,5 +59,5 @@ runs:
   - name: Upload artifacts
     uses: mobilecoinofficial/gh-actions/upload-artifact@v0
     with:
-      name: full-service-${{ env.GH_SHORT_SHA }}-${{ runner.os }}-${{ runner.arch }}-${{ inputs.network }}
+      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ env.GH_SHORT_SHA }}
       path: build_artifacts
