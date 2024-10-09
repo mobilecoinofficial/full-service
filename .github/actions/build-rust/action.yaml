@@ -42,7 +42,7 @@ runs:
   - name: Copy binaries to artifact directory
     shell: bash
     run: |
-      ARTIFACT_DIR="build_artifacts/${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
+      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
 
       mkdir -p "${ARTIFACT_DIR}/mirror"
       cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"

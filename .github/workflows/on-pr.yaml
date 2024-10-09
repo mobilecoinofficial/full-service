@@ -21,6 +21,7 @@ env:
   RUST_BIN_PATH: placeholder
 
 jobs:
+  # move lint actions to gh-actions for centralization
   # lint-actions:
   #   runs-on: mco-dev-small-x64
   #   steps:
@@ -266,11 +267,17 @@ jobs:
         echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
         echo "RUST_BIN_PATH=build_artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
 
+    # CBB: Move this to gh-actions
     - name: Restore Artifacts
       uses: actions/download-artifact@v4
       with:
         name: ${{ env.ARTIFACT_NAME }}
         path: build-artifacts
+
+    - name: check artifacts
+      shell: bash
+      run: |
+        ls -alR build-artifacts
 
     - name: Docker - build and publish full-service
       uses: mobilecoinofficial/gh-actions/docker@v0
@@ -289,48 +296,48 @@ jobs:
         password: ${{ secrets.DOCKERHUB_TOKEN }}
         username: ${{ secrets.DOCKERHUB_USERNAME }}
 
-  build-publish-charts:
-    needs:
-    - build-rust-linux
-    strategy:
-      matrix:
-        network:
-        - chain_id: main
-        - chain_id: test
-    runs-on: mco-dev-small-x64
-    env:
-      CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # build-publish-charts:
+  #   needs:
+  #   - build-rust-linux
+  #   strategy:
+  #     matrix:
+  #       network:
+  #       - chain_id: main
+  #       - chain_id: test
+  #   runs-on: mco-dev-small-x64
+  #   env:
+  #     CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Setup Env
-      shell: bash
-      run: |
-        set -e -o pipefail
-        echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
+  #   - name: Setup Env
+  #     shell: bash
+  #     run: |
+  #       set -e -o pipefail
+  #       echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
 
-    - name: Publish helm chart full-service
-      uses: mobilecoinofficial/gha-k8s-toolbox@v1
-      with:
-        action: helm-publish
-        chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-        chart_path: .internal-ci/helm/full-service
-        chart_repo: ${{ env.CHART_REPO }}
-        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-        chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
+  #   - name: Publish helm chart full-service
+  #     uses: mobilecoinofficial/gha-k8s-toolbox@v1
+  #     with:
+  #       action: helm-publish
+  #       chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
+  #       chart_path: .internal-ci/helm/full-service
+  #       chart_repo: ${{ env.CHART_REPO }}
+  #       chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+  #       chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+  #       chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
 
-    - name: Publish helm chart full-service-mirror
-      uses: mobilecoinofficial/gha-k8s-toolbox@v1
-      with:
-        action: helm-publish
-        chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-        chart_path: .internal-ci/helm/full-service-mirror
-        chart_repo: ${{ env.CHART_REPO }}
-        chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-        chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-        chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
+  #   - name: Publish helm chart full-service-mirror
+  #     uses: mobilecoinofficial/gha-k8s-toolbox@v1
+  #     with:
+  #       action: helm-publish
+  #       chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
+  #       chart_path: .internal-ci/helm/full-service-mirror
+  #       chart_repo: ${{ env.CHART_REPO }}
+  #       chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
+  #       chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
+  #       chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
 
 # build binaries:
 # testnet, mainnet
