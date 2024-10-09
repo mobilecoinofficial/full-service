@@ -38,7 +38,7 @@ jobs:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint Helm Charts
-      uses: mobilecoinofficial/gh-actions/lint-helm@6b12f401e2129f99617464ebd06bd3cb79686bed
+      uses: mobilecoinofficial/gh-actions/lint-helm@39feacac64dd2d3267ec3ecf9e4f1fcaf779ae84
 
   lint-docker:
     runs-on: mco-dev-small-x64
