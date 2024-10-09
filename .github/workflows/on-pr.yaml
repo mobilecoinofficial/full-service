@@ -21,70 +21,32 @@ env:
   RUST_BIN_PATH: placeholder
 
 jobs:
-  # move lint actions to gh-actions for centralization
-  # lint-actions:
-  #   runs-on: mco-dev-small-x64
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  lint-actions:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint GitHub Actions
+      uses: mobilecoinofficial/gh-actions/lint-actions@27a8d66eb4dcb10910cc8560563391e64238634a
 
-  #   - name: Run actionlint with reviewdog
-  #     uses: reviewdog/action-actionlint@v1
-  #     with:
-  #       level: error
-  #       reporter: github-pr-review
-
-  # lint-helm:
-  #   runs-on: mco-dev-small-x64
-  #   container:
-  #     image: mobilecoin/gha-k8s-toolbox:v1
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
-
-  #   - name: Run helm lint
-  #     run: |
-  #       chart_base=".internal-ci/helm"
-  #       chart_files=$(find "${chart_base}" -name Chart.yaml -type f)
-
-  #       # helm lint on directories where there are chart.yaml files
-  #       for c in ${chart_files}
-  #       do
-  #         chart=$(dirname "${c}")
-  #         helm lint --quiet "${chart}"  2>&1
-  #       done
-
-  # CBB: Need to do refactoring of shell scripts in the repo for this to run cleanly.
+  # CBB: Need to clean up repo shell scripts to pass shellcheck
   # lint-shell:
   #   runs-on: mco-dev-small-x64
   #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  #   - name: Lint shell with Shellcheck
+  #     uses: mobilecoinofficial/gh-actions/lint-shell@27a8d66eb4dcb10910cc8560563391e64238634a
 
-  #   - name: Run shellcheck with reviewdog
-  #     uses: reviewdog/action-shellcheck@v1
-  #     with:
-  #       level: error
-  #       reporter: github-pr-review
+  lint-helm:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint Helm Charts
+      uses: mobilecoinofficial/gh-actions/lint-helm@27a8d66eb4dcb10910cc8560563391e64238634a
 
-  # lint-docker:
-  #   runs-on: mco-dev-small-x64
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  lint-docker:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint Dockerfiles with Hadolint
+      uses: mobilecoinofficial/gh-actions/lint-docker@27a8d66eb4dcb10910cc8560563391e64238634a
 
-  #   - name: Install wget
-  #     run: |
-  #       sudo apt-get update
-  #       sudo apt-get install -y wget
 
-  #   - name: Run hadolint with reviewdog
-  #     uses: reviewdog/action-hadolint@v1
-  #     with:
-  #       level: error
-  #       reporter: github-pr-review
-  #       exclude: |
-  #         *.dockerignore
 
   # lint-rust:
   #   runs-on: mco-dev-large-x64
@@ -176,25 +138,25 @@ jobs:
     #     env:
     #       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  build-rust-linux:
-    strategy:
-      matrix:
-        runner:
-        - mco-dev-large-x64
-        network:
-        - main
-        - test
-    runs-on: ${{ matrix.runner }}
-    container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # build-rust-linux:
+  #   strategy:
+  #     matrix:
+  #       runner:
+  #       - mco-dev-large-x64
+  #       network:
+  #       - main
+  #       - test
+  #   runs-on: ${{ matrix.runner }}
+  #   container:
+  #     image: mobilecoin/rust-sgx-base:v0.0.36
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build Rust
-      uses: ./.github/actions/build-rust
-      with:
-        network: ${{ matrix.network }}
+  #   - name: Build Rust
+  #     uses: ./.github/actions/build-rust
+  #     with:
+  #       network: ${{ matrix.network }}
 
   # build-rust-macos:
   #   strategy:
@@ -235,68 +197,68 @@ jobs:
   #     with:
   #       network: ${{ matrix.network }}
 
-  build-publish-containers:
-    needs:
-    - build-rust-linux
-    strategy:
-      matrix:
-        runner:
-        - mco-dev-small-x64
-        network:
-        - chain_id: main
-          peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
-          tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
-        - chain_id: test
-          peer: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
-          tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
-    runs-on: ${{ matrix.runner }}
-    steps:
-    - name: Checkout
-      uses: mobilecoinofficial/gh-actions/checkout@v0
+  # build-publish-containers:
+  #   needs:
+  #   - build-rust-linux
+  #   strategy:
+  #     matrix:
+  #       runner:
+  #       - mco-dev-small-x64
+  #       network:
+  #       - chain_id: main
+  #         peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
+  #         tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
+  #       - chain_id: test
+  #         peer: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+  #         tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
+  #   runs-on: ${{ matrix.runner }}
+  #   steps:
+  #   - name: Checkout
+  #     uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Setup Env
-      shell: bash
-      run: |
-        set -e -o pipefail
+  #   - name: Setup Env
+  #     shell: bash
+  #     run: |
+  #       set -e -o pipefail
 
-        # Set vars so we can use them in this step
-        GH_SHORT_SHA="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
-        ARTIFACT_NAME="full-service-${{ matrix.network.chain_id }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
+  #       # Set vars so we can use them in this step
+  #       GH_SHORT_SHA="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
+  #       ARTIFACT_NAME="full-service-${{ matrix.network.chain_id }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
 
-        echo "GH_SHORT_SHA=${GH_SHORT_SHA}" >> "${GITHUB_ENV}"
-        echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
-        echo "RUST_BIN_PATH=build-artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+  #       echo "GH_SHORT_SHA=${GH_SHORT_SHA}" >> "${GITHUB_ENV}"
+  #       echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+  #       echo "RUST_BIN_PATH=build-artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
 
-    # CBB: Move this to gh-actions
-    - name: Restore Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.ARTIFACT_NAME }}
-        path: build-artifacts
+  #   # CBB: Move this to gh-actions
+  #   - name: Restore Artifacts
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: ${{ env.ARTIFACT_NAME }}
+  #       path: build-artifacts
 
-    - name: check artifacts
-      shell: bash
-      run: |
-        ls -alR build-artifacts
-        # fix mirror binaries path
-        cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
+  #   - name: check artifacts
+  #     shell: bash
+  #     run: |
+  #       ls -alR build-artifacts
+  #       # fix mirror binaries path
+  #       cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
 
-    - name: Docker - build and publish full-service
-      uses: mobilecoinofficial/gh-actions/docker@v0
-      with:
-        dockerfile: .internal-ci/docker/Dockerfile.full-service
-        images: mobilecoin/full-service
-        build_args: |
-          RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
-          MC_CHAIN_ID=${{ matrix.network.chain_id }}
-          MC_PEER=${{ matrix.network.peer }}
-          MC_TX_SOURCE_URL=${{ matrix.network.tx_source_url }}
-        flavor: |
-          latest=false
-        tags: |
-          v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
+  #   - name: Docker - build and publish full-service
+  #     uses: mobilecoinofficial/gh-actions/docker@v0
+  #     with:
+  #       dockerfile: .internal-ci/docker/Dockerfile.full-service
+  #       images: mobilecoin/full-service
+  #       build_args: |
+  #         RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
+  #         MC_CHAIN_ID=${{ matrix.network.chain_id }}
+  #         MC_PEER=${{ matrix.network.peer }}
+  #         MC_TX_SOURCE_URL=${{ matrix.network.tx_source_url }}
+  #       flavor: |
+  #         latest=false
+  #       tags: |
+  #         v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
+  #       password: ${{ secrets.DOCKERHUB_TOKEN }}
+  #       username: ${{ secrets.DOCKERHUB_USERNAME }}
 
   # build-publish-charts:
   #   needs:
