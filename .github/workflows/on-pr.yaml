@@ -278,6 +278,8 @@ jobs:
       shell: bash
       run: |
         ls -alR build-artifacts
+        # fix mirror binaries path
+        cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
 
     - name: Docker - build and publish full-service
       uses: mobilecoinofficial/gh-actions/docker@v0
