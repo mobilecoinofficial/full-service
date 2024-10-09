@@ -211,7 +211,8 @@ jobs:
       shell: bash
       run: |
         echo "-- install brew dependencies"
-        brew bundle --cleanup --quiet
+        rm -rf "$(brew --prefix)/var/homebrew/locks"
+        brew bundle --quiet
 
         echo "-- install rust toolchain"
         rm -rf /Users/runner/.cargo
