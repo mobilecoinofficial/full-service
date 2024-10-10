@@ -1,0 +1,64 @@
+name: Build Rust
+description: Build rust artifacts
+
+inputs:
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
+      echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
+
+  - name: Consensus SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: consensus
+      network: ${{ inputs.network }}
+      download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+  - name: Ingest SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: ingest
+      network: ${{ inputs.network }}
+      download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+  - name: Cargo Build
+    shell: bash
+    env:
+      RUST_BACKTRACE: full
+      SGX_MODE: HW
+    run: |
+      cargo build --release --locked
+
+  - name: Copy binaries to artifact directory
+    shell: bash
+    run: |
+      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}"
+
+      mkdir -p "${ARTIFACT_DIR}/mirror"
+      cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${CONSENSUS_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp target/release/full-service "${ARTIFACT_DIR}"
+      cp target/release/signer "${ARTIFACT_DIR}"
+      cp target/release/signer-service "${ARTIFACT_DIR}"
+      cp target/release/validator-service "${ARTIFACT_DIR}"
+      cp target/release/wallet-service-mirror-private "${ARTIFACT_DIR}/mirror"
+      cp target/release/wallet-service-mirror-public "${ARTIFACT_DIR}/mirror"
+      cp target/release/generate-rsa-keypair "${ARTIFACT_DIR}/mirror"
+      cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
+
+  - name: Upload artifacts
+    uses: mobilecoinofficial/gh-actions/upload-artifact@v0
+    with:
+      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
+      path: build_artifacts
