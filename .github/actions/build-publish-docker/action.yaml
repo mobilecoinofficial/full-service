@@ -1,0 +1,65 @@
+name: Build and Publish Docker
+description: Build docker containers
+
+inputs:
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      # Set the MobileCoin network details for "batteries included" builds.
+      if [[ "${{ inputs.network }}" == "main" ]]; then
+          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.co
+          MC_TX_SOURCE_URL=https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
+      else
+          MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+          MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com
+      fi
+
+      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ version }}"
+
+      echo "MC_PEER=${MC_PEER}" >> "${GITHUB_ENV}"
+      echo "MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "RUST_BIN_PATH=build-artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+
+  - name: Checkout
+    uses: mobilecoinofficial/gh-actions/checkout@v0
+
+  - name: Restore Artifacts
+    uses: mobilecoinofficial/gh-actions/download-artifact@v0
+    with:
+      name: ${{ env.ARTIFACT_NAME }}
+      path: build-artifacts
+
+  - name: check artifacts
+    shell: bash
+    run: |
+      ls -alR build-artifacts
+      # fix mirror binaries path
+      cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
+
+  - name: Docker - build and publish full-service
+    uses: mobilecoinofficial/gh-actions/docker@v0
+    with:
+      dockerfile: .internal-ci/docker/Dockerfile.full-service
+      images: mobilecoin/full-service
+      build_args: |
+        RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
+        MC_CHAIN_ID=${{ inputs.network }}
+        MC_PEER=${{ env.MC_PEER }}
+        MC_TX_SOURCE_URL=${{ env.MC_TX_SOURCE_URL }}
+      flavor: |
+        latest=false
+      tags: |
+        ${{ inputs.version}}
+      password: ${{ secrets.DOCKERHUB_TOKEN }}
+      username: ${{ secrets.DOCKERHUB_USERNAME }}

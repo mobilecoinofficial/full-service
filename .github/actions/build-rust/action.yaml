@@ -5,6 +5,9 @@ inputs:
   network:
     description: "network to download sigstruct from main|test"
     required: true
+  version:
+    description: "version of the build"
+    required: true
 
 runs:
   using: composite
@@ -12,11 +15,6 @@ runs:
   - name: Setup ENV
     shell: bash
     run: |
-      set -e -o pipefail
-
-      echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
-      echo "RUST_BACKTRACE=full" >> "${GITHUB_ENV}"
-      echo "SGX_MODE=HW" >> "${GITHUB_ENV}"
       echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
       echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
 
@@ -36,13 +34,16 @@ runs:
 
   - name: Cargo Build
     shell: bash
+    env:
+      RUST_BACKTRACE: full
+      SGX_MODE: HW
     run: |
       cargo build --release --locked
 
   - name: Copy binaries to artifact directory
     shell: bash
     run: |
-      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
+      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}"
 
       mkdir -p "${ARTIFACT_DIR}/mirror"
       cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
@@ -59,5 +60,5 @@ runs:
   - name: Upload artifacts
     uses: mobilecoinofficial/gh-actions/upload-artifact@v0
     with:
-      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ env.GH_SHORT_SHA }}
+      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
       path: build_artifacts

@@ -1,4 +1,10 @@
-# Placeholder for the PR workflow.
+# On PR workflow
+# CBB List:
+# - Rust artifact caching
+# - Lint Shell
+# - CodeCov
+# - Integration tests
+
 name: on-pr
 
 on:
@@ -14,113 +20,119 @@ permissions:
 
 env:
   ARTIFACT_NAME: placeholder
-  CONSENSUS_ENCLAVE_CSS: /tmp/consensus-enclave.css
   GH_SHORT_SHA: placeholder
-  INGEST_ENCLAVE_CSS: /tmp/ingest-enclave.css
-  RUST_BACKTRACE: full
   RUST_BIN_PATH: placeholder
+  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
 
 jobs:
+  meta:
+    runs-on: mco-dev-small-x64
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - name: Set Version
+      id: version
+      run: |
+        echo "version=v0-${{ github.run_number }}.sha-${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
+
   lint-actions:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint GitHub Actions
-      uses: mobilecoinofficial/gh-actions/lint-actions@27a8d66eb4dcb10910cc8560563391e64238634a
+      uses: mobilecoinofficial/gh-actions/lint-actions@v0
 
   # CBB: Need to clean up repo shell scripts to pass shellcheck
   # lint-shell:
   #   runs-on: mco-dev-small-x64
   #   steps:
   #   - name: Lint shell with Shellcheck
-  #     uses: mobilecoinofficial/gh-actions/lint-shell@27a8d66eb4dcb10910cc8560563391e64238634a
+  #     uses: mobilecoinofficial/gh-actions/lint-shell@v0
 
   lint-helm:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint Helm Charts
-      uses: mobilecoinofficial/gh-actions/lint-helm@bf0be2f50d73f7be52b5519f2bc248b5db558aae
+      uses: mobilecoinofficial/gh-actions/lint-helm@v0
 
   lint-docker:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint Dockerfiles with Hadolint
-      uses: mobilecoinofficial/gh-actions/lint-docker@27a8d66eb4dcb10910cc8560563391e64238634a
+      uses: mobilecoinofficial/gh-actions/lint-docker@v0
 
+  lint-rust:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    env:
+      SGX_MODE: SW
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
+    - name: Consensus SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
-  # lint-rust:
-  #   runs-on: mco-dev-large-x64
-  #   container:
-  #     image: mobilecoin/rust-sgx-base:v0.0.36
-  #   env:
-  #     SGX_MODE: SW
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+    - name: Ingest SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
-  #   - name: Consensus SigStruct
-  #     uses: ./.github/actions/download-sigstruct
-  #     with:
-  #       sigstruct: consensus
-  #       network: test
-  #       download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+    - name: Cargo sort
+      shell: bash
+      run: |
+        cargo install cargo-sort --force
+        cargo sort --workspace --grouped --check
 
-  #   - name: Ingest SigStruct
-  #     uses: ./.github/actions/download-sigstruct
-  #     with:
-  #       sigstruct: ingest
-  #       network: test
-  #       download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+    - name: Cargo fmt
+      shell: bash
+      run: |
+        cargo fmt -- --unstable-features --check
 
-  #   - name: Cargo sort
-  #     shell: bash
-  #     run: |
-  #       cargo install cargo-sort --force
-  #       cargo sort --workspace --grouped --check
+    - name: Cargo Clippy
+      shell: bash
+      run: |
+        cargo clippy --all --all-features
 
-  #   - name: Cargo fmt
-  #     shell: bash
-  #     run: |
-  #       cargo fmt -- --unstable-features --check
+  test-rust:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    env:
+      SGX_MODE: SW
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-  #   - name: Cargo Clippy
-  #     shell: bash
-  #     run: |
-  #       cargo clippy --all --all-features
+    - name: Consensus SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
-  # test-rust:
-  #   runs-on: mco-dev-large-x64
-  #   container:
-  #     image: mobilecoin/rust-sgx-base:v0.0.36
-  #   env:
-  #     SGX_MODE: SW
+    - name: Ingest SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
-
-  #   - name: Consensus SigStruct
-  #     uses: ./.github/actions/download-sigstruct
-  #     with:
-  #       sigstruct: consensus
-  #       network: test
-  #       download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
-
-  #   - name: Ingest SigStruct
-  #     uses: ./.github/actions/download-sigstruct
-  #     with:
-  #       sigstruct: ingest
-  #       network: test
-  #       download_path: ${{ env.INGEST_ENCLAVE_CSS }}
-
-  #   - name: Cargo Test
-  #     shell: bash
-  #     env:
-  #       CARGO_INCREMENTAL: "0"
-  #       RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-  #       RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-  #     run: |
-  #       cargo test
+    - name: Cargo Test
+      shell: bash
+      env:
+        CARGO_INCREMENTAL: "0"
+        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+        RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
+      run: |
+        cargo test
 
     # skip coverage for now, old actions-rs/grcov is deprecated
     # need to learn how to generate .xml reports for codecov below
@@ -138,187 +150,86 @@ jobs:
     #     env:
     #       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  # build-rust-linux:
-  #   strategy:
-  #     matrix:
-  #       runner:
-  #       - mco-dev-large-x64
-  #       network:
-  #       - main
-  #       - test
-  #   runs-on: ${{ matrix.runner }}
-  #   container:
-  #     image: mobilecoin/rust-sgx-base:v0.0.36
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  build-rust-linux:
+    needs:
+    - meta
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-large-x64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-  #   - name: Build Rust
-  #     uses: ./.github/actions/build-rust
-  #     with:
-  #       network: ${{ matrix.network }}
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
 
-  # build-rust-macos:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       runner:
-  #       - [self-hosted, macOS, X64]
-  #       - [self-hosted, macOS, ARM64]
-  #       network:
-  #       - main
-  #       - test
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  build-rust-macos:
+    needs:
+    - meta
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - [self-hosted, macOS, X64]
+        - [self-hosted, macOS, ARM64]
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-  #   - name: Bootstrap macOS
-  #     shell: bash
-  #     run: |
-  #       echo "-- install brew dependencies"
-  #       rm -rf "$(brew --prefix)/var/homebrew/locks"
-  #       brew bundle --quiet
+    - name: Bootstrap MacOS Rust
+      uses: ./.github/actions/bootstrap-macos
 
-  #       echo "-- install rust toolchain"
-  #       rm -rf /Users/runner/.cargo
-  #       rm -rf /Users/runner/.rustup
-  #       rustup toolchain install "$(cat rust-toolchain)"
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
 
-  #       echo "-- add cargo to path"
-  #       rustup_cargo=$(rustup which cargo)
-  #       echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
-  #       echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
-  #       echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
-  #       echo "$(dirname "${rustup_cargo}")" >> "${GITHUB_PATH}"
+  build-publish-containers:
+    needs:
+    - meta
+    - build-rust-linux
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-small-x64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Build and Publish Docker
+      uses: ./.github/actions/build-publish-docker
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
 
-  #   - name: Build Rust
-  #     uses: ./.github/actions/build-rust
-  #     with:
-  #       network: ${{ matrix.network }}
-
-  # build-publish-containers:
-  #   needs:
-  #   - build-rust-linux
-  #   strategy:
-  #     matrix:
-  #       runner:
-  #       - mco-dev-small-x64
-  #       network:
-  #       - chain_id: main
-  #         peer: mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
-  #         tx_source_url: https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
-  #       - chain_id: test
-  #         peer: mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
-  #         tx_source_url: https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/
-  #   runs-on: ${{ matrix.runner }}
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
-
-  #   - name: Setup Env
-  #     shell: bash
-  #     run: |
-  #       set -e -o pipefail
-
-  #       # Set vars so we can use them in this step
-  #       GH_SHORT_SHA="sha-$(echo "${GITHUB_SHA}" | cut -c1-7)"
-  #       ARTIFACT_NAME="full-service-${{ matrix.network.chain_id }}net-${{ runner.os }}-${{ runner.arch }}-${GH_SHORT_SHA}"
-
-  #       echo "GH_SHORT_SHA=${GH_SHORT_SHA}" >> "${GITHUB_ENV}"
-  #       echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
-  #       echo "RUST_BIN_PATH=build-artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
-
-  #   # CBB: Move this to gh-actions
-  #   - name: Restore Artifacts
-  #     uses: actions/download-artifact@v4
-  #     with:
-  #       name: ${{ env.ARTIFACT_NAME }}
-  #       path: build-artifacts
-
-  #   - name: check artifacts
-  #     shell: bash
-  #     run: |
-  #       ls -alR build-artifacts
-  #       # fix mirror binaries path
-  #       cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
-
-  #   - name: Docker - build and publish full-service
-  #     uses: mobilecoinofficial/gh-actions/docker@v0
-  #     with:
-  #       dockerfile: .internal-ci/docker/Dockerfile.full-service
-  #       images: mobilecoin/full-service
-  #       build_args: |
-  #         RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
-  #         MC_CHAIN_ID=${{ matrix.network.chain_id }}
-  #         MC_PEER=${{ matrix.network.peer }}
-  #         MC_TX_SOURCE_URL=${{ matrix.network.tx_source_url }}
-  #       flavor: |
-  #         latest=false
-  #       tags: |
-  #         v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-  #       password: ${{ secrets.DOCKERHUB_TOKEN }}
-  #       username: ${{ secrets.DOCKERHUB_USERNAME }}
-
-  # build-publish-charts:
-  #   needs:
-  #   - build-rust-linux
-  #   strategy:
-  #     matrix:
-  #       network:
-  #       - chain_id: main
-  #       - chain_id: test
-  #   runs-on: mco-dev-small-x64
-  #   env:
-  #     CHART_REPO: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
-
-  #   - name: Setup Env
-  #     shell: bash
-  #     run: |
-  #       set -e -o pipefail
-  #       echo "GH_SHORT_SHA=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "${GITHUB_ENV}"
-
-  #   - name: Publish helm chart full-service
-  #     uses: mobilecoinofficial/gha-k8s-toolbox@v1
-  #     with:
-  #       action: helm-publish
-  #       chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-  #       chart_path: .internal-ci/helm/full-service
-  #       chart_repo: ${{ env.CHART_REPO }}
-  #       chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-  #       chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-  #       chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-
-  #   - name: Publish helm chart full-service-mirror
-  #     uses: mobilecoinofficial/gha-k8s-toolbox@v1
-  #     with:
-  #       action: helm-publish
-  #       chart_app_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-  #       chart_path: .internal-ci/helm/full-service-mirror
-  #       chart_repo: ${{ env.CHART_REPO }}
-  #       chart_repo_password: ${{ secrets.HARBOR_PASSWORD }}
-  #       chart_repo_username: ${{ secrets.HARBOR_USERNAME }}
-  #       chart_version: v0-${{ env.GH_SHORT_SHA }}.${{ matrix.network.chain_id }}net
-
-# build binaries:
-# testnet, mainnet
-#   linux amd64 arm64
-#   macos intel, apple
-
-# containers:
-#   linux arm64, amd64
-
-# test:
-# lint
-#   docker (hadolint)
-#   shellcheck
-#   actionlint
-#   helm lint
-#   rust/cargo fmt
-#   rust/cargo clippy
-#   rust/cargo sort
-# unit
-# integration - testnet, mainnet
+  build-publish-charts:
+    needs:
+    - meta
+    - build-publish-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Build and Publish Helm Charts
+      uses: ./.github/actions/build-publish-helm
+      with:
+        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
