@@ -24,7 +24,7 @@ runs:
           MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com
       fi
 
-      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ version }}"
+      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}"
 
       echo "MC_PEER=${MC_PEER}" >> "${GITHUB_ENV}"
       echo "MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}" >> "${GITHUB_ENV}"
@@ -57,6 +57,6 @@ runs:
       flavor: |
         latest=false
       tags: |
-        ${{ inputs.version}}
+        ${{ inputs.version }}
       password: ${{ secrets.DOCKERHUB_TOKEN }}
       username: ${{ secrets.DOCKERHUB_USERNAME }}
