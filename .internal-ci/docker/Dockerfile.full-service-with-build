@@ -16,6 +16,7 @@
 #   --progress=plain --build-arg NAMESPACE=prod .
 
 # Build Args:
+# BUILDER_BASE" - mobilecoin/rust-sgx-base:v.0.0.36 - Base image for the builder stage.
 # BUILD_OPTS: - '--no-default-features' - Additonal options to cargo build command
 # NAMESPACE: - test|prod - specifies enclave.css files to download.
 # SGX_MODE: - HW|SW - See README
@@ -27,8 +28,8 @@
 # IMPORTANT: Do not add or update OS packages or components in the builder section.
 # In order to create a consistent and verifiable the build environment, only add
 # or update in the mobilecoin/rust-sgx-base image and refer to the image by its hash.
-
-FROM mobilecoin/rust-sgx-base:v0.0.36 as builder
+ARG BUILDER_BASE=mobilecoin/rust-sgx-base:v.0.0.36
+FROM ${BUILDER_BASE} AS builder
 
 ARG NAMESPACE=test
 ARG SIGNED_ENCLAVE_BASE=enclave-distribution.${NAMESPACE}.mobilecoin.com
@@ -63,6 +64,7 @@ RUN  --mount=type=cache,target=/opt/cargo/git \
   && cp /app/target/release/full-service \ 
         /app/target/release/signer \
         /app/target/release/signer-service \
+        /app/target/release/hardware-service \
         /app/target/release/validator-service \
         /app/target/release/wallet-service-mirror-private \
         /app/target/release/wallet-service-mirror-public \
@@ -90,6 +92,7 @@ RUN  apt-get update \
 COPY --from=builder /usr/local/bin/full-service /usr/local/bin/
 COPY --from=builder /usr/local/bin/signer /usr/local/bin/
 COPY --from=builder /usr/local/bin/signer-service /usr/local/bin/
+COPY --from=builder /usr/local/bin/hardware-service /usr/local/bin/
 COPY --from=builder /usr/local/bin/validator-service /usr/local/bin/
 COPY --from=builder /usr/local/bin/wallet-service-mirror-private /usr/local/bin/
 COPY --from=builder /usr/local/bin/wallet-service-mirror-public /usr/local/bin/
@@ -107,6 +110,15 @@ ENV MC_WALLET_DB=/data/wallet/wallet.db
 ENV MC_FOG_INGEST_ENCLAVE_CSS=/usr/local/bin/ingest-enclave.css
 ENV MC_LISTEN_HOST=0.0.0.0
 ENV MC_LISTEN_PORT=9090
+
+# Since we have to compile with specific block chain, lets make this batteries included.
+# You can override these options at runtime.
+ARG MC_CHAIN_ID
+ARG MC_PEER
+ARG MC_TX_SOURCE_URL
+ENV MC_CHAIN_ID=${MC_CHAIN_ID}
+ENV MC_PEER=${MC_PEER}
+ENV MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
