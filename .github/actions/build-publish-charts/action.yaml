@@ -14,9 +14,6 @@ inputs:
 runs:
   using: composite
   steps:
-  - name: Checkout
-    uses: mobilecoinofficial/gh-actions/checkout@v0
-
   - name: Publish helm chart full-service
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:

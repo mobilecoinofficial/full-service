@@ -212,6 +212,9 @@ jobs:
         - test
     runs-on: ${{ matrix.runner }}
     steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
     - name: Build and Publish Docker
       uses: ./.github/actions/build-publish-docker
       with:
@@ -229,6 +232,9 @@ jobs:
         - test
     runs-on: mco-dev-small-x64
     steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
     - name: Build and Publish Helm Charts
       uses: ./.github/actions/build-publish-helm
       with:
