@@ -230,7 +230,7 @@ class CommandLineInterface:
                     wallet_status['network_block_height']))
             else:
                 print('Syncing, {}/{} blocks completed.'.format(
-                    wallet_status['min_synced_block_index'],
+                    wallet_status['local_block_height'],
                     wallet_status['network_block_height'],
                 ))
 
