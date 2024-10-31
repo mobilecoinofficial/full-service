@@ -291,9 +291,7 @@ jobs:
     - lint-docker
     - lint-rust
     - test-rust
-    - build-rust-linux
     - build-rust-macos
-    - build-publish-containers
     - build-publish-charts
     runs-on: mco-dev-small-x64
     steps:
