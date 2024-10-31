@@ -1,0 +1,29 @@
+name: Bootstrap MacOS Rust
+description: Bootstrap MacOS environment for Rust build
+
+inputs:
+  target:
+    description: "cargo target to build for"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Bootstrap macOS
+    shell: bash
+    run: |
+      echo "-- install brew dependencies"
+      rm -rf "$(brew --prefix)/var/homebrew/locks"
+      brew bundle --quiet
+
+      echo "-- install rust toolchain"
+      rm -rf /Users/runner/.cargo
+      rm -rf /Users/runner/.rustup
+      rustup toolchain install "$(cat rust-toolchain)" --target ${{ inputs.target }}
+
+      echo "-- add cargo to path"
+      rustup_cargo=$(rustup which cargo)
+      echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
+      echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
+      echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+      echo "$(dirname "${rustup_cargo}")" >> "${GITHUB_PATH}"

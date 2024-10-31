@@ -1,0 +1,16 @@
+# Placeholder for tag workflow.
+name: on-tag
+
+on:
+  push:
+    tags:
+    - "v*"
+
+jobs:
+  dummy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run a multi-line script
+      shell: bash
+      run: |
+        true

@@ -68,7 +68,7 @@ jobs:
 
         pushd "${DOWNLOAD_DIR}"
         mkdir -p "${MC_LEDGER_DB}"
-        mkdir -p "$(dirname ${MC_WALLET_DB})"
+        mkdir -p "$(dirname "${MC_WALLET_DB}")"
 
         # Start full-service
         ./full-service &
@@ -81,9 +81,9 @@ jobs:
         ../.internal-ci/util/wait-for-full-service.sh
 
         echo "ledger is in sync, stop full-service"
-        kill ${pid}
+        kill "${pid}"
         echo "wait for full-service to fully stop"
-        wait ${pid}
+        wait "${pid}"
 
         echo "full-service shutdown successfully"
 
