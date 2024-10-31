@@ -283,3 +283,19 @@ jobs:
         version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
         repo_username: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
+
+  checks-successful:
+    needs:
+    - lint-actions
+    - lint-helm
+    - lint-docker
+    - lint-rust
+    - test-rust
+    - build-rust-linux
+    - build-rust-macos
+    - build-publish-containers
+    - build-publish-charts
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Success
+      run: echo "All checks successful"
