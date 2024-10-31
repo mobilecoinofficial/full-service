@@ -1,0 +1,100 @@
+name: Build Rust
+description: Build rust artifacts
+
+inputs:
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+  target:
+    description: "cargo target to build for"
+    required: false
+    default: ""
+  cache_buster:
+    description: "cache buster"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      if [[ "${{ inputs.target }}" == "aarch64-apple-darwin" ]]
+      then
+          ARCH="ARM64"
+          TARGET_DIR="target/${{ inputs.target }}/release"
+          TARGET="--target ${{ inputs.target }}"
+      elif [[ "${{ inputs.target }}" == "x86_64-apple-darwin" ]]
+      then
+          ARCH="X64"
+          TARGET_DIR="target/${{ inputs.target }}/release"
+          TARGET="--target ${{ inputs.target }}"
+      else
+          ARCH=${{ runner.arch }}
+          TARGET_DIR="target/release"
+          TARGET=""
+      fi
+
+      echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
+      echo "TARGET_DIR=${TARGET_DIR}" >> "${GITHUB_ENV}"
+      echo "TARGET=${TARGET}" >> "${GITHUB_ENV}"
+      echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
+      echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
+
+  - name: Consensus SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: consensus
+      network: ${{ inputs.network }}
+      download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+  - name: Ingest SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: ingest
+      network: ${{ inputs.network }}
+      download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+  - name: Cache Rust Binaries
+    id: cache
+    uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+    with:
+      cache_buster: ${{ inputs.cache_buster }}
+      additional_keys: -${{ inputs.network }}-${{ env.ARCH }}
+      path: build_artifacts
+
+  - name: Cargo Build
+    if: steps.cache.outputs.cache-hit != 'true'
+    shell: bash
+    env:
+      RUST_BACKTRACE: full
+      SGX_MODE: HW
+    run: |
+      cargo build --release --locked ${TARGET}
+
+  - name: Copy binaries to artifact directory
+    if: steps.cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: |
+      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}"
+
+      mkdir -p "${ARTIFACT_DIR}/mirror"
+      cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${CONSENSUS_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/full-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/signer" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/signer-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/validator-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/wallet-service-mirror-private" "${ARTIFACT_DIR}/mirror"
+      cp "${TARGET_DIR}/wallet-service-mirror-public" "${ARTIFACT_DIR}/mirror"
+      cp "${TARGET_DIR}/generate-rsa-keypair" "${ARTIFACT_DIR}/mirror"
+      cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
+
+  - name: Upload artifacts
+    uses: mobilecoinofficial/gh-actions/upload-artifact@v0
+    with:
+      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}-${{ inputs.version }}
+      path: build_artifacts

@@ -1,0 +1,75 @@
+name: Build and Publish Docker
+description: Build docker containers
+
+inputs:
+  network:
+    description: "main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+  cache_buster:
+    description: "cache buster"
+    required: true
+  docker_username:
+    description: "Docker repo username"
+    required: true
+  docker_password:
+    description: "Docker repo password"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      # Set the MobileCoin network details for "batteries included" builds.
+      if [[ "${{ inputs.network }}" == "main" ]]
+      then
+          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.co
+          MC_TX_SOURCE_URL=https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
+      else
+          MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
+          MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com
+      fi
+
+      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}"
+
+      echo "MC_PEER=${MC_PEER}" >> "${GITHUB_ENV}"
+      echo "MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "RUST_BIN_PATH=build_artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+
+  - name: Cache Rust Binaries
+    id: cache
+    uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+    with:
+      cache_buster: ${{ inputs.cache_buster }}
+      additional_keys: -${{ inputs.network }}-${{ runner.arch }}
+      path: build_artifacts
+
+  - name: Check Artifacts
+    shell: bash
+    run: |
+      ls -alR build_artifacts
+
+      # fix mirror binaries path
+      cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
+
+  - name: Docker - build and publish full-service
+    uses: mobilecoinofficial/gh-actions/docker@v0
+    with:
+      dockerfile: .internal-ci/docker/Dockerfile.full-service
+      images: mobilecoin/full-service
+      build_args: |
+        RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
+        MC_CHAIN_ID=${{ inputs.network }}
+        MC_PEER=${{ env.MC_PEER }}
+        MC_TX_SOURCE_URL=${{ env.MC_TX_SOURCE_URL }}
+      flavor: |
+        latest=false
+      tags: |
+        ${{ inputs.version }}
+      password: ${{ inputs.docker_password }}
+      username: ${{ inputs.docker_username }}
