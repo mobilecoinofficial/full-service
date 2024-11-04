@@ -258,7 +258,7 @@ jobs:
       uses: ./.github/actions/build-publish-docker
       with:
         network: ${{ matrix.network }}
-        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
+        version: ${{ needs.meta.outputs.version }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
         docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
         docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -280,7 +280,7 @@ jobs:
     - name: Build and Publish Helm Charts
       uses: ./.github/actions/build-publish-charts
       with:
-        version: ${{ needs.meta.outputs.version }}.${{ matrix.network }}net
+        version: ${{ needs.meta.outputs.version }}-${{ matrix.network }}net
         repo_username: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
 
