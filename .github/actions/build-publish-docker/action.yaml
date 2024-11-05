@@ -34,12 +34,11 @@ runs:
           MC_TX_SOURCE_URL=https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/,https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com
       fi
 
-      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}"
+      ARTIFACT_BASE="full-service-${{ inputs.network }}net-${{ runner.os }}-${{ runner.arch }}"
 
       echo "MC_PEER=${MC_PEER}" >> "${GITHUB_ENV}"
       echo "MC_TX_SOURCE_URL=${MC_TX_SOURCE_URL}" >> "${GITHUB_ENV}"
-      echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
-      echo "RUST_BIN_PATH=build_artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "RUST_BIN_PATH=build_artifacts/${ARTIFACT_BASE}" >> "${GITHUB_ENV}"
 
   - name: Cache Rust Binaries
     id: cache
@@ -70,6 +69,6 @@ runs:
       flavor: |
         latest=false
       tags: |
-        ${{ inputs.version }}
+        ${{ inputs.version }}-${{ inputs.network }}net
       password: ${{ inputs.docker_password }}
       username: ${{ inputs.docker_username }}

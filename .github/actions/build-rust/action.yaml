@@ -22,6 +22,7 @@ runs:
   - name: Setup ENV
     shell: bash
     run: |
+      # Set Local Environment Variables
       if [[ "${{ inputs.target }}" == "aarch64-apple-darwin" ]]
       then
           ARCH="ARM64"
@@ -38,11 +39,17 @@ runs:
           TARGET=""
       fi
 
+      ARTIFACT_BASE="full-service-${{ inputs.network }}net-${{ runner.os }}-${ARCH}"
+      ARTIFACT_NAME="${ARTIFACT_BASE}-${{ inputs.version }}"
+
+      # Set GitHub environment variables for later use
       echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
       echo "TARGET_DIR=${TARGET_DIR}" >> "${GITHUB_ENV}"
       echo "TARGET=${TARGET}" >> "${GITHUB_ENV}"
       echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
       echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_DIR=build_artifacts/${ARTIFACT_BASE}" >> "${GITHUB_ENV}"
 
   - name: Consensus SigStruct
     uses: ./.github/actions/download-sigstruct
@@ -75,12 +82,11 @@ runs:
     run: |
       cargo build --release --locked ${TARGET}
 
-  - name: Copy binaries to artifact directory
+  - name: Copy binaries to cache directory
     if: steps.cache.outputs.cache-hit != 'true'
     shell: bash
     run: |
-      ARTIFACT_DIR="build_artifacts/full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}"
-
+      # Cache should not use version in the path.
       mkdir -p "${ARTIFACT_DIR}/mirror"
       cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
       cp "${CONSENSUS_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
@@ -93,8 +99,16 @@ runs:
       cp "${TARGET_DIR}/generate-rsa-keypair" "${ARTIFACT_DIR}/mirror"
       cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
 
+  - name: Tar up artifacts
+    shell: bash
+    run: |
+      # Create path with version for artifacts
+      mkdir -p artifacts
+      cp -R "${ARTIFACT_DIR}" "artifacts/${ARTIFACT_NAME}"
+      tar --strip-components=1 -c -z -v -f "${ARTIFACT_NAME}.tar.gz" "artifacts/${ARTIFACT_NAME}"
+
   - name: Upload artifacts
     uses: mobilecoinofficial/gh-actions/upload-artifact@v0
     with:
       name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}-${{ inputs.version }}
-      path: build_artifacts
+      path: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}-${{ inputs.version }}.tar.gz
