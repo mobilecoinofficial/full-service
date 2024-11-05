@@ -39,7 +39,8 @@ runs:
           TARGET=""
       fi
 
-      ARTIFACT_NAME="full-service-${{ inputs.network }}net-${{ runner.os }}-${ARCH}-${{ inputs.version }}"
+      ARTIFACT_BASE="full-service-${{ inputs.network }}net-${{ runner.os }}-${ARCH}"
+      ARTIFACT_NAME="${ARTIFACT_BASE}-${{ inputs.version }}"
 
       # Set GitHub environment variables for later use
       echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
@@ -48,7 +49,7 @@ runs:
       echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
       echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
       echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
-      echo "ARTIFACT_DIR=build_artifacts/${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_DIR=build_artifacts/${ARTIFACT_BASE}" >> "${GITHUB_ENV}"
 
   - name: Consensus SigStruct
     uses: ./.github/actions/download-sigstruct
