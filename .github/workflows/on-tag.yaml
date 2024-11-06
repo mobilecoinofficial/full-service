@@ -1,0 +1,219 @@
+# Placeholder for tag workflow.
+name: on-tag
+
+on:
+  push:
+    tags:
+    - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-rust-linux:
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-large-x64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: mobilecoin/rust-sgx-base:v0.0.36
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ github.ref_name }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+
+  build-rust-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+        - aarch64-apple-darwin
+        - x86_64-apple-darwin
+        network:
+        - main
+        - test
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Bootstrap MacOS Rust
+      uses: ./.github/actions/bootstrap-macos
+      with:
+        target: ${{ matrix.target }}
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        target: ${{ matrix.target }}
+        network: ${{ matrix.network }}
+        version: ${{ github.ref_name }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+
+  build-publish-containers:
+    needs:
+    - build-rust-linux
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-small-x64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build and Publish Docker
+      uses: ./.github/actions/build-publish-docker
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ github.ref_name }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  build-publish-charts:
+    needs:
+    - build-publish-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build and Publish Helm Charts
+      uses: ./.github/actions/build-publish-charts
+      with:
+        version: ${{ github.ref_name }}-${{ matrix.network }}net
+        repo_username: ${{ secrets.HARBOR_USERNAME }}
+        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+
+  gh-release:
+    needs:
+    - build-rust-macos
+    - build-publish-charts
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    # we need to get all the artifacts from the previous steps and package them up
+    - name: Download Artifacts
+      uses: mobilecoinofficial/gh-actions/download-artifact@v0
+      with:
+        pattern: full-service-*
+        path: build_artifacts
+
+    - name: Check Artifacts
+      shell: bash
+      run: |
+        ls -alR build_artifacts
+
+    - name: Create a GitHub Release
+      uses: mobilecoinofficial/gh-actions/gh-release@v0
+      with:
+        body: |
+          # What's Changed
+
+          # 📦Downloads
+
+          ### TestNet
+
+          #### Binaries
+          - [Linux X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz)
+          - [MacOS ARM64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
+          - [MacOS X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz)
+
+          #### Docker Images
+          - [Docker Image TestNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-testnet)
+
+          ### MainNet
+
+          #### Binaries
+          - [Linux X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz)
+          - [MacOS ARM64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
+          - [MacOS X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz)
+
+          #### Docker Images
+          - [Docker Image MainNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-mainnet)
+
+          # Running full-service
+
+          ### [full-service API Documentation](https://mobilecoin.gitbook.io/full-service-api/)
+
+          ### Running with Docker
+          The `full-service` docker images are published for `testnet` and `mainnet` usage and are pre-configured to connect to MobileCoin peer nodes. See [Setting Parameters as Environment Variables](https://github.com/mobilecoinofficial/full-service#parameters-as-environment-variables) to customize the default configuration.
+
+          Block and Wallet data are stored in the `/data` directory. You can mount a volume to persist data across container restarts.
+
+          `full-service` docker image with the following command:
+
+          ```bash
+          # TestNet Example
+          docker run -it -p 127.0.0.1:9090:9090 \
+            --volume $(pwd)/testnet/fs-data:/data \
+            mobilecoin/full-service:${{ github.ref_name }}-testnet
+          ```
+
+          ```bash
+          # MainNet Example
+          docker run -it -p 127.0.0.1:9090:9090 \
+            --volume $(pwd)/testnet/fs-data:/data \
+            mobilecoin/full-service:${{ github.ref_name }}-mainnet
+          ```
+
+          ### Running with Binaries
+          Download the appropriate binary for your platform and network from the links above. Extract the tarball and run the binary with the following command:
+
+          ```bash
+          # TestNet Example
+          mkdir -p ./testnet-dbs/
+          RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
+            --wallet-db ./testnet-dbs/wallet.db \
+            --ledger-db ./testnet-dbs/ledger-db/ \
+            --peer mc://node1.test.mobilecoin.com/ \
+            --peer mc://node2.test.mobilecoin.com/ \
+            --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node1.test.mobilecoin.com/ \
+            --tx-source-url https://s3-us-west-1.amazonaws.com/mobilecoin.chain/node2.test.mobilecoin.com/ \
+            --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+            --chain-id test
+          ```
+
+          ```bash
+          # MainNet Example
+          mkdir -p ./mainnet-dbs/
+          RUST_LOG=info,mc_connection=info,mc_ledger_sync=info ./full-service \
+            --wallet-db ./mainnet-dbs/wallet.db \
+            --ledger-db ./mainnet-dbs/ledger-db/ \
+            --peer mc://node1.prod.mobilecoinww.com/ \
+            --peer mc://node2.prod.mobilecoinww.com/ \
+            --tx-source-url https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/ \
+            --tx-source-url https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com/ \
+            --fog-ingest-enclave-css $(pwd)/ingest-enclave.css \
+            --chain-id main
+          ```
+        generate_release_notes: true
+        draft: true
+        files: |
+          build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-mainnet-macOS-X64-${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-testnet-macOS-ARM64-${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-testnet-macOS-X64-${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz
