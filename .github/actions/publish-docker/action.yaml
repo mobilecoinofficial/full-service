@@ -1,0 +1,32 @@
+name: Build Docker
+description: Build all the docker containers
+
+inputs:
+  network:
+    description: "main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+  docker_username:
+    description: "Docker repo username"
+    required: true
+  docker_password:
+    description: "Docker repo password"
+    required: true
+
+
+# need artifacts to have testnet/mainnet designators
+runs:
+  using: composite
+  steps:
+  - name: Merge and Tag Digests
+    uses: mobilecoinofficial/gh-actions/docker-merge-digests@098b14b2622b7eee5797e1157233a34660692590
+    with:
+      images: mobilecoin/full-service
+      flavor: latest=false
+      tags: |
+        ${{ inputs.version }}-${{ inputs.network }}net
+      username: ${{ secrets.DOCKERHUB_USERNAME }}
+      password: ${{ secrets.DOCKERHUB_TOKEN }}
+      digest_artifact_prefix: digests-${{ inputs.network }}net

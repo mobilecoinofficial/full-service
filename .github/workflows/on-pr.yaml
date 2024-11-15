@@ -63,7 +63,7 @@ jobs:
   lint-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.37
     env:
       SGX_MODE: SW
     steps:
@@ -121,7 +121,7 @@ jobs:
   test-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.37
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -219,7 +219,7 @@ jobs:
         version: ${{ needs.meta.outputs.version }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
-  build-publish-containers:
+  build-containers:
     needs:
     - meta
     - build-rust-linux
@@ -227,6 +227,7 @@ jobs:
       matrix:
         runner:
         - mco-dev-small-x64
+        - mco-dev-small-arm64
         network:
         - main
         - test
@@ -235,19 +236,40 @@ jobs:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build and Publish Docker
-      uses: ./.github/actions/build-publish-docker
+    - name: Build Docker
+      uses: ./.github/actions/build-docker
+      with:
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  publish-containers:
+    needs:
+    - meta
+    - build-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Merge Digests and Push Tag
+      uses: ./.github/actions/publish-docker
       with:
         network: ${{ matrix.network }}
         version: ${{ needs.meta.outputs.version }}
-        cache_buster: ${{ vars.CACHE_BUSTER }}
         docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
         docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
 
   build-publish-charts:
     needs:
     - meta
-    - build-publish-containers
+    - publish-containers
     strategy:
       matrix:
         network:
