@@ -58,7 +58,7 @@ runs:
     with:
       dockerfile: .internal-ci/docker/Dockerfile.full-service
       images: mobilecoin/full-service
-      save_digests: true
+      save_digest: true
       outputs: type=image,name=mobilecoin/full-service,push-by-digest=true,name-canonical=true,push=true
       build_args: |
         RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
