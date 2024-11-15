@@ -61,13 +61,14 @@ jobs:
         version: ${{ github.ref_name }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
-  build-publish-containers:
+  build-containers:
     needs:
     - build-rust-linux
     strategy:
       matrix:
         runner:
         - mco-dev-small-x64
+        - mco-dev-small-arm64
         network:
         - main
         - test
@@ -76,18 +77,38 @@ jobs:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build and Publish Docker
-      uses: ./.github/actions/build-publish-docker
+    - name: Build Docker
+      uses: ./.github/actions/build-docker
+      with:
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  publish-containers:
+    needs:
+    - build-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Merge Digests and Push Tag
+      uses: ./.github/actions/publish-docker
       with:
         network: ${{ matrix.network }}
         version: ${{ github.ref_name }}
-        cache_buster: ${{ vars.CACHE_BUSTER }}
         docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
         docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
 
   build-publish-charts:
     needs:
-    - build-publish-containers
+    - publish-containers
     strategy:
       matrix:
         network:

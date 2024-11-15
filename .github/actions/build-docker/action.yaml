@@ -24,7 +24,7 @@ runs:
       # Set the MobileCoin network details for "batteries included" builds.
       if [[ "${{ inputs.network }}" == "main" ]]
       then
-          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.co
+          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
           MC_TX_SOURCE_URL=https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
       else
           MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
