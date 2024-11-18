@@ -21,7 +21,7 @@ runs:
   using: composite
   steps:
   - name: Merge and Tag Digests
-    uses: mobilecoinofficial/gh-actions/docker-merge-digests@098b14b2622b7eee5797e1157233a34660692590
+    uses: mobilecoinofficial/gh-actions/docker-merge-digests@v0
     with:
       images: mobilecoin/full-service
       flavor: latest=false

@@ -54,7 +54,7 @@ runs:
       cp ${RUST_BIN_PATH}/mirror/* ${RUST_BIN_PATH}
 
   - name: Docker - build and publish full-service
-    uses: mobilecoinofficial/gh-actions/docker@098b14b2622b7eee5797e1157233a34660692590
+    uses: mobilecoinofficial/gh-actions/docker@v0
     with:
       dockerfile: .internal-ci/docker/Dockerfile.full-service
       images: mobilecoin/full-service
