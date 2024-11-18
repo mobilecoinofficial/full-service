@@ -15,12 +15,13 @@ jobs:
       matrix:
         runner:
         - mco-dev-large-x64
+        - mco-dev-large-arm64
         network:
         - main
         - test
     runs-on: ${{ matrix.runner }}
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
+      image: mobilecoin/rust-base:v0.0.37
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -60,13 +61,14 @@ jobs:
         version: ${{ github.ref_name }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
-  build-publish-containers:
+  build-containers:
     needs:
     - build-rust-linux
     strategy:
       matrix:
         runner:
         - mco-dev-small-x64
+        - mco-dev-small-arm64
         network:
         - main
         - test
@@ -75,18 +77,38 @@ jobs:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build and Publish Docker
-      uses: ./.github/actions/build-publish-docker
+    - name: Build Docker
+      uses: ./.github/actions/build-docker
+      with:
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  publish-containers:
+    needs:
+    - build-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Merge Digests and Push Tag
+      uses: ./.github/actions/publish-docker
       with:
         network: ${{ matrix.network }}
         version: ${{ github.ref_name }}
-        cache_buster: ${{ vars.CACHE_BUSTER }}
         docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
         docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
 
   build-publish-charts:
     needs:
-    - build-publish-containers
+    - publish-containers
     strategy:
       matrix:
         network:
@@ -136,21 +158,23 @@ jobs:
           ### TestNet
 
           #### Binaries
+          - [Linux ARM64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz)
           - [Linux X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz)
           - [MacOS ARM64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
           - [MacOS X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz)
 
-          #### Docker Images
+          #### Docker Images (amd64, arm64)
           - [Docker Image TestNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-testnet)
 
           ### MainNet
 
           #### Binaries
+          - [Linux ARM64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz)
           - [Linux X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz)
           - [MacOS ARM64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
           - [MacOS X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz)
 
-          #### Docker Images
+          #### Docker Images (amd64, arm64)
           - [Docker Image MainNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-mainnet)
 
           # Running full-service
@@ -212,9 +236,11 @@ jobs:
         draft: true
         fail_on_unmatched_files: true
         files: |
+          build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-X64-${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-macOS-ARM64-${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-macOS-X64-${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz

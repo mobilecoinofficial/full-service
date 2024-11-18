@@ -1,12 +1,9 @@
-name: Build and Publish Docker
-description: Build docker containers
+name: Publish Docker
+description: Gather digests and publish Docker images
 
 inputs:
   network:
     description: "main|test"
-    required: true
-  version:
-    description: "version of the build"
     required: true
   cache_buster:
     description: "cache buster"
@@ -27,7 +24,7 @@ runs:
       # Set the MobileCoin network details for "batteries included" builds.
       if [[ "${{ inputs.network }}" == "main" ]]
       then
-          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.co
+          MC_PEER=mc://node1.prod.mobilecoinww.com/,mc://node2.prod.mobilecoinww.com/
           MC_TX_SOURCE_URL=https://ledger.mobilecoinww.com/node1.prod.mobilecoinww.com/,https://ledger.mobilecoinww.com/node2.prod.mobilecoinww.com
       else
           MC_PEER=mc://node1.test.mobilecoin.com/,mc://node2.test.mobilecoin.com/
@@ -61,14 +58,13 @@ runs:
     with:
       dockerfile: .internal-ci/docker/Dockerfile.full-service
       images: mobilecoin/full-service
+      save_digest: true
+      outputs: type=image,name=mobilecoin/full-service,push-by-digest=true,name-canonical=true,push=true
       build_args: |
         RUST_BIN_PATH=${{ env.RUST_BIN_PATH }}
         MC_CHAIN_ID=${{ inputs.network }}
         MC_PEER=${{ env.MC_PEER }}
         MC_TX_SOURCE_URL=${{ env.MC_TX_SOURCE_URL }}
-      flavor: |
-        latest=false
-      tags: |
-        ${{ inputs.version }}-${{ inputs.network }}net
       password: ${{ inputs.docker_password }}
       username: ${{ inputs.docker_username }}
+      digest_artifact_prefix: digests-${{ inputs.network }}net
