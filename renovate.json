@@ -16,13 +16,19 @@
         "pin",
         "digest"
       ],
-      "automerge": true
+      "automerge": true,
+      "lockFileMaintenance": {
+        "enabled": true
+      }
     },
     {
       "matchDepTypes": [
         "devDependencies"
       ],
-      "automerge": true
+      "automerge": true,
+      "lockFileMaintenance": {
+        "enabled": true
+      }
     }
   ],
   "reviewers": [
