@@ -16,21 +16,19 @@
         "pin",
         "digest"
       ],
-      "automerge": true,
-      "lockFileMaintenance": {
-        "enabled": true
-      }
+      "automerge": true
     },
     {
       "matchDepTypes": [
         "devDependencies"
       ],
-      "automerge": true,
-      "lockFileMaintenance": {
-        "enabled": true
-      }
+      "automerge": true
     }
   ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "rangeStrategy": "update-lockfile",
   "reviewers": [
     "team:ramps-eng"
   ]
