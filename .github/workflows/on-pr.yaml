@@ -39,25 +39,25 @@ jobs:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint GitHub Actions
-      uses: mobilecoinofficial/gh-actions/lint-actions@9b4943250578165915a699237e39f27c20b14ccf
+      uses: mobilecoinofficial/gh-actions/lint-actions@v0
 
   lint-shell:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint shell with Shellcheck
-      uses: mobilecoinofficial/gh-actions/lint-shell@9b4943250578165915a699237e39f27c20b14ccf
+      uses: mobilecoinofficial/gh-actions/lint-shell@v0
 
   lint-helm:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint Helm Charts
-      uses: mobilecoinofficial/gh-actions/lint-helm@9b4943250578165915a699237e39f27c20b14ccf
+      uses: mobilecoinofficial/gh-actions/lint-helm@v0
 
   lint-docker:
     runs-on: mco-dev-small-x64
     steps:
     - name: Lint Dockerfiles with Hadolint
-      uses: mobilecoinofficial/gh-actions/lint-docker@9b4943250578165915a699237e39f27c20b14ccf
+      uses: mobilecoinofficial/gh-actions/lint-docker@v0
 
   lint-rust:
     runs-on: mco-dev-large-x64
@@ -292,6 +292,7 @@ jobs:
     - lint-helm
     - lint-docker
     - lint-rust
+    - lint-shell
     - test-rust
     - build-rust-macos
     - build-publish-charts

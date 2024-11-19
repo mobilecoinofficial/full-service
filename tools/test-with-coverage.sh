@@ -6,7 +6,7 @@
 
 set -e
 
-if [[ ! -z "$1" ]]; then
+if [[ -n "$1" ]]; then
     cd "$1"
 fi
 
