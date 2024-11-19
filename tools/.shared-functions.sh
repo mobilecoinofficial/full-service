@@ -2,8 +2,6 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 # Set of shared functions for full-service build, test and run tools.
 
-# shellcheck disable=SC2034  # Allow unused vars in this shared file.
-
 GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
 
@@ -16,10 +14,10 @@ fi
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
     # Set cargo target dir to include the "net"
-    CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}/${net}
+    CARGO_TARGET_DIR="${GIT_BASE}/target/docker/${net}"
     # CBB: Deprecate the concept of "workdir" to simplify paths/scripts.
     #      This is now a symlink to RELEASE_DIR
-    WORK_DIR=".mob/${net}"
+    WORK_DIR=${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}
     LISTEN_ADDR="0.0.0.0"
 else
     CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}
@@ -28,7 +26,38 @@ else
 fi
 
 RELEASE_DIR=${CARGO_TARGET_DIR}/release
-export CARGO_TARGET_DIR
+export CARGO_TARGET_DIR RELEASE_DIR WORK_DIR LISTEN_ADDR
+
+# Setup release dir - set in .shared-functions.sh
+mkdir -p "${RELEASE_DIR}"
+
+if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
+then
+    # migrate wallet/ledger db to release_dir and remove workdir to make room
+    # for the symlink
+    if [[ ! -L "${WORK_DIR}" && -d "${WORK_DIR}" ]]
+    then
+        if [[ -d "${WORK_DIR}/wallet-db" ]]
+        then
+            mv "${WORK_DIR}/wallet-db" "${RELEASE_DIR}/wallet-db"
+        fi
+        if [[ -d "${WORK_DIR}/ledger-db" ]]
+        then
+            mv "${WORK_DIR}/ledger-db" "${RELEASE_DIR}/ledger-db"
+        fi
+        rm -rf "${WORK_DIR}"
+    fi
+
+    # create parent workdir and link release_dir to work_dir
+    mkdir -p "$(dirname "${WORK_DIR}")"
+
+    # At this point WORK_DIR can only be a symlink, remove it and create a new one.
+    rm -f "${WORK_DIR}"
+
+    # this needs to be a relative link from GIT_BASE
+    ln -s -r "${RELEASE_DIR}" "${WORK_DIR}"
+fi
+
 
 # debug - echo a debug message
 #  1: message
