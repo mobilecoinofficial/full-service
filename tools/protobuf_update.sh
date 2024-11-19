@@ -14,7 +14,7 @@ then
     exit
 fi
 
-if ! which protoc &> /dev/null
+if ! command -v protoc &> /dev/null
 then
     echo "protoc could not be found. Install with:"
     echo ""

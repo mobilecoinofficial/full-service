@@ -1,1 +1,12 @@
-mobilecoin/.mobconf
+[image]
+url = mobilecoin/fat-builder
+tag = v0.0.37
+[builder-install]
+url = mobilecoin/fat-builder
+tag = v0.0.37
+[fat-builder]
+url = mobilecoin/fat-builder
+tag = v0.0.37
+[signing-tools]
+url = mobilecoin/signing-tools
+tag = v0.0.1
