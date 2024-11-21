@@ -72,7 +72,7 @@ jobs:
         mkdir -p "$(dirname "${MC_WALLET_DB}")"
 
         # Download existing ledger db
-        curl -sSfL "https://mcdeveu1ledger.blob.core.windows.net/${MC_CHAIN_ID}/data.mdb" -o "${MC_LEDGER_DB}/data.mdb"
+        curl -fL "https://mcdeveu1ledger.blob.core.windows.net/${MC_CHAIN_ID}/data.mdb" -o "${MC_LEDGER_DB}/data.mdb"
 
         # Start full-service
         ./full-service &
