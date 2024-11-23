@@ -5,6 +5,7 @@
 name: Refresh ledger
 
 on:
+  workflow_dispatch: {}
   schedule:
   - cron: '0 0 * * *'
 
@@ -70,6 +71,9 @@ jobs:
         mkdir -p "${MC_LEDGER_DB}"
         mkdir -p "$(dirname "${MC_WALLET_DB}")"
 
+        # Download existing ledger db
+        curl -sSfL "https://mcdeveu1ledger.blob.core.windows.net/${MC_CHAIN_ID}/data.mdb" -o "${MC_LEDGER_DB}/data.mdb"
+
         # Start full-service
         ./full-service &
 
@@ -87,9 +91,16 @@ jobs:
 
         echo "full-service shutdown successfully"
 
-    - name: copy ledger data.mdb to Azure Blob Storage
+    - name: copy ledger data.mdb to Azure Blob Storage - westeurope
       env:
-        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_AZURE_STORAGE_CONNECTION_STRING }}
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_WESTEUROPE_AZURE_STORAGE_CONNECTION_STRING }}
+      run: |
+        cd "${DOWNLOAD_DIR}/ledger"
+        az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite
+
+    - name: copy ledger data.mdb to Azure Blob Storage - centralus
+      env:
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_CENTRALUS_AZURE_STORAGE_CONNECTION_STRING }}
       run: |
         cd "${DOWNLOAD_DIR}/ledger"
         az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite

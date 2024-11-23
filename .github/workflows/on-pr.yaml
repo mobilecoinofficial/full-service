@@ -2,7 +2,6 @@
 
 # CBB List:
 # - Lint Shell
-# - CodeCov
 # - Integration tests
 
 name: on-pr
@@ -42,12 +41,11 @@ jobs:
     - name: Lint GitHub Actions
       uses: mobilecoinofficial/gh-actions/lint-actions@v0
 
-  # CBB: Need to clean up repo shell scripts to pass shellcheck
-  # lint-shell:
-  #   runs-on: mco-dev-small-x64
-  #   steps:
-  #   - name: Lint shell with Shellcheck
-  #     uses: mobilecoinofficial/gh-actions/lint-shell@v0
+  lint-shell:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint shell with Shellcheck
+      uses: mobilecoinofficial/gh-actions/lint-shell@v0
 
   lint-helm:
     runs-on: mco-dev-small-x64
@@ -64,7 +62,7 @@ jobs:
   lint-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
+      image: mobilecoin/rust-base:v0.0.37
     env:
       SGX_MODE: SW
     steps:
@@ -122,7 +120,7 @@ jobs:
   test-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
+      image: mobilecoin/rust-base:v0.0.37
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -157,9 +155,6 @@ jobs:
       env:
         SGX_MODE: SW
         CARGO_BACKTRACE: "1"
-        CARGO_INCREMENTAL: "0"
-        RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
-        RUSTDOCFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests"
       run: |
         cargo test
 
@@ -168,22 +163,6 @@ jobs:
       shell: bash
       run: touch .dummy/success
 
-    # skip coverage for now, old actions-rs/grcov is deprecated
-    # need to learn how to generate .xml reports for codecov below
-    # - name: grcov
-    #   shell: bash
-    #   run: |
-    #     cargo install grcov
-
-    # - name: Codecov
-    #     uses: codecov/codecov-action@v3.1.4
-    #     with:
-    #       files: ${{ steps.coverage.outputs.report }}
-    #       verbose: true
-    #       fail_ci_if_error: true
-    #     env:
-    #       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
   build-rust-linux:
     needs:
     - meta
@@ -191,12 +170,13 @@ jobs:
       matrix:
         runner:
         - mco-dev-large-x64
+        - mco-dev-large-arm64
         network:
         - main
         - test
     runs-on: ${{ matrix.runner }}
     container:
-      image: mobilecoin/rust-sgx-base:v0.0.36
+      image: mobilecoin/rust-base:v0.0.37
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -238,7 +218,7 @@ jobs:
         version: ${{ needs.meta.outputs.version }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
-  build-publish-containers:
+  build-containers:
     needs:
     - meta
     - build-rust-linux
@@ -246,6 +226,7 @@ jobs:
       matrix:
         runner:
         - mco-dev-small-x64
+        - mco-dev-small-arm64
         network:
         - main
         - test
@@ -254,19 +235,40 @@ jobs:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
 
-    - name: Build and Publish Docker
-      uses: ./.github/actions/build-publish-docker
+    - name: Build Docker
+      uses: ./.github/actions/build-docker
+      with:
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  publish-containers:
+    needs:
+    - meta
+    - build-containers
+    strategy:
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Merge Digests and Push Tag
+      uses: ./.github/actions/publish-docker
       with:
         network: ${{ matrix.network }}
         version: ${{ needs.meta.outputs.version }}
-        cache_buster: ${{ vars.CACHE_BUSTER }}
         docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
         docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
 
   build-publish-charts:
     needs:
     - meta
-    - build-publish-containers
+    - publish-containers
     strategy:
       matrix:
         network:
@@ -290,6 +292,7 @@ jobs:
     - lint-helm
     - lint-docker
     - lint-rust
+    - lint-shell
     - test-rust
     - build-rust-macos
     - build-publish-charts

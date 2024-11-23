@@ -1,0 +1,28 @@
+{
+  "image": "mobilecoin/fat-devcontainer:v0.0.38",
+  "forwardPorts": [
+    9090
+  ],
+  "capAdd": ["SYS_PTRACE"],
+  "containerEnv": {
+    "MC_CHAIN_ID": "local",
+    "RUST_BACKTRACE": "1",
+    "SGX_MODE": "SW"
+  },
+  "remoteUser": "sentz",
+  "postCreateCommand": "/usr/local/bin/startup-devcontainer.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "fill-labs.dependi",
+        "github.vscode-github-actions",
+        "GitHub.copilot",
+        "ms-kubernetes-tools.vscode-kubernetes-tools",
+        "rust-lang.rust-analyzer",
+        "timonwong.shellcheck",
+        "be5invis.toml",
+        "redhat.vscode-yaml"
+      ]
+    }
+  }
+}
