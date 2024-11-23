@@ -246,11 +246,13 @@ class CommandLineInterface:
         print()
         print('Transaction Fees:')
         for token in TOKENS:
-            amount = Amount.from_storage_units(
-                network_status['fees'][str(token.token_id)],
-                token
-            )
-            print(indent(amount.format(), '  '))
+            fee_storage_units = network_status['fees'].get(str(token.token_id))
+            if fee_storage_units is not None:
+                amount = Amount.from_storage_units(
+                    fee_storage_units,
+                    token
+                )
+                print(indent(amount.format(), '  '))
 
     def list(self):
         accounts = self.client.get_accounts()
