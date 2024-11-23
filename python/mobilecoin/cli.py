@@ -499,12 +499,16 @@ class CommandLineInterface:
             balance = account_status['balance_per_token'][str(token.token_id)]
             unspent = Amount.from_storage_units(balance['unspent'], token)
             unverified = Amount.from_storage_units(balance['unverified'], token)
+            max_spendable = Amount.from_storage_units(balance['max_spendable'], token)
             available = unspent + unverified
         except KeyError:
             available = Amount.from_storage_units(0, token)
+            unverified = Amount.from_storage_units(0, token)
+            max_spendable = Amount.from_storage_units(0, token)
 
         if fee is None:
             network_status = self.client.get_network_status()
+            assert network_status is not None
             fee = Amount.from_storage_units(
                 network_status['fees'][str(token.token_id)],
                 token
@@ -514,8 +518,8 @@ class CommandLineInterface:
         assert fee is not None
 
         if amount == "all":
-            amount = available - fee
-            total_amount = available
+            amount = max_spendable
+            total_amount = amount + fee
             assert amount.value >= 0
             assert total_amount.value >= 0
         else:
@@ -994,6 +998,7 @@ def _format_balances(balances):
     for token_id, balance in balances.items():
         unspent = Amount.from_storage_units(balance['unspent'], token_id)
         unverified = Amount.from_storage_units(balance['unverified'], token_id)
+        max_spendable = Amount.from_storage_units(balance['max_spendable'], token_id)
         if unspent.value > 0:
             lines.append(unspent.format())
         if unverified.value > 0:
