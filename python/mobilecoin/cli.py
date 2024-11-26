@@ -219,12 +219,13 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
 
         # Show sync state.
-        if int(wallet_status['network_block_height']) == 0:
+        if network_status['network_info']['offline'] is True:
             print('Offline.')
             print('Local ledger has {} blocks.'.format(
                 wallet_status['local_block_height']))
         else:
-            print('Connected to MobileCoin network.')
+            chain_id = network_status['network_info']['chain_id']
+            print(f'Connected to MobileCoin {chain_id} network.')
             if wallet_status['is_synced_all']:
                 print('All accounts synced, {} blocks.'.format(
                     wallet_status['network_block_height']))
