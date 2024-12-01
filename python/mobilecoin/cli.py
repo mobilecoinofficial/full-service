@@ -9,10 +9,14 @@ from .client import (
     ClientSync as Client,
     WalletAPIError,
     log as client_log,
+    MAX_TOMBSTONE_BLOCKS,
 )
 from .fog import FOG_INFO
 from .token import Amount, get_token, TOKENS
-from .util import b64_public_address_to_b58_wrapper
+from .util import (
+    b64_public_address_to_b58_wrapper,
+    full_service_receipt_to_b64_receipt,
+)
 
 
 def main():
@@ -120,7 +124,8 @@ class CommandLineInterface:
         self.submit_args = command_sp.add_parser('submit', help='Submit a transaction proposal.')
         self.submit_args.add_argument('proposal', help='A tx_proposal.json file.')
         self.submit_args.add_argument('account_id', nargs='?', help='Source account ID. Only used for logging the transaction.')
-        self.submit_args.add_argument('--receipt', action='store_true', help='Also create a receiver receipt for the transaction.')
+        self.submit_args.add_argument('--receipt', action='store_true', help='Create a JSON receiver receipt for the transaction.')
+        self.submit_args.add_argument('--receipt-base64', action='store_true', help='Create a Base64 receiver receipt for the transaction.')
 
         # Address QR code.
         self.qr_args = command_sp.add_parser('qr', help='Show account address as a QR code')
@@ -612,7 +617,7 @@ class CommandLineInterface:
             fee_amount.format(),
         ))
 
-    def submit(self, proposal, account_id=None, receipt=False):
+    def submit(self, proposal, account_id=None, receipt=False, receipt_base64=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
             account_id = account['id']
@@ -630,24 +635,37 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         lo = int(network_status['network_block_height']) + 1
         hi = lo + MAX_TOMBSTONE_BLOCKS - 1
-        if lo >= tombstone_block:
-            print('This transaction has expired, and can no longer be submitted.')
-            return
-        if tombstone_block > hi:
-            print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
-                tombstone_block - hi))
+        # if lo >= tombstone_block:
+        #     print('This transaction has expired, and can no longer be submitted.')
+        #     return
+        # if tombstone_block > hi:
+        #     print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
+        #         tombstone_block - hi))
 
         # Generate a receipt for the transaction.
-        if receipt:
-            receipt = self.client.create_receiver_receipts(tx_proposal)
-            path = Path('receipt.json')
-            if path.exists():
-                print(f'The file {path} already exists. Please rename the existing file and retry.')
-                return
-            else:
-                with path.open('w') as f:
-                    json.dump(receipt, f, indent=2)
-                print(f'Wrote {path}.')
+        if receipt or receipt_base64:
+            receipt_json = self.client.create_receiver_receipts(tx_proposal)
+            assert len(receipt_json) == 1
+            receipt_json = receipt_json[0]
+            if receipt:
+                path = Path('receipt.json')
+                if path.exists():
+                    print(f'The file {path} already exists. Please rename the existing file and retry.')
+                    return
+                else:
+                    with path.open('w') as f:
+                        json.dump(receipt_json, f, indent=2)
+                    print(f'Wrote {path}.')
+            if receipt_base64:
+                path = Path('receipt.base64')
+                if path.exists():
+                    print(f'The file {path} already exists. Please rename the existing file and retry.')
+                    return
+                else:
+                    receipt_b64 = full_service_receipt_to_b64_receipt(receipt_json)
+                    with path.open('w') as f:
+                        f.write(receipt_b64)
+                    print(f'Wrote {path}.')
 
         # Confirm and submit.
         if account_id is None:

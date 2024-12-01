@@ -107,7 +107,6 @@ def b64_receipt_to_full_service_receipt(b64_string):
 
 def full_service_receipt_to_b64_receipt(full_service_receipt):
     """Convert a full-service receipt object to a b64-encoded protobuf Receipt"""
-    assert full_service_receipt["object"] == "receiver_receipt"
 
     public_key = external_pb2.CompressedRistretto.FromString(
         bytes.fromhex(full_service_receipt["public_key"])
@@ -120,13 +119,15 @@ def full_service_receipt_to_b64_receipt(full_service_receipt):
         data=bytes.fromhex(full_service_receipt["amount"]["commitment"])
     )
     amount_masked_value = int(full_service_receipt["amount"]["masked_value"])
-    amount = external_pb2.Amount(
+
+    masked_amount = external_pb2.MaskedAmount(
         commitment=amount_commitment, masked_value=amount_masked_value
     )
     r = external_pb2.Receipt(
         public_key=public_key,
         confirmation=confirmation,
         tombstone_block=tombstone_block,
-        amount=amount,
+        masked_amount_v1=masked_amount,
     )
     return base64.b64encode(r.SerializeToString()).decode("utf-8")
+
