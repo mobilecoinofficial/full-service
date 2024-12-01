@@ -12,6 +12,7 @@ from .client import (
 )
 from .fog import FOG_INFO
 from .token import Amount, get_token, TOKENS
+from .util import b64_public_address_to_b58_wrapper
 
 
 def main():
@@ -109,6 +110,7 @@ class CommandLineInterface:
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
+        self.send_args.add_argument('--base64', action='store_true', help='Address is given in base64.')
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount to send.')
         self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
@@ -491,11 +493,14 @@ class CommandLineInterface:
                 else:
                     print('    Sent to', address)
 
-    def send(self, account_id, amount, token, to_address, build_only=False, fee=None):
+    def send(self, account_id, amount, token, to_address, build_only=False, fee=None, base64=False):
         token = get_token(token)
 
         account = self._load_account_prefix(account_id)
         account_id = account['id']
+
+        if base64:
+            to_address = b64_public_address_to_b58_wrapper(to_address)
 
         account_status = self.client.get_account_status(account_id)
         try:
