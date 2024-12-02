@@ -230,6 +230,17 @@ pub fn sync_account_next_chunk(
             (*account_key.view_private_key(), Some(account_key))
         };
 
+        tx_outs.iter().try_for_each(|(block_index, tx_out)| {
+            let txos = Txo::select_by_public_key(&[&tx_out.public_key], conn).unwrap();
+            txos.iter().try_for_each(|txo| {
+                TransactionLog::update_pending_associated_with_txo_to_succeeded(
+                    &txo.id,
+                    *block_index,
+                    conn,
+                )
+            })
+        })?;
+
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -288,11 +299,6 @@ pub fn sync_account_next_chunk(
 
         for (block_index, txo_id_hex) in &spent_txos {
             Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
-            TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                txo_id_hex,
-                *block_index,
-                conn,
-            )?;
         }
 
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(

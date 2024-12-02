@@ -9,7 +9,7 @@ mod e2e_transaction {
         json_rpc::v2::{
             api::test_utils::{dispatch, dispatch_expect_error, setup},
             models::{
-                amount::Amount as AmountJSON, transaction_log::TransactionLog,
+                account::Account, amount::Amount as AmountJSON, transaction_log::TransactionLog,
                 tx_proposal::TxProposal as TxProposalJSON,
             },
         },
@@ -717,10 +717,18 @@ mod e2e_transaction {
 
     #[test_with_logger]
     fn test_reuse_input_txo_then_submit_transaction(logger: Logger) {
+        // This test mimics a situation where multiple services are using the same
+        // Full-Service instance. Both services are able to `build_transaction`s,
+        // which consume the same input txo(s). Both of the services are able to submit
+        // the transactions prior to either transaction landing on the blockchain. The
+        // blockchain will only allow one of these transactions to succeed.
+        // Previous versions of Full-Service had a bug that would mark both transactions
+        // as succeeded. This was because Full-Service would mark a transaction as
+        // succeeded if the inputs were consumed. This test ensures that this
+        // bug has been fixed and only the successful transaction is marked as such.
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let (client, mut ledger_db, db_ctx, _network_state) = setup(&mut rng, logger.clone());
 
-        // Add an account
         let body = json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -731,16 +739,14 @@ mod e2e_transaction {
         });
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
-        let account_obj = result.get("account").unwrap();
-        let account_id = account_obj.get("id").unwrap().as_str().unwrap();
-        let b58_public_address = account_obj.get("main_address").unwrap().as_str().unwrap();
-        let public_address = b58_decode_public_address(b58_public_address).unwrap();
+        let account: Account =
+            serde_json::from_value(result.get("account").unwrap().clone()).unwrap();
         let moving_funds = 100000000000;
         let starting_funds = 10 * moving_funds;
 
         add_block_to_ledger_db(
             &mut ledger_db,
-            &vec![public_address],
+            &vec![b58_decode_public_address(&account.main_address).unwrap()],
             starting_funds,
             &[KeyImage::from(rng.next_u64())],
             &mut rng,
@@ -749,126 +755,102 @@ mod e2e_transaction {
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
+            &AccountID(account.id.clone()),
             &logger,
         );
 
-        // get the txo we're going to use for the two transaction proposals
-        let body = json!({
-          "method": "get_txos",
-          "params": {
-            "account_id": account_id,
-          },
-          "jsonrpc": "2.0",
-          "id": 1
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let txo_id = (result.get("txo_ids").unwrap())[0].as_str().unwrap();
+        let tx_log_id_and_proposals = (0..2)
+            .into_iter()
+            .map(|_| {
+                let body = json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "build_transaction",
+                    "params": {
+                        "account_id": account.id,
+                        "recipient_public_address": account.main_address,
+                        "amount": { "value": moving_funds.to_string(), "token_id": "0"},
+                    }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let tx_log_id =
+                    serde_json::from_value(result.get("transaction_log_id").unwrap().clone())
+                        .unwrap();
+                let tx_proposal =
+                    serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
+                (tx_log_id, tx_proposal)
+            })
+            .collect::<Vec<(String, TxProposalJSON)>>();
 
-        // Create a tx proposal to ourselves
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "build_transaction",
-            "params": {
-                "account_id": account_id,
-                "recipient_public_address": b58_public_address,
-                "amount": { "value": moving_funds.to_string(), "token_id": "0"},
-                "input_txo_ids" : [txo_id.to_string()],
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let tx_proposal_a: TxProposalJSON =
-            serde_json::from_value(result.get("tx_proposal").unwrap().clone()).unwrap();
-        let txlog_id_a = result.get("transaction_log_id").unwrap().as_str().unwrap();
+        // In order for this test to prove the point the transaction logs should be
+        // different while the input txos are the same.
+        assert_ne!(tx_log_id_and_proposals[0].0, tx_log_id_and_proposals[1].0);
+        assert_eq!(
+            tx_log_id_and_proposals[0].1.input_txos,
+            tx_log_id_and_proposals[1].1.input_txos
+        );
 
-        // Create a 2nd tx proposal to ourselves
-        let moving_funds = moving_funds * 2;
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "build_transaction",
-            "params": {
-                "account_id": account_id,
-                "recipient_public_address": b58_public_address,
-                "amount": { "value": moving_funds.to_string(), "token_id": "0"},
-                "input_txo_ids" : [txo_id.to_string()],
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        // let tx_proposal_b: TxProposalJSON =
-        //    serde_json::from_value(result.get("tx_proposal").unwrap().clone()).
-        // unwrap();
-        let txlog_id_b = result.get("transaction_log_id").unwrap().as_str().unwrap();
+        tx_log_id_and_proposals
+            .iter()
+            .for_each(|(tx_log_id, tx_proposal)| {
+                let body = json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "submit_transaction",
+                    "params": {
+                        "tx_proposal": tx_proposal,
+                        "account_id": account.id,
+                    }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let submitted_tx_log_id = result
+                    .get("transaction_log")
+                    .unwrap()
+                    .get("id")
+                    .unwrap()
+                    .as_str()
+                    .unwrap();
+                assert_eq!(tx_log_id, submitted_tx_log_id);
+            });
 
-        assert_ne!(txlog_id_a, txlog_id_b);
+        let tx_proposal = TxProposal::try_from(&tx_log_id_and_proposals[0].1).unwrap();
 
-        // Submit the tx_proposal
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "submit_transaction",
-            "params": {
-                "tx_proposal": tx_proposal_a,
-                "account_id": account_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let submitted_transaction_id = result
-            .get("transaction_log")
-            .unwrap()
-            .get("id")
-            .unwrap()
-            .as_str()
-            .unwrap();
-
-        assert_eq!(txlog_id_a, submitted_transaction_id);
-        let payments_tx_proposal_a = TxProposal::try_from(&tx_proposal_a).unwrap();
-
-        // The MockBlockchainConnection does not write to the ledger_db
-        add_block_with_tx(&mut ledger_db, payments_tx_proposal_a.tx, &mut rng);
+        add_block_with_tx(&mut ledger_db, tx_proposal.tx, &mut rng);
         manually_sync_account(
             &ledger_db,
             &db_ctx.get_db_instance(logger.clone()),
-            &AccountID(account_id.to_string()),
+            &AccountID(account.id),
             &logger,
         );
 
-        // Get the transaction_id and verify it contains what we expect
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_transaction_log",
-            "params": {
-                "transaction_log_id": submitted_transaction_id,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let transaction_log: TransactionLog =
-            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
+        // The first transaction log will have succeeded, because it's outputs
+        // show up on the ledger.
+        // The second transaction log will still be pending, because it's outputs
+        // don't exist in the ledger. This second transaction log will
+        // eventually fail once the tombstone block is reached.
+        let expected_statuses = [TxStatus::Succeeded, TxStatus::Pending];
 
-        assert_eq!(transaction_log.status, TxStatus::Succeeded.to_string());
-        assert_eq!(transaction_log.id, submitted_transaction_id);
+        tx_log_id_and_proposals
+            .iter()
+            .zip(expected_statuses)
+            .for_each(|((tx_log_id, _), status)| {
+                let body = json!({
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "get_transaction_log",
+                    "params": {
+                        "transaction_log_id": tx_log_id,
+                    }
+                });
+                let res = dispatch(&client, body, &logger);
+                let result = res.get("result").unwrap();
+                let tx_log: TransactionLog =
+                    serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
 
-        // Get the transaction_id and verify it contains what we expect
-        let body = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "get_transaction_log",
-            "params": {
-                "transaction_log_id": txlog_id_b,
-            }
-        });
-        let res = dispatch(&client, body, &logger);
-        let result = res.get("result").unwrap();
-        let transaction_log: TransactionLog =
-            serde_json::from_value(result.get("transaction_log").unwrap().clone()).unwrap();
-        assert_eq!(transaction_log.id, txlog_id_b);
-        assert_eq!(transaction_log.status, TxStatus::Built.to_string());
+                assert_eq!(tx_log.status, status.to_string());
+                assert_eq!(&tx_log.id, tx_log_id);
+            });
     }
 }
