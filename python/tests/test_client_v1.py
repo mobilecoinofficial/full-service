@@ -109,11 +109,11 @@ def test_send_transaction_self(client_v1, source_account, fee):
     # Send a transaction from the account back to itself.
     transaction_log, _ = client_v1.build_and_submit_transaction(
         source_account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         source_account['main_address'],
     )
     tx_value = Amount.from_storage_units(transaction_log['value_pmob'], MOB)
-    assert tx_value == Amount.from_display_units(0.01, MOB)
+    assert tx_value == Amount.from_display_units(0.001, MOB)
 
     # Wait for the account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
@@ -128,11 +128,11 @@ def _test_send_transaction(client_v1, account, temp_account):
     # Send a transaction to the temporary account.
     transaction_log, _ = client_v1.build_and_submit_transaction(
         account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         temp_account['main_address'],
     )
     tx_value = Amount.from_storage_units(transaction_log['value_pmob'], MOB)
-    assert tx_value == Amount.from_display_units(0.01, MOB)
+    assert tx_value == Amount.from_display_units(0.001, MOB)
 
     # Wait for the temporary account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
@@ -143,7 +143,7 @@ def _test_send_transaction(client_v1, account, temp_account):
         temp_balance['unspent_pmob'],
         MOB,
     )
-    assert temp_balance == Amount.from_display_units(0.01, MOB)
+    assert temp_balance == Amount.from_display_units(0.001, MOB)
 
 
 async def test_send_transaction(client_v1, source_account, account_factory):
@@ -162,7 +162,7 @@ async def test_send_transaction_fog(client_v1, source_account, account_factory):
     temp_fog_account = await account_factory.create_fog()
     _test_send_transaction(client_v1, source_account, temp_fog_account)
 
-
+# failed - not waiting for primary account to be synced
 async def test_send_transaction_subaddress(client_v1, source_account, account_factory):
     temp_account = await account_factory.create()
 
@@ -178,7 +178,7 @@ async def test_send_transaction_subaddress(client_v1, source_account, account_fa
     # Send a transaction to the temporary account.
     transaction_log, _ = client_v1.build_and_submit_transaction(
         source_account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         address,
     )
 
@@ -188,13 +188,12 @@ async def test_send_transaction_subaddress(client_v1, source_account, account_fa
 
     # Check that the transaction has arrived.
     temp_balance = Amount.from_storage_units(temp_balance['unspent_pmob'], MOB)
-    assert temp_balance == Amount.from_display_units(0.01, MOB)
+    assert temp_balance == Amount.from_display_units(0.001, MOB)
 
     # The subaddress balance also shows the transaction.
     balance = client_v1.get_balance_for_address(address)
     subaddress_balance = Amount.from_storage_units(balance['unspent_pmob'], MOB)
-    assert subaddress_balance == Amount.from_display_units(0.01, MOB)
-
+    assert subaddress_balance == Amount.from_display_units(0.001, MOB)
 
 async def test_build_transaction_multiple_outputs(client_v1, source_account, account_factory):
     temp_account_1 = await account_factory.create()
@@ -203,8 +202,8 @@ async def test_build_transaction_multiple_outputs(client_v1, source_account, acc
     tx_proposal, _ = client_v1.build_transaction(
         source_account['id'],
         {
-            temp_account_1['main_address']: Amount.from_display_units(0.01, MOB),
-            temp_account_2['main_address']: Amount.from_display_units(0.01, MOB),
+            temp_account_1['main_address']: Amount.from_display_units(0.001, MOB),
+            temp_account_2['main_address']: Amount.from_display_units(0.001, MOB),
         },
     )
     transaction_log = client_v1.submit_transaction(
@@ -225,4 +224,4 @@ async def test_build_transaction_multiple_outputs(client_v1, source_account, acc
             balance['unspent_pmob'],
             MOB,
         )
-        assert balance == Amount.from_display_units(0.01, MOB)
+        assert balance == Amount.from_display_units(0.001, MOB)

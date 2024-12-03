@@ -85,7 +85,7 @@ async def source_account(client):
         status['balance_per_token'][str(MOB.token_id)]['unspent'],
         MOB,
     )
-    assert initial_balance >= Amount.from_display_units(0.1, MOB)
+    assert initial_balance >= Amount.from_display_units(0.001, MOB)
 
     return status['account']
 
