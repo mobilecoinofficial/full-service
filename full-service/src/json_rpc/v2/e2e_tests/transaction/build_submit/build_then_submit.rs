@@ -827,10 +827,9 @@ mod e2e_transaction {
 
         // The first transaction log will have succeeded, because it's outputs
         // show up on the ledger.
-        // The second transaction log will still be pending, because it's outputs
-        // don't exist in the ledger. This second transaction log will
-        // eventually fail once the tombstone block is reached.
-        let expected_statuses = [TxStatus::Succeeded, TxStatus::Pending];
+        // The second transaction log will still be failed, because it's inputs
+        // were consumed but its outputs don't exist
+        let expected_statuses = [TxStatus::Succeeded, TxStatus::Failed];
 
         tx_log_id_and_proposals
             .iter()

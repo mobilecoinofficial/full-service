@@ -299,6 +299,10 @@ pub fn sync_account_next_chunk(
 
         for (block_index, txo_id_hex) in &spent_txos {
             Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
+            // NB: This needs to be done after calling
+            // `TransactionLog::update_pending_associated_with_txo_to_succeeded()` so we
+            // don't fail a transaction log that is finalized for this block.
+            TransactionLog::update_consumed_txo_to_failed(txo_id_hex, conn)?;
         }
 
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
