@@ -36,6 +36,10 @@ do
             build=1
             shift 1
             ;;
+        --download-ledger)
+            download_ledger=1
+            shift 1
+            ;;
         --offline)
             export MC_OFFLINE=true
             shift 1
@@ -70,21 +74,16 @@ location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 # shellcheck source=/dev/null
 source "${location}/.shared-functions.sh"
 
-# Set default database directories
-WALLET_DB_DIR="${WALLET_DB_DIR:-"${RELEASE_DIR}/wallet-db"}"
-LEDGER_DB_DIR="${LEDGER_DB_DIR:-"${RELEASE_DIR}/ledger-db"}"
-mkdir -p "${WALLET_DB_DIR}"
-mkdir -p "${LEDGER_DB_DIR}"
-
 # Set vars for all networks
-MC_WALLET_DB="${WALLET_DB_DIR}/wallet.db"
-MC_LEDGER_DB="${LEDGER_DB_DIR}"
+MC_WALLET_DB="${WALLET_DB_DIR:?}/wallet.db"
+MC_LEDGER_DB="${LEDGER_DB_DIR:?}"
 MC_LISTEN_HOST="${LISTEN_ADDR:?}"
 
 case "${net}" in
     test)
         domain_name="test.mobilecoin.com"
         tx_source_base="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
+        ledger_source="https://mcdevus1ledger.blob.core.windows.net/test/data.mdb"
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
@@ -98,6 +97,7 @@ case "${net}" in
     main)
         domain_name="prod.mobilecoinww.com"
         tx_source_base="https://ledger.mobilecoinww.com"
+        ledger_source="https://mcdeveu1ledger.blob.core.windows.net/main/data.mdb"
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
@@ -163,6 +163,19 @@ then
     "${location}/build-fs.sh" "${net}"
 fi
 
+if [[ -n "${ledger_source}" && -n "${download_ledger}" ]]
+then
+    if [[ -e "${MC_LEDGER_DB}/data.mdb" ]]
+    then
+        echo "Ledger already exists at ${MC_LEDGER_DB}/data.mdb"
+        echo "Remove ${MC_LEDGER_DB}/data.mdb or remove --download-ledger flag"
+        exit 1
+    else
+        echo "Downloading ledger from ${ledger_source}"
+        curl -SLf "${ledger_source}" -o "${MC_LEDGER_DB}/data.mdb"
+    fi
+fi
+
 # start validator and unset envs for full-service
 if [[ -n "${validator}" ]]
 then
@@ -179,7 +192,7 @@ then
         fi
 
         echo "Starting validator-service. Log is at /tmp/validator-service.log"
-        validator_ledger_db="${RELEASE_DIR}/validator/ledger-db"
+        validator_ledger_db="${GIT_BASE}/.mob/${net}-db/validator/ledger-db"
         mkdir -p "${validator_ledger_db}"
 
         # Override

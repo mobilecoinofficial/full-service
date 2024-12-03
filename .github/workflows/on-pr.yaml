@@ -223,6 +223,7 @@ jobs:
     - meta
     - build-rust-linux
     strategy:
+      fail-fast: false
       matrix:
         runner:
         - mco-dev-small-x64
@@ -248,6 +249,7 @@ jobs:
     - meta
     - build-containers
     strategy:
+      fail-fast: false
       matrix:
         network:
         - main
@@ -270,6 +272,7 @@ jobs:
     - meta
     - publish-containers
     strategy:
+      fail-fast: false
       matrix:
         network:
         - main
@@ -286,6 +289,31 @@ jobs:
         repo_username: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
 
+  test-python-integration:
+    needs:
+    - meta
+    - build-publish-charts
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Run Python Integration Tests
+      uses: ./.github/actions/test-python-integration
+      with:
+        version: ${{ needs.meta.outputs.version }}
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
   checks-successful:
     needs:
     - lint-actions
@@ -296,6 +324,7 @@ jobs:
     - test-rust
     - build-rust-macos
     - build-publish-charts
+    - test-python-integration
     runs-on: mco-dev-small-x64
     steps:
     - name: Success
