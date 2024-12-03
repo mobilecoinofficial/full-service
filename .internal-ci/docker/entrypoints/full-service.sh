@@ -41,6 +41,15 @@ then
     fi
 fi
 
+# Run until we have a valid ledger database then quit.
+if [[ -n "${SYNC_LEDGER_ONLY}" ]]
+then
+    echo "SYNC_LEDGER_ONLY set. Exiting after syncing ledger."
+    RUST_LOG=error /usr/local/bin/full-service &
+    /usr/local/bin/wait-for-full-service.sh
+    exit 0
+fi
+
 # Check to see if leading argument starts with "--".
 # If so execute with full-service for compatibility with the previous container/cli arg only configuration.
 if [[ "${1}" =~ ^--.* ]]
