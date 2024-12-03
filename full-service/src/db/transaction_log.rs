@@ -777,7 +777,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_pending_associated_with_txo_to_succeeded(
-        txo_out_id_hex: &str,
+        transaction_output_txo_id_hex: &str,
         finalized_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
@@ -786,7 +786,7 @@ impl TransactionLogModel for TransactionLog {
         // yet been finalized (there should only ever be one).
         let transaction_log_ids: Vec<String> = transaction_logs::table
             .inner_join(transaction_output_txos::table)
-            .filter(transaction_output_txos::txo_id.eq(txo_out_id_hex))
+            .filter(transaction_output_txos::txo_id.eq(transaction_output_txo_id_hex))
             .filter(transaction_logs::submitted_block_index.is_not_null()) // we actually sent this transaction
             .filter(transaction_logs::failed.eq(false)) // non-failed transactions
             .filter(transaction_logs::finalized_block_index.is_null()) // non-completed transactions
