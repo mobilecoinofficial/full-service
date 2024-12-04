@@ -236,7 +236,7 @@ jobs:
         draft: true
         fail_on_unmatched_files: true
         files: |
-          build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-X64-${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz
