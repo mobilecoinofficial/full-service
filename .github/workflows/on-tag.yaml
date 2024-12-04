@@ -240,7 +240,7 @@ jobs:
           build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-X64-${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz
-          build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
+          build_artifacts/full-service-testnet-Linux-ARM64-${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-macOS-ARM64-${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-macOS-X64-${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz
