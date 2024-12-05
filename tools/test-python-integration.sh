@@ -222,15 +222,14 @@ do
     account=$(echo "${b}" | cut -d' ' -f1)
     amount=$(echo "${b}" | cut -d' ' -f2)
     token=$(echo "${b}" | cut -d' ' -f3)
-    amount_minus_fee=$(awk "BEGIN{print ${amount} - 0.0004}")
-    if (( $(echo "${amount_minus_fee} 0" | awk '{print ($1 > $2)}') ))
+    if (( $(echo "${amount} 0" | awk '{print ($1 > $2)}') ))
     then
         echo "INFO: found leftover funds: ${b}"
         echo "INFO: drain funds to ${funding_account_address:0:5}...${funding_account_address: -5}"
-        echo "mob -y send ${account} ${amount_minus_fee} ${token} ..."
+        echo "mob -y send ${account} all ${token} ..."
         # I think there can be a timing issue when sending funds. If full-service has not yet polled the network, it
         # might think its in sync, but might have transactions pending.  As a work around, we will retry sending.
-        while ! target_mob -y send "${account}" "${amount_minus_fee}" "${token}" "${funding_account_address}"
+        while ! target_mob -y send "${account}" all "${token}" "${funding_account_address}"
         do
             sleep 5
             echo "INFO: retrying send"

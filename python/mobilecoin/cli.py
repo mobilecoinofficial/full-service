@@ -112,7 +112,7 @@ class CommandLineInterface:
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
-        self.send_args.add_argument('amount', help='Amount to send.')
+        self.send_args.add_argument('amount', help='Amount to send. Use "all" to automatically calculate fees and send all available funds.')
         self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
         self.send_args.add_argument('to_address', help='Address to send to.')
 
