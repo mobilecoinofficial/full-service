@@ -22,7 +22,8 @@
         "timonwong.shellcheck",
         "be5invis.toml",
         "redhat.vscode-yaml",
-        "ms-python.python"
+        "ms-python.python",
+        "streetsidesoftware.code-spell-checker"
       ]
     }
   }

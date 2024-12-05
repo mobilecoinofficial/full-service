@@ -209,6 +209,9 @@ jobs:
       uses: ./.github/actions/bootstrap-macos
       with:
         target: ${{ matrix.target }}
+        build_certificate_base64: ${{ secrets.APPLE_BUILD_CERTIFICATE_BASE64 }}
+        build_certificate_password: ${{ secrets.APPLE_BUILD_CERTIFICATE_PASSWORD }}
+        auth_key_base64: ${{ secrets.APPLE_AUTH_KEY_BASE64 }}
 
     - name: Build Rust
       uses: ./.github/actions/build-rust
@@ -217,6 +220,10 @@ jobs:
         network: ${{ matrix.network }}
         version: ${{ needs.meta.outputs.version }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
+        codesign_identity: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+        codesign_prefix: ${{ secrets.APPLE_CODESIGN_PREFIX }}
+        notarytool_key_id: ${{ secrets.APPLE_NOTARYTOOL_KEY_ID }}
+        notarytool_issuer: ${{ secrets.APPLE_NOTARYTOOL_ISSUER }}
 
   build-containers:
     needs:
