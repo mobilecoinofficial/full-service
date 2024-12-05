@@ -1,13 +1,13 @@
 {
   "image": "mobilecoin/fat-devcontainer:v0.0.38",
-  "forwardPorts": [
-    9090
+  "runArgs": [
+    "--network=host"
   ],
   "capAdd": ["SYS_PTRACE"],
   "containerEnv": {
     "MC_CHAIN_ID": "local",
     "RUST_BACKTRACE": "1",
-    "SGX_MODE": "SW"
+    "SGX_MODE": "HW"
   },
   "remoteUser": "sentz",
   "postCreateCommand": "/usr/local/bin/startup-devcontainer.sh",
@@ -21,7 +21,8 @@
         "rust-lang.rust-analyzer",
         "timonwong.shellcheck",
         "be5invis.toml",
-        "redhat.vscode-yaml"
+        "redhat.vscode-yaml",
+        "ms-python.python"
       ]
     }
   }

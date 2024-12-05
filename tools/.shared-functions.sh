@@ -6,9 +6,15 @@ GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
 
 # Assume that if you're git directory is /tmp/mobilenode that we're in mob prompt
-if [[ "${GIT_BASE}" == "/tmp/mobilenode" ]]
+if [[ "${GIT_BASE}" == "/tmp/mobilenode" || "${GIT_BASE}" == "/workspaces/full-service" ]]
 then
     AM_I_IN_MOB_PROMPT="yes"
+fi
+
+if [[ -z "${net}" ]]
+then
+    echo "ERROR: <network> is not set"
+    exit 1
 fi
 
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
@@ -20,8 +26,8 @@ then
     WORK_DIR=${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}
     LISTEN_ADDR="0.0.0.0"
 else
-    CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target"}
-    WORK_DIR=${WORK_DIR:-"${HOME}/.mobilecoin/${net}"}
+    CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-"${GIT_BASE}/target/${net}"}
+    WORK_DIR=${WORK_DIR:-"${GIT_BASE}/.mob/${net}"}
     LISTEN_ADDR="127.0.0.1"
 fi
 
@@ -31,6 +37,12 @@ export CARGO_TARGET_DIR RELEASE_DIR WORK_DIR LISTEN_ADDR
 # Setup release dir - set in .shared-functions.sh
 mkdir -p "${RELEASE_DIR}"
 
+# Setup wallet dbs.  Don't put them in target so they don't get cleaned up by cargo clean.
+WALLET_DB_DIR="${WALLET_DB_DIR:-".mob/${net}-db/wallet-db"}"
+LEDGER_DB_DIR="${LEDGER_DB_DIR:-".mob/${net}-db/ledger-db"}"
+mkdir -p "${WALLET_DB_DIR}"
+mkdir -p "${LEDGER_DB_DIR}"
+
 if [[ "${AM_I_IN_MOB_PROMPT}" == "yes" ]]
 then
     # migrate wallet/ledger db to release_dir and remove workdir to make room
@@ -39,11 +51,11 @@ then
     then
         if [[ -d "${WORK_DIR}/wallet-db" ]]
         then
-            mv "${WORK_DIR}/wallet-db" "${RELEASE_DIR}/wallet-db"
+            mv "${WORK_DIR}/wallet-db" "${WALLET_DB_DIR}"
         fi
         if [[ -d "${WORK_DIR}/ledger-db" ]]
         then
-            mv "${WORK_DIR}/ledger-db" "${RELEASE_DIR}/ledger-db"
+            mv "${WORK_DIR}/ledger-db" "${LEDGER_DB_DIR}"
         fi
         rm -rf "${WORK_DIR}"
     fi
@@ -113,4 +125,55 @@ check_pid_file()
             echo "not running"
         fi
     fi
+}
+
+function parse_url()
+{
+    # 1: url
+    # 2: variable name to store the result
+    local varname=$2
+    debug "varname: $varname"
+
+    local proto full_url user hostport host port path
+    # extract the protocol
+    proto=$(echo "$1" | grep :// | sed -e's,^\(.*://\).*,\1,g')
+    debug "proto: $proto"
+    # remove the protocol
+    full_url="${1/$proto/}"
+    debug "url: $full_url"
+    # extract the user (if any)
+    if [[ "${full_url}" =~ '@' ]]
+    then
+        user=$(echo "${full_url}" | cut -d@ -f1)
+    else
+        user=""
+    fi
+    debug "user: $user"
+    # extract the host and port
+    hostport=$(echo "${full_url/$user@/}" | cut -d/ -f1)
+    debug "host and port: $hostport"
+    # by request host without port
+    host="${hostport/:*/}"
+    debug "host: $host"
+    # by request - try to extract the port
+    port=$(echo "${hostport}" | sed -e 's,^.*:,:,g' -e 's,.*:\([0-9]*\).*,\1,g' -e 's,[^0-9],,g')
+    debug "port: $port"
+    # extract the path (if any)
+    path=$(echo "${full_url}" | grep / | cut -d/ -f2-)
+    debug "path: $path"
+
+    # shellcheck disable=SC1087 # this is a dynamic variable name doen't seem to work with brackets.
+    declare -g "$varname[proto]=${proto}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[url]=${full_url}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[user]=${user}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[hostport]=${hostport}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[port]=${port}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[host]=${host}"
+    # shellcheck disable=SC1087
+    declare -g "$varname[path]=${path}"
 }
