@@ -15,6 +15,22 @@ inputs:
   cache_buster:
     description: "cache buster"
     required: true
+  codesign_identity:
+    description: "codesign identity"
+    default: ""
+    required: false
+  codesign_prefix:
+    description: "codesign prefix"
+    default: ""
+    required: false
+  notarytool_key_id:
+    description: "notarytool key id"
+    default: ""
+    required: false
+  notarytool_issuer:
+    description: "notarytool issuer"
+    default: ""
+    required: false
 
 runs:
   using: composite
@@ -98,6 +114,34 @@ runs:
       cp "${TARGET_DIR}/wallet-service-mirror-public" "${ARTIFACT_DIR}/mirror"
       cp "${TARGET_DIR}/generate-rsa-keypair" "${ARTIFACT_DIR}/mirror"
       cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
+
+  - name: Sign and Notarize MacOS Binaries
+    if: runner.os == 'macOS'
+    shell: bash
+    run: |
+      binaries=$(find ${ARTIFACT_DIR} -type f -perm +111 -print)
+
+      for f in ${binaries}
+      do
+        echo "Signing ${f}"
+        # we need to sign the binary we include in the tarball.
+        codesign --sign "${{ inputs.codesign_identity }}" \
+          --prefix "${{ inputs.codesign_prefix }}" \
+          --options runtime "${f}"
+
+        # we don't actually need to release this zip, its just used as a wrapper for notarization submission
+        # Can we zip all the binaries together and submit them in one go?
+        echo "Zipping ${f}"
+        mkdir -p "$(dirname "${RUNNER_TEMP}/${f}.zip")"
+        zip -r "${RUNNER_TEMP}/${f}.zip" "${f}"
+
+        echo "Notarizing ${f}"
+        xcrun notarytool submit "${RUNNER_TEMP}/${f}.zip" \
+          --key "${AUTH_KEY_PATH}" \
+          --key-id ${{ inputs.notarytool_key_id }} \
+          --issuer ${{ inputs.notarytool_issuer }} \
+          --wait
+      done
 
   - name: Tar up artifacts
     shell: bash
