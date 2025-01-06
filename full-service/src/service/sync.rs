@@ -9,7 +9,7 @@ use crate::{
         exclusive_transaction,
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
-        txo::TxoModel,
+        txo::{TxoID, TxoModel},
         Conn, WalletDb,
     },
     error::SyncError,
@@ -230,17 +230,28 @@ pub fn sync_account_next_chunk(
             (*account_key.view_private_key(), Some(account_key))
         };
 
-        tx_outs.iter().try_for_each(|(block_index, tx_out)| {
-            let txos = Txo::select_by_public_key(&[&tx_out.public_key], conn).unwrap();
-            txos.iter().try_for_each(|txo| {
+        let setup_time = Instant::now();
+
+        let lowest_pending_block_index =
+            TransactionLog::lowest_pending_block_index(&account_id, conn)?;
+        if lowest_pending_block_index.is_some()
+            && start_block_index <= lowest_pending_block_index.unwrap()
+        {
+            // log::debug!(logger, "marking landed txs as succeeded");
+            tx_outs.iter().try_for_each(|(block_index, tx_out)| {
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                    &txo.id,
+                    &TxoID::from(tx_out).to_string(),
                     *block_index,
                     conn,
                 )
-            })
-        })?;
+            })?;
+        } else {
+            // log::debug!(logger, "skipping tlog success update",);
+        };
 
+        let succeeded_time = Instant::now();
+
+        let num_scanned_txos = tx_outs.len();
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -270,6 +281,8 @@ pub fn sync_account_next_chunk(
 
         let num_received_txos = received_txos_with_subaddresses_and_key_images.len();
 
+        let view_key_scanned_time = Instant::now();
+
         // Write received transactions to the database.
         for (block_index, tx_out, amount, subaddress_index, key_image) in
             received_txos_with_subaddresses_and_key_images
@@ -285,9 +298,16 @@ pub fn sync_account_next_chunk(
             )?;
         }
 
+        let received_txos_to_db_time = Instant::now();
+
         // Match key images to mark existing unspent transactions as spent.
+        // Note: on a wallet_db with many txos, importing an additional account, this is
+        // the most expensive part of the sync. 
         let unspent_key_images: MCHashMap<KeyImage, String> =
             Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
+        
+        let looked_up_key_images_time = Instant::now();
+
         let spent_txos: Vec<(u64, String)> = key_images
             .into_par_iter()
             .filter_map(|(block_index, key_image)| {
@@ -297,6 +317,8 @@ pub fn sync_account_next_chunk(
             })
             .collect();
 
+        let matched_key_images_time = Instant::now();
+
         for (block_index, txo_id_hex) in &spent_txos {
             Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
             // NB: This needs to be done after calling
@@ -305,11 +327,15 @@ pub fn sync_account_next_chunk(
             TransactionLog::update_consumed_txo_to_failed(txo_id_hex, conn)?;
         }
 
+        let marked_spent_time = Instant::now();
+        
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
             &account_id,
             end_block_index + 1,
             conn,
         )?;
+
+        let marked_failed_time = Instant::now();
 
         // Done syncing this chunk. Mark these blocks as synced for this account.
         account.update_next_block_index(end_block_index + 1, conn)?;
@@ -320,15 +346,30 @@ pub fn sync_account_next_chunk(
 
         log::debug!(
             logger,
-            "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
+            "Synced {} blocks ({}-{}) for account {} in {:?}. {}/{} txos received, {}/{} txos spent.",
             num_blocks_synced,
             start_block_index,
             end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
+            num_scanned_txos,
             spent_txos.len(),
             unspent_key_images.len()
+        );
+
+        log::debug!(
+            logger,
+            "total {:?}, setup {:?}, succeeded {:?}, view_key_scanned {:?}, received_txos_to_db {:?}, looked_up_key_images {:?}, matched_key_images {:?}, marked_spent {:?}, marked_failed {:?}",
+            start_time.elapsed(),
+            setup_time-start_time,
+            succeeded_time-setup_time,
+            view_key_scanned_time-succeeded_time,
+            received_txos_to_db_time-view_key_scanned_time,
+            looked_up_key_images_time-received_txos_to_db_time,
+            matched_key_images_time-looked_up_key_images_time,
+            marked_spent_time-matched_key_images_time,
+            marked_failed_time-marked_spent_time,
         );
 
         Ok(num_received_txos)
