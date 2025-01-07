@@ -2336,12 +2336,18 @@ mod tests {
 
         assert_eq!(ledger_db.num_blocks().unwrap(), 18);
 
+        // make sure the tests were set up correctly
+        assert_ne!(
+            first_account_first_tx_log.submitted_block_index,
+            first_account_second_tx_log.submitted_block_index
+        );
         assert_ne!(
             first_account_first_tx_log.submitted_block_index,
             second_account_tx_log.submitted_block_index
         );
         assert_ne!(first_account_id.to_string(), second_account_id.to_string());
 
+        // chceck that the results are as expected prior to syncing
         assert_eq!(
             TransactionLog::lowest_pending_block_index(&first_account_id, conn).unwrap(),
             Some(first_account_first_tx_log.submitted_block_index.unwrap() as u64)
@@ -2351,9 +2357,11 @@ mod tests {
             Some(second_account_tx_log.submitted_block_index.unwrap() as u64)
         );
 
+        // sync the accounts
         let _sync = manually_sync_account(&ledger_db, &wallet_db, &first_account_id, &logger);
         let _sync = manually_sync_account(&ledger_db, &wallet_db, &second_account_id, &logger);
 
+        // check that the results are as expected after syncing
         assert_eq!(
             TransactionLog::lowest_pending_block_index(&first_account_id, conn).unwrap(),
             None
@@ -2362,7 +2370,6 @@ mod tests {
             TransactionLog::lowest_pending_block_index(&second_account_id, conn).unwrap(),
             None
         );
-
         let updated_tx_log =
             TransactionLog::get(&TransactionId::from(&first_account_first_tx_log), conn).unwrap();
         assert_eq!(updated_tx_log.status(), TxStatus::Succeeded);
