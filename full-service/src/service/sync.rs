@@ -230,10 +230,12 @@ pub fn sync_account_next_chunk(
             (*account_key.view_private_key(), Some(account_key))
         };
 
+        // Mark pending txs as succeeded when one of their output txos is found on the
+        // chain.
         let lowest_pending_block_index =
             TransactionLog::lowest_pending_block_index(&account_id, conn)?;
         if lowest_pending_block_index.is_some()
-            && start_block_index <= lowest_pending_block_index.unwrap()
+            && lowest_pending_block_index.unwrap() <= end_block_index
         {
             tx_outs.iter().try_for_each(|(block_index, tx_out)| {
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
@@ -244,7 +246,7 @@ pub fn sync_account_next_chunk(
             })?;
         };
 
-        let num_scanned_txos = tx_outs.len();
+        let num_txos_in_chunk = tx_outs.len();
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -308,7 +310,7 @@ pub fn sync_account_next_chunk(
             // don't fail a transaction log that is finalized for this block.
             TransactionLog::update_consumed_txo_to_failed(txo_id_hex, conn)?;
         }
-        
+
         TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
             &account_id,
             end_block_index + 1,
@@ -331,7 +333,7 @@ pub fn sync_account_next_chunk(
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
-            num_scanned_txos,
+            num_txos_in_chunk,
             spent_txos.len(),
             unspent_key_images.len()
         );
