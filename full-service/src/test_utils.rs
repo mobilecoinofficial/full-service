@@ -30,7 +30,7 @@ use mc_connection::{Connection, ConnectionManager};
 use mc_connection_test_utils::{test_client_uri, MockBlockchainConnection};
 use mc_consensus_scp::QuorumSet;
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-use mc_fog_report_validation::{FullyValidatedFogPubkey, MockFogPubkeyResolver};
+use mc_fog_report_validation::{FogPubkeyError, FogPubkeyResolver, FullyValidatedFogPubkey};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 use mc_rand::{CryptoRng, RngCore};
@@ -463,7 +463,7 @@ pub async fn create_test_minted_and_change_txos(
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
-    let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
+    let mut builder = WalletTransactionBuilder::<TestFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
         ledger_db.clone(),
         get_resolver_factory(&mut rng).unwrap(),
@@ -516,7 +516,7 @@ pub fn create_test_unsigned_txproposal_and_log(
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     // Use the builder to create valid TxOuts for this account
-    let mut builder = WalletTransactionBuilder::<MockFogPubkeyResolver>::new(
+    let mut builder = WalletTransactionBuilder::<TestFogPubkeyResolver>::new(
         AccountID::from(&src_account_key).to_string(),
         ledger_db,
         get_resolver_factory(&mut rng).unwrap(),
@@ -572,23 +572,81 @@ pub fn random_account_with_seed_values(
         .unwrap();
     }
 
+    add_seed_values_txos(
+        ledger_db,
+        wallet_db,
+        &account_key,
+        seed_values,
+        &mut rng,
+        logger,
+    );
+    account_key
+}
+
+// Seed a local fog-enabled account with some Txos in the ledger
+pub fn random_fog_enabled_account_with_seed_values(
+    wallet_db: &WalletDb,
+    ledger_db: &mut LedgerDB,
+    seed_values: &[u64],
+    mut rng: &mut StdRng,
+    logger: &Logger,
+) -> AccountKey {
+    let root_id = RootIdentity::from_random(&mut rng);
+    let account_key = {
+        let conn = &mut wallet_db.get_pooled_conn().unwrap();
+        let (account_id, _b58_pub_addr) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            &format!("SeedAccount{}", rng.next_u32()),
+            "fog://fog.test.com".to_string(),
+            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
+            false,
+            conn,
+        )
+        .unwrap();
+
+        let account = Account::get(&account_id, conn).unwrap();
+        account.account_key().unwrap()
+    };
+
+    add_seed_values_txos(
+        ledger_db,
+        wallet_db,
+        &account_key,
+        seed_values,
+        &mut rng,
+        logger,
+    );
+    account_key
+}
+
+fn add_seed_values_txos(
+    ledger_db: &mut LedgerDB,
+    wallet_db: &WalletDb,
+    account_key: &AccountKey,
+    seed_values: &[u64],
+    rng: &mut StdRng,
+    logger: &Logger,
+) {
     for value in seed_values.iter() {
         add_block_to_ledger_db(
             ledger_db,
             &vec![account_key.subaddress(0)],
             *value,
             &[KeyImage::from(rng.next_u64())],
-            &mut rng,
+            rng,
         );
     }
 
-    manually_sync_account(ledger_db, wallet_db, &AccountID::from(&account_key), logger);
+    manually_sync_account(ledger_db, wallet_db, &AccountID::from(account_key), logger);
 
     // Make sure we have all our TXOs
     {
         assert_eq!(
             Txo::list_for_account(
-                &AccountID::from(&account_key).to_string(),
+                &AccountID::from(account_key).to_string(),
                 None,
                 None,
                 None,
@@ -602,8 +660,6 @@ pub fn random_account_with_seed_values(
             seed_values.len(),
         );
     }
-
-    account_key
 }
 
 pub fn builder_for_random_recipient(
@@ -612,10 +668,10 @@ pub fn builder_for_random_recipient(
     mut rng: &mut StdRng,
 ) -> (
     PublicAddress,
-    WalletTransactionBuilder<MockFogPubkeyResolver>,
+    WalletTransactionBuilder<TestFogPubkeyResolver>,
 ) {
     // Construct a transaction
-    let builder: WalletTransactionBuilder<MockFogPubkeyResolver> = WalletTransactionBuilder::new(
+    let builder: WalletTransactionBuilder<TestFogPubkeyResolver> = WalletTransactionBuilder::new(
         AccountID::from(account_key).to_string(),
         ledger_db.clone(),
         get_resolver_factory(rng).unwrap(),
@@ -628,23 +684,14 @@ pub fn builder_for_random_recipient(
 }
 
 pub fn get_resolver_factory(
-    mut rng: &mut StdRng,
-) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync>, ()> {
-    let fog_private_key = RistrettoPrivate::from_random(&mut rng);
+    rng: &mut StdRng,
+) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync>, ()> {
+    let fog_private_key = RistrettoPrivate::from_random(rng);
+
     let fog_pubkey_resolver_factory: Arc<
-        dyn Fn(&[FogUri]) -> Result<MockFogPubkeyResolver, String> + Send + Sync,
-    > = Arc::new(move |_| -> Result<MockFogPubkeyResolver, String> {
-        let mut fog_pubkey_resolver = MockFogPubkeyResolver::new();
-        let pubkey = RistrettoPublic::from(&fog_private_key);
-        fog_pubkey_resolver
-            .expect_get_fog_pubkey()
-            .returning(move |_| {
-                Ok(FullyValidatedFogPubkey {
-                    pubkey,
-                    pubkey_expiry: 10000,
-                })
-            });
-        Ok(fog_pubkey_resolver)
+        dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync,
+    > = Arc::new(move |_| -> Result<TestFogPubkeyResolver, String> {
+        Ok(TestFogPubkeyResolver::new(fog_private_key))
     });
     Ok(fog_pubkey_resolver_factory)
 }
@@ -653,14 +700,14 @@ pub fn setup_wallet_service(
     ledger_db: LedgerDB,
     webhook_config: Option<WebhookConfig>,
     logger: Logger,
-) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+) -> WalletService<MockBlockchainConnection<LedgerDB>, TestFogPubkeyResolver> {
     setup_wallet_service_impl(ledger_db, logger, false, false, webhook_config)
 }
 
 pub fn setup_wallet_service_offline(
     ledger_db: LedgerDB,
     logger: Logger,
-) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+) -> WalletService<MockBlockchainConnection<LedgerDB>, TestFogPubkeyResolver> {
     setup_wallet_service_impl(ledger_db, logger, true, false, None)
 }
 
@@ -670,7 +717,7 @@ fn setup_wallet_service_impl(
     offline: bool,
     no_wallet_db: bool,
     webhook_config: Option<WebhookConfig>,
-) -> WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver> {
+) -> WalletService<MockBlockchainConnection<LedgerDB>, TestFogPubkeyResolver> {
     let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
     let db_test_context = WalletDbTestContext::default();
@@ -701,4 +748,34 @@ fn setup_wallet_service_impl(
         webhook_config,
         logger,
     )
+}
+
+/// A FogPubkeyResolver implementation that is used for testing.
+/// It generates a random private key, and returns the public key for all
+/// addresses.
+pub struct TestFogPubkeyResolver {
+    private_key: RistrettoPrivate,
+}
+
+impl TestFogPubkeyResolver {
+    pub fn new(private_key: RistrettoPrivate) -> Self {
+        Self { private_key }
+    }
+
+    pub fn private_key(&self) -> &RistrettoPrivate {
+        &self.private_key
+    }
+}
+
+impl FogPubkeyResolver for TestFogPubkeyResolver {
+    fn get_fog_pubkey(
+        &self,
+        _address: &PublicAddress,
+    ) -> Result<FullyValidatedFogPubkey, FogPubkeyError> {
+        let pubkey = RistrettoPublic::from(&self.private_key);
+        Ok(FullyValidatedFogPubkey {
+            pubkey,
+            pubkey_expiry: 10000,
+        })
+    }
 }

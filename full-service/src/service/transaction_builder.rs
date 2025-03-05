@@ -671,11 +671,14 @@ mod tests {
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            random_fog_enabled_account_with_seed_values, WalletDbTestContext, MOB,
         },
     };
     use mc_account_keys::AccountKey;
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
+    use mc_transaction_core::fog_hint::FogHint;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[async_test_with_logger]
@@ -1593,5 +1596,118 @@ mod tests {
         builder
             .add_recipient(second_recipient, 40 * MOB, Mob::ID)
             .unwrap();
+    }
+
+    // Test that fog hints are correctly set for a regular
+    // (non-hardware/non-view-only) account.
+    #[async_test_with_logger]
+    async fn test_fog_hints_for_regular_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_fog_enabled_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[70 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (non_fog_recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        let fog_recipient_account_key = AccountKey::random(&mut rng).with_fog(
+            account_key.fog_report_url().unwrap().to_string(),
+            account_key.fog_report_id().clone().unwrap_or_default(),
+            account_key.fog_authority_spki().unwrap().to_vec(),
+        );
+        let fog_recipient = fog_recipient_account_key.subaddress(5);
+
+        let fog_resolver = builder.get_fog_resolver(conn).unwrap();
+
+        builder
+            .add_recipient(non_fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let unsigned_tx_proposal = builder
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
+            .unwrap();
+
+        // Check that the change txo fog hint is correct. It should point at our default
+        // subaddress.
+        assert_eq!(unsigned_tx_proposal.change_txos.len(), 1);
+        let change_txo = &unsigned_tx_proposal.change_txos[0].tx_out;
+
+        let mut change_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &change_txo.e_fog_hint,
+            &mut change_fog_hint,
+        )));
+        assert_eq!(
+            *change_fog_hint.get_view_pubkey(),
+            account
+                .account_key()
+                .unwrap()
+                .default_subaddress()
+                .view_public_key()
+                .into(),
+        );
+
+        // Check that the non-fog-recipient does not have a decryptable fog hint and
+        // that the fog recipient does
+        assert_eq!(unsigned_tx_proposal.payload_txos.len(), 2);
+        let non_fog_recipient_txo = &unsigned_tx_proposal.payload_txos[0].tx_out;
+        let fog_recipient_txo = &unsigned_tx_proposal.payload_txos[1].tx_out;
+
+        let mut non_fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(!bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &non_fog_recipient_txo.e_fog_hint,
+            &mut non_fog_recipient_fog_hint,
+        )));
+        assert_ne!(
+            *non_fog_recipient_fog_hint.get_view_pubkey(),
+            non_fog_recipient.view_public_key().into(),
+        );
+
+        let mut fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &fog_recipient_txo.e_fog_hint,
+            &mut fog_recipient_fog_hint,
+        )));
+        assert_eq!(
+            *fog_recipient_fog_hint.get_view_pubkey(),
+            fog_recipient.view_public_key().into(),
+        );
     }
 }
