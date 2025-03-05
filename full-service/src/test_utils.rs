@@ -20,9 +20,10 @@ use crate::{
     },
     WalletService,
 };
+use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use mc_account_keys::{AccountKey, PublicAddress, RootIdentity};
+use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
@@ -62,6 +63,12 @@ pub const MOB: u64 = 1_000_000_000_000;
 
 /// The amount each recipient gets in the test ledger.
 pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB;
+
+/// Fog authority spki for testing, base64 encoded.
+pub const TEST_FOG_AUTHORITY_SPKI: &str ="MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==";
+
+/// Test fog URL
+pub const TEST_FOG_URL: &str = "fog://fog.test.com";
 
 pub struct WalletDbTestContext {
     base_url: String,
@@ -600,8 +607,8 @@ pub fn random_fog_enabled_account_with_seed_values(
             None,
             None,
             &format!("SeedAccount{}", rng.next_u32()),
-            "fog://fog.test.com".to_string(),
-            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==".to_string(),
+            TEST_FOG_URL.to_string(),
+            TEST_FOG_AUTHORITY_SPKI.to_string(),
             false,
             conn,
         )
@@ -620,6 +627,44 @@ pub fn random_fog_enabled_account_with_seed_values(
         logger,
     );
     account_key
+}
+
+pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
+    wallet_db: &WalletDb,
+    ledger_db: &mut LedgerDB,
+    seed_values: &[u64],
+    mut rng: &mut StdRng,
+    logger: &Logger,
+) -> ViewAccountKey {
+    let account_key = AccountKey::random(rng);
+    let account_key_with_fog = account_key.clone().with_fog(
+        TEST_FOG_URL,
+        "".to_string(),
+        BASE64_ENGINE.decode(TEST_FOG_AUTHORITY_SPKI).unwrap(),
+    );
+    let view_account_key = ViewAccountKey::from(&account_key);
+
+    let conn = &mut wallet_db.get_pooled_conn().unwrap();
+    let _account = Account::import_view_only_from_hardware_wallet_with_fog(
+        &view_account_key,
+        Some(format!("SeedAccount{}", rng.next_u32())),
+        0,
+        Some(0),
+        &account_key_with_fog.default_subaddress(),
+        false,
+        conn,
+    )
+    .unwrap();
+
+    add_seed_values_txos(
+        ledger_db,
+        wallet_db,
+        &account_key,
+        seed_values,
+        &mut rng,
+        logger,
+    );
+    view_account_key
 }
 
 fn add_seed_values_txos(
@@ -663,16 +708,17 @@ fn add_seed_values_txos(
 }
 
 pub fn builder_for_random_recipient(
-    account_key: &AccountKey,
+    account_id: impl Into<AccountID>,
     ledger_db: &LedgerDB,
     mut rng: &mut StdRng,
 ) -> (
     PublicAddress,
     WalletTransactionBuilder<TestFogPubkeyResolver>,
 ) {
+    let account_id: AccountID = account_id.into();
     // Construct a transaction
     let builder: WalletTransactionBuilder<TestFogPubkeyResolver> = WalletTransactionBuilder::new(
-        AccountID::from(account_key).to_string(),
+        account_id.to_string(),
         ledger_db.clone(),
         get_resolver_factory(rng).unwrap(),
     );
