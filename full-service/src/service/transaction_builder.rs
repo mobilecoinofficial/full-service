@@ -13,7 +13,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, Txo},
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         Conn,
     },
@@ -21,7 +21,7 @@ use crate::{
     service::transaction::TransactionMemo,
     util::b58::b58_encode_public_address,
 };
-use mc_account_keys::PublicAddress;
+use mc_account_keys::{PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::global_log, HashSet};
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -249,7 +249,87 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let view_account_key = account.view_account_key()?;
         let view_private_key = account.view_private_key()?;
-        let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+        let reserved_subaddresses = match account.account_key() {
+            Ok(account_key) => ReservedSubaddresses::from(&account_key),
+            Err(_) if !account.fog_enabled => ReservedSubaddresses::from(&view_account_key),
+            Err(_) => {
+                // It looks like we have a view-only fog-enabled account. Unfortunately the
+                // Account row does not store any fog parameters, but we do need
+                // them in order to construct a correct ReservedSubaddresses instance that has
+                // the right fog parameters (otherwise we will not generate a
+                // correct fog hint). The hack we do here is to fetch the fog
+                // parameters from the default AssignedSubaddress. They are assumed to be
+                // present there because that is how
+                // `Account::import_view_only_from_hardware_wallet_with_fog` creates the
+                // AssignedSubaddress row for DEFAULT_SUBADDRESS_INDEX.
+                let default_assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
+                    &self.account_id_hex,
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                    conn,
+                )?;
+                let default_assigned_subaddress_public_address =
+                    default_assigned_subaddress.public_address()?;
+                let fog_report_url = default_assigned_subaddress_public_address
+                    .fog_report_url()
+                    .ok_or_else(|| {
+                        WalletTransactionBuilderError::FogError(
+                            "view-only fog-enabled account is missing fog report url".into(),
+                        )
+                    })?;
+                let fog_report_id = default_assigned_subaddress_public_address
+                    .fog_report_id()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(); // fog report id is optional
+                let fog_authority_sig = default_assigned_subaddress_public_address
+                    .fog_authority_sig()
+                    .ok_or_else(|| {
+                        WalletTransactionBuilderError::FogError(
+                            "view-only fog-enabled account is missing fog authority sig".into(),
+                        )
+                    })?;
+
+                let mut reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+
+                assert_eq!(
+                    default_assigned_subaddress_public_address.view_public_key(),
+                    reserved_subaddresses.primary_address.view_public_key()
+                );
+                assert_eq!(
+                    default_assigned_subaddress_public_address.spend_public_key(),
+                    reserved_subaddresses.primary_address.spend_public_key()
+                );
+
+                reserved_subaddresses.primary_address = PublicAddress::new_with_fog(
+                    reserved_subaddresses.primary_address.spend_public_key(),
+                    reserved_subaddresses.primary_address.view_public_key(),
+                    fog_report_url,
+                    fog_report_id.clone(),
+                    fog_authority_sig,
+                );
+
+                reserved_subaddresses.change_subaddress = PublicAddress::new_with_fog(
+                    reserved_subaddresses.change_subaddress.spend_public_key(),
+                    reserved_subaddresses.change_subaddress.view_public_key(),
+                    fog_report_url,
+                    fog_report_id.clone(),
+                    fog_authority_sig,
+                );
+
+                // The gift code subaddress isn't actually used in the transaction builder, but
+                // we modify it anyway for consistency.
+                reserved_subaddresses.gift_code_subaddress = PublicAddress::new_with_fog(
+                    reserved_subaddresses
+                        .gift_code_subaddress
+                        .spend_public_key(),
+                    reserved_subaddresses.gift_code_subaddress.view_public_key(),
+                    fog_report_url,
+                    fog_report_id,
+                    fog_authority_sig,
+                );
+
+                reserved_subaddresses
+            }
+        };
 
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
