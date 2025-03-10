@@ -12,7 +12,7 @@ use crate::{
     service::{t3_sync::T3Config, WalletService},
     test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
-        WalletDbTestContext,
+        TestFogPubkeyResolver, WalletDbTestContext,
     },
     wallet::{APIKeyState, ApiKeyGuard},
 };
@@ -20,7 +20,6 @@ use crate::{
 use mc_account_keys::PublicAddress;
 use mc_common::logger::{log, Logger};
 use mc_connection_test_utils::MockBlockchainConnection;
-use mc_fog_report_validation::MockFogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
 
@@ -48,7 +47,7 @@ pub fn get_free_port() -> u16 {
 }
 
 pub struct TestWalletState {
-    pub service: WalletService<MockBlockchainConnection<LedgerDB>, MockFogPubkeyResolver>,
+    pub service: WalletService<MockBlockchainConnection<LedgerDB>, TestFogPubkeyResolver>,
 }
 
 // Note: the reason this is duplicated from wallet.rs is to be able to pass the

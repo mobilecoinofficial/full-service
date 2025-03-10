@@ -30,7 +30,8 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
+    DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -590,12 +591,20 @@ where
                     general_purpose::STANDARD.decode(fog_info.authority_spki)?;
                 let default_subaddress_keys =
                     get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX).await?;
+                let change_subaddress_keys =
+                    get_view_only_subaddress_keys(CHANGE_SUBADDRESS_INDEX).await?;
 
                 let default_public_address = get_public_fog_address(
                     &default_subaddress_keys,
+                    fog_info.report_url.clone(),
+                    &fog_authority_spki,
+                );
+                let change_public_address = get_public_fog_address(
+                    &change_subaddress_keys,
                     fog_info.report_url,
                     &fog_authority_spki,
                 );
+
                 exclusive_transaction(conn, |conn| {
                     Ok(Account::import_view_only_from_hardware_wallet_with_fog(
                         &view_account_keys,
@@ -603,6 +612,7 @@ where
                         import_block_index,
                         first_block_index,
                         &default_public_address,
+                        &change_public_address,
                         require_spend_subaddress,
                         conn,
                     )?)
