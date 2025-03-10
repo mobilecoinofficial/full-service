@@ -651,6 +651,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
         0,
         Some(0),
         &account_key_with_fog.default_subaddress(),
+        &account_key_with_fog.change_subaddress(),
         false,
         conn,
     )
