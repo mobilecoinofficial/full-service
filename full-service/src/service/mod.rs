@@ -14,6 +14,7 @@ pub mod models;
 pub mod network;
 pub mod payment_request;
 pub mod receipt;
+pub mod signed_contingent_input;
 pub mod sync;
 pub mod t3_sync;
 pub mod transaction;
