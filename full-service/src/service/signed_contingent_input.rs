@@ -50,7 +50,11 @@ impl From<LedgerError> for SignedContingentInputServiceError {
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait SignedContingentInputService {
-    /// Validate a signed contingent input.
+    /// Validate a proof of reserve signed contingent input.
+    /// This ensures the SCI is valid (has a valid signature), has a ring size of 1, is unspendable
+    /// so no-one can consume it, and contains a real TxOut that appears in the ledger.
+    /// Note that it does NOT check if the TxOut key image appears in the ledger so it is possible
+    /// the TxOut has already been spent!
     ///
     /// # Arguments
     ///
