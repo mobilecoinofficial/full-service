@@ -116,7 +116,6 @@ mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", featu
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder", features = ["test-only"] }
 
-
 bs58 = "0.5.0"
 httpmock = "0.7.0"
 tempdir = "0.3"
