@@ -43,11 +43,12 @@ use crate::{
         network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
+        signed_contingent_input::SignedContingentInputService,
         transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
         watcher::WatcherService,
-        WalletService, signed_contingent_input::SignedContingentInputService,
+        WalletService,
     },
     util::b58::{
         b58_decode_payment_request, b58_encode_public_address, b58_printable_wrapper_type,
