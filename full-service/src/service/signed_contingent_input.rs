@@ -127,7 +127,7 @@ where
         let required_output_amount = &sci.required_output_amounts[0];
         if required_output_amount.token_id != sci.pseudo_output_amount.token_id {
             return Ok(ValidateProofOfReserveSciResult::NotProofOfReserveSci {
-                error: "Proof of reserve SCI must have the same token id as the pseudo-output"
+                error: "Proof of reserve SCI must have the same token id for the required output as for the pseudo-output"
                     .to_string(),
             });
         }
