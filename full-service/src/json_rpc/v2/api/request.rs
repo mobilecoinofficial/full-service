@@ -295,6 +295,9 @@ pub enum JsonCommandRequest {
         txo_id: String,
         sender_address: String,
     },
+    validate_proof_of_reserve_sci {
+        sci_proto: String,
+    },
     verify_address {
         address: String,
     },
