@@ -6,7 +6,7 @@ use super::amount::Amount;
 use serde::{Deserialize, Serialize};
 
 /// A result of a call to the validate_proof_of_reserve_sci JSON-RPC method.
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
 #[serde(tag = "result")]
 pub enum ValidateProofOfReserveSciResult {
     /// The signed contingent input is valid.

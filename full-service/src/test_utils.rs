@@ -196,7 +196,8 @@ pub fn generate_ledger_db(path: &str) -> LedgerDB {
     LedgerDB::open(&PathBuf::from(path)).expect("Could not open ledger_db")
 }
 
-fn append_test_block(
+/// Helper for adding a block to the ledger.
+pub fn append_test_block(
     ledger_db: &mut LedgerDB,
     block_contents: BlockContents,
     mut rng: &mut (impl CryptoRng + RngCore),
