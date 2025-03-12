@@ -478,7 +478,7 @@ mod tests {
             assert_eq!(
                 service.validate_proof_of_reserve_sci(&sci_proto).unwrap(),
                 ValidateProofOfReserveSciResult::NotProofOfReserveSci {
-                    error: "Proof of reserve SCI must have the same token id as the pseudo-output"
+                    error: "Proof of reserve SCI must have the same token id for the required output as for the pseudo-output"
                         .to_string(),
                 }
             );
