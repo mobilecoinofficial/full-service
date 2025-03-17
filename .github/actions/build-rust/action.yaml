@@ -116,7 +116,7 @@ runs:
       cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
 
   - name: Sign and Notarize MacOS Binaries
-    if: runner.os == 'macOS'
+    if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
     shell: bash
     run: |
       binaries=$(find ${ARTIFACT_DIR} -type f -perm +111 -print)
