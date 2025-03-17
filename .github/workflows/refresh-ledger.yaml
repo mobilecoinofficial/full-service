@@ -41,7 +41,7 @@ jobs:
       run: |
         mkdir -p "${DOWNLOAD_DIR}"
         gh release download \
-            -p '*-Linux-X64-${{ matrix.network.chain_id }}net.tar.gz' \
+            -p 'full-service-${{ matrix.network.chain_id }}net-Linux-X64-*.tar.gz' \
             -O "${DOWNLOAD_DIR}/linux.tar.gz"
 
     - name: Unpack full-service
