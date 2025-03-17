@@ -296,32 +296,30 @@ jobs:
         repo_username: ${{ secrets.HARBOR_USERNAME }}
         repo_password: ${{ secrets.HARBOR_PASSWORD }}
 
-  # test below is not working because of setup issues, disabling for now
-  # can be run locally before releases until fixed.
-  # test-python-integration:
-  #   needs:
-  #   - meta
-  #   - build-publish-charts
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       network:
-  #       - main
-  #       - test
-  #   runs-on: mco-dev-small-x64
-  #   steps:
-  #   - name: Checkout
-  #     uses: mobilecoinofficial/gh-actions/checkout@v0
+  test-python-integration:
+    needs:
+    - meta
+    - build-publish-charts
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
 
-  #   - name: Run Python Integration Tests
-  #     uses: ./.github/actions/test-python-integration
-  #     with:
-  #       version: ${{ needs.meta.outputs.version }}
-  #       network: ${{ matrix.network }}
-  #       cache_buster: ${{ vars.CACHE_BUSTER }}
-  #       rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
-  #       rancher_url: ${{ secrets.DEV_RANCHER_URL }}
-  #       rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+    - name: Run Python Integration Tests
+      uses: ./.github/actions/test-python-integration
+      with:
+        version: ${{ needs.meta.outputs.version }}
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
 
   checks-successful:
     needs:
