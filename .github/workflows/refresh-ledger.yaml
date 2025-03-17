@@ -9,11 +9,6 @@ on:
   schedule:
   - cron: '0 0 * * *'
 
-# Start full-service
-# Monitor full-service util ledger has finished syncing
-# Stop full-service
-# Copy ledger to azure blob
-
 jobs:
   refresh-ledger:
     runs-on: mco-dev-small-x64
@@ -104,3 +99,11 @@ jobs:
       run: |
         cd "${DOWNLOAD_DIR}/ledger"
         az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite
+
+    - name: Send failure notification
+      if: failure()
+      uses: slackapi/slack-github-action@v1.26.0
+      with:
+        payload: '{"text": "Github Actions Job - full-service - Refresh Ledger failed for ${{ matrix.network.chain_id }}"}'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_OPS_MONITORING }}
