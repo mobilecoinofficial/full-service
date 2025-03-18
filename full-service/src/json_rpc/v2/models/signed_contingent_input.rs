@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 /// A result of a call to the validate_proof_of_reserve_sci JSON-RPC method.
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq)]
-#[serde(tag = "result")]
+#[serde(tag = "status", rename_all = "snake_case")]
 pub enum ValidateProofOfReserveSciResult {
     /// The signed contingent input is valid.
     Valid {

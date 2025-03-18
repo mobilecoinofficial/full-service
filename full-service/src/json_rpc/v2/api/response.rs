@@ -218,6 +218,7 @@ pub enum JsonCommandResponse {
         validated: bool,
     },
     validate_proof_of_reserve_sci {
+        #[serde(flatten)]
         result: ValidateProofOfReserveSciResult,
     },
     verify_address {
