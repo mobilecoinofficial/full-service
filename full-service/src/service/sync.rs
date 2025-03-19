@@ -9,7 +9,7 @@ use crate::{
         exclusive_transaction,
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
-        txo::TxoModel,
+        txo::{TxoID, TxoModel},
         Conn, WalletDb,
     },
     error::SyncError,
@@ -230,17 +230,23 @@ pub fn sync_account_next_chunk(
             (*account_key.view_private_key(), Some(account_key))
         };
 
-        tx_outs.iter().try_for_each(|(block_index, tx_out)| {
-            let txos = Txo::select_by_public_key(&[&tx_out.public_key], conn).unwrap();
-            txos.iter().try_for_each(|txo| {
+        // Mark pending txs as succeeded when one of their output txos is found on the
+        // chain.
+        let lowest_pending_block_index =
+            TransactionLog::lowest_pending_block_index(&account_id, conn)?;
+        if lowest_pending_block_index.is_some()
+            && lowest_pending_block_index.unwrap() <= end_block_index
+        {
+            tx_outs.iter().try_for_each(|(block_index, tx_out)| {
                 TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                    &txo.id,
+                    &TxoID::from(tx_out).to_string(),
                     *block_index,
                     conn,
                 )
-            })
-        })?;
+            })?;
+        };
 
+        let num_txos_in_chunk = tx_outs.len();
         // Attempt to decode each transaction as received by this account.
         let received_txos: Vec<_> = tx_outs
             .into_par_iter()
@@ -320,13 +326,14 @@ pub fn sync_account_next_chunk(
 
         log::debug!(
             logger,
-            "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
+            "Synced {} blocks ({}-{}) for account {} in {:?}. {}/{} txos received, {}/{} txos spent.",
             num_blocks_synced,
             start_block_index,
             end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
+            num_txos_in_chunk,
             spent_txos.len(),
             unspent_key_images.len()
         );
