@@ -391,6 +391,25 @@ class ClientAsync:
             "params": {"txo_id": txo_id},
         })
 
+    async def create_receiver_receipts(self, tx_proposal):
+        r = await self._req({
+            "method": "create_receiver_receipts",
+            "params": {
+                "tx_proposal": tx_proposal,
+            },
+        })
+        return r['receiver_receipts']
+
+    async def check_receiver_receipt_status(self, address, receipt):
+        r = await self._req({
+            "method": "check_receiver_receipt_status",
+            "params": {
+                "address": address,
+                "receiver_receipt": receipt,
+            }
+        })
+        return r
+
     # Polling utility functions.
 
     @staticmethod
