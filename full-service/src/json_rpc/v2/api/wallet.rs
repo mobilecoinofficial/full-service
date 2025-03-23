@@ -43,6 +43,7 @@ use crate::{
         network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
+        signed_contingent_input::SignedContingentInputService,
         transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
@@ -1499,6 +1500,12 @@ where
                 .validate_sender_memo(&txo_id, &sender_address)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
+        }
+        JsonCommandRequest::validate_proof_of_reserve_sci { sci_proto } => {
+            let result = service
+                .validate_proof_of_reserve_sci(&sci_proto)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_proof_of_reserve_sci { result }
         }
         JsonCommandRequest::verify_address { address } => match service.verify_address(&address) {
             Ok(public_address) => JsonCommandResponse::verify_address {

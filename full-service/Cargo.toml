@@ -109,10 +109,12 @@ uuid = { version = "1.4.1", features = ["serde", "v4"] }
 mc-blockchain-test-utils = { path = "../mobilecoin/blockchain/test-utils" }
 mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
 mc-consensus-enclave-api = { path = "../mobilecoin/consensus/enclave/api" }
+mc-crypto-ring-signature = { path = "../mobilecoin/crypto/ring-signature" }
 mc-fog-report-validation = { path = "../mobilecoin/fog/report/validation", features = [
     "automock",
 ] }
 mc-fog-report-validation-test-utils = { path = "../mobilecoin/fog/report/validation/test-utils" }
+mc-transaction-builder = { path = "../mobilecoin/transaction/builder", features = ["test-only"] }
 
 bs58 = "0.5.0"
 httpmock = "0.7.0"
