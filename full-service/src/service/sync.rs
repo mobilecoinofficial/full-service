@@ -232,19 +232,13 @@ pub fn sync_account_next_chunk(
 
         // Mark pending txs as succeeded when one of their output txos is found on the
         // chain.
-        let lowest_pending_block_index =
-            TransactionLog::lowest_pending_block_index(&account_id, conn)?;
-        if lowest_pending_block_index.is_some()
-            && lowest_pending_block_index.unwrap() <= end_block_index
-        {
-            tx_outs.iter().try_for_each(|(block_index, tx_out)| {
-                TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                    &TxoID::from(tx_out).to_string(),
-                    *block_index,
-                    conn,
-                )
-            })?;
-        };
+        tx_outs.iter().try_for_each(|(block_index, tx_out)| {
+            TransactionLog::update_pending_associated_with_txo_to_succeeded(
+                &TxoID::from(tx_out).to_string(),
+                *block_index,
+                conn,
+            )
+        })?;
 
         let num_txos_in_chunk = tx_outs.len();
         // Attempt to decode each transaction as received by this account.
