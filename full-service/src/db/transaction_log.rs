@@ -341,9 +341,8 @@ pub trait TransactionLogModel {
         finalized_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
-
-
-    /// Update all transaction logs that have an input transaction corresponding to
+    
+     /// Update all transaction logs that have an input transaction corresponding to
     /// `transaction_input_txo_id_hex` to failed.
     ///
     /// Note: When processing inputs and outputs from the same block, be sure to mark the
