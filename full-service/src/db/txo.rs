@@ -1548,9 +1548,11 @@ impl TxoModel for Txo {
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_not_null())
             .filter(transaction_logs::submitted_block_index.is_not_null())
-            .filter(not(transaction_logs::account_id
-                .nullable()
-                .eq(txos::account_id)));
+            .filter(
+                txos::account_id
+                    .is_null()
+                    .or(transaction_logs::account_id.nullable().ne(txos::account_id)),
+            );
 
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(transaction_logs::account_id.eq(account_id_hex))
@@ -2056,13 +2058,10 @@ impl TxoModel for Txo {
             .left_join(transaction_output_txos::table)
             .left_join(txos::table.on(transaction_output_txos::txo_id.eq(txos::id)))
             .filter(transaction_output_txos::txo_id.eq(&self.id))
-            .filter(transaction_output_txos::is_change.eq(false))
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_not_null())
             .filter(transaction_logs::submitted_block_index.is_not_null())
-            .filter(not(transaction_logs::account_id
-                .nullable()
-                .eq(txos::account_id)))
+            .filter(txos::account_id.is_null())
             .select(count(transaction_logs::id))
             .first(conn)?;
 
@@ -2795,9 +2794,6 @@ mod tests {
         .unwrap();
         assert_eq!(unspent.len(), 1);
         assert_eq!(unspent[0].received_block_index.unwrap(), 13);
-        // Store the key image for when we spend this Txo below
-        let for_bob_key_image: KeyImage =
-            mc_util_serial::decode(&unspent[0].key_image.clone().unwrap()).unwrap();
 
         // Note: To receive at Subaddress 4, we need to add an assigned subaddress
         // (currently this Txo is be orphaned). We add thrice, because currently
@@ -2865,6 +2861,22 @@ mod tests {
             .collect();
         assert_eq!(change.len(), 1);
 
+        // Alice shouldn't have any secreted txos
+        let secreted = Txo::list_secreted(
+            Some(&alice_account_id.to_string()),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(secreted.len(), 0);
+
+        // Store the key image for when we spend this Txo below
+        let for_bob_key_images: Vec<KeyImage> = unspent
+            .iter()
+            .filter_map(|txo| txo.key_image.clone())
+            .map(|encoded_key_image| mc_util_serial::decode(&encoded_key_image).unwrap())
+            .collect();
+        assert_eq!(for_bob_key_images.len(), 2);
+
         // Create a new account and send some MOB to it
         let bob_root_id = RootIdentity::from_random(&mut rng);
         let bob_account_key = AccountKey::from(&bob_root_id);
@@ -2907,7 +2919,7 @@ mod tests {
                 tx_proposal.change_txos[0].tx_out.clone(),
                 tx_proposal.payload_txos[0].tx_out.clone(),
             ],
-            &[for_bob_key_image],
+            &for_bob_key_images,
             &mut rng,
         );
 
@@ -2921,7 +2933,7 @@ mod tests {
             conn,
             &transaction_log,
             TxoStatus::Spent,
-            TxoStatus::Secreted,
+            TxoStatus::Unspent,
             TxoStatus::Unspent,
         );
 
@@ -2942,6 +2954,160 @@ mod tests {
         let bob_txo = txos[0].clone();
         assert_eq!(bob_txo.subaddress_index.unwrap(), 0);
         assert!(bob_txo.key_image.is_some());
+        assert_eq!(bob_txo.value, 72 * MOB as i64);
+
+        // Alice should have 4 txos total
+        let txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(0),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 4);
+
+        // Alice should have 3 spent txos
+        let spent = Txo::list_spent(
+            Some(&alice_account_id.to_string()),
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(spent.len(), 3);
+
+        // and one unspent txo
+        let unspent = Txo::list_unspent(
+            Some(&alice_account_id.to_string()),
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(unspent.len(), 1);
+
+        // 1 secreted -- to bob
+        let secreted = Txo::list_secreted(
+            Some(&alice_account_id.to_string()),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(secreted.len(), 1);
+
+        // Store the key image for when we spend this Txo below
+        let for_carol_key_image: KeyImage =
+            mc_util_serial::decode(&unspent[0].key_image.clone().unwrap()).unwrap();
+
+        // Create a counterparty address that is not in this wallet
+        let carol_root_id = RootIdentity::from_random(&mut rng);
+        let carol_account_key = AccountKey::from(&carol_root_id);
+
+        // send MOB to Carol
+        let (transaction_log, tx_proposal) = create_test_minted_and_change_txos(
+            alice_account_key.clone(),
+            carol_account_key.subaddress(0),
+            81 * MOB,
+            wallet_db.clone(),
+            ledger_db.clone(),
+        )
+        .await;
+
+        let associated_txos = transaction_log
+            .get_associated_txos(&mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
+
+        let (minted_txo, _) = associated_txos.outputs.first().unwrap();
+        let (change_txo, _) = associated_txos.change.first().unwrap();
+
+        assert_eq!(minted_txo.value as u64, 81 * MOB);
+        assert_eq!(
+            change_txo.value as u64,
+            (1000 - 72 - 81) * MOB - (3 * Mob::MINIMUM_FEE)
+        );
+
+        // Add the minted Txos to the ledger
+        add_block_with_tx_outs(
+            &mut ledger_db,
+            &[
+                tx_proposal.change_txos[0].tx_out.clone(),
+                tx_proposal.payload_txos[0].tx_out.clone(),
+            ],
+            &[for_carol_key_image],
+            &mut rng,
+        );
+
+        let _alice_account =
+            manually_sync_account(&ledger_db, &wallet_db, &alice_account_id, &logger);
+
+        check_associated_txos_status(
+            conn,
+            &transaction_log,
+            TxoStatus::Spent,
+            TxoStatus::Secreted,
+            TxoStatus::Unspent,
+        );
+
+        // Alice should have 5 txos total
+        let txos = Txo::list_for_account(
+            &alice_account_id.to_string(),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(0),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(txos.len(), 5);
+
+        // 4 spent
+        let spent = Txo::list_spent(
+            Some(&alice_account_id.to_string()),
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(spent.len(), 4);
+
+        // and one unspent txo
+        let unspent = Txo::list_unspent(
+            Some(&alice_account_id.to_string()),
+            None,
+            Some(0),
+            None,
+            None,
+            None,
+            None,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(unspent.len(), 1);
+
+        // 2 secreted -- 1 to bob, 1 to carol
+        let secreted = Txo::list_secreted(
+            Some(&alice_account_id.to_string()),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(secreted.len(), 2);
     }
 
     fn check_associated_txos_status(
