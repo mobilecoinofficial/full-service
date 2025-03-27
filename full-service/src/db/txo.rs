@@ -1529,8 +1529,11 @@ impl TxoModel for Txo {
                 transaction_logs.failed = 0             AND
                 transaction_logs.submitted_block_index is not NULL AND
                 transaction_logs.finalized_block_index is not NULL AND
-                transaction_logs.account_id = <INPUT PARAMETER ACCOUNT_ID>
-                transaction_log.account_id != txos.account_id
+                ( txos.account_id is null OR
+                transaction_log.account_id != txos.account_id )
+
+            when account_id_hex is passed, add the following AND condition to the query above:
+                AND transaction_logs.account_id = account_id_hex
         */
 
         use crate::db::schema::{transaction_logs, transaction_output_txos, txos};
@@ -1550,10 +1553,15 @@ impl TxoModel for Txo {
             .filter(transaction_logs::submitted_block_index.is_not_null())
             .filter(
                 txos::account_id
+                    // these are txos minted by the wallet and sent to an account
+                    // where the wallet doens't have the private view key of recipient
                     .is_null()
+                    // and these are txos where the wallet has the private view key of
+                    // the recipient and the recipient is not the same as the sender
                     .or(transaction_logs::account_id.nullable().ne(txos::account_id)),
             );
-
+        // if an account_id_hex is specified, further narrow the response to secreted
+        // txos where that account was the sender
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(transaction_logs::account_id.eq(account_id_hex))
         }
