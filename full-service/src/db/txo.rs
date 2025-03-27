@@ -2069,6 +2069,8 @@ impl TxoModel for Txo {
             .filter(transaction_logs::failed.eq(false))
             .filter(transaction_logs::finalized_block_index.is_not_null())
             .filter(transaction_logs::submitted_block_index.is_not_null())
+            // txos::account_id is the recipient account_id, which will be null
+            // for recipients who's view private key is unknown to full-service
             .filter(txos::account_id.is_null())
             .select(count(transaction_logs::id))
             .first(conn)?;
