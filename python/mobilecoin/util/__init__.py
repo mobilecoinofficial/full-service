@@ -97,8 +97,10 @@ def b64_receipt_to_full_service_receipt(b64_string):
         "tombstone_block": str(int(receipt.tombstone_block)),
         "amount": {
             "object": "amount",
-            "commitment": receipt.amount.commitment.data.hex(),
-            "masked_value": str(int(receipt.amount.masked_value)),
+            "commitment": receipt.masked_amount_v2.commitment.data.hex(),
+            "masked_value": str(int(receipt.masked_amount_v2.masked_value)),
+            "masked_token_id": receipt.masked_amount_v2.masked_token_id.hex(),
+            "version": "V2",
         },
     }
 
@@ -107,7 +109,6 @@ def b64_receipt_to_full_service_receipt(b64_string):
 
 def full_service_receipt_to_b64_receipt(full_service_receipt):
     """Convert a full-service receipt object to a b64-encoded protobuf Receipt"""
-    assert full_service_receipt["object"] == "receiver_receipt"
 
     public_key = external_pb2.CompressedRistretto.FromString(
         bytes.fromhex(full_service_receipt["public_key"])
@@ -120,13 +121,17 @@ def full_service_receipt_to_b64_receipt(full_service_receipt):
         data=bytes.fromhex(full_service_receipt["amount"]["commitment"])
     )
     amount_masked_value = int(full_service_receipt["amount"]["masked_value"])
-    amount = external_pb2.Amount(
-        commitment=amount_commitment, masked_value=amount_masked_value
+
+    masked_amount = external_pb2.MaskedAmount(
+        commitment=amount_commitment,
+        masked_value=amount_masked_value,
+        masked_token_id=bytes.fromhex(full_service_receipt["amount"]["masked_token_id"]),
     )
     r = external_pb2.Receipt(
         public_key=public_key,
         confirmation=confirmation,
         tombstone_block=tombstone_block,
-        amount=amount,
+        masked_amount_v2=masked_amount,
     )
     return base64.b64encode(r.SerializeToString()).decode("utf-8")
+
