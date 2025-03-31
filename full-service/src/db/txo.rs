@@ -20,6 +20,7 @@ use crate::{
 use diesel::{
     dsl::{count, exists, not},
     prelude::*,
+    select,
 };
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_common::{logger::global_log, HashMap};
@@ -70,6 +71,14 @@ pub enum TxoStatus {
     // The txo has been received at a known subaddress index, but the key image cannot
     // be derived (usually because this is a view only account)
     Unverified,
+
+    // The txo has not made it to the ledger and at this point it no longer will.
+    // This can happen when a transaction is submitted to consensus but its tombstone
+    // block is reached before consensus processes it. It can also happen when a Txo
+    // is an output of some transaction that has some inputs that showed up as spent
+    // in the ledger, but the output txo did not (this could happen when multiple clients
+    // are sharing the same account keys)
+    Failed,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -89,6 +98,7 @@ impl fmt::Display for TxoStatus {
             TxoStatus::Spent => write!(f, "spent"),
             TxoStatus::Unspent => write!(f, "unspent"),
             TxoStatus::Unverified => write!(f, "unverified"),
+            TxoStatus::Failed => write!(f, "failed"),
         }
     }
 }
@@ -105,6 +115,7 @@ impl FromStr for TxoStatus {
             "spent" => Ok(TxoStatus::Spent),
             "unspent" => Ok(TxoStatus::Unspent),
             "unverified" => Ok(TxoStatus::Unverified),
+            "failed" => Ok(TxoStatus::Failed),
             _ => Err(WalletDbError::InvalidTxoStatus(s.to_string())),
         }
     }
@@ -581,6 +592,19 @@ pub trait TxoModel {
     /// # Returns
     /// * Vector of TxoOut
     fn list_secreted(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
+
+    /// Get all failed Txos in wallet associated with an account
+    ///
+    /// # Arguments
+    ///
+    ///| Name             | Purpose                                                | Notes                               |
+    ///|------------------|--------------------------------------------------------|-------------------------------------|
+    ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
+    ///| `conn`           | An reference to the pool connection of wallet database |                                     |
+    ///
+    /// # Returns
+    /// * Vector of TxoOut
+    fn list_failed(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo.
     ///
@@ -1094,6 +1118,9 @@ impl TxoModel for Txo {
                 TxoStatus::Secreted => {
                     return Txo::list_secreted(None, conn);
                 }
+                TxoStatus::Failed => {
+                    return Txo::list_failed(None, conn);
+                }
             }
         }
 
@@ -1197,6 +1224,9 @@ impl TxoModel for Txo {
                 TxoStatus::Secreted => {
                     return Txo::list_secreted(Some(account_id_hex), conn);
                 }
+                TxoStatus::Failed => {
+                    return Txo::list_failed(Some(account_id_hex), conn);
+                }
             }
         }
 
@@ -1292,6 +1322,9 @@ impl TxoModel for Txo {
                     return Ok(vec![]);
                 }
                 TxoStatus::Secreted => {
+                    return Ok(vec![]);
+                }
+                TxoStatus::Failed => {
                     return Ok(vec![]);
                 }
             }
@@ -1482,8 +1515,7 @@ impl TxoModel for Txo {
             AND txos.subaddress_index IS NULL
             AND txos.received_block_index IS NULL
             AND (
-              (transaction_logs.failed = 1) OR
-              (transaction_logs.failed = 0 AND transaction_logs.finalized_block_index isNULL AND  submitted_block_index ISNULL)
+              transaction_logs.failed = 0 AND transaction_logs.finalized_block_index isNULL AND  submitted_block_index ISNULL
               )
         */
         use crate::db::schema::{transaction_logs, transaction_output_txos, txos};
@@ -1503,11 +1535,9 @@ impl TxoModel for Txo {
             .filter(txos::received_block_index.is_null())
             .filter(
                 transaction_logs::failed
-                    .eq(true)
-                    .or(transaction_logs::failed
-                        .eq(false)
-                        .and(transaction_logs::finalized_block_index.is_null())
-                        .and(transaction_logs::submitted_block_index.is_null())),
+                    .eq(false)
+                    .and(transaction_logs::finalized_block_index.is_null())
+                    .and(transaction_logs::submitted_block_index.is_null()),
             );
 
         if let Some(account_id_hex) = account_id_hex {
@@ -1561,6 +1591,27 @@ impl TxoModel for Txo {
                     .or(transaction_logs::account_id.nullable().ne(txos::account_id)),
             );
         // if an account_id_hex is specified, further narrow the response to secreted
+        // txos where that account was the sender
+        if let Some(account_id_hex) = account_id_hex {
+            query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+        }
+
+        Ok(query.select(txos::all_columns).distinct().load(conn)?)
+    }
+
+    fn list_failed(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError> {
+        use crate::db::schema::{transaction_logs, transaction_output_txos, txos};
+
+        let mut query = txos::table
+            .into_boxed()
+            .left_join(transaction_output_txos::table)
+            .left_join(
+                transaction_logs::table
+                    .on(transaction_logs::id.eq(transaction_output_txos::transaction_log_id)),
+            )
+            .filter(transaction_logs::failed.eq(true));
+
+        // if an account_id_hex is specified, further narrow the response to failed
         // txos where that account was the sender
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(transaction_logs::account_id.eq(account_id_hex))
@@ -2042,6 +2093,19 @@ impl TxoModel for Txo {
 
         if self.spent_block_index.is_some() {
             return Ok(TxoStatus::Spent);
+        }
+
+        let has_failed_logs = select(exists(
+            transaction_logs::table
+                .inner_join(transaction_input_txos::table)
+                .inner_join(transaction_output_txos::table)
+                .filter(transaction_output_txos::txo_id.eq(&self.id))
+                .filter(transaction_logs::failed.eq(true)),
+        ))
+        .get_result::<bool>(conn)?;
+
+        if has_failed_logs {
+            return Ok(TxoStatus::Failed);
         }
 
         let num_pending_logs: i64 = transaction_logs::table
@@ -3118,6 +3182,64 @@ mod tests {
         )
         .unwrap();
         assert_eq!(secreted.len(), 2);
+
+        // Spend a TXO that we will later mark as failed.
+        let (_transaction_log, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
+            alice_account_key.clone(),
+            alice_account_key.subaddress(4),
+            33 * MOB,
+            wallet_db.clone(),
+            ledger_db.clone(),
+        );
+
+        let alice_account =
+            Account::get(&alice_account_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let tx_proposal = unsigned_tx_proposal.sign(&alice_account).await.unwrap();
+        TransactionLog::log_signed(
+            tx_proposal.clone(),
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            conn,
+        )
+        .unwrap();
+
+        let transaction_log = TransactionLog::log_submitted(
+            &tx_proposal,
+            ledger_db.num_blocks().unwrap(),
+            "".to_string(),
+            &AccountID::from(&alice_account_key).to_string(),
+            conn,
+        )
+        .unwrap();
+
+        check_associated_txos_status(
+            conn,
+            &transaction_log,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+            TxoStatus::Pending,
+        );
+
+        let failed = Txo::list_failed(Some(&alice_account_id.to_string()), conn).unwrap();
+        assert_eq!(failed.len(), 0);
+
+        TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &alice_account_id,
+            transaction_log.tombstone_block_index.unwrap() as u64 + 1,
+            conn,
+        )
+        .unwrap();
+
+        check_associated_txos_status(
+            conn,
+            &transaction_log,
+            TxoStatus::Unspent,
+            TxoStatus::Failed,
+            TxoStatus::Failed,
+        );
+
+        let failed = Txo::list_failed(Some(&alice_account_id.to_string()), conn).unwrap();
+        assert_eq!(failed.len(), 2);
     }
 
     fn check_associated_txos_status(
