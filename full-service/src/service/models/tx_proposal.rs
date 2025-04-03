@@ -1,5 +1,8 @@
-use std::convert::{TryFrom, TryInto};
-
+use crate::{
+    db::{account::AccountModel, models::Account},
+    service::{hardware_wallet, transaction::TransactionServiceError},
+    util::b58::b58_decode_public_address,
+};
 use mc_account_keys::{AccountKey, PublicAddress};
 use mc_api::ConversionError;
 use mc_common::logger::global_log;
@@ -13,12 +16,7 @@ use mc_transaction_core::{
     Amount, Token,
 };
 use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
-
-use crate::{
-    db::{account::AccountModel, models::Account},
-    service::{hardware_wallet, transaction::TransactionServiceError},
-    util::b58::b58_decode_public_address,
-};
+use std::convert::{TryFrom, TryInto};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InputTxo {
@@ -456,9 +454,8 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService,
-            address::AddressService,
-            transaction::{TransactionMemo, TransactionService},
+            account::AccountService, address::AddressService,
+            models::transaction_memo::TransactionMemo, transaction::TransactionService,
         },
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
@@ -532,7 +529,7 @@ mod tests {
             .unwrap();
 
         let unsigned_tx_proposal = service
-            .build_transaction(
+            .build_unsigned_transaction(
                 &alice.id,
                 &[(
                     bob_address_from_alice.public_address_b58,

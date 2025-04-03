@@ -23,7 +23,10 @@ use crate::{
                 public_address::PublicAddress,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::TransactionLog,
-                tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
+                tx_blueprint_proposal::TxBlueprintProposal as TxBlueprintProposalJSON,
+                tx_proposal::{
+                    TxProposal as TxProposalJSON, UnsignedTxProposal as UnsignedTxProposalJSON,
+                },
                 txo::Txo,
                 wallet_status::WalletStatus,
             },
@@ -39,12 +42,15 @@ use crate::{
         hardware_wallet::sync_txos,
         ledger::LedgerService,
         memo::MemoService,
-        models::tx_proposal::TxProposal,
+        models::{
+            transaction_memo::TransactionMemo, tx_blueprint_proposal::TxBlueprintProposal,
+            tx_proposal::TxProposal,
+        },
         network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         signed_contingent_input::SignedContingentInputService,
-        transaction::{TransactionMemo, TransactionService},
+        transaction::TransactionService,
         transaction_log::TransactionLogService,
         txo::TxoService,
         watcher::WatcherService,
@@ -198,6 +204,10 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            // We always want RTH memos in build_and_submit calls since the assumption here
+            // is that they are being called on accounts where we can fully sign
+            // a transaction (either locally using the account key or using a
+            // hardware wallet).
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
@@ -330,6 +340,10 @@ where
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
 
+            // We always want RTH memos in build_transaction calls since the assumption here
+            // is that they are being called on accounts where we can fully sign
+            // a transaction (either locally using the account key or using a
+            // hardware wallet).
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
@@ -395,8 +409,8 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = (&service
-                .build_transaction(
+            let unsigned_tx_proposal: UnsignedTxProposalJSON = (&service
+                .build_unsigned_transaction(
                     &account_id,
                     &[(
                         b58_encode_public_address(&burn_address()).map_err(format_error)?,
@@ -446,8 +460,8 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = (&service
-                .build_transaction(
+            let unsigned_tx_proposal: UnsignedTxProposalJSON = (&service
+                .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
@@ -455,6 +469,11 @@ where
                     fee_token_id,
                     tombstone_block,
                     max_spendable_value,
+                    // TODO - We can check if the account has an account key to sign with, and if
+                    // so, we can include an RTH memo.
+                    // For hardware-wallet or view-only accounts, we can't include an RTH memo.
+                    // For now the behavior is to just not include a memo when doing offline
+                    // signing.
                     TransactionMemo::Empty,
                     block_version,
                     spend_subaddress,
@@ -468,6 +487,77 @@ where
                 unsigned_tx_proposal,
             }
         }
+        JsonCommandRequest::build_tx_blueprint {
+            account_id,
+            addresses_and_amounts,
+            recipient_public_address,
+            amount,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+            block_version,
+            sender_memo_credential_subaddress_index,
+            payment_request_id,
+            spend_subaddress,
+        } => {
+            // The user can specify a list of addresses and values,
+            // or a single address and a single value.
+            let mut addresses_and_amounts = addresses_and_amounts.unwrap_or_default();
+            if let (Some(address), Some(amount)) = (recipient_public_address, amount) {
+                addresses_and_amounts.push((address, amount));
+            }
+
+            let block_version = match block_version {
+                Some(block_version) => Some(
+                    BlockVersion::try_from(block_version.parse::<u32>().map_err(format_error)?)
+                        .map_err(format_error)?,
+                ),
+                None => None,
+            };
+
+            let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
+            let payment_request_id = payment_request_id
+                .map(|i| i.parse::<u64>().map_err(format_error))
+                .transpose()?;
+
+            let transaction_memo = match payment_request_id {
+                Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                    payment_request_id,
+                },
+                None => TransactionMemo::RTH {
+                    subaddress_index: sender_memo_credential_subaddress_index,
+                },
+            };
+
+            let tx_blueprint_proposal: TxBlueprintProposalJSON = (&service
+                .build_tx_blueprint(
+                    &account_id,
+                    &addresses_and_amounts,
+                    input_txo_ids.as_ref(),
+                    fee_value,
+                    fee_token_id,
+                    tombstone_block,
+                    max_spendable_value,
+                    transaction_memo,
+                    block_version,
+                    spend_subaddress,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            JsonCommandResponse::build_tx_blueprint {
+                account_id,
+                tx_blueprint_proposal,
+            }
+        }
+
         JsonCommandRequest::check_b58_type { b58_code } => {
             let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
             let mut b58_data = HashMap::new();
@@ -1389,6 +1479,23 @@ where
             let account = Account::new(&account, &main_public_address, next_subaddress_index)
                 .map_err(format_error)?;
             JsonCommandResponse::set_require_spend_subaddress { account }
+        }
+        JsonCommandRequest::sign_and_submit_tx_blueprint {
+            tx_blueprint_proposal,
+        } => {
+            let tx_blueprint_proposal =
+                TxBlueprintProposal::try_from(&tx_blueprint_proposal).map_err(format_error)?;
+
+            let result: Option<TransactionLog> = service
+                .sign_and_submit_tx_blueprint(&tx_blueprint_proposal)
+                .await
+                .map_err(format_error)?
+                .map(|(transaction_log, associated_txos, value_map)| {
+                    TransactionLog::new(&transaction_log, &associated_txos, &value_map)
+                });
+            JsonCommandResponse::submit_transaction {
+                transaction_log: result,
+            }
         }
         JsonCommandRequest::submit_transaction {
             tx_proposal,

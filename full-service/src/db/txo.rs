@@ -2375,7 +2375,10 @@ mod tests {
             models::{Account, TransactionLog},
             transaction_log::TransactionLogModel,
         },
-        service::{transaction::TransactionMemo, transaction_builder::WalletTransactionBuilder},
+        service::{
+            models::transaction_memo::TransactionMemo,
+            transaction_builder::WalletTransactionBuilder,
+        },
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
             create_test_received_txo, create_test_txo_for_recipient,
