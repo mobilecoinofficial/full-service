@@ -1,0 +1,42 @@
+name: Build and Publish Charts
+description: Build and publish helm charts
+
+inputs:
+  version:
+    description: "version of the build"
+    required: true
+  repo:
+    description: "chart repo to publish to"
+    required: false
+    default: "https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public"
+  repo_username:
+    description: "chart repo username"
+    required: true
+  repo_password:
+    description: "chart repo password"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Publish helm chart full-service
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: helm-publish
+      chart_app_version: ${{ inputs.version }}
+      chart_path: .internal-ci/helm/full-service
+      chart_repo: ${{ inputs.repo }}
+      chart_repo_password: ${{ inputs.repo_password }}
+      chart_repo_username: ${{ inputs.repo_username }}
+      chart_version: ${{ inputs.version }}
+
+  - name: Publish helm chart full-service-mirror
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: helm-publish
+      chart_app_version: ${{ inputs.version }}
+      chart_path: .internal-ci/helm/full-service-mirror
+      chart_repo: ${{ inputs.repo }}
+      chart_repo_password: ${{ inputs.repo_password }}
+      chart_repo_username: ${{ inputs.repo_username }}
+      chart_version: ${{ inputs.version }}

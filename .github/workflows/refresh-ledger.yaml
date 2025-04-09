@@ -5,13 +5,9 @@
 name: Refresh ledger
 
 on:
+  workflow_dispatch: {}
   schedule:
   - cron: '0 0 * * *'
-
-# Start full-service
-# Monitor full-service util ledger has finished syncing
-# Stop full-service
-# Copy ledger to azure blob
 
 jobs:
   refresh-ledger:
@@ -40,7 +36,7 @@ jobs:
       run: |
         mkdir -p "${DOWNLOAD_DIR}"
         gh release download \
-            -p '*-Linux-X64-${{ matrix.network.chain_id }}net.tar.gz' \
+            -p 'full-service-${{ matrix.network.chain_id }}net-Linux-X64-*.tar.gz' \
             -O "${DOWNLOAD_DIR}/linux.tar.gz"
 
     - name: Unpack full-service
@@ -68,7 +64,10 @@ jobs:
 
         pushd "${DOWNLOAD_DIR}"
         mkdir -p "${MC_LEDGER_DB}"
-        mkdir -p "$(dirname ${MC_WALLET_DB})"
+        mkdir -p "$(dirname "${MC_WALLET_DB}")"
+
+        # Download existing ledger db
+        curl -sSfL "https://mcdeveu1ledger.blob.core.windows.net/${MC_CHAIN_ID}/data.mdb" -o "${MC_LEDGER_DB}/data.mdb"
 
         # Start full-service
         ./full-service &
@@ -81,15 +80,30 @@ jobs:
         ../.internal-ci/util/wait-for-full-service.sh
 
         echo "ledger is in sync, stop full-service"
-        kill ${pid}
+        kill "${pid}"
         echo "wait for full-service to fully stop"
-        wait ${pid}
+        wait "${pid}"
 
         echo "full-service shutdown successfully"
 
-    - name: copy ledger data.mdb to Azure Blob Storage
+    - name: copy ledger data.mdb to Azure Blob Storage - westeurope
       env:
-        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_AZURE_STORAGE_CONNECTION_STRING }}
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_WESTEUROPE_AZURE_STORAGE_CONNECTION_STRING }}
       run: |
         cd "${DOWNLOAD_DIR}/ledger"
         az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite
+
+    - name: copy ledger data.mdb to Azure Blob Storage - centralus
+      env:
+        AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.LEDGER_DB_CENTRALUS_AZURE_STORAGE_CONNECTION_STRING }}
+      run: |
+        cd "${DOWNLOAD_DIR}/ledger"
+        az storage blob upload -f ./data.mdb -c ${{ matrix.network.chain_id }} -n data.mdb --overwrite
+
+    - name: Send failure notification
+      if: failure()
+      uses: slackapi/slack-github-action@v1.26.0
+      with:
+        payload: '{"text": "Github Actions Job - full-service - Refresh Ledger failed for ${{ matrix.network.chain_id }}"}'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL_OPS_MONITORING }}

@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ include "fullService.fullname" . }}-full-service
+  name: {{ include "fullService.fullname" . }}
   labels:
     {{- include "fullService.labels" . | nindent 4 }}
 spec:
@@ -11,7 +11,7 @@ spec:
     matchLabels:
       app: full-service
       {{- include "fullService.selectorLabels" . | nindent 6 }}
-  serviceName: {{ include "fullService.fullname" . }}-full-service
+  serviceName: {{ include "fullService.fullname" . }}
   template:
     metadata:
       annotations:

@@ -15,6 +15,11 @@ use crate::{
             Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo,
             TransactionLog, TransactionOutputTxo, Txo,
         },
+        schema::{
+            transaction_input_txos, transaction_logs,
+            transaction_logs::dsl::{id as dsl_id, transaction_logs as dsl_transaction_logs},
+            transaction_output_txos, txos,
+        },
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
@@ -322,21 +327,34 @@ pub trait TransactionLogModel {
         conn: Conn
     ) -> Result<(), WalletDbError>;
 
-    /// Update the finalized block index to all pending transaction logs that associate with a given transaction output (txo).
+    /// Update the finalized block index to all pending transaction logs that have an output
+    /// transaction corresponding to `transaction_output_txo_id_hex`.
     /// 
     /// # Arguments
-    ///
-    ///| Name                    | Purpose                                                                      | Notes |
-    ///|-------------------------|------------------------------------------------------------------------------|-------|
-    ///| `txo_id_hex`            | The txo ID for which to get all transaction logs associated with this txo ID.|       |
-    ///| `finalized_block_index` | The block index at which the transaction will be completed and finalized.    |       |
-    ///| `conn`                  | An reference to the pool connection of wallet database                       |       |
-    ///
-    /// # Returns
-    /// * unit
+    /// * `transaction_output_txo_id_hex` - The txo ID for which to get all transaction logs
+    ///   associated with this txo ID.
+    /// * `finalized_block_index` - The block index at which the transaction will be completed and
+    ///   finalized.
+    /// * `conn` - A reference to the pool connection of wallet database
     fn update_pending_associated_with_txo_to_succeeded(
-        txo_id_hex: &str,
+        transaction_output_txo_id_hex: &str,
         finalized_block_index: u64,
+        conn: Conn,
+    ) -> Result<(), WalletDbError>;
+    
+     /// Update all transaction logs that have an input transaction corresponding to
+    /// `transaction_input_txo_id_hex` to failed.
+    ///
+    /// Note: When processing inputs and outputs from the same block, be sure to mark the
+    /// appropriate transaction logs as succeeded prior to calling this method. See
+    /// `update_pending_associated_with_txo_to_succeeded()`.
+    ///
+    /// # Arguments
+    /// * `transaction_input_txo_id_hex` - The txo ID for which to get all transaction logs
+    ///   associated with this txo ID.
+    /// * `conn` - A reference to the pool connection of wallet database
+    fn update_consumed_txo_to_failed(
+        transaction_input_txo_id_hex: &str,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -407,9 +425,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get(id: &TransactionId, conn: Conn) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::{id as dsl_id, transaction_logs};
-
-        match transaction_logs
+        match dsl_transaction_logs
             .filter(dsl_id.eq(id.to_string()))
             .get_result::<TransactionLog>(conn)
         {
@@ -423,8 +439,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get_associated_txos(&self, conn: Conn) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
-
         let inputs: Vec<Txo> = txos::table
             .inner_join(transaction_input_txos::table)
             .filter(transaction_input_txos::transaction_log_id.eq(&self.id))
@@ -463,8 +477,6 @@ impl TransactionLogModel for TransactionLog {
         submitted_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set(transaction_logs::submitted_block_index.eq(Some(submitted_block_index as i64)))
             .execute(conn)?;
@@ -473,8 +485,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_comment(&self, comment: String, conn: Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set(transaction_logs::comment.eq(comment))
             .execute(conn)?;
@@ -488,8 +498,6 @@ impl TransactionLogModel for TransactionLog {
         tombstone_block_index: Option<i64>,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set((
                 transaction_logs::tx.eq(tx),
@@ -507,8 +515,6 @@ impl TransactionLogModel for TransactionLog {
         max_block_index: Option<u64>,
         conn: Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         let mut query = transaction_logs::table.into_boxed();
 
         if let Some(account_id) = account_id {
@@ -550,7 +556,6 @@ impl TransactionLogModel for TransactionLog {
         account_id: &AccountID,
         conn: Conn,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Verify that the account exists.
         Account::get(account_id, conn)?;
 
@@ -744,10 +749,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
-        };
-
         let transaction_input_txos: Vec<TransactionInputTxo> = transaction_input_txos::table
             .inner_join(transaction_logs::table)
             .filter(transaction_logs::account_id.eq(account_id_hex))
@@ -777,16 +778,15 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_pending_associated_with_txo_to_succeeded(
-        txo_id_hex: &str,
+        transaction_output_txo_id_hex: &str,
         finalized_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Find all submitted transaction logs associated with this txo that have not
         // yet been finalized (there should only ever be one).
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(transaction_input_txos::table)
-            .filter(transaction_input_txos::txo_id.eq(txo_id_hex))
+            .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::txo_id.eq(transaction_output_txo_id_hex))
             .filter(transaction_logs::submitted_block_index.is_not_null()) // we actually sent this transaction
             .filter(transaction_logs::failed.eq(false)) // non-failed transactions
             .filter(transaction_logs::finalized_block_index.is_null()) // non-completed transactions
@@ -802,13 +802,32 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
+    fn update_consumed_txo_to_failed(
+        transaction_input_txo_id_hex: &str,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .inner_join(transaction_input_txos::table)
+            .filter(transaction_input_txos::txo_id.eq(transaction_input_txo_id_hex))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .select(transaction_logs::id)
+            .load(conn)?;
+
+        diesel::update(
+            transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
+        )
+        .set((transaction_logs::failed.eq(true),))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
     fn update_pending_exceeding_tombstone_block_index_to_failed(
         account_id: &AccountID,
         block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(
             transaction_logs::table
                 .filter(transaction_logs::account_id.eq(&account_id.0))
@@ -1169,9 +1188,6 @@ mod tests {
 
     #[async_test_with_logger]
     async fn test_delete_transaction_logs_for_account(logger: Logger) {
-        use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
-        };
         use diesel::dsl::count_star;
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

@@ -106,14 +106,14 @@ async def test_send_transaction_self(client, source_account, fees):
     # Send a transaction from the account back to itself.
     transaction_log, _ = await client.build_and_submit_transaction(
         source_account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         source_account['main_address'],
     )
     tx_value = Amount.from_storage_units(
         transaction_log['value_map'][str(MOB.token_id)],
         MOB,
     )
-    assert tx_value == Amount.from_display_units(0.01, MOB)
+    assert tx_value == Amount.from_display_units(0.001, MOB)
 
     # Wait for the account to sync.
     tx_index = int(transaction_log['submitted_block_index'])
@@ -131,14 +131,14 @@ async def _test_send_transaction(client, account, temp_account):
     # Send a transaction to the temporary account.
     transaction_log, _ = await client.build_and_submit_transaction(
         account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         temp_account['main_address'],
     )
     tx_value = Amount.from_storage_units(
         transaction_log['value_map'][str(MOB.token_id)],
         MOB,
     )
-    assert tx_value == Amount.from_display_units(0.01, MOB)
+    assert tx_value == Amount.from_display_units(0.001, MOB)
     assert transaction_log['output_txos'][0]['public_key'] == transaction_log['id']
 
     # Wait for the temporary account to sync.
@@ -150,7 +150,7 @@ async def _test_send_transaction(client, account, temp_account):
         temp_status['balance_per_token'][str(MOB.token_id)]['unspent'],
         MOB,
     )
-    assert temp_balance == Amount.from_display_units(0.01, MOB)
+    assert temp_balance == Amount.from_display_units(0.001, MOB)
 
 
 async def test_send_transaction(client, source_account, account_factory):
@@ -180,7 +180,7 @@ async def test_send_transaction_subaddress(client, source_account, account_facto
     # Send a transaction to the temporary account.
     transaction_log, _ = await client.build_and_submit_transaction(
         source_account['id'],
-        Amount.from_display_units(0.01, MOB),
+        Amount.from_display_units(0.001, MOB),
         address,
     )
 
@@ -194,7 +194,7 @@ async def test_send_transaction_subaddress(client, source_account, account_facto
         temp_status['balance_per_token'][str(MOB.token_id)]['unspent'],
         MOB,
     )
-    assert temp_balance == Amount.from_display_units(0.01, MOB)
+    assert temp_balance == Amount.from_display_units(0.001, MOB)
 
     # The subaddress balance also shows the transaction.
     subaddress_status = await client.get_address_status(address)
@@ -202,7 +202,7 @@ async def test_send_transaction_subaddress(client, source_account, account_facto
         subaddress_status['balance_per_token'][str(MOB.token_id)]['unspent'],
         MOB,
     )
-    assert subaddress_balance == Amount.from_display_units(0.01, MOB)
+    assert subaddress_balance == Amount.from_display_units(0.001, MOB)
 
 
 async def test_build_transaction_multiple_outputs(client, source_account, account_factory):
@@ -212,8 +212,8 @@ async def test_build_transaction_multiple_outputs(client, source_account, accoun
     tx_proposal, _ = await client.build_transaction(
         source_account['id'],
         {
-            temp_account_1['main_address']: Amount.from_display_units(0.01, MOB),
-            temp_account_2['main_address']: Amount.from_display_units(0.01, MOB),
+            temp_account_1['main_address']: Amount.from_display_units(0.001, MOB),
+            temp_account_2['main_address']: Amount.from_display_units(0.001, MOB),
         },
     )
     transaction_log = await client.submit_transaction(tx_proposal, source_account['id'])
@@ -231,7 +231,7 @@ async def test_build_transaction_multiple_outputs(client, source_account, accoun
             status['balance_per_token'][str(MOB.token_id)]['unspent'],
             MOB,
         )
-        assert balance == Amount.from_display_units(0.01, MOB)
+        assert balance == Amount.from_display_units(0.001, MOB)
 
 
 async def test_build_burn_transaction(client, source_account, fees):

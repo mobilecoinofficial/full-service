@@ -60,6 +60,7 @@ class CommandLineInterface:
 
         # List accounts.
         self.list_args = command_sp.add_parser('list', help='List accounts.')
+        self.list_args.add_argument('account_id', nargs='?', type=str, default=None, help='ID or name of the account to list.')
 
         # Create account.
         self.create_args = command_sp.add_parser('create', help='Create a new account.')
@@ -95,6 +96,7 @@ class CommandLineInterface:
         self.export_args.add_argument('account_id', help='ID of the account to export.')
         self.export_args.add_argument('-s', '--show', action='store_true',
                                       help='Only show the secret entropy mnemonic, do not write it to file.')
+        self.export_args.add_argument('-f', '--file', type=str, default=None, help='Write the secret entropy mnemonic to a file path.')
 
         # Remove account.
         self.remove_args = command_sp.add_parser('remove', help='Remove an account from local storage.')
@@ -110,7 +112,7 @@ class CommandLineInterface:
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
         self.send_args.add_argument('account_id', help='Source account ID.')
-        self.send_args.add_argument('amount', help='Amount to send.')
+        self.send_args.add_argument('amount', help='Amount to send. Use "all" to automatically calculate fees and send all available funds.')
         self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
         self.send_args.add_argument('to_address', help='Address to send to.')
 
@@ -131,6 +133,7 @@ class CommandLineInterface:
         # List addresses.
         self.address_list_args = address_action.add_parser('list', help='List addresses and balances for an account.')
         self.address_list_args.add_argument('account_id', help='Account ID.')
+        self.address_list_args.add_argument('-i', '--index', nargs='?', type=int, default=None, help='Show only main address.')
 
         # Create address.
         self.address_create_args = address_action.add_parser(
@@ -177,6 +180,11 @@ class CommandLineInterface:
         # Remove gift code.
         self.gift_remove_args = gift_action.add_parser('remove', help='Remove a gift code.')
         self.gift_remove_args.add_argument('gift_code', help='Gift code to remove.')
+
+        # List balance for account
+        self.balance_args = command_sp.add_parser('balance', help='get balance for account')
+        self.balance_args.add_argument('account_id', type=str, nargs='?', default=None, help='ID or name of the account to list, or empty for all accounts.')
+        self.balance_args.add_argument('-t', '--token', type=str, default='MOB', help='Token to get balance for (MOB, eUSD).')
 
         # Version
         self.version_args = command_sp.add_parser('version', help='Show version number.')
@@ -246,26 +254,52 @@ class CommandLineInterface:
         print()
         print('Transaction Fees:')
         for token in TOKENS:
-            amount = Amount.from_storage_units(
-                network_status['fees'][str(token.token_id)],
-                token
-            )
-            print(indent(amount.format(), '  '))
+            fee_storage_units = network_status['fees'].get(str(token.token_id))
+            if fee_storage_units is not None:
+                amount = Amount.from_storage_units(
+                    fee_storage_units,
+                    token
+                )
+                print(indent(amount.format(), '  '))
 
-    def list(self):
-        accounts = self.client.get_accounts()
-        if len(accounts) == 0:
-            print('No accounts.')
-            return
-
-        account_list = []
-        for account_id in accounts.keys():
-            status = self.client.get_account_status(account_id)
-            account_list.append(status)
-
-        for status in account_list:
-            print()
+    def list(self, account_id):
+        if account_id:
+            # Show a single account.
+            account = self._load_account_prefix(account_id)
+            status = self.client.get_account_status(account['id'])
             _print_account(status)
+        else:
+            accounts = self.client.get_accounts()
+            if len(accounts) == 0:
+                print('No accounts.')
+                return
+
+            account_list = []
+            for account_id in accounts.keys():
+                status = self.client.get_account_status(account_id)
+                account_list.append(status)
+
+            for status in account_list:
+                print()
+                _print_account(status)
+
+    def balance(self, account_id, token):
+        if account_id is None:
+            accounts = self.client.get_accounts()
+            for account_id in accounts.keys():
+                self.balance(account_id, token)
+            return
+        account = self._load_account_prefix(account_id)
+        account_id = account['id']
+        token = get_token(token)
+
+        status = self.client.get_account_status(account_id)
+        balance = status['balance_per_token'].get(str(token.token_id))
+        if balance is None:
+            print('{} 0 {} {}'.format(account_id[:6], token.short_code, _format_sync_state(status)))
+            return
+        balance = Amount.from_storage_units(balance['unspent'], token)
+        print('{} {} {}'.format(account_id[:6], balance.format(), _format_sync_state(status)))
 
     def create(self, name=None, disable_fog=False):
         if disable_fog:
@@ -362,10 +396,15 @@ class CommandLineInterface:
         print('Imported account.')
         print(_format_account_header(account))
 
-    def export(self, account_id, show=False):
+    def export(self, account_id, file, show=False):
         account = self._load_account_prefix(account_id)
         account_id = account['id']
         status = self.client.get_account_status(account_id)
+
+        if file is None:
+            filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
+        else:
+            filename = file
 
         print('You are about to export the secret entropy mnemonic for this account:')
         print()
@@ -381,7 +420,7 @@ class CommandLineInterface:
         if show:
             confirm_message = 'Really show account entropy mnemonic? (Y/N) '
         else:
-            confirm_message = 'Really write account entropy mnemonic to a file? (Y/N) '
+            confirm_message = 'Really write account entropy mnemonic to file: {} (Y/N) '.format(filename)
         if not self.confirm(confirm_message):
             print('Cancelled.')
             return
@@ -394,14 +433,13 @@ class CommandLineInterface:
                 print('{:<2}  {}'.format(i, word))
             print()
         else:
-            filename = 'mobilecoin_secret_mnemonic_{}.json'.format(account_id[:6])
             try:
                 _save_export(account, secrets, filename)
             except OSError as e:
                 print('Could not write file: {}'.format(e))
                 exit(1)
             else:
-                print(f'Wrote {filename}.')
+                print(f'Wrote {filename}')
 
     def remove(self, account_id):
         account = self._load_account_prefix(account_id)
@@ -482,7 +520,7 @@ class CommandLineInterface:
                     txo['amount']['token_id'],
                 )
                 print(indent(amount.format(), '    '))
-                address = txo['recipient_public_address_b58'] 
+                address = txo['recipient_public_address_b58']
                 if address in own_addresses:
                     print('    Received at', address)
                 else:
@@ -527,7 +565,7 @@ class CommandLineInterface:
                 token.short_code,
                 account_id[:6],
             ))
-            return
+            exit(1)
 
         if build_only:
             verb = 'Building transaction for'
@@ -698,27 +736,32 @@ class CommandLineInterface:
         else:
             func(**args)
 
-    def address_list(self, account_id):
+    def address_list(self, account_id, index):
         account = self._load_account_prefix(account_id)
-        print()
-        print(_format_account_header(account))
 
         addresses = self.client.get_addresses(account['id'], limit=1000)
         addresses = list(addresses.values())
         addresses.sort(key=lambda a: int(a['subaddress_index']))
 
-        for address in addresses:
-            address_status = self.client.get_address_status(address['public_address_b58'])
+        # only print headers if we're listing multiple accounts
+        if index is None:
+            print()
+            print(_format_account_header(account))
+
+            for address in addresses:
+                address_status = self.client.get_address_status(address['public_address_b58'])
+
+                print()
+                print('#{} {}'.format(
+                    address['subaddress_index'],
+                    address['metadata'],
+                ))
+                print(indent(address['public_address_b58'], '  '))
+                print(indent(_format_balances(address_status['balance_per_token']), '  '))
 
             print()
-            print('#{} {}'.format(
-                address['subaddress_index'],
-                address['metadata'],
-            ))
-            print(indent(address['public_address_b58'], '  '))
-            print(indent(_format_balances(address_status['balance_per_token']), '  '))
-
-        print()
+        else:
+            print(addresses[index]['public_address_b58'])
 
     def address_create(self, account_id, metadata):
         account = self._load_account_prefix(account_id)

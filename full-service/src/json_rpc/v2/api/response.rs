@@ -19,6 +19,7 @@ use crate::{
             network_status::NetworkStatus,
             public_address::PublicAddress,
             receiver_receipt::ReceiverReceipt,
+            signed_contingent_input::ValidateProofOfReserveSciResult,
             transaction_log::TransactionLog,
             tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::Txo,
@@ -215,6 +216,10 @@ pub enum JsonCommandResponse {
     },
     validate_sender_memo {
         validated: bool,
+    },
+    validate_proof_of_reserve_sci {
+        #[serde(flatten)]
+        result: ValidateProofOfReserveSciResult,
     },
     verify_address {
         verified: bool,

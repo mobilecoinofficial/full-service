@@ -9,7 +9,7 @@ use crate::{
         exclusive_transaction,
         models::{Account, AssignedSubaddress, TransactionLog, Txo},
         transaction_log::TransactionLogModel,
-        txo::TxoModel,
+        txo::{TxoID, TxoModel},
         Conn, WalletDb,
     },
     error::SyncError,
@@ -222,185 +222,115 @@ pub fn sync_account_next_chunk(
         }
         let end_block_index = end_block_index.unwrap();
 
-        let num_received_txos = if account.view_only {
+        let (view_private_key, account_key) = if account.view_only {
             let view_account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
-
-            // Attempt to decode each transaction as received by this account.
-            let received_txos: Vec<_> = tx_outs
-                .into_par_iter()
-                .filter_map(|(block_index, tx_out)| {
-                    let amount = decode_amount(&tx_out, view_account_key.view_private_key())?;
-                    Some((block_index, tx_out, amount))
-                })
-                .collect();
-
-            let mut received_txos_with_subaddresses = Vec::new();
-            for (block_index, tx_out, amount) in received_txos {
-                let subaddress_index =
-                    decode_subaddress_index(&tx_out, view_account_key.view_private_key(), conn);
-
-                received_txos_with_subaddresses.push((
-                    block_index,
-                    tx_out,
-                    amount,
-                    subaddress_index,
-                ));
-            }
-
-            let num_received_txos = received_txos_with_subaddresses.len();
-
-            // Write received transactions to the database.
-            for (block_index, tx_out, amount, subaddress_index) in received_txos_with_subaddresses {
-                Txo::create_received(
-                    tx_out.clone(),
-                    subaddress_index,
-                    None,
-                    amount,
-                    block_index,
-                    account_id_hex,
-                    conn,
-                )?;
-            }
-
-            // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: MCHashMap<KeyImage, String> =
-                Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
-            let spent_txos: Vec<(u64, String)> = key_images
-                .into_par_iter()
-                .filter_map(|(block_index, key_image)| {
-                    unspent_key_images
-                        .get(&key_image)
-                        .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
-                })
-                .collect();
-            let num_spent_txos = spent_txos.len();
-
-            for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
-                TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                    txo_id_hex,
-                    *block_index,
-                    conn,
-                )?;
-            }
-
-            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
-                &account_id,
-                end_block_index + 1,
-                conn,
-            )?;
-
-            // Done syncing this chunk. Mark these blocks as synced for this account.
-            account.update_next_block_index(end_block_index + 1, conn)?;
-
-            let num_blocks_synced = end_block_index - start_block_index + 1;
-
-            let duration = start_time.elapsed();
-
-            log::debug!(
-            logger,
-            "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
-            num_blocks_synced,
-            start_block_index,
-            end_block_index,
-            account_id_hex.chars().take(6).collect::<String>(),
-            duration,
-            num_received_txos,
-            num_spent_txos,
-            unspent_key_images.len()
-        );
-            num_received_txos
+            (*view_account_key.view_private_key(), None)
         } else {
             let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+            (*account_key.view_private_key(), Some(account_key))
+        };
 
-            // Attempt to decode each transaction as received by this account.
-            let received_txos: Vec<_> = tx_outs
-                .into_par_iter()
-                .filter_map(|(block_index, tx_out)| {
-                    let amount = decode_amount(&tx_out, account_key.view_private_key())?;
-                    Some((block_index, tx_out, amount))
-                })
-                .collect();
+        // Mark pending txs as succeeded when one of their output txos is found on the
+        // chain.
+        tx_outs.iter().try_for_each(|(block_index, tx_out)| {
+            TransactionLog::update_pending_associated_with_txo_to_succeeded(
+                &TxoID::from(tx_out).to_string(),
+                *block_index,
+                conn,
+            )
+        })?;
 
-            let mut received_txos_with_subaddresses_and_key_images = Vec::new();
-            for (block_index, tx_out, amount) in received_txos {
-                let (subaddress_index, key_image) =
-                    decode_subaddress_and_key_image(&tx_out, &account_key, conn);
+        let num_txos_in_chunk = tx_outs.len();
+        // Attempt to decode each transaction as received by this account.
+        let received_txos: Vec<_> = tx_outs
+            .into_par_iter()
+            .filter_map(|(block_index, tx_out)| {
+                let amount = decode_amount(&tx_out, &view_private_key)?;
+                Some((block_index, tx_out, amount))
+            })
+            .collect();
 
-                received_txos_with_subaddresses_and_key_images.push((
-                    block_index,
-                    tx_out,
-                    amount,
-                    subaddress_index,
-                    key_image,
-                ));
-            }
+        let mut received_txos_with_subaddresses_and_key_images = Vec::new();
+        for (block_index, tx_out, amount) in received_txos {
+            let (subaddress_index, key_image) = decode_subaddress_and_key_image(
+                &tx_out,
+                &view_private_key,
+                account_key.as_ref(),
+                conn,
+            );
 
-            let num_received_txos = received_txos_with_subaddresses_and_key_images.len();
+            received_txos_with_subaddresses_and_key_images.push((
+                block_index,
+                tx_out,
+                amount,
+                subaddress_index,
+                key_image,
+            ));
+        }
 
-            // Write received transactions to the database.
-            for (block_index, tx_out, amount, subaddress_index, key_image) in
-                received_txos_with_subaddresses_and_key_images
-            {
-                Txo::create_received(
-                    tx_out.clone(),
-                    subaddress_index,
-                    key_image,
-                    amount,
-                    block_index,
-                    account_id_hex,
-                    conn,
-                )?;
-            }
+        let num_received_txos = received_txos_with_subaddresses_and_key_images.len();
 
-            // Match key images to mark existing unspent transactions as spent.
-            let unspent_key_images: MCHashMap<KeyImage, String> =
-                Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
-            let spent_txos: Vec<(u64, String)> = key_images
-                .into_par_iter()
-                .filter_map(|(block_index, key_image)| {
-                    unspent_key_images
-                        .get(&key_image)
-                        .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
-                })
-                .collect();
-            let num_spent_txos = spent_txos.len();
-            for (block_index, txo_id_hex) in &spent_txos {
-                Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
-                TransactionLog::update_pending_associated_with_txo_to_succeeded(
-                    txo_id_hex,
-                    *block_index,
-                    conn,
-                )?;
-            }
-
-            TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
-                &account_id,
-                end_block_index + 1,
+        // Write received transactions to the database.
+        for (block_index, tx_out, amount, subaddress_index, key_image) in
+            received_txos_with_subaddresses_and_key_images
+        {
+            Txo::create_received(
+                tx_out.clone(),
+                subaddress_index,
+                key_image,
+                amount,
+                block_index,
+                account_id_hex,
                 conn,
             )?;
+        }
 
-            // Done syncing this chunk. Mark these blocks as synced for this account.
-            account.update_next_block_index(end_block_index + 1, conn)?;
+        // Match key images to mark existing unspent transactions as spent.
+        let unspent_key_images: MCHashMap<KeyImage, String> =
+            Txo::list_unspent_or_pending_key_images(account_id_hex, None, conn)?;
+        let spent_txos: Vec<(u64, String)> = key_images
+            .into_par_iter()
+            .filter_map(|(block_index, key_image)| {
+                unspent_key_images
+                    .get(&key_image)
+                    .map(|txo_id_hex| (block_index, txo_id_hex.clone()))
+            })
+            .collect();
 
-            let num_blocks_synced = end_block_index - start_block_index + 1;
+        for (block_index, txo_id_hex) in &spent_txos {
+            Txo::update_spent_block_index(txo_id_hex, *block_index, conn)?;
+            // NB: This needs to be done after calling
+            // `TransactionLog::update_pending_associated_with_txo_to_succeeded()` so we
+            // don't fail a transaction log that is finalized for this block.
+            TransactionLog::update_consumed_txo_to_failed(txo_id_hex, conn)?;
+        }
 
-            let duration = start_time.elapsed();
+        TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &account_id,
+            end_block_index + 1,
+            conn,
+        )?;
 
-            log::debug!(
+        // Done syncing this chunk. Mark these blocks as synced for this account.
+        account.update_next_block_index(end_block_index + 1, conn)?;
+
+        let num_blocks_synced = end_block_index - start_block_index + 1;
+
+        let duration = start_time.elapsed();
+
+        log::debug!(
             logger,
-            "Synced {} blocks ({}-{}) for account {} in {:?}. {} txos received, {}/{} txos spent.",
+            "Synced {} blocks ({}-{}) for account {} in {:?}. {}/{} txos received, {}/{} txos spent.",
             num_blocks_synced,
             start_block_index,
             end_block_index,
             account_id_hex.chars().take(6).collect::<String>(),
             duration,
             num_received_txos,
-            num_spent_txos,
+            num_txos_in_chunk,
+            spent_txos.len(),
             unspent_key_images.len()
         );
-            num_received_txos
-        };
 
         Ok(num_received_txos)
     })
@@ -446,28 +376,30 @@ pub fn decode_subaddress_index(
 /// should only be done on tx-outs that have already had their amounts decoded.
 /// If this fails, then the transaction is "orphaned", meaning we haven't
 /// generated the correct subaddress yet.
+///
+/// Key images will only be generated if the `account_key` is provided.
 pub fn decode_subaddress_and_key_image(
     tx_out: &TxOut,
-    account_key: &AccountKey,
+    view_private_key: &RistrettoPrivate,
+    account_key: Option<&AccountKey>,
     conn: Conn,
 ) -> (Option<u64>, Option<KeyImage>) {
-    let tx_public_key = match RistrettoPublic::try_from(&tx_out.public_key) {
-        Ok(k) => k,
-        Err(_) => return (None, None),
-    };
+    let subaddress_index = decode_subaddress_index(tx_out, view_private_key, conn);
 
-    let subaddress_index = decode_subaddress_index(tx_out, account_key.view_private_key(), conn);
-
-    let key_image = if let Some(subaddress_i) = subaddress_index {
-        let onetime_private_key = recover_onetime_private_key(
-            &tx_public_key,
-            account_key.view_private_key(),
-            &account_key.subaddress_spend_private(subaddress_i),
-        );
-        Some(KeyImage::from(&onetime_private_key))
-    } else {
-        None
-    };
+    let key_image = account_key.and_then(|account_key| {
+        subaddress_index.and_then(|subaddress_i| {
+            RistrettoPublic::try_from(&tx_out.public_key)
+                .ok()
+                .map(|tx_public_key| {
+                    let onetime_private_key = recover_onetime_private_key(
+                        &tx_public_key,
+                        account_key.view_private_key(),
+                        &account_key.subaddress_spend_private(subaddress_i),
+                    );
+                    KeyImage::from(&onetime_private_key)
+                })
+        })
+    });
 
     (subaddress_index, key_image)
 }
