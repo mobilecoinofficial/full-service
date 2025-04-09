@@ -4,17 +4,17 @@ use crate::{
     hardware_service,
     hardware_service::api::{request::JsonCommandRequest, response::JsonCommandResponse},
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use mc_common::logger::global_log;
 use mc_full_service::{
     json_rpc::{
-        json_rpc_request::JsonRPCRequest, json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
+        json_rpc_request::JsonRPCRequest,
+        json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
         v2::models::tx_proposal::TxProposal as TxProposalJSON,
     },
     service::models::tx_proposal::UnsignedTxProposal,
 };
 use rocket::{get, post, serde::json::Json};
-use anyhow::anyhow;
 
 pub mod request;
 pub mod response;
@@ -72,24 +72,40 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
         JsonCommandRequest::get_account {} => {
             let account_info = hardware_service::get_account().await?;
             let hardware_account_id = hardware_service::get_account_id(account_info.clone());
-            JsonCommandResponse::get_account { account_id:hardware_account_id, account_info }
-        },
+            JsonCommandResponse::get_account {
+                account_id: hardware_account_id,
+                account_info,
+            }
+        }
         JsonCommandRequest::sync_txos {
             account_id,
             txos_unsynced,
         } => {
-            let synced_txos = hardware_service::sync_txos(account_id.clone(), txos_unsynced).await?;
-            JsonCommandResponse::sync_txos { account_id, synced_txos }
-        },
+            let synced_txos =
+                hardware_service::sync_txos(account_id.clone(), txos_unsynced).await?;
+            JsonCommandResponse::sync_txos {
+                account_id,
+                synced_txos,
+            }
+        }
         JsonCommandRequest::sign_tx {
             account_id,
             unsigned_tx_proposal,
         } => {
-            let unsigned_tx_proposal: UnsignedTxProposal = mc_full_service::service::models::tx_proposal::UnsignedTxProposal::try_from(&unsigned_tx_proposal).map_err(|e| anyhow!(e))?;
-            let signed_tx_proposal = hardware_service::sign_tx(account_id.clone(), unsigned_tx_proposal).await?;
-            let tx_proposal: TxProposalJSON = mc_full_service::json_rpc::v2::models::tx_proposal::TxProposal::try_from(&signed_tx_proposal).map_err(|e|anyhow!(e))?;
+            let unsigned_tx_proposal: UnsignedTxProposal =
+                mc_full_service::service::models::tx_proposal::UnsignedTxProposal::try_from(
+                    &unsigned_tx_proposal,
+                )
+                .map_err(|e| anyhow!(e))?;
+            let signed_tx_proposal =
+                hardware_service::sign_tx(account_id.clone(), unsigned_tx_proposal).await?;
+            let tx_proposal: TxProposalJSON =
+                mc_full_service::json_rpc::v2::models::tx_proposal::TxProposal::try_from(
+                    &signed_tx_proposal,
+                )
+                .map_err(|e| anyhow!(e))?;
             JsonCommandResponse::sign_tx { tx_proposal }
-        },
+        }
     };
 
     Ok(response)
