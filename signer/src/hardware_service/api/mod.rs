@@ -12,7 +12,9 @@ use mc_full_service::{
         json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
         v2::models::tx_proposal::TxProposal as TxProposalJSON,
     },
-    service::models::tx_proposal::UnsignedTxProposal,
+    service::models::{
+        tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::UnsignedTxProposal,
+    },
 };
 use rocket::{get, post, serde::json::Json};
 
@@ -92,11 +94,8 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
             account_id,
             unsigned_tx_proposal,
         } => {
-            let unsigned_tx_proposal: UnsignedTxProposal =
-                mc_full_service::service::models::tx_proposal::UnsignedTxProposal::try_from(
-                    &unsigned_tx_proposal,
-                )
-                .map_err(|e| anyhow!(e))?;
+            let unsigned_tx_proposal =
+                UnsignedTxProposal::try_from(&unsigned_tx_proposal).map_err(|e| anyhow!(e))?;
             let signed_tx_proposal =
                 hardware_service::sign_tx(account_id.clone(), unsigned_tx_proposal).await?;
             let tx_proposal: TxProposalJSON =
@@ -105,6 +104,21 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
                 )
                 .map_err(|e| anyhow!(e))?;
             JsonCommandResponse::sign_tx { tx_proposal }
+        }
+        JsonCommandRequest::sign_tx_blueprint {
+            tx_blueprint_proposal,
+        } => {
+            let tx_blueprint_proposal: TxBlueprintProposal =
+                TxBlueprintProposal::try_from(&tx_blueprint_proposal).map_err(|e| anyhow!(e))?;
+
+            let signed_tx_proposal =
+                hardware_service::sign_tx_blueprint(tx_blueprint_proposal).await?;
+            let tx_proposal: TxProposalJSON =
+                mc_full_service::json_rpc::v2::models::tx_proposal::TxProposal::try_from(
+                    &signed_tx_proposal,
+                )
+                .map_err(|e| anyhow!(e))?;
+            JsonCommandResponse::sign_tx_blueprint { tx_proposal }
         }
     };
 

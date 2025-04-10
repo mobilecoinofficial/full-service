@@ -5,14 +5,14 @@ use crate::{
     error::WalletTransactionBuilderError,
     service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
-use mc_account_keys::DEFAULT_SUBADDRESS_INDEX;
+use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
 use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
 use mc_util_serial::BigArray;
 use serde::{Deserialize, Serialize};
-use std::{boxed::Box, sync::Arc};
+use std::{boxed::Box, convert::TryFrom, sync::Arc};
 
 /// This represents the different types of Transaction Memos that can be used in
 /// a given transaction
@@ -58,7 +58,7 @@ pub enum TransactionMemo {
 impl TransactionMemo {
     pub fn memo_builder(
         &self,
-        account: &Account,
+        signer_credentials: &TransactionMemoSignerCredentials,
     ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
             Self::Empty => Ok(Box::<EmptyMemoBuilder>::default()),
@@ -68,14 +68,15 @@ impl TransactionMemo {
                 Ok(Box::new(memo_builder))
             }
             Self::RTH { subaddress_index } => {
-                let memo_builder = generate_rth_memo_builder(subaddress_index, account)?;
+                let memo_builder = generate_rth_memo_builder(subaddress_index, signer_credentials)?;
                 Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentIntentId {
                 subaddress_index,
                 payment_intent_id,
             } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account)?;
+                let mut memo_builder =
+                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_intent_id(*payment_intent_id);
                 Ok(Box::new(memo_builder))
             }
@@ -83,7 +84,8 @@ impl TransactionMemo {
                 subaddress_index,
                 payment_request_id,
             } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account)?;
+                let mut memo_builder =
+                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_request_id(*payment_request_id);
                 Ok(Box::new(memo_builder))
             }
@@ -93,34 +95,71 @@ impl TransactionMemo {
 
 fn generate_rth_memo_builder(
     subaddress_index: &Option<u64>,
-    account: &Account,
+    signer_credentials: &TransactionMemoSignerCredentials,
 ) -> Result<RTHMemoBuilder, WalletTransactionBuilderError> {
     let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
     let mut memo_builder = RTHMemoBuilder::default();
 
-    if account.view_only {
-        if !account.managed_by_hardware_wallet {
+    match signer_credentials {
+        TransactionMemoSignerCredentials::None => {
+            // No authenticated sender
+        }
+
+        TransactionMemoSignerCredentials::ViewOnly(_) => {
             return Err(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts);
         }
 
-        let view_account_key = account.view_account_key()?;
-        memo_builder.set_authenticated_sender_hmac_signer(Arc::new(Box::new(
-            HardwareWalletAuthenticatedMemoHmacSigner::new(
-                &view_account_key.subaddress(subaddress_index),
-                subaddress_index,
-            )?,
-        )));
-    } else {
-        let account_key = account.account_key()?;
-        memo_builder.set_sender_credential(
-            SenderMemoCredential::new_from_address_and_spend_private_key(
-                &account_key.subaddress(subaddress_index),
-                account_key.subaddress_spend_private(subaddress_index),
-            ),
-        );
-    }
+        TransactionMemoSignerCredentials::Local(account_key) => {
+            memo_builder.set_sender_credential(
+                SenderMemoCredential::new_from_address_and_spend_private_key(
+                    &account_key.subaddress(subaddress_index),
+                    account_key.subaddress_spend_private(subaddress_index),
+                ),
+            );
+        }
+
+        TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
+            memo_builder.set_authenticated_sender_hmac_signer(Arc::new(Box::new(
+                HardwareWalletAuthenticatedMemoHmacSigner::new(
+                    &view_account_key.subaddress(subaddress_index),
+                    subaddress_index,
+                )?,
+            )));
+        }
+    };
 
     memo_builder.enable_destination_memo();
 
     Ok(memo_builder)
+}
+
+/// Credentials used to sign a transaction memo.
+pub enum TransactionMemoSignerCredentials {
+    /// No credentials available.
+    None,
+
+    /// Local account credentials.
+    Local(AccountKey),
+
+    /// Hardware wallet credentials.
+    HardwareWallet(ViewAccountKey),
+
+    /// View only account (not managed by hardware wallet)
+    ViewOnly(ViewAccountKey),
+}
+
+impl TryFrom<&Account> for TransactionMemoSignerCredentials {
+    type Error = WalletTransactionBuilderError;
+
+    fn try_from(account: &Account) -> Result<Self, Self::Error> {
+        if account.view_only {
+            if account.managed_by_hardware_wallet {
+                Ok(Self::HardwareWallet(account.view_account_key()?))
+            } else {
+                Ok(Self::ViewOnly(account.view_account_key()?))
+            }
+        } else {
+            Ok(Self::Local(account.account_key()?))
+        }
+    }
 }
