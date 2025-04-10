@@ -109,6 +109,7 @@ runs:
       cp "${TARGET_DIR}/full-service" "${ARTIFACT_DIR}"
       cp "${TARGET_DIR}/signer" "${ARTIFACT_DIR}"
       cp "${TARGET_DIR}/signer-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/hardware-service" "${ARTIFACT_DIR}"
       cp "${TARGET_DIR}/validator-service" "${ARTIFACT_DIR}"
       cp "${TARGET_DIR}/wallet-service-mirror-private" "${ARTIFACT_DIR}/mirror"
       cp "${TARGET_DIR}/wallet-service-mirror-public" "${ARTIFACT_DIR}/mirror"
