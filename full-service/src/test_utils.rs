@@ -1,4 +1,6 @@
-use crate::service::t3_sync::T3Config;
+use crate::service::{
+    models::transaction_memo::TransactionMemoSignerCredentials, t3_sync::T3Config,
+};
 // Copyright (c) 2020-2021 MobileCoin Inc.
 use crate::config::WebhookConfig;
 #[cfg(test)]
@@ -412,24 +414,12 @@ pub fn create_test_txo_for_recipient_with_memo(
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
 
-    // Hack to allow us to use TransactionMemo::memo_builder.
-    let account = Account {
-        id: "unused".to_string(),
-        account_key: mc_util_serial::encode(recipient_account_key),
-        entropy: None,
-        key_derivation_version: 0,
-        first_block_index: 0,
-        next_block_index: 0,
-        import_block_index: None,
-        name: "unused".to_string(),
-        fog_enabled: false,
-        view_only: false,
-        managed_by_hardware_wallet: false,
-        resyncing: false,
-        require_spend_subaddress: false,
-    };
+    let mut memo_builder = memo
+        .memo_builder(&TransactionMemoSignerCredentials::Local(
+            recipient_account_key.clone(),
+        ))
+        .unwrap();
 
-    let mut memo_builder = memo.memo_builder(&account).unwrap();
     let tx_out = TxOut::new_with_memo(
         BlockVersion::MAX,
         amount,

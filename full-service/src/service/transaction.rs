@@ -20,7 +20,9 @@ use crate::{
             tx_blueprint_proposal::TxBlueprintProposal,
             tx_proposal::{TxProposal, UnsignedTxProposal},
         },
-        transaction_builder::WalletTransactionBuilder,
+        transaction_builder::{
+            build_unsigned_tx_from_blueprint_proposal, WalletTransactionBuilder,
+        },
         WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
@@ -39,7 +41,12 @@ use mc_transaction_core::{
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use std::{boxed::Box, convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
+use std::{
+    boxed::Box,
+    convert::{TryFrom, TryInto},
+    ops::DerefMut,
+    sync::atomic::Ordering,
+};
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
@@ -520,12 +527,15 @@ where
 
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        Ok(
-            WalletTransactionBuilder::<FPR>::build_unsigned_tx_from_blueprint_proposal(
-                &tx_blueprint_proposal,
-                conn,
-            )?,
-        )
+        let account = Account::get(
+            &AccountID(tx_blueprint_proposal.account_id_hex.clone()),
+            conn,
+        )?;
+
+        Ok(build_unsigned_tx_from_blueprint_proposal(
+            &tx_blueprint_proposal,
+            &(&account).try_into()?,
+        )?)
     }
 
     async fn build_and_sign_transaction(
@@ -575,13 +585,12 @@ where
 
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        let unsigned_tx_proposal =
-            WalletTransactionBuilder::<FPR>::build_unsigned_tx_from_blueprint_proposal(
-                tx_blueprint_proposal,
-                conn,
-            )?;
 
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
+            tx_blueprint_proposal,
+            &(&account).try_into()?,
+        )?;
 
         let tx_proposal = unsigned_tx_proposal.sign(&account).await?;
 
