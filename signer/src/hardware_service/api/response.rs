@@ -24,6 +24,9 @@ pub enum JsonCommandResponse {
     sign_tx {
         tx_proposal: TxProposal,
     },
+    sign_tx_blueprint {
+        tx_proposal: TxProposal,
+    },
 }
 
 impl JsonCommandResponseTrait for JsonCommandResponse {}
