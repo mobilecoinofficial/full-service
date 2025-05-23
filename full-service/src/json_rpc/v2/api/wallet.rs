@@ -1213,6 +1213,69 @@ where
 
             JsonCommandResponse::import_account { account }
         }
+        JsonCommandRequest::import_account_from_private_keys {
+            view_private_key,
+            spend_private_key,
+            name,
+            first_block_index,
+            next_subaddress_index,
+            fog_info,
+            require_spend_subaddress,
+        } => {
+            let fb = first_block_index
+                .map(|fb| fb.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+            let ns = next_subaddress_index
+                .map(|ns| ns.parse::<u64>())
+                .transpose()
+                .map_err(format_error)?;
+
+            let mut view_private_key_bytes = [0u8; 32];
+            hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)
+                .map_err(format_error)?;
+            let view_private_key: RistrettoPrivate =
+                (&view_private_key_bytes).try_into().map_err(format_error)?;
+
+            let mut spend_private_key_bytes = [0u8; 32];
+            hex::decode_to_slice(spend_private_key, &mut spend_private_key_bytes)
+                .map_err(format_error)?;
+            let spend_private_key: RistrettoPrivate =
+                (&spend_private_key_bytes).try_into().map_err(format_error)?;
+
+            let fog_info = fog_info.unwrap_or_default();
+
+            let account = service
+                .import_account_from_private_keys(
+                    &view_private_key.into(),
+                    &spend_private_key.into(),
+                    name,
+                    fb,
+                    ns,
+                    fog_info.report_url,
+                    fog_info.authority_spki,
+                    require_spend_subaddress,
+                )
+                .map_err(format_error)?;
+
+            let next_subaddress_index = service
+                .get_next_subaddress_index_for_account(&AccountID(account.id.clone()))
+                .map_err(format_error)?;
+
+            let main_public_address: mc_account_keys::PublicAddress = (&service
+                .get_address_for_account(
+                    &account.id.clone().into(),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?)
+                .try_into()
+                .map_err(format_error)?;
+
+            let account = Account::new(&account, &main_public_address, next_subaddress_index)
+                .map_err(format_error)?;
+
+            JsonCommandResponse::import_account_from_private_keys { account }
+        }
         JsonCommandRequest::import_view_only_account {
             view_private_key,
             spend_public_key,

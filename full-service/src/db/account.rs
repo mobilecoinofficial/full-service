@@ -152,7 +152,7 @@ pub trait AccountModel {
     /// * (account_id, main_subaddress_b58)
     #[allow(clippy::too_many_arguments)]
     fn create(
-        entropy: &[u8],
+        entropy: Option<&[u8]>,
         key_derivation_version: u8,
         account_key: &AccountKey,
         first_block_index: Option<u64>,
@@ -185,6 +185,37 @@ pub trait AccountModel {
     #[allow(clippy::too_many_arguments)]
     fn import(
         mnemonic: &Mnemonic,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: String,
+        fog_authority_spki: String,
+        require_spend_subaddress: bool,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError>;
+
+    /// Import account from an account_key.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                                 | Notes                                                                 |
+    ///|-------------------------|-------------------------------------------------------------------------|-----------------------------------------------------------------------|
+    ///| `account_key            | A private key pair (private_view_key,private_spend_key).                |                                                                       |
+    ///| `name`                  | The display name for the account.                                       | A label can have duplicates, but it is not recommended.               |
+    ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
+    ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
+    ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
+    ///| `fog_report_url`        | Fog Report server url.                                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                                  | Applicable only if user has Fog service, empty string otherwise.      |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                      |
+    ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
+    ///
+    /// # Returns:
+    /// * Account
+    #[allow(clippy::too_many_arguments)]
+    fn import_keys(
+        account_key: &AccountKey,
         name: Option<String>,
         import_block_index: u64,
         first_block_index: Option<u64>,
@@ -499,7 +530,7 @@ impl AccountModel for Account {
         );
 
         Account::create(
-            mnemonic.entropy(),
+            Some(mnemonic.entropy()),
             MNEMONIC_KEY_DERIVATION_VERSION,
             &account_key_with_fog,
             first_block_index,
@@ -534,7 +565,7 @@ impl AccountModel for Account {
         let account_key = AccountKey::from(&root_id);
 
         Account::create(
-            &entropy.bytes,
+            Some(&entropy.bytes),
             ROOT_ENTROPY_KEY_DERIVATION_VERSION,
             &account_key,
             first_block_index,
@@ -548,7 +579,7 @@ impl AccountModel for Account {
     }
 
     fn create(
-        entropy: &[u8],
+        entropy: Option<&[u8]>,
         key_derivation_version: u8,
         account_key: &AccountKey,
         first_block_index: Option<u64>,
@@ -576,7 +607,7 @@ impl AccountModel for Account {
         let new_account = NewAccount {
             id: &account_id.to_string(),
             account_key: &mc_util_serial::encode(account_key),
-            entropy: Some(entropy),
+            entropy: entropy,
             key_derivation_version: key_derivation_version as i32,
             first_block_index: first_block_index as i64,
             next_block_index: next_block_index as i64,
@@ -632,6 +663,40 @@ impl AccountModel for Account {
             &name.unwrap_or_default(),
             fog_report_url,
             fog_authority_spki,
+            require_spend_subaddress,
+            conn,
+        )?;
+        Account::get(&account_id, conn)
+    }
+
+    fn import_keys(
+        account_key: &AccountKey,
+        name: Option<String>,
+        import_block_index: u64,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: String,
+        fog_authority_spki: String,
+        require_spend_subaddress: bool,
+        conn: Conn,
+    ) -> Result<Account, WalletDbError> {
+        let fog_enabled = !fog_report_url.is_empty();
+
+        let account_key_with_fog = account_key.clone().with_fog(
+            &fog_report_url,
+            "".to_string(),
+            BASE64_ENGINE.decode(fog_authority_spki)?,
+        );
+
+        let (account_id, _public_address_b58) = Account::create(
+            None,
+            0,
+            &account_key_with_fog,
+            first_block_index,
+            Some(import_block_index),
+            next_subaddress_index,
+            &name.unwrap_or_default(),
+            fog_enabled,
             require_spend_subaddress,
             conn,
         )?;

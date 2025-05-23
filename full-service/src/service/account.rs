@@ -37,7 +37,7 @@ use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_core::{
     account::{RingCtAddress, ViewSubaddress},
-    keys::{RootSpendPublic, RootViewPrivate},
+    keys::{RootSpendPublic, RootViewPrivate, RootSpendPrivate},
 };
 use mc_crypto_keys::RistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -217,6 +217,34 @@ pub trait AccountService {
     fn import_account_from_legacy_root_entropy(
         &self,
         entropy: String,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: String,
+        fog_authority_spki: String,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError>;
+
+    /// Import an existing account to the wallet using the entropy.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                 | Notes                                                            |
+    ///|-------------------------|---------------------------------------------------------|------------------------------------------------------------------|
+    ///| `view_private_key`      | The view private key of this account                    |                                                                  |
+    ///| `spend_private_key`     | The spend private key of this account                   |                                                                  |
+    ///| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended.          |
+    ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.               |
+    ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
+    ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
+    ///| `require_spend_subaddress` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
+    ///
+    #[allow(clippy::too_many_arguments)]
+    fn import_account_from_private_keys(
+        &self,
+        view_private_key: &RootViewPrivate,
+        spend_private_key: &RootSpendPrivate,
         name: Option<String>,
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
@@ -518,6 +546,48 @@ where
         exclusive_transaction(conn, |conn| {
             Ok(Account::import_legacy(
                 &RootEntropy::from(&entropy_bytes),
+                name,
+                import_block,
+                first_block_index,
+                next_subaddress_index,
+                fog_report_url,
+                fog_authority_spki,
+                require_spend_subaddress,
+                conn,
+            )?)
+        })
+    }
+
+    fn import_account_from_private_keys(
+        &self,
+        view_private_key: &RootViewPrivate,
+        spend_private_key: &RootSpendPrivate,
+        name: Option<String>,
+        first_block_index: Option<u64>,
+        next_subaddress_index: Option<u64>,
+        fog_report_url: String,
+        fog_authority_spki: String,
+        require_spend_subaddress: bool,
+    ) -> Result<Account, AccountServiceError> {
+        log::info!(
+            self.logger,
+            "Importing account {:?} with first block: {:?}",
+            name,
+            first_block_index,
+        );
+
+        let account_key =
+            AccountKey::new(spend_private_key.as_ref(), view_private_key.as_ref());
+
+        // We record the local highest block index because that is the earliest we could
+        // start scanning.
+        let import_block = self.ledger_db.num_blocks()? - 1;
+
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        exclusive_transaction(conn, |conn| {
+            Ok(Account::import_keys(
+                &account_key,
                 name,
                 import_block,
                 first_block_index,

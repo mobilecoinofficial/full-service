@@ -231,6 +231,16 @@ pub enum JsonCommandRequest {
         #[serde(default = "bool::default")] // default is false
         require_spend_subaddress: bool,
     },
+    import_account_from_private_keys {
+        view_private_key: String,
+        spend_private_key: String,
+        name: Option<String>,
+        first_block_index: Option<String>,
+        next_subaddress_index: Option<String>,
+        fog_info: Option<FogInfo>,
+        #[serde(default = "bool::default")] // default is false
+        require_spend_subaddress: bool,
+    },
     import_account {
         mnemonic: String,
         name: Option<String>,

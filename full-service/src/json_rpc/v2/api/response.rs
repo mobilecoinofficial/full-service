@@ -184,6 +184,9 @@ pub enum JsonCommandResponse {
     import_account_from_legacy_root_entropy {
         account: Account,
     },
+    import_account_from_private_keys {
+        account: Account,
+    },
     import_view_only_account {
         account: Account,
     },
