@@ -77,3 +77,7 @@ runs:
       echo "AUTH_KEY_PATH=${AUTH_KEY_PATH}" >> "${GITHUB_ENV}"
       echo "CERTIFICATE_PATH=${CERTIFICATE_PATH}" >> "${GITHUB_ENV}"
       echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"
+
+      # debugging -- list a fragment of code signing identities
+      security find-identity -v -p codesigning | head -1 | awk '{print substr($2, 1, 4) "..." substr($2, length($2)-3)}'
+      
