@@ -80,4 +80,5 @@ runs:
 
       # debugging -- list a fragment of code signing identities
       echo "-- debug code signing identities"
+      security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
       security find-identity -v -p codesigning "${KEYCHAIN_PATH}" | awk '{print substr($2, 1, 4) "..." substr($2, length($2)-3)}'
