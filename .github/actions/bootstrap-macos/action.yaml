@@ -79,5 +79,5 @@ runs:
       echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"
 
       # debugging -- list a fragment of code signing identities
-      security find-identity -v -p codesigning | head -1 | awk '{print substr($2, 1, 4) "..." substr($2, length($2)-3)}'
-      
+      echo "-- debug code signing identities"
+      security find-identity -v -p codesigning | awk '{print substr($2, 1, 4) "..." substr($2, length($2)-3)}'
