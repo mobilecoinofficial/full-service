@@ -576,11 +576,12 @@ pub trait TxoModel {
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
+    ///| `token_id`       | The id of a supported type of token to filter on       |                                     |
     ///| `conn`           | An reference to the pool connection of wallet database |                                     |
     ///
     /// # Returns
     /// * Vector of TxoOut
-    fn list_secreted(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
+    fn list_secreted(account_id_hex: Option<&str>, token_id: Option<u64>, conn: Conn) -> Result<Vec<Txo>, WalletDbError>;
 
     /// Get the details for a specific Txo.
     ///
@@ -1092,7 +1093,7 @@ impl TxoModel for Txo {
                     return Txo::list_created(None, conn);
                 }
                 TxoStatus::Secreted => {
-                    return Txo::list_secreted(None, conn);
+                    return Txo::list_secreted(None, token_id, conn);
                 }
             }
         }
@@ -1195,7 +1196,7 @@ impl TxoModel for Txo {
                     return Txo::list_created(Some(account_id_hex), conn);
                 }
                 TxoStatus::Secreted => {
-                    return Txo::list_secreted(Some(account_id_hex), conn);
+                    return Txo::list_secreted(Some(account_id_hex), token_id, conn);
                 }
             }
         }
@@ -1517,7 +1518,11 @@ impl TxoModel for Txo {
         Ok(query.select(txos::all_columns).distinct().load(conn)?)
     }
 
-    fn list_secreted(account_id_hex: Option<&str>, conn: Conn) -> Result<Vec<Txo>, WalletDbError> {
+    fn list_secreted(
+        account_id_hex: Option<&str>,
+        token_id: Option<u64>,
+        conn: Conn,
+    ) -> Result<Vec<Txo>, WalletDbError> {
         /*
             SELECT *
             FROM
@@ -1564,6 +1569,10 @@ impl TxoModel for Txo {
         // txos where that account was the sender
         if let Some(account_id_hex) = account_id_hex {
             query = query.filter(transaction_logs::account_id.eq(account_id_hex))
+        }
+
+        if let Some(token_id) = token_id {
+            query = query.filter(txos::token_id.eq(token_id as i64));
         }
 
         Ok(query.select(txos::all_columns).distinct().load(conn)?)
@@ -2874,6 +2883,7 @@ mod tests {
         // Alice shouldn't have any secreted txos
         let secreted = Txo::list_secreted(
             Some(&alice_account_id.to_string()),
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3011,10 +3021,29 @@ mod tests {
         // 1 secreted -- to bob
         let secreted = Txo::list_secreted(
             Some(&alice_account_id.to_string()),
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(secreted.len(), 1);
+
+        // 1 secreted MOB txo -- to bob
+        let secreted = Txo::list_secreted(
+            Some(&alice_account_id.to_string()),
+            Some(0),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(secreted.len(), 1);
+
+        // 0 secreted eUSD -- to bob
+        let secreted = Txo::list_secreted(
+            Some(&alice_account_id.to_string()),
+            Some(1),
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(secreted.len(), 0);
 
         // Store the key image for when we spend this Txo below
         let for_carol_key_image: KeyImage =
@@ -3111,9 +3140,10 @@ mod tests {
         .unwrap();
         assert_eq!(unspent.len(), 1);
 
-        // 2 secreted -- 1 to bob, 1 to carol
+        // 2 secreted MOB Txos -- 1 to bob, 1 to carol
         let secreted = Txo::list_secreted(
             Some(&alice_account_id.to_string()),
+            Some(0),
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
