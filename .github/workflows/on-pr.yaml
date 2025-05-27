@@ -97,7 +97,8 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        cargo install cargo-sort --force
+        # pin cargo sort to version 1.0.9 because v2.x require newer rustc than we use
+        cargo install cargo-sort --version 1.0.9 --force
         cargo sort --workspace --grouped --check
 
     - name: Cargo fmt
