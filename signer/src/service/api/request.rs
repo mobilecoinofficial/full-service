@@ -1,7 +1,8 @@
 // Copyright (c) 2020-2023 MobileCoin Inc.
 
 use mc_full_service::json_rpc::{
-    json_rpc_request::JsonRPCRequest, v2::models::tx_proposal::UnsignedTxProposal,
+    json_rpc_request::JsonRPCRequest,
+    v2::models::{tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::UnsignedTxProposal},
 };
 use mc_transaction_signer::types::TxoUnsynced;
 use serde::{Deserialize, Serialize};
@@ -40,6 +41,11 @@ pub enum JsonCommandRequest {
         mnemonic: Option<String>,
         bip39_entropy: Option<String>,
         unsigned_tx_proposal: UnsignedTxProposal,
+    },
+    sign_tx_blueprint {
+        mnemonic: Option<String>,
+        bip39_entropy: Option<String>,
+        tx_blueprint_proposal: TxBlueprintProposal,
     },
     sync_txos {
         mnemonic: Option<String>,
