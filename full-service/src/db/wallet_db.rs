@@ -235,9 +235,12 @@ impl WalletDb {
                 &assigned_subaddress.spend_public_key,
             ) {
                 Ok(spend_public_key) => spend_public_key.to_bytes().to_vec(),
-                Err(_) => {
-                    global_log::debug!(
-                        "Assigned subaddress proto conversion already done, skipping..."
+                Err(e) => {
+                    global_log::error!(
+                        "Assigned subaddress_index {} of account_id {} proto conversion failed: {:?}, discontinuing scan", 
+                        assigned_subaddress.subaddress_index,
+                        assigned_subaddress.account_id,
+                        e
                     );
                     return;
                 }
