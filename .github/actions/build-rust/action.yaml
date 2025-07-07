@@ -8,6 +8,9 @@ inputs:
   version:
     description: "version of the build"
     required: true
+  enclave_release_tag:
+    description: "tag of the enclave release to download sigstruct for"
+    required: true
   target:
     description: "cargo target to build for"
     required: false
@@ -72,6 +75,7 @@ runs:
     with:
       sigstruct: consensus
       network: ${{ inputs.network }}
+      enclave_release_tag: ${{ inputs.enclave_release_tag }}
       download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
   - name: Ingest SigStruct
@@ -79,6 +83,7 @@ runs:
     with:
       sigstruct: ingest
       network: ${{ inputs.network }}
+      enclave_release_tag: ${{ inputs.enclave_release_tag }}
       download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
   - name: Cache Rust Binaries

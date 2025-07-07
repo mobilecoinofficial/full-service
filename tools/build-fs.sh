@@ -68,14 +68,14 @@ case ${net} in
     test)
         echo "Setting '${net}' SGX and enclave values"
         SGX_MODE=HW
-        CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/consensus-enclave.css")
-        INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/ingest-enclave.css")
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/ingest-enclave.css")
         ;;
     main)
         echo "Setting '${net}' SGX and enclave values"
         SGX_MODE=HW
-        CONSENSUS_ENCLAVE_CSS=$(get_css_file prod "${RELEASE_DIR}/consensus-enclave.css")
-        INGEST_ENCLAVE_CSS=$(get_css_file prod "${RELEASE_DIR}/ingest-enclave.css")
+        CONSENSUS_ENCLAVE_CSS=$(get_css_file prod "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/consensus-enclave.css")
+        INGEST_ENCLAVE_CSS=$(get_css_file prod "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/ingest-enclave.css")
         ;;
     alpha)
         echo "Setting '${net}' SGX and enclave values"

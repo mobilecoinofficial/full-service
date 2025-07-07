@@ -2,6 +2,7 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 # Set of shared functions for full-service build, test and run tools.
 
+ENCLAVE_RELEASE_TAG=${ENCLAVE_RELEASE_TAG:-"v6.0.0"}
 GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
 
@@ -87,15 +88,18 @@ debug()
 }
 
 # get_css_file - download a specified enclave measurement css file
-#  1: css file name - consensus-enclave.css, ingest-enclave.css
+#  1: network
+#  2: enclave release tag
+#  3: css file name - consensus-enclave.css, ingest-enclave.css
 get_css_file()
 {
     net="${1}"
-    css_file="${2}"
+    enclave_tag="${2}"
+    css_file="${3}"
 
     # Default Variables - you can override these with environment var settings.
     CSS_BASE_URL=${CSS_BASE_URL:-"https://enclave-distribution.${net}.mobilecoin.com"}
-    CSS_JSON_FILE=${CSS_JSON_FILE:-"production.json"}
+    CSS_JSON_FILE=${CSS_JSON_FILE:-"production-${enclave_tag}.json"}
 
     # Get remote css
     debug "  Pulling index file from ${CSS_BASE_URL}/${CSS_JSON_FILE}"

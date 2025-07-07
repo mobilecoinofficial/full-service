@@ -23,6 +23,7 @@ env:
   RUST_BIN_PATH: placeholder
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+  ENCLAVE_RELEASE_TAG: v6.0.0
 
 jobs:
   meta:
@@ -74,6 +75,7 @@ jobs:
       with:
         sigstruct: consensus
         network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
     - name: Ingest SigStruct
@@ -81,6 +83,7 @@ jobs:
       with:
         sigstruct: ingest
         network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
     # we don't need to cache the results, we just want an indication of test success
@@ -131,6 +134,7 @@ jobs:
       with:
         sigstruct: consensus
         network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
 
     - name: Ingest SigStruct
@@ -138,6 +142,7 @@ jobs:
       with:
         sigstruct: ingest
         network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         download_path: ${{ env.INGEST_ENCLAVE_CSS }}
 
     # we don't need to cache the results, we just want an indication of test success
@@ -187,6 +192,7 @@ jobs:
       with:
         network: ${{ matrix.network }}
         version: ${{ needs.meta.outputs.version }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
   build-rust-macos:
@@ -220,6 +226,7 @@ jobs:
         target: ${{ matrix.target }}
         network: ${{ matrix.network }}
         version: ${{ needs.meta.outputs.version }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
         codesign_identity: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
         codesign_prefix: ${{ secrets.APPLE_CODESIGN_PREFIX }}
