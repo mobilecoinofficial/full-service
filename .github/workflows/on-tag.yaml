@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
 
+env:
+  ENCLAVE_RELEASE_TAG: v6.0.0
+
 jobs:
   build-rust-linux:
     strategy:
@@ -31,6 +34,7 @@ jobs:
       with:
         network: ${{ matrix.network }}
         version: ${{ github.ref_name }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
 
   build-rust-macos:
@@ -62,6 +66,7 @@ jobs:
         target: ${{ matrix.target }}
         network: ${{ matrix.network }}
         version: ${{ github.ref_name }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
         cache_buster: ${{ vars.CACHE_BUSTER }}
         codesign_identity: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
         codesign_prefix: ${{ secrets.APPLE_CODESIGN_PREFIX }}
