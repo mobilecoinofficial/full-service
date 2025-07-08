@@ -21,6 +21,7 @@ use crate::{
             receiver_receipt::ReceiverReceipt,
             signed_contingent_input::ValidateProofOfReserveSciResult,
             transaction_log::TransactionLog,
+            tx_blueprint_proposal::TxBlueprintProposal,
             tx_proposal::{TxProposal, UnsignedTxProposal},
             txo::Txo,
             wallet_status::WalletStatus,
@@ -56,6 +57,10 @@ pub enum JsonCommandResponse {
     build_transaction {
         tx_proposal: TxProposal,
         transaction_log_id: String,
+    },
+    build_tx_blueprint {
+        account_id: String,
+        tx_blueprint_proposal: TxBlueprintProposal,
     },
     build_unsigned_burn_transaction {
         account_id: String,
