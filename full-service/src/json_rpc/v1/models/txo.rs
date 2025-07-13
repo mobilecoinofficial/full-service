@@ -13,6 +13,7 @@ pub enum TxoStatus {
     Secreted,
     Spent,
     Unspent,
+    Failed,
 }
 
 impl fmt::Display for TxoStatus {
@@ -23,6 +24,7 @@ impl fmt::Display for TxoStatus {
             TxoStatus::Secreted => write!(f, "txo_status_secreted"),
             TxoStatus::Spent => write!(f, "txo_status_spent"),
             TxoStatus::Unspent => write!(f, "txo_status_unspent"),
+            TxoStatus::Failed => write!(f, "txo_status_failed"),
         }
     }
 }
@@ -37,6 +39,7 @@ impl FromStr for TxoStatus {
             "txo_status_pending" => Ok(TxoStatus::Pending),
             "txo_status_spent" => Ok(TxoStatus::Spent),
             "txo_status_orphaned" => Ok(TxoStatus::Orphaned),
+            "txo_status_failed" => Ok(TxoStatus::Failed),
             _ => Err(format!("Unknown TxoStatus: {s}")),
         }
     }
@@ -52,6 +55,7 @@ impl TryFrom<TxoStatus> for db::txo::TxoStatus {
             TxoStatus::Secreted => Ok(db::txo::TxoStatus::Secreted),
             TxoStatus::Spent => Ok(db::txo::TxoStatus::Spent),
             TxoStatus::Unspent => Ok(db::txo::TxoStatus::Unspent),
+            TxoStatus::Failed => Ok(db::txo::TxoStatus::Failed),
         }
     }
 }
@@ -66,6 +70,7 @@ impl From<&db::txo::TxoStatus> for TxoStatus {
             db::txo::TxoStatus::Unverified => TxoStatus::Unspent,
             db::txo::TxoStatus::Secreted => TxoStatus::Secreted,
             db::txo::TxoStatus::Created => TxoStatus::Unspent,
+            db::txo::TxoStatus::Failed => TxoStatus::Failed,
         }
     }
 }
