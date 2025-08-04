@@ -5,6 +5,7 @@
 use reqwest::{
     blocking::Client,
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
+    StatusCode,
 };
 
 use displaydoc::Display;
@@ -46,11 +47,22 @@ pub fn check_host_is_allowed_country_and_region() -> Result<(), CheckHostError> 
     let client = Client::builder().gzip(true).use_rustls_tls().build()?;
     let mut json_headers = HeaderMap::new();
     json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    let response = client
+    let response = match client
         .get("https://ipinfo.io/json/")
         .headers(json_headers)
         .send()?
-        .error_for_status()?;
+        .error_for_status()
+    {
+        Ok(response) => response,
+
+        // We treat rate limiting as a success in order to provide a better user experience.
+        Err(e) if e.status() == Some(StatusCode::TOO_MANY_REQUESTS) => {
+            return Ok(());
+        }
+
+        Err(e) => return Err(e.into()),
+    };
+
     let data = response.text()?;
     let data_json: serde_json::Value = serde_json::from_str(&data)?;
 
