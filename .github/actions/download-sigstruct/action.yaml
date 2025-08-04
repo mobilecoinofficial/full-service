@@ -1,0 +1,48 @@
+name: Download SigStruct
+description: Download SigStruct for enclave distribution
+
+inputs:
+  sigstruct:
+    description: "name of sigstruct consensus|ingest|view|ledger"
+    required: true
+  enclave_release_tag:
+    description: "tag of the enclave release to download sigstruct for"
+    required: true
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+  download_path:
+    description: "file path to download sigstruct to"
+    required: true
+
+outputs:
+  sigstruct_uri:
+    description: "URI of the sigstruct"
+    value: ${{ steps.download_sigstruct.outputs.sigstruct_uri }}
+
+runs:
+  using: composite
+  steps:
+  - name: Download SigStruct
+    id: download_sigstruct
+    shell: bash
+    run: |
+      set -e -o pipefail
+
+      NETWORK="${{ inputs.network }}"
+      SIGSTRUCT_NAME="${{ inputs.sigstruct }}"
+      DOWNLOAD_PATH="${{ inputs.download_path }}"
+      ENCLAVE_RELEASE_TAG="${{ inputs.enclave_release_tag }}"
+
+      # set network to prod if main
+      if [[ "${NETWORK}" == "main" ]]; then
+          NETWORK="prod"
+      fi
+
+      CSS_BASE_URL="https://enclave-distribution.${NETWORK}.mobilecoin.com"
+      SIGSTRUCT_URI=$(curl -fsSL "${CSS_BASE_URL}/production-${ENCLAVE_RELEASE_TAG}.json" | jq -r ".${SIGSTRUCT_NAME}.sigstruct")
+
+      mkdir -p "$(dirname "${DOWNLOAD_PATH}")"
+      curl -fL --retry 3 "${CSS_BASE_URL}/${SIGSTRUCT_URI}" -o "${DOWNLOAD_PATH}"
+
+      echo "sigstruct_uri=${CSS_BASE_URL}/${SIGSTRUCT_URI}" >> "${GITHUB_OUTPUT}"

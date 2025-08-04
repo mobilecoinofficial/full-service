@@ -13,7 +13,7 @@ use crate::{
     db::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
-        models::{Account, Txo},
+        models::{Account, AssignedSubaddress, Txo},
         txo::TxoModel,
         Conn,
     },
@@ -21,7 +21,7 @@ use crate::{
     service::transaction::TransactionMemo,
     util::b58::b58_encode_public_address,
 };
-use mc_account_keys::PublicAddress;
+use mc_account_keys::{PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::global_log, HashSet};
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -43,7 +43,7 @@ use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
 // TODO support for making this configurable
-pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 10;
+pub const DEFAULT_NEW_TX_BLOCK_ATTEMPTS: u64 = 100;
 
 /// A builder of transactions constructed from this wallet.
 pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
@@ -249,7 +249,87 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         let view_account_key = account.view_account_key()?;
         let view_private_key = account.view_private_key()?;
-        let reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+        let reserved_subaddresses = match account.account_key() {
+            Ok(account_key) => ReservedSubaddresses::from(&account_key),
+            Err(_) if !account.fog_enabled => ReservedSubaddresses::from(&view_account_key),
+            Err(_) => {
+                // It looks like we have a view-only fog-enabled account. Unfortunately the
+                // Account row does not store any fog parameters, but we do need
+                // them in order to construct a correct ReservedSubaddresses instance that has
+                // the right fog parameters (otherwise we will not generate a
+                // correct fog hint). The hack we do here is to fetch the fog
+                // parameters from the default AssignedSubaddress. They are assumed to be
+                // present there because that is how
+                // `Account::import_view_only_from_hardware_wallet_with_fog` creates the
+                // AssignedSubaddress row for DEFAULT_SUBADDRESS_INDEX.
+                let default_assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
+                    &self.account_id_hex,
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                    conn,
+                )?;
+                let default_assigned_subaddress_public_address =
+                    default_assigned_subaddress.public_address()?;
+                let fog_report_url = default_assigned_subaddress_public_address
+                    .fog_report_url()
+                    .ok_or_else(|| {
+                        WalletTransactionBuilderError::FogError(
+                            "view-only fog-enabled account is missing fog report url".into(),
+                        )
+                    })?;
+                let fog_report_id = default_assigned_subaddress_public_address
+                    .fog_report_id()
+                    .map(|id| id.to_string())
+                    .unwrap_or_default(); // fog report id is optional
+                let fog_authority_sig = default_assigned_subaddress_public_address
+                    .fog_authority_sig()
+                    .ok_or_else(|| {
+                        WalletTransactionBuilderError::FogError(
+                            "view-only fog-enabled account is missing fog authority sig".into(),
+                        )
+                    })?;
+
+                let mut reserved_subaddresses = ReservedSubaddresses::from(&view_account_key);
+
+                assert_eq!(
+                    default_assigned_subaddress_public_address.view_public_key(),
+                    reserved_subaddresses.primary_address.view_public_key()
+                );
+                assert_eq!(
+                    default_assigned_subaddress_public_address.spend_public_key(),
+                    reserved_subaddresses.primary_address.spend_public_key()
+                );
+
+                reserved_subaddresses.primary_address = PublicAddress::new_with_fog(
+                    reserved_subaddresses.primary_address.spend_public_key(),
+                    reserved_subaddresses.primary_address.view_public_key(),
+                    fog_report_url,
+                    fog_report_id.clone(),
+                    fog_authority_sig,
+                );
+
+                reserved_subaddresses.change_subaddress = PublicAddress::new_with_fog(
+                    reserved_subaddresses.change_subaddress.spend_public_key(),
+                    reserved_subaddresses.change_subaddress.view_public_key(),
+                    fog_report_url,
+                    fog_report_id.clone(),
+                    fog_authority_sig,
+                );
+
+                // The gift code subaddress isn't actually used in the transaction builder, but
+                // we modify it anyway for consistency.
+                reserved_subaddresses.gift_code_subaddress = PublicAddress::new_with_fog(
+                    reserved_subaddresses
+                        .gift_code_subaddress
+                        .spend_public_key(),
+                    reserved_subaddresses.gift_code_subaddress.view_public_key(),
+                    fog_report_url,
+                    fog_report_id,
+                    fog_authority_sig,
+                );
+
+                reserved_subaddresses
+            }
+        };
 
         let block_version = self.block_version.unwrap_or(BlockVersion::MAX);
         let (fee, fee_token_id) = self.fee.unwrap_or((Mob::MINIMUM_FEE, Mob::ID));
@@ -583,20 +663,25 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, ops::DerefMut, sync::Mutex};
-
     use super::*;
     use crate::{
         db::WalletDbError,
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            random_fog_enabled_account_with_seed_values,
+            random_view_only_fog_hardware_wallet_account_with_seed_values, WalletDbTestContext,
+            MOB, TEST_FOG_AUTHORITY_SPKI, TEST_FOG_URL,
         },
     };
+    use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
     use mc_account_keys::AccountKey;
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
+    use mc_crypto_keys::RistrettoPublic;
+    use mc_transaction_core::fog_hint::FogHint;
+    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
+    use std::{collections::HashMap, ops::DerefMut, sync::Mutex};
 
     #[async_test_with_logger]
     async fn test_build_with_utxos(logger: Logger) {
@@ -1207,7 +1292,10 @@ mod tests {
             )
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
-        assert_eq!(proposal.tx.prefix.tombstone_block, 23);
+        assert_eq!(
+            proposal.tx.prefix.tombstone_block,
+            13 + DEFAULT_NEW_TX_BLOCK_ATTEMPTS
+        );
 
         // Build a transaction and explicitly set tombstone
         let (recipient, mut builder) =
@@ -1510,5 +1598,228 @@ mod tests {
         builder
             .add_recipient(second_recipient, 40 * MOB, Mob::ID)
             .unwrap();
+    }
+
+    // Test that fog hints are correctly set for a regular
+    // (non-hardware/non-view-only) account.
+    #[async_test_with_logger]
+    async fn test_fog_hints_for_regular_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_fog_enabled_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[70 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (non_fog_recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        let fog_recipient_account_key = AccountKey::random(&mut rng).with_fog(
+            account_key.fog_report_url().unwrap().to_string(),
+            account_key.fog_report_id().clone().unwrap_or_default(),
+            account_key.fog_authority_spki().unwrap().to_vec(),
+        );
+        let fog_recipient = fog_recipient_account_key.subaddress(5);
+
+        let fog_resolver = builder.get_fog_resolver(conn).unwrap();
+
+        builder
+            .add_recipient(non_fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let unsigned_tx_proposal = builder
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
+            .unwrap();
+
+        // Check that the change txo fog hint is correct. It should point at our default
+        // subaddress.
+        assert_eq!(unsigned_tx_proposal.change_txos.len(), 1);
+        let change_txo = &unsigned_tx_proposal.change_txos[0].tx_out;
+
+        let mut change_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &change_txo.e_fog_hint,
+            &mut change_fog_hint,
+        )));
+        assert_eq!(
+            *change_fog_hint.get_view_pubkey(),
+            account
+                .account_key()
+                .unwrap()
+                .default_subaddress()
+                .view_public_key()
+                .into(),
+        );
+
+        // Check that the non-fog-recipient does not have a decryptable fog hint and
+        // that the fog recipient does
+        assert_eq!(unsigned_tx_proposal.payload_txos.len(), 2);
+        let non_fog_recipient_txo = &unsigned_tx_proposal.payload_txos[0].tx_out;
+        let fog_recipient_txo = &unsigned_tx_proposal.payload_txos[1].tx_out;
+
+        let mut non_fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(!bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &non_fog_recipient_txo.e_fog_hint,
+            &mut non_fog_recipient_fog_hint,
+        )));
+        assert_ne!(
+            *non_fog_recipient_fog_hint.get_view_pubkey(),
+            non_fog_recipient.view_public_key().into(),
+        );
+
+        let mut fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &fog_recipient_txo.e_fog_hint,
+            &mut fog_recipient_fog_hint,
+        )));
+        assert_eq!(
+            *fog_recipient_fog_hint.get_view_pubkey(),
+            fog_recipient.view_public_key().into(),
+        );
+    }
+
+    // Test that fog hints are correctly set for a hardware wallet with fog.
+    #[async_test_with_logger]
+    async fn test_fog_hints_for_hardware_wallet_with_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        // Start sync thread
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let view_account_key = random_view_only_fog_hardware_wallet_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[70 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&view_account_key), conn).unwrap();
+
+        let (non_fog_recipient, mut builder) =
+            builder_for_random_recipient(account.id.clone(), &ledger_db, &mut rng);
+
+        let fog_recipient_account_key = AccountKey::random(&mut rng).with_fog(
+            TEST_FOG_URL.to_string(),
+            "".to_string(),
+            BASE64_ENGINE.decode(TEST_FOG_AUTHORITY_SPKI).unwrap(),
+        );
+        let fog_recipient = fog_recipient_account_key.subaddress(5);
+
+        let fog_resolver = builder.get_fog_resolver(conn).unwrap();
+
+        builder
+            .add_recipient(non_fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder
+            .add_recipient(fog_recipient.clone(), 10 * MOB, Mob::ID)
+            .unwrap();
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        // Verify that not setting fee results in default fee
+        let unsigned_tx_proposal = builder
+            .build(
+                TransactionMemo::RTH {
+                    subaddress_index: None,
+                },
+                conn,
+            )
+            .unwrap();
+
+        // Check that the change txo fog hint is correct. It should point at our default
+        // subaddress.
+        assert_eq!(unsigned_tx_proposal.change_txos.len(), 1);
+        let change_txo = &unsigned_tx_proposal.change_txos[0].tx_out;
+
+        let mut change_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &change_txo.e_fog_hint,
+            &mut change_fog_hint,
+        )));
+        assert_eq!(
+            *change_fog_hint.get_view_pubkey(),
+            view_account_key
+                .default_subaddress()
+                .view_public_key()
+                .into(),
+        );
+
+        // Check that the non-fog-recipient does not have a decryptable fog hint and
+        // that the fog recipient does
+        assert_eq!(unsigned_tx_proposal.payload_txos.len(), 2);
+        let non_fog_recipient_txo = &unsigned_tx_proposal.payload_txos[0].tx_out;
+        let fog_recipient_txo = &unsigned_tx_proposal.payload_txos[1].tx_out;
+
+        let mut non_fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(!bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &non_fog_recipient_txo.e_fog_hint,
+            &mut non_fog_recipient_fog_hint,
+        )));
+        assert_ne!(
+            *non_fog_recipient_fog_hint.get_view_pubkey(),
+            non_fog_recipient.view_public_key().into(),
+        );
+
+        let mut fog_recipient_fog_hint = FogHint::new(RistrettoPublic::from_random(&mut rng));
+        assert!(bool::from(FogHint::ct_decrypt(
+            fog_resolver.private_key(),
+            &fog_recipient_txo.e_fog_hint,
+            &mut fog_recipient_fog_hint,
+        )));
+        assert_eq!(
+            *fog_recipient_fog_hint.get_view_pubkey(),
+            fog_recipient.view_public_key().into(),
+        );
     }
 }

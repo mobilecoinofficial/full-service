@@ -5,6 +5,8 @@
 #
 # assume we have pre-built binary
 
+# hadolint global ignore=DL3008,DL3015
+
 FROM ubuntu:focal-20240427
 
 RUN  addgroup --system --gid 1000 app \
@@ -15,9 +17,9 @@ RUN  addgroup --system --gid 1000 app \
 
 RUN  apt-get update \
   && apt-get upgrade -y \
-  && apt-get install -y ca-certificates curl libdbus-1-3 libusb-1.0-0 \
+  && apt-get install -y jq ca-certificates curl libdbus-1-3 libusb-1.0-0 \
   && apt-get clean \
-  && rm -r /var/lib/apt/lists \
+  && rm -r /var/lib/apt/lists/* \
   && mkdir -p /usr/share/grpc \
   && ln -s /etc/ssl/certs/ca-certificates.crt /usr/share/grpc/roots.pem
 
@@ -25,12 +27,14 @@ ARG RUST_BIN_PATH=target/release
 COPY ${RUST_BIN_PATH}/full-service /usr/local/bin/
 COPY ${RUST_BIN_PATH}/signer /usr/local/bin/
 COPY ${RUST_BIN_PATH}/signer-service /usr/local/bin/
+COPY ${RUST_BIN_PATH}/hardware-service /usr/local/bin/
 COPY ${RUST_BIN_PATH}/validator-service /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-private /usr/local/bin/
 COPY ${RUST_BIN_PATH}/wallet-service-mirror-public /usr/local/bin/
 COPY ${RUST_BIN_PATH}/generate-rsa-keypair /usr/local/bin/
 COPY ${RUST_BIN_PATH}/ingest-enclave.css /usr/local/bin/
 COPY .internal-ci/docker/entrypoints/full-service.sh /usr/local/bin/entrypoint.sh
+COPY .internal-ci/util/wait-for-full-service.sh /usr/local/bin/wait-for-full-service.sh
 # not implemented yet
 # COPY .internal-ci/docker/support/full-service/initialize-wallets.sh /usr/local/bin/initialize-wallets.sh
 

@@ -1,65 +1,107 @@
 #!/bin/bash
 # Copyright (c) 2022 The MobileCoin Foundation
 
-NET="$1"
+set -e
 
-if [ "$NET" == "main" ]; then
-    NAMESPACE="prod"
-    PEER_DOMAIN="prod.mobilecoinww.com/"
-    TX_SOURCE_URL="https://ledger.mobilecoinww.com"
-    INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-elif [ "$NET" == "test" ]; then
-    NAMESPACE=$NET
-    PEER_DOMAIN="test.mobilecoin.com/"
-    TX_SOURCE_URL="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
-    INGEST_SIGSTRUCT_URI=$(curl -s https://enclave-distribution.${NAMESPACE}.mobilecoin.com/production.json | grep ingest-enclave.css | awk '{print $2}' | tr -d \" | tr -d ,)
-elif [ "$NET" == "alpha" ]; then
-    NAMESPACE=$NET
-    PEER_DOMAIN="alpha.development.mobilecoin.com/"
-    TX_SOURCE_URL="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
-    INGEST_SIGSTRUCT_URI=""
-else
-    # TODO: add support for local network
-    echo "Unknown network"
-    echo "Usage: run-fs.sh {main|test|alpha} [--no-build]"
+usage()
+{
+    echo "Usage:"
+    echo "${0} <network>"
+    echo "    <network> - main|prod|test|local or other"
+    echo "                if other, set your own variables"
+    echo "                MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS"
+}
+
+while (( "$#" ))
+do
+    case "${1}" in
+        --help | -h)
+            usage
+            exit 0
+            ;;
+        *)
+            net="${1}"
+            shift 1
+            ;;
+    esac
+done
+
+if [[ -z "${net}" ]]
+then
+    echo "ERROR: <network> is not set"
+    usage
     exit 1
 fi
 
-WORK_DIR="$HOME/.mobilecoin/${NET}"
-LEDGER_DB_DIR="${WORK_DIR}/validator-ledger-db"
-INGEST_DOWNLOAD_LOCATION="$WORK_DIR/ingest-enclave.css"
-mkdir -p ${WORK_DIR}
-
-
-if ! test -f "$INGEST_DOWNLOAD_LOCATION" && [ "$INGEST_SIGSTRUCT_URI" != "" ]; then
-    (cd ${WORK_DIR} && curl -O https://enclave-distribution.${NAMESPACE}.mobilecoin.com/${INGEST_SIGSTRUCT_URI})
+# use main instead of legacy prod
+if [[ "${net}" == "prod" ]]
+then
+    echo "Detected \"prod\" legacy network setting. Using \"main\" instead."
+    net=main
 fi
 
-if [ -z "$INGEST_ENCLAVE_CSS" ]; then
-    export INGEST_ENCLAVE_CSS=$INGEST_DOWNLOAD_LOCATION
-fi
+# Grab current location and source the shared functions.
+location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+# shellcheck source=/dev/null
+source "${location}/.shared-functions.sh"
 
-if ! test -f "$INGEST_ENCLAVE_CSS"; then
-    echo "Missing ingest enclave at $INGEST_ENCLAVE_CSS"
-    exit 1
-fi
+debug "RELEASE_DIR: ${RELEASE_DIR:?}"
 
-# Pass "--no-build" if the user just wants to run what they have in  
-# WORK_DIR instead of building and copying over a new exectuable
-if [ "$2" != "--no-build" ]; then
-    echo "Building"
-    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-    $SCRIPT_DIR/build-fs.sh $NET
-    cp $SCRIPT_DIR/../target/release/validator-service $WORK_DIR
-fi 
+case "${net}" in
+    test)
+        domain_name="test.mobilecoin.com"
+        tx_source_base="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
 
-mkdir -p ${WALLET_DB_DIR}
-$WORK_DIR/validator-service \
-    --ledger-db ${LEDGER_DB_DIR} \
-    --peer mc://node1.${PEER_DOMAIN} \
-    --peer mc://node2.${PEER_DOMAIN} \
-    --tx-source-url ${TX_SOURCE_URL}/node1.${PEER_DOMAIN} \
-    --tx-source-url ${TX_SOURCE_URL}/node2.${PEER_DOMAIN}  \
-    --listen-uri "validator://localhost:5554/?tls-chain=$WORK_DIR/server.crt&tls-key=$WORK_DIR/server.key" \
-    --chain-id $NET
-    
+        # Set chain id, peer and tx_sources for 2 nodes.
+        MC_CHAIN_ID="${net}"
+        if [[ -z "${MC_OFFLINE}" ]]
+        then
+            MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
+            MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${RELEASE_DIR}/ingest-enclave.css")
+        fi
+        ;;
+    main)
+        domain_name="prod.mobilecoinww.com"
+        tx_source_base="https://ledger.mobilecoinww.com"
+
+        # Set chain id, peer and tx_sources for 2 nodes.
+        MC_CHAIN_ID="${net}"
+        if [[ -z "${MC_OFFLINE}" ]]
+        then
+            MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
+            MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${RELEASE_DIR}/ingest-enclave.css")
+        fi
+        ;;
+    local)
+        # Set chain id, peer and tx_sources for 2 nodes.
+        MC_CHAIN_ID="${net}"
+        if [[ -z "${MC_OFFLINE}" ]]
+        then
+            MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
+            MC_TX_SOURCE_URL="file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-0,file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-1"
+        fi
+        MC_FOG_INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
+        ;;
+    *)
+        echo "Using current environment's SGX, IAS and enclave values"
+        echo "Set MC_CHAIN_ID, MC_PEER, MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS as appropriate"
+        ;;
+esac
+
+echo "Setting '${net}' environment values"
+
+export MC_CHAIN_ID MC_PEER MC_TX_SOURCE_URL MC_FOG_INGEST_ENCLAVE_CSS
+echo "  MC_CHAIN_ID: ${MC_CHAIN_ID}"
+echo "  MC_PEER: ${MC_PEER}"
+echo "  MC_TX_SOURCE_URL: ${MC_TX_SOURCE_URL}"
+echo "  MC_FOG_INGEST_ENCLAVE_CSS: ${MC_FOG_INGEST_ENCLAVE_CSS}"
+
+echo "Starting validator-service. Log is at /tmp/validator-service.log"
+validator_ledger_db="${RELEASE_DIR}/validator/ledger-db"
+mkdir -p "${validator_ledger_db}"
+
+"${RELEASE_DIR}/validator-service" \
+    --ledger-db "${validator_ledger_db}" \
+    --listen-uri "insecure-validator://127.0.0.1:11000/"

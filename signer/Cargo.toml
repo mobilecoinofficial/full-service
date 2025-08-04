@@ -1,7 +1,7 @@
 [package]
 name = "mc-signer"
 authors = ["MobileCoin"]
-version = "2.10.2"
+version = "2.10.7"
 edition = "2021"
 build = "build.rs"
 
@@ -13,6 +13,10 @@ path = "src/bin/main.rs"
 [[bin]]
 name = "signer-service"
 path = "src/service/bin/main.rs"
+
+[[bin]]
+name = "hardware-service"
+path = "src/hardware_service/bin/main.rs"
 
 [dependencies]
 mc-account-keys = { path = "../mobilecoin/account-keys" }
@@ -29,6 +33,8 @@ mc-transaction-signer = { path = "../mobilecoin/transaction/signer" }
 mc-transaction-summary = { path = "../mobilecoin/transaction/summary" }
 mc-util-repr-bytes = { path = "../mobilecoin/util/repr-bytes", default-features = false }
 mc-util-serial = { path = "../mobilecoin/util/serial", default-features = false }
+
+ledger-mob = { path = "../ledger-mob/lib" }
 
 anyhow = "1.0.75"
 base64 = "0.21.5"

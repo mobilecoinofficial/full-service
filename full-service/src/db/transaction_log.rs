@@ -3,14 +3,10 @@
 //! DB impl for the Transaction model.
 
 use diesel::prelude::*;
+use hex_fmt::HexFmt;
 use mc_common::HashMap;
-use mc_crypto_digestible::{Digestible, MerlinTranscript};
-use mc_transaction_core::{
-    tx::{Tx, TxPrefix},
-    Amount, TokenId,
-};
-use mc_transaction_extra::UnsignedTx;
-use std::fmt;
+use mc_transaction_core::{Amount, TokenId};
+use std::{convert::TryFrom, fmt};
 
 use crate::{
     db::{
@@ -19,10 +15,15 @@ use crate::{
             Account, NewTransactionInputTxo, NewTransactionLog, TransactionInputTxo,
             TransactionLog, TransactionOutputTxo, Txo,
         },
+        schema::{
+            transaction_input_txos, transaction_logs,
+            transaction_logs::dsl::{id as dsl_id, transaction_logs as dsl_transaction_logs},
+            transaction_output_txos, txos,
+        },
         txo::{TxoID, TxoModel},
         Conn, WalletDbError,
     },
-    service::models::tx_proposal::{TxProposal, UnsignedTxProposal},
+    service::models::tx_proposal::{OutputTxo, TxProposal, UnsignedTxProposal},
 };
 
 #[derive(Debug, PartialEq)]
@@ -34,34 +35,33 @@ impl From<&TransactionLog> for TransactionId {
     }
 }
 
-impl From<&TxProposal> for TransactionId {
-    fn from(_tx_proposal: &TxProposal) -> Self {
-        Self::from(&_tx_proposal.tx.prefix)
+impl TryFrom<&TxProposal> for TransactionId {
+    type Error = &'static str;
+    fn try_from(_tx_proposal: &TxProposal) -> Result<Self, Self::Error> {
+        Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
 
-impl From<&UnsignedTxProposal> for TransactionId {
-    fn from(_tx_proposal: &UnsignedTxProposal) -> Self {
-        Self::from(&_tx_proposal.unsigned_tx.tx_prefix)
+impl TryFrom<&UnsignedTxProposal> for TransactionId {
+    type Error = &'static str;
+    fn try_from(_tx_proposal: &UnsignedTxProposal) -> Result<Self, Self::Error> {
+        Self::try_from(_tx_proposal.payload_txos.clone())
     }
 }
 
-impl From<&Tx> for TransactionId {
-    fn from(src: &Tx) -> TransactionId {
-        Self::from(&src.prefix)
-    }
-}
-
-impl From<&UnsignedTx> for TransactionId {
-    fn from(src: &UnsignedTx) -> TransactionId {
-        Self::from(&src.tx_prefix)
-    }
-}
-
-impl From<&TxPrefix> for TransactionId {
-    fn from(src: &TxPrefix) -> TransactionId {
-        let temp: [u8; 32] = src.digest32::<MerlinTranscript>(b"transaction_data");
-        Self(hex::encode(temp))
+impl TryFrom<Vec<OutputTxo>> for TransactionId {
+    type Error = &'static str;
+    fn try_from(_payload_txos: Vec<OutputTxo>) -> Result<Self, Self::Error> {
+        Ok(Self(
+            HexFmt(
+                _payload_txos
+                    .iter()
+                    .map(|txo| txo.tx_out.public_key)
+                    .min()
+                    .ok_or("no valid payload_txo")?,
+            )
+            .to_string(),
+        ))
     }
 }
 
@@ -327,21 +327,34 @@ pub trait TransactionLogModel {
         conn: Conn
     ) -> Result<(), WalletDbError>;
 
-    /// Update the finalized block index to all pending transaction logs that associate with a given transaction output (txo).
+    /// Update the finalized block index to all pending transaction logs that have an output
+    /// transaction corresponding to `transaction_output_txo_id_hex`.
     /// 
     /// # Arguments
-    ///
-    ///| Name                    | Purpose                                                                      | Notes |
-    ///|-------------------------|------------------------------------------------------------------------------|-------|
-    ///| `txo_id_hex`            | The txo ID for which to get all transaction logs associated with this txo ID.|       |
-    ///| `finalized_block_index` | The block index at which the transaction will be completed and finalized.    |       |
-    ///| `conn`                  | An reference to the pool connection of wallet database                       |       |
-    ///
-    /// # Returns
-    /// * unit
+    /// * `transaction_output_txo_id_hex` - The txo ID for which to get all transaction logs
+    ///   associated with this txo ID.
+    /// * `finalized_block_index` - The block index at which the transaction will be completed and
+    ///   finalized.
+    /// * `conn` - A reference to the pool connection of wallet database
     fn update_pending_associated_with_txo_to_succeeded(
-        txo_id_hex: &str,
+        transaction_output_txo_id_hex: &str,
         finalized_block_index: u64,
+        conn: Conn,
+    ) -> Result<(), WalletDbError>;
+    
+     /// Update all transaction logs that have an input transaction corresponding to
+    /// `transaction_input_txo_id_hex` to failed.
+    ///
+    /// Note: When processing inputs and outputs from the same block, be sure to mark the
+    /// appropriate transaction logs as succeeded prior to calling this method. See
+    /// `update_pending_associated_with_txo_to_succeeded()`.
+    ///
+    /// # Arguments
+    /// * `transaction_input_txo_id_hex` - The txo ID for which to get all transaction logs
+    ///   associated with this txo ID.
+    /// * `conn` - A reference to the pool connection of wallet database
+    fn update_consumed_txo_to_failed(
+        transaction_input_txo_id_hex: &str,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
 
@@ -357,6 +370,7 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * unit
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
@@ -411,9 +425,7 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get(id: &TransactionId, conn: Conn) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::transaction_logs::dsl::{id as dsl_id, transaction_logs};
-
-        match transaction_logs
+        match dsl_transaction_logs
             .filter(dsl_id.eq(id.to_string()))
             .get_result::<TransactionLog>(conn)
         {
@@ -427,8 +439,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn get_associated_txos(&self, conn: Conn) -> Result<AssociatedTxos, WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_output_txos, txos};
-
         let inputs: Vec<Txo> = txos::table
             .inner_join(transaction_input_txos::table)
             .filter(transaction_input_txos::transaction_log_id.eq(&self.id))
@@ -467,8 +477,6 @@ impl TransactionLogModel for TransactionLog {
         submitted_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set(transaction_logs::submitted_block_index.eq(Some(submitted_block_index as i64)))
             .execute(conn)?;
@@ -477,8 +485,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_comment(&self, comment: String, conn: Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set(transaction_logs::comment.eq(comment))
             .execute(conn)?;
@@ -492,8 +498,6 @@ impl TransactionLogModel for TransactionLog {
         tombstone_block_index: Option<i64>,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(self)
             .set((
                 transaction_logs::tx.eq(tx),
@@ -511,8 +515,6 @@ impl TransactionLogModel for TransactionLog {
         max_block_index: Option<u64>,
         conn: Conn,
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         let mut query = transaction_logs::table.into_boxed();
 
         if let Some(account_id) = account_id {
@@ -554,12 +556,12 @@ impl TransactionLogModel for TransactionLog {
         account_id: &AccountID,
         conn: Conn,
     ) -> Result<TransactionLog, WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Verify that the account exists.
         Account::get(account_id, conn)?;
 
         let unsigned_tx = &unsigned_tx_proposal.unsigned_tx;
-        let transaction_log_id = TransactionId::from(unsigned_tx);
+        let transaction_log_id = TransactionId::try_from(unsigned_tx_proposal)
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
 
         let new_transaction_log = NewTransactionLog {
             id: &transaction_log_id.to_string(),
@@ -612,7 +614,8 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal);
+        let transaction_log_id = TransactionId::try_from(&tx_proposal)
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
@@ -687,7 +690,8 @@ impl TransactionLogModel for TransactionLog {
         // Verify that the account exists.
         Account::get(&AccountID(account_id_hex.to_string()), conn)?;
 
-        let transaction_log_id = TransactionId::from(&tx_proposal.tx);
+        let transaction_log_id = TransactionId::try_from(tx_proposal)
+            .map_err(|e| WalletDbError::InvalidArgument(e.to_string()))?;
         let tx = mc_util_serial::encode(&tx_proposal.tx);
 
         match TransactionLog::get(&transaction_log_id, conn) {
@@ -745,10 +749,6 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn delete_all_for_account(account_id_hex: &str, conn: Conn) -> Result<(), WalletDbError> {
-        use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
-        };
-
         let transaction_input_txos: Vec<TransactionInputTxo> = transaction_input_txos::table
             .inner_join(transaction_logs::table)
             .filter(transaction_logs::account_id.eq(account_id_hex))
@@ -778,16 +778,15 @@ impl TransactionLogModel for TransactionLog {
     }
 
     fn update_pending_associated_with_txo_to_succeeded(
-        txo_id_hex: &str,
+        transaction_output_txo_id_hex: &str,
         finalized_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::{transaction_input_txos, transaction_logs};
         // Find all submitted transaction logs associated with this txo that have not
         // yet been finalized (there should only ever be one).
         let transaction_log_ids: Vec<String> = transaction_logs::table
-            .inner_join(transaction_input_txos::table)
-            .filter(transaction_input_txos::txo_id.eq(txo_id_hex))
+            .inner_join(transaction_output_txos::table)
+            .filter(transaction_output_txos::txo_id.eq(transaction_output_txo_id_hex))
             .filter(transaction_logs::submitted_block_index.is_not_null()) // we actually sent this transaction
             .filter(transaction_logs::failed.eq(false)) // non-failed transactions
             .filter(transaction_logs::finalized_block_index.is_null()) // non-completed transactions
@@ -803,14 +802,35 @@ impl TransactionLogModel for TransactionLog {
         Ok(())
     }
 
+    fn update_consumed_txo_to_failed(
+        transaction_input_txo_id_hex: &str,
+        conn: Conn,
+    ) -> Result<(), WalletDbError> {
+        let transaction_log_ids: Vec<String> = transaction_logs::table
+            .inner_join(transaction_input_txos::table)
+            .filter(transaction_input_txos::txo_id.eq(transaction_input_txo_id_hex))
+            .filter(transaction_logs::failed.eq(false))
+            .filter(transaction_logs::finalized_block_index.is_null())
+            .select(transaction_logs::id)
+            .load(conn)?;
+
+        diesel::update(
+            transaction_logs::table.filter(transaction_logs::id.eq_any(transaction_log_ids)),
+        )
+        .set((transaction_logs::failed.eq(true),))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
     fn update_pending_exceeding_tombstone_block_index_to_failed(
+        account_id: &AccountID,
         block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError> {
-        use crate::db::schema::transaction_logs;
-
         diesel::update(
             transaction_logs::table
+                .filter(transaction_logs::account_id.eq(&account_id.0))
                 .filter(transaction_logs::tombstone_block_index.lt(block_index as i64))
                 .filter(transaction_logs::failed.eq(false))
                 .filter(transaction_logs::finalized_block_index.is_null()),
@@ -849,18 +869,21 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
+    use mc_ledger_db::Ledger;
+    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
+    use mc_transaction_extra::TxOutConfirmationNumber;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
     use std::{
+        assert_matches::assert_matches,
         collections::HashMap,
         ops::DerefMut,
         sync::{Arc, Mutex},
     };
 
-    use mc_account_keys::{PublicAddress, CHANGE_SUBADDRESS_INDEX};
-    use mc_common::logger::{async_test_with_logger, Logger};
-    use mc_ledger_db::Ledger;
-    use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
-    use rand::{rngs::StdRng, SeedableRng};
-
+    use super::*;
     use crate::{
         db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
         service::{
@@ -868,14 +891,12 @@ mod tests {
             transaction_builder::WalletTransactionBuilder,
         },
         test_utils::{
-            add_block_with_tx_outs, builder_for_random_recipient, get_resolver_factory,
-            get_test_ledger, manually_sync_account, random_account_with_seed_values,
-            WalletDbTestContext, MOB,
+            add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
+            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
-
-    use super::*;
 
     #[async_test_with_logger]
     // Test the happy path for log_submitted. When a transaction is submitted to the
@@ -935,8 +956,8 @@ mod tests {
         let tx_proposal = unsigned_tx_proposal.clone().sign(&account).await.unwrap();
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         // Log submitted transaction from tx_proposal
@@ -1167,9 +1188,6 @@ mod tests {
 
     #[async_test_with_logger]
     async fn test_delete_transaction_logs_for_account(logger: Logger) {
-        use crate::db::schema::{
-            transaction_input_txos, transaction_logs, transaction_output_txos,
-        };
         use diesel::dsl::count_star;
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
@@ -1653,7 +1671,9 @@ mod tests {
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
             fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
@@ -1671,8 +1691,8 @@ mod tests {
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         let tx_log = TransactionLog::log_signed(
@@ -1684,7 +1704,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1709,7 +1731,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1887,7 +1911,9 @@ mod tests {
                 .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee as i64,
             fee_token_id: unsigned_tx_proposal.unsigned_tx.tx_prefix.fee_token_id as i64,
@@ -1905,8 +1931,8 @@ mod tests {
         let tx_bytes = mc_util_serial::encode(&tx_proposal.tx);
 
         assert_eq!(
-            TransactionId::from(&tx_proposal),
-            TransactionId::from(&unsigned_tx_proposal)
+            TransactionId::try_from(&tx_proposal),
+            TransactionId::try_from(&unsigned_tx_proposal)
         );
 
         let tx_log = TransactionLog::log_signed(
@@ -1918,7 +1944,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1943,7 +1971,9 @@ mod tests {
         .unwrap();
 
         let expected_tx_log = TransactionLog {
-            id: TransactionId::from(&unsigned_tx_proposal).to_string(),
+            id: TransactionId::try_from(&unsigned_tx_proposal)
+                .expect("Failed to convert UnsignedTxProposal to String")
+                .to_string(),
             account_id: AccountID::from(&account_key).to_string(),
             fee_value: tx_proposal.tx.prefix.fee as i64,
             fee_token_id: tx_proposal.tx.prefix.fee_token_id as i64,
@@ -1956,5 +1986,140 @@ mod tests {
         };
 
         assert_eq!(tx_log.tx, expected_tx_log.tx);
+    }
+
+    #[test]
+    fn test_try_from_vec_output_txo_for_transaction_id() {
+        let mut rng: StdRng = SeedableRng::from_entropy();
+        let root_id = RootIdentity::from_random(&mut rng);
+        let recipient_account_key = AccountKey::from(&root_id);
+        let amount = 77;
+
+        let num_loops = 10;
+
+        for loop_number in 1..=num_loops {
+            let mut output_vec: Vec<OutputTxo> = Vec::new();
+
+            for _ in 1..=loop_number {
+                let subaddress_index = 0;
+                let (tx_out, _) = create_test_txo_for_recipient(
+                    &recipient_account_key,
+                    subaddress_index,
+                    Amount::new(amount * MOB, Mob::ID),
+                    &mut rng,
+                );
+
+                let output_txo = OutputTxo {
+                    tx_out: tx_out.clone(),
+                    recipient_public_address: recipient_account_key.subaddress(0),
+                    confirmation_number: TxOutConfirmationNumber::default(),
+                    amount: Amount::new(amount * MOB, Mob::ID),
+                    shared_secret: None,
+                };
+
+                output_vec.push(output_txo);
+            }
+
+            let min_public_key = output_vec
+                .iter()
+                .map(|txo| txo.tx_out.public_key)
+                .min()
+                .unwrap();
+            let transaction_id = TransactionId::try_from(output_vec).unwrap();
+
+            assert_eq!(min_public_key.to_string(), transaction_id.0);
+        }
+    }
+
+    #[test]
+    fn test_try_from_empty_vec_output_txo_for_transaction_id() {
+        let transaction_log_id = TransactionId::try_from(vec![]);
+
+        assert_matches!(transaction_log_id, Err("no valid payload_txo"));
+    }
+
+    #[test_with_logger]
+    fn fail_by_tombstone_block_only_fails_for_given_account(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let mut ledger_db = get_test_ledger(5, &[], 12, &mut rng);
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+        let account_keys = (0..3)
+            .into_iter()
+            .map(|_| {
+                random_account_with_seed_values(
+                    &wallet_db,
+                    &mut ledger_db,
+                    &[70 * MOB],
+                    &mut rng,
+                    &logger,
+                )
+            })
+            .collect::<Vec<_>>();
+        let accounts_and_logs: Vec<_> = account_keys
+            .iter()
+            .map(|account_key| {
+                let account_id = AccountID::from(account_key);
+                let (_, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
+                    account_key.clone(),
+                    account_key.default_subaddress(),
+                    1 * MOB,
+                    wallet_db.clone(),
+                    ledger_db.clone(),
+                );
+                let tx_proposal = unsigned_tx_proposal
+                    .sign_with_local_signer(&account_key)
+                    .unwrap();
+
+                let _ = TransactionLog::log_signed(
+                    tx_proposal.clone(),
+                    "".to_string(),
+                    &AccountID::from(account_key).to_string(),
+                    conn,
+                )
+                .unwrap();
+
+                let transaction_log = TransactionLog::log_submitted(
+                    &tx_proposal,
+                    ledger_db.num_blocks().unwrap(),
+                    "".to_string(),
+                    &AccountID::from(account_key).to_string(),
+                    conn,
+                )
+                .unwrap();
+                (account_id, transaction_log)
+            })
+            .collect();
+
+        let (account_ids, transaction_logs) = accounts_and_logs
+            .iter()
+            .cloned()
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+
+        // Sanity check that all have the same tombstone block
+        let tombstone_block_index = transaction_logs[0].tombstone_block_index.unwrap();
+        for tx_log in &transaction_logs {
+            assert_eq!(tx_log.tombstone_block_index, Some(tombstone_block_index));
+        }
+
+        TransactionLog::update_pending_exceeding_tombstone_block_index_to_failed(
+            &account_ids[0],
+            tombstone_block_index as u64 + 1,
+            conn,
+        )
+        .unwrap();
+
+        let updated_transaction_logs = transaction_logs
+            .iter()
+            .map(|t| TransactionLog::get(&TransactionId::from(t), conn).unwrap())
+            .collect::<Vec<_>>();
+
+        assert_eq!(updated_transaction_logs[0].status(), TxStatus::Failed);
+        for tx_log in &updated_transaction_logs[1..] {
+            assert_eq!(tx_log.status(), TxStatus::Pending);
+        }
     }
 }

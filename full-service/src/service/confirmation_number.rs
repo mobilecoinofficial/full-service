@@ -103,7 +103,7 @@ pub struct Confirmation {
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage
-/// tonfirmation numbers.
+/// confirmation numbers.
 #[rustfmt::skip]
 #[allow(clippy::result_large_err)]
 pub trait ConfirmationService {

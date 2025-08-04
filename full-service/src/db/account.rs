@@ -262,6 +262,7 @@ pub trait AccountModel {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        change_public_address: &PublicAddress,
         require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
@@ -744,6 +745,7 @@ impl AccountModel for Account {
         import_block_index: u64,
         first_block_index: Option<u64>,
         default_public_address: &PublicAddress,
+        change_public_address: &PublicAddress,
         require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
@@ -785,9 +787,10 @@ impl AccountModel for Account {
             conn,
         )?;
 
-        AssignedSubaddress::create_for_view_only_account(
+        AssignedSubaddress::create_for_view_only_fog_account(
             view_account_key,
             CHANGE_SUBADDRESS_INDEX,
+            change_public_address,
             "Change",
             conn,
         )?;
@@ -1374,6 +1377,7 @@ mod tests {
         );
         let view_account_key: ViewAccountKey = (&account_key).into();
         let default_public_address = account_key.default_subaddress();
+        let change_public_address = account_key.change_subaddress();
 
         // Import the account into the database
         let account = {
@@ -1386,6 +1390,7 @@ mod tests {
                 12,
                 None,
                 &default_public_address,
+                &change_public_address,
                 false,
                 conn,
             )
@@ -1430,26 +1435,31 @@ mod tests {
 
         assert_eq!(assigned_subaddresses.len(), 2);
 
-        // Check to make sure the default subaddress was created correctly
-        let default_public_address_b58 =
-            b58_encode_public_address(&default_public_address).unwrap();
-        let default_subaddress_spend_public_key_bytes = default_public_address
-            .spend_public_key()
-            .to_bytes()
-            .to_vec();
+        // Check to make sure the default and change subaddresses were created correctly
+        for (subaddress_public_address, subaddress_index, subaddress_name) in [
+            (default_public_address, DEFAULT_SUBADDRESS_INDEX, "Main"),
+            (change_public_address, CHANGE_SUBADDRESS_INDEX, "Change"),
+        ] {
+            let public_address_b58 = b58_encode_public_address(&subaddress_public_address).unwrap();
+            let subaddress_spend_public_key_bytes = subaddress_public_address
+                .spend_public_key()
+                .to_bytes()
+                .to_vec();
 
-        let default_subaddress = assigned_subaddresses
-            .into_iter()
-            .find(|s| s.subaddress_index == 0)
-            .unwrap();
-        let expected_default_subaddress = AssignedSubaddress {
-            public_address_b58: default_public_address_b58,
-            account_id: account.id,
-            subaddress_index: 0,
-            comment: "Main".to_string(),
-            spend_public_key: default_subaddress_spend_public_key_bytes,
-        };
+            let subaddress = assigned_subaddresses
+                .clone()
+                .into_iter()
+                .find(|s| s.subaddress_index == subaddress_index as i64)
+                .unwrap();
+            let expected_subaddress = AssignedSubaddress {
+                public_address_b58: public_address_b58,
+                account_id: account.id.clone(),
+                subaddress_index: subaddress_index as i64,
+                comment: subaddress_name.to_string(),
+                spend_public_key: subaddress_spend_public_key_bytes,
+            };
 
-        assert_eq!(default_subaddress, expected_default_subaddress);
+            assert_eq!(subaddress, expected_subaddress);
+        }
     }
 }

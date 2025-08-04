@@ -43,6 +43,7 @@ use crate::{
         network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
+        signed_contingent_input::SignedContingentInputService,
         transaction::{TransactionMemo, TransactionService},
         transaction_log::TransactionLogService,
         txo::TxoService,
@@ -286,7 +287,9 @@ where
 
             JsonCommandResponse::build_burn_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::build_transaction {
@@ -355,7 +358,9 @@ where
 
             JsonCommandResponse::build_transaction {
                 tx_proposal: TxProposalJSON::try_from(&tx_proposal).map_err(format_error)?,
-                transaction_log_id: TransactionId::from(&tx_proposal.tx).to_string(),
+                transaction_log_id: TransactionId::try_from(&tx_proposal)
+                    .map_err(format_error)?
+                    .to_string(),
             }
         }
         JsonCommandRequest::build_unsigned_burn_transaction {
@@ -1495,6 +1500,12 @@ where
                 .validate_sender_memo(&txo_id, &sender_address)
                 .map_err(format_error)?;
             JsonCommandResponse::validate_sender_memo { validated: result }
+        }
+        JsonCommandRequest::validate_proof_of_reserve_sci { sci_proto } => {
+            let result = service
+                .validate_proof_of_reserve_sci(&sci_proto)
+                .map_err(format_error)?;
+            JsonCommandResponse::validate_proof_of_reserve_sci { result }
         }
         JsonCommandRequest::verify_address { address } => match service.verify_address(&address) {
             Ok(public_address) => JsonCommandResponse::verify_address {

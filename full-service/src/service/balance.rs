@@ -297,7 +297,7 @@ where
 
         let mut balance_per_token = BTreeMap::new();
 
-        let mut min_synced_block_index = network_status.network_block_height.saturating_sub(1);
+        let mut min_synced_block_index = network_status.local_block_height.saturating_sub(1);
         let mut account_ids = Vec::new();
 
         for account in accounts {
@@ -410,7 +410,7 @@ where
             conn,
         )?);
 
-        let secreted = sum_query_result(Txo::list_secreted(account_id_hex, conn)?);
+        let secreted = sum_query_result(Txo::list_secreted(account_id_hex, Some(*token_id), conn)?);
 
         let orphaned = if public_address_b58.is_some() {
             0

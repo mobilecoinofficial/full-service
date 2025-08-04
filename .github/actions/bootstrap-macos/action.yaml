@@ -1,0 +1,79 @@
+name: Bootstrap MacOS Rust
+description: Bootstrap MacOS environment for Rust build
+
+inputs:
+  target:
+    description: "cargo target to build for"
+    required: true
+  build_certificate_base64:
+    description: "Base64 encoded Apple certificate - P12 format"
+    required: true
+  build_certificate_password:
+    description: "Password for the Apple certificate"
+    required: true
+  auth_key_base64:
+    description: "Base64 encoded Apple API key - p8 format"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Bootstrap macOS
+    shell: bash
+    run: |
+      echo "-- install brew dependencies"
+      rm -rf "$(brew --prefix)/var/homebrew/locks"
+      brew bundle --quiet
+
+      echo "-- install cmake"
+      curl -LO https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-macos-universal.tar.gz
+      tar -xzf cmake-3.31.7-macos-universal.tar.gz
+      sudo mv cmake-3.31.7-macos-universal /opt/cmake-3.31.7
+      echo "/opt/cmake-3.31.7/bin" >> "${GITHUB_PATH}"
+
+      echo "-- install rust toolchain"
+      rm -rf /Users/runner/.cargo
+      rm -rf /Users/runner/.rustup
+      rustup toolchain install "$(cat rust-toolchain)" --target ${{ inputs.target }}
+
+      echo "-- add cargo to path"
+      rustup_cargo=$(rustup which cargo)
+      echo "CARGO_HOME=${HOME}/.cargo" >> "${GITHUB_ENV}"
+      echo "RUSTUP_HOME=${HOME}/.rustup" >> "${GITHUB_ENV}"
+      echo "${HOME}/.cargo/bin" >> "${GITHUB_PATH}"
+      echo "$(dirname "${rustup_cargo}")" >> "${GITHUB_PATH}"
+
+  - name: Setup ENV for signing and notarization
+    env:
+      BUILD_CERTIFICATE_BASE64: ${{ inputs.build_certificate_base64 }}
+      P12_PASSWORD: ${{ inputs.build_certificate_password }}
+      AUTH_KEY_BASE64: ${{ inputs.auth_key_base64 }}
+    shell: bash
+    run: |
+      # create variables
+      CERTIFICATE_PATH="${RUNNER_TEMP}/build_certificate.p12"
+      KEYCHAIN_PATH="${RUNNER_TEMP}/app-signing.keychain-db"
+      AUTH_KEY_PATH="${RUNNER_TEMP}/AuthKey.p8"
+
+      # import certificate
+      echo -n "${BUILD_CERTIFICATE_BASE64}" | base64 --decode -o "${CERTIFICATE_PATH}"
+      echo -n "${AUTH_KEY_BASE64}" | base64 --decode -o "${AUTH_KEY_PATH}"
+
+      # create temporary keychain password
+      KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+      echo "::add-mask::${KEYCHAIN_PASSWORD}"
+
+      # create temporary keychain
+      security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+      security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+      security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+
+      # import certificate to keychain
+      security import "${CERTIFICATE_PATH}" -P "${P12_PASSWORD}" -A -t cert -f pkcs12 -k "${KEYCHAIN_PATH}"
+      security set-key-partition-list -S apple-tool:,apple: -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+      security list-keychain -d user -s "${KEYCHAIN_PATH}"
+
+      # setup outputs
+      echo "AUTH_KEY_PATH=${AUTH_KEY_PATH}" >> "${GITHUB_ENV}"
+      echo "CERTIFICATE_PATH=${CERTIFICATE_PATH}" >> "${GITHUB_ENV}"
+      echo "KEYCHAIN_PATH=${KEYCHAIN_PATH}" >> "${GITHUB_ENV}"

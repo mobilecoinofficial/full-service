@@ -319,6 +319,7 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
+    use mc_ledger_db::Ledger;
     use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
@@ -496,7 +497,7 @@ mod tests {
         let txo_pubkey = mc_util_serial::decode(&txos_and_statuses[0].txo.public_key)
             .expect("Could not decode pubkey");
         assert_eq!(receipt.public_key, txo_pubkey);
-        assert_eq!(receipt.tombstone_block, 23); // Ledger seeded with 12 blocks at tx construction, then one appended + 10
+        assert_eq!(receipt.tombstone_block, 113); // Ledger seeded with 12 blocks at tx construction, then one appended + 100
         let public_key = txos_and_statuses[0]
             .txo
             .public_key()
@@ -591,7 +592,7 @@ mod tests {
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
             &tx_proposal,
-            14,
+            ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &alice.id,
             service.get_pooled_conn().unwrap().deref_mut(),
@@ -711,7 +712,7 @@ mod tests {
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
             &tx_proposal0,
-            14,
+            ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &alice.id,
             service.get_pooled_conn().unwrap().deref_mut(),
@@ -859,7 +860,7 @@ mod tests {
         // Land the Txo in the ledger - only sync for the sender
         TransactionLog::log_submitted(
             &tx_proposal0,
-            14,
+            ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &alice.id,
             service.get_pooled_conn().unwrap().deref_mut(),

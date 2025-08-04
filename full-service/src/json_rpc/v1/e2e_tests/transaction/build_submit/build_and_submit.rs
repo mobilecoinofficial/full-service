@@ -157,10 +157,10 @@ mod e2e_transaction {
             .unwrap();
         assert_eq!(outlay_confirmation_numbers.len(), 1);
 
-        // Tombstone block = ledger height (12 to start + 2 new blocks + 10 default
+        // Tombstone block = ledger height (12 to start + 2 new blocks + 100 default
         // tombstone)
         let prefix_tombstone = tx_prefix.get("tombstone_block").unwrap();
-        assert_eq!(prefix_tombstone, "24");
+        assert_eq!(prefix_tombstone, "114");
 
         let json_tx_proposal: json_rpc::v1::models::tx_proposal::TxProposal =
             serde_json::from_value(tx_proposal.clone()).unwrap();

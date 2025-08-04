@@ -1,0 +1,163 @@
+name: Build Rust
+description: Build rust artifacts
+
+inputs:
+  network:
+    description: "network to download sigstruct from main|test"
+    required: true
+  version:
+    description: "version of the build"
+    required: true
+  enclave_release_tag:
+    description: "tag of the enclave release to download sigstruct for"
+    required: true
+  target:
+    description: "cargo target to build for"
+    required: false
+    default: ""
+  cache_buster:
+    description: "cache buster"
+    required: true
+  codesign_identity:
+    description: "codesign identity"
+    default: ""
+    required: false
+  codesign_prefix:
+    description: "codesign prefix"
+    default: ""
+    required: false
+  notarytool_key_id:
+    description: "notarytool key id"
+    default: ""
+    required: false
+  notarytool_issuer:
+    description: "notarytool issuer"
+    default: ""
+    required: false
+
+runs:
+  using: composite
+  steps:
+  - name: Setup ENV
+    shell: bash
+    run: |
+      # Set Local Environment Variables
+      if [[ "${{ inputs.target }}" == "aarch64-apple-darwin" ]]
+      then
+          ARCH="ARM64"
+          TARGET_DIR="target/${{ inputs.target }}/release"
+          TARGET="--target ${{ inputs.target }}"
+      elif [[ "${{ inputs.target }}" == "x86_64-apple-darwin" ]]
+      then
+          ARCH="X64"
+          TARGET_DIR="target/${{ inputs.target }}/release"
+          TARGET="--target ${{ inputs.target }}"
+      else
+          ARCH=${{ runner.arch }}
+          TARGET_DIR="target/release"
+          TARGET=""
+      fi
+
+      ARTIFACT_BASE="full-service-${{ inputs.network }}net-${{ runner.os }}-${ARCH}"
+      ARTIFACT_NAME="${ARTIFACT_BASE}-${{ inputs.version }}"
+
+      # Set GitHub environment variables for later use
+      echo "ARCH=${ARCH}" >> "${GITHUB_ENV}"
+      echo "TARGET_DIR=${TARGET_DIR}" >> "${GITHUB_ENV}"
+      echo "TARGET=${TARGET}" >> "${GITHUB_ENV}"
+      echo "CONSENSUS_ENCLAVE_CSS=/var/tmp/consensus-enclave.css" >> "${GITHUB_ENV}"
+      echo "INGEST_ENCLAVE_CSS=/var/tmp/ingest-enclave.css" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_NAME=${ARTIFACT_NAME}" >> "${GITHUB_ENV}"
+      echo "ARTIFACT_DIR=build_artifacts/${ARTIFACT_BASE}" >> "${GITHUB_ENV}"
+
+  - name: Consensus SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: consensus
+      network: ${{ inputs.network }}
+      enclave_release_tag: ${{ inputs.enclave_release_tag }}
+      download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+  - name: Ingest SigStruct
+    uses: ./.github/actions/download-sigstruct
+    with:
+      sigstruct: ingest
+      network: ${{ inputs.network }}
+      enclave_release_tag: ${{ inputs.enclave_release_tag }}
+      download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+  - name: Cache Rust Binaries
+    id: cache
+    uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+    with:
+      cache_buster: ${{ inputs.cache_buster }}
+      additional_keys: -${{ inputs.network }}-${{ env.ARCH }}
+      path: build_artifacts
+
+  - name: Cargo Build
+    if: steps.cache.outputs.cache-hit != 'true'
+    shell: bash
+    env:
+      RUST_BACKTRACE: full
+      SGX_MODE: HW
+    run: |
+      cargo build --release --locked ${TARGET}
+
+  - name: Copy binaries to cache directory
+    if: steps.cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: |
+      # Cache should not use version in the path.
+      mkdir -p "${ARTIFACT_DIR}/mirror"
+      cp "${INGEST_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${CONSENSUS_ENCLAVE_CSS}" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/full-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/signer" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/signer-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/hardware-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/validator-service" "${ARTIFACT_DIR}"
+      cp "${TARGET_DIR}/wallet-service-mirror-private" "${ARTIFACT_DIR}/mirror"
+      cp "${TARGET_DIR}/wallet-service-mirror-public" "${ARTIFACT_DIR}/mirror"
+      cp "${TARGET_DIR}/generate-rsa-keypair" "${ARTIFACT_DIR}/mirror"
+      cp mirror/EXAMPLE.md "${ARTIFACT_DIR}/mirror"
+
+  - name: Sign and Notarize MacOS Binaries
+    if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
+    shell: bash
+    run: |
+      binaries=$(find ${ARTIFACT_DIR} -type f -perm +111 -print)
+
+      for f in ${binaries}
+      do
+        echo "Signing ${f}"
+        # we need to sign the binary we include in the tarball.
+        codesign --sign "${{ inputs.codesign_identity }}" \
+          --prefix "${{ inputs.codesign_prefix }}" \
+          --options runtime "${f}"
+
+        # we don't actually need to release this zip, its just used as a wrapper for notarization submission
+        # Can we zip all the binaries together and submit them in one go?
+        echo "Zipping ${f}"
+        mkdir -p "$(dirname "${RUNNER_TEMP}/${f}.zip")"
+        zip -r "${RUNNER_TEMP}/${f}.zip" "${f}"
+
+        echo "Notarizing ${f}"
+        xcrun notarytool submit "${RUNNER_TEMP}/${f}.zip" \
+          --key "${AUTH_KEY_PATH}" \
+          --key-id ${{ inputs.notarytool_key_id }} \
+          --issuer ${{ inputs.notarytool_issuer }} \
+          --wait
+      done
+
+  - name: Tar up artifacts
+    shell: bash
+    run: |
+      # Create path with version for artifacts
+      cp -R "${ARTIFACT_DIR}" "${ARTIFACT_NAME}"
+      tar -c -z -v -f "${ARTIFACT_NAME}.tar.gz" "${ARTIFACT_NAME}"
+
+  - name: Upload artifacts
+    uses: mobilecoinofficial/gh-actions/upload-artifact@v0
+    with:
+      name: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}-${{ inputs.version }}
+      path: full-service-${{ inputs.network }}net-${{ runner.os }}-${{ env.ARCH }}-${{ inputs.version }}.tar.gz

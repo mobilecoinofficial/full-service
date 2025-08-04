@@ -5,7 +5,7 @@ set -e
 
 # Overrides and Options
 #  - DEBUG or RUNNER_DEBUG print debug messages
-#  - WORK_DIR - Set download directory for .css files.
+#  - RELEASE_DIR - Set download directory for .css files.
 #     - Must be a fully qualified path.
 #  - CSS_BASE_URL - Set the base http url to get .css index and files.
 #  - CSS_JSON_FILE - defaults to production.json
@@ -34,6 +34,10 @@ do
             ;;
         --build)
             build=1
+            shift 1
+            ;;
+        --download-ledger)
+            download_ledger=1
             shift 1
             ;;
         --offline)
@@ -66,28 +70,20 @@ then
 fi
 
 # Grab current location and source the shared functions.
-# shellcheck source=.shared-functions.sh
 location=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+# shellcheck source=/dev/null
 source "${location}/.shared-functions.sh"
 
-# Setup workdir - set in .shared-functions.sh
-mkdir -p "${WORK_DIR}"
-
-# Set default database directories
-WALLET_DB_DIR="${WALLET_DB_DIR:-"${WORK_DIR}/wallet-db"}"
-LEDGER_DB_DIR="${LEDGER_DB_DIR:-"${WORK_DIR}/ledger-db"}"
-mkdir -p "${WALLET_DB_DIR}"
-mkdir -p "${LEDGER_DB_DIR}"
-
 # Set vars for all networks
-MC_WALLET_DB="${WALLET_DB_DIR}/wallet.db"
-MC_LEDGER_DB="${LEDGER_DB_DIR}"
-MC_LISTEN_HOST="${LISTEN_ADDR}"
+MC_WALLET_DB="${WALLET_DB_DIR:?}/wallet.db"
+MC_LEDGER_DB="${LEDGER_DB_DIR:?}"
+MC_LISTEN_HOST="${LISTEN_ADDR:?}"
 
 case "${net}" in
     test)
         domain_name="test.mobilecoin.com"
         tx_source_base="https://s3-us-west-1.amazonaws.com/mobilecoin.chain"
+        ledger_source="https://mcdevus1ledger.blob.core.windows.net/test/data.mdb"
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
@@ -95,12 +91,13 @@ case "${net}" in
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${WORK_DIR}/ingest-enclave.css")
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${RELEASE_DIR}/ingest-enclave.css")
         fi
         ;;
     main)
         domain_name="prod.mobilecoinww.com"
         tx_source_base="https://ledger.mobilecoinww.com"
+        ledger_source="https://mcdeveu1ledger.blob.core.windows.net/main/data.mdb"
 
         # Set chain id, peer and tx_sources for 2 nodes.
         MC_CHAIN_ID="${net}"
@@ -108,11 +105,11 @@ case "${net}" in
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${WORK_DIR}/ingest-enclave.css")
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${RELEASE_DIR}/ingest-enclave.css")
         fi
         ;;
     alpha)
-        echo "alpha network doesn't yet publish enclave css measurements, manually download or copy ${WORK_DIR}/ingest-enclave.css"
+        echo "alpha network doesn't yet publish enclave css measurements, manually download or copy ${RELEASE_DIR}/ingest-enclave.css"
 
         domain_name="alpha.development.mobilecoin.com"
         tx_source_base="https://s3-eu-central-1.amazonaws.com/mobilecoin.eu.development.chain"
@@ -124,7 +121,7 @@ case "${net}" in
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
         fi
-        MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
+        MC_FOG_INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
         ;;
     local)
         # Set chain id, peer and tx_sources for 2 nodes.
@@ -134,7 +131,7 @@ case "${net}" in
             MC_PEER="insecure-mc://localhost:3200/,insecure-mc://localhost:3201/"
             MC_TX_SOURCE_URL="file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-0,file://$PWD/mobilecoin/target/docker/release/mc-local-network/node-ledger-distribution-1"
         fi
-        MC_FOG_INGEST_ENCLAVE_CSS="${WORK_DIR}/ingest-enclave.css"
+        MC_FOG_INGEST_ENCLAVE_CSS="${RELEASE_DIR}/ingest-enclave.css"
         ;;
     *)
         echo "Using current environment's SGX, IAS and enclave values"
@@ -166,26 +163,40 @@ then
     "${location}/build-fs.sh" "${net}"
 fi
 
+if [[ -n "${ledger_source}" && -n "${download_ledger}" ]]
+then
+    if [[ -e "${MC_LEDGER_DB}/data.mdb" ]]
+    then
+        echo "Ledger already exists at ${MC_LEDGER_DB}/data.mdb"
+        echo "Remove ${MC_LEDGER_DB}/data.mdb or remove --download-ledger flag"
+        exit 1
+    else
+        echo "Downloading ledger from ${ledger_source}"
+        curl -SLf "${ledger_source}" -o "${MC_LEDGER_DB}/data.mdb"
+    fi
+fi
+
 # start validator and unset envs for full-service
 if [[ -n "${validator}" ]]
 then
-    if [[ "$(check_pid_file /tmp/.validator-service.pid)" == "running" ]]
+    running=$(check_pid_file /tmp/.validator-service.pid)
+    if [[ "${running}" == "running" ]]
     then
         echo "validator-service is already running"
     else
         # Make sure that the validator executable exists.
-        if [[ ! -f "${WORK_DIR}/validator-service" ]]
+        if [[ ! -f "${RELEASE_DIR}/validator-service" ]]
         then
-            echo "${WORK_DIR}/validator-service not found."
+            echo "${RELEASE_DIR}/validator-service not found."
             exit 1
         fi
 
         echo "Starting validator-service. Log is at /tmp/validator-service.log"
-        validator_ledger_db="${WORK_DIR}/validator/ledger-db"
+        validator_ledger_db="${GIT_BASE}/.mob/${net}-db/validator/ledger-db"
         mkdir -p "${validator_ledger_db}"
 
         # Override
-        "${WORK_DIR}/validator-service" \
+        "${RELEASE_DIR}/validator-service" \
             --ledger-db "${validator_ledger_db}" \
             --listen-uri "insecure-validator://127.0.0.1:11000/" \
             >/tmp/validator-service.log 2>&1 &
@@ -200,5 +211,5 @@ then
     unset MC_PEER
 fi
 
-echo "Starting Full-Service Wallet from ${WORK_DIR}"
-"${WORK_DIR}/full-service"
+echo "Starting Full-Service Wallet from ${RELEASE_DIR}"
+"${RELEASE_DIR}/full-service"

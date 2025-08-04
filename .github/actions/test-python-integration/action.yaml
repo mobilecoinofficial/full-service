@@ -1,0 +1,114 @@
+name: Test - Python Integration
+description: Set up environment and run integration tests
+
+inputs:
+  network:
+    description: "main|test"
+    required: true
+  cache_buster:
+    description: "cache buster"
+    required: true
+  version:
+    description: "Version of the full-service to test"
+    required: true
+  rancher_cluster:
+    description: "Rancher cluster to deploy to"
+    required: true
+  rancher_url:
+    description: "Rancher URL"
+    required: true
+  rancher_token:
+    description: "Rancher token"
+    required: true
+
+runs:
+  using: composite
+  steps:
+  - name: Install pip
+    shell: bash
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y python3-pip
+
+  # Deploy fs chart with cloned volume
+  # All tests will need to be deployed in the full-service-ledger namespace so we can clone the target PVC
+  - name: Generate full-service values file
+    shell: bash
+    run: |
+      mkdir -p .mob/
+      cat <<EOF > .mob/${{ inputs.network }}.values.yaml
+      fullService:
+        persistence:
+          enabled: true
+          spec:
+            accessModes:
+            - ReadWriteOnce
+            resources:
+              requests:
+                storage: 128Gi
+            dataSource:
+              name: full-service-ledger-${{ inputs.network }}net
+              kind: PersistentVolumeClaim
+      EOF
+
+  - name: Deploy Full-Service
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: helm-deploy
+      chart_repo: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
+      chart_name: full-service
+      chart_version: ${{ inputs.version }}-${{ inputs.network }}net
+      chart_values: .mob/${{ inputs.network }}.values.yaml
+      chart_wait_timeout: 30m
+      release_name: ${{ inputs.version }}-${{ inputs.network }}net
+      namespace: full-service-ledger
+      rancher_cluster: ${{ inputs.rancher_cluster }}
+      rancher_url: ${{ inputs.rancher_url }}
+      rancher_token: ${{ inputs.rancher_token }}
+
+  - name: Get IP address of full-service
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: kubectl-exec
+      rancher_cluster: ${{ inputs.rancher_cluster }}
+      rancher_url: ${{ inputs.rancher_url }}
+      rancher_token: ${{ inputs.rancher_token }}
+      command: |
+        target_ip=$(kubectl -n full-service-ledger get svc ${{ inputs.version }}-${{ inputs.network }}net-full-service -o jsonpath='{.spec.clusterIP}')
+        funding_ip=$(kubectl -n dev-wallet-${{ inputs.network }}net get svc full-service -o jsonpath='{.spec.clusterIP}')
+        echo "TARGET_IP=${target_ip}" >> "${GITHUB_ENV}"
+        echo "FUNDING_IP=${funding_ip}" >> "${GITHUB_ENV}"
+
+  - name: Run Integration Tests
+    env:
+      FUNDING_FS_URL: http://${{ env.FUNDING_IP }}:9090/wallet/v2
+      TARGET_FS_URL: http://${{ env.TARGET_IP }}:9090/wallet/v2
+    shell: bash
+    run: |
+      set -e
+
+      # Wait for the full-service to be ready
+      .internal-ci/util/wait-for-full-service.sh
+
+      # Run integration tests
+      ./tools/test-python-integration.sh ${{ inputs.network }}
+
+  - name: Cleanup helm chart
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: helm-release-delete
+      release_name: ${{ inputs.version }}-${{ inputs.network }}net
+      namespace: full-service-ledger
+      rancher_cluster: ${{ inputs.rancher_cluster }}
+      rancher_url: ${{ inputs.rancher_url }}
+      rancher_token: ${{ inputs.rancher_token }}
+
+  - name: Cleanup PVC
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: pvc-delete
+      namespace: full-service-ledger
+      object_name: data-${{ inputs.version }}-${{ inputs.network }}net-full-service-0
+      rancher_cluster: ${{ inputs.rancher_cluster }}
+      rancher_url: ${{ inputs.rancher_url }}
+      rancher_token: ${{ inputs.rancher_token }}

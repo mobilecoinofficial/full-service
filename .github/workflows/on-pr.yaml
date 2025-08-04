@@ -1,0 +1,346 @@
+# On PR workflow
+
+# CBB List:
+# - Lint Shell
+# - Integration tests
+
+name: on-pr
+
+on:
+  pull_request: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  contents: read
+
+env:
+  ARTIFACT_NAME: placeholder
+  GH_SHORT_SHA: placeholder
+  RUST_BIN_PATH: placeholder
+  CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
+  INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
+  ENCLAVE_RELEASE_TAG: v6.0.0
+
+jobs:
+  meta:
+    runs-on: mco-dev-small-x64
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+    - name: Set Version
+      id: version
+      run: |
+        echo "version=v0-sha-${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
+
+  lint-actions:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint GitHub Actions
+      uses: mobilecoinofficial/gh-actions/lint-actions@v0
+
+  lint-shell:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint shell with Shellcheck
+      uses: mobilecoinofficial/gh-actions/lint-shell@v0
+
+  lint-helm:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint Helm Charts
+      uses: mobilecoinofficial/gh-actions/lint-helm@v0
+
+  lint-docker:
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Lint Dockerfiles with Hadolint
+      uses: mobilecoinofficial/gh-actions/lint-docker@v0
+
+  lint-rust:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-base:v0.0.37
+    env:
+      SGX_MODE: SW
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Consensus SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+    - name: Ingest SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+    # we don't need to cache the results, we just want an indication of test success
+    # so we can skip the next step if rust code hasn't changed
+    - name: Cache Rust Binaries
+      id: cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        additional_keys: -lintrust
+        path: .dummy
+
+    - name: Cargo sort
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        # pin cargo sort to version 1.0.9 because v2.x require newer rustc than we use
+        cargo install cargo-sort --version 1.0.9 --force
+        cargo sort --workspace --grouped --check
+
+    - name: Cargo fmt
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        cargo fmt -- --unstable-features --check
+
+    - name: Cargo Clippy
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        cargo clippy --all --all-features
+
+    - name: Success
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: touch .dummy/success
+
+  test-rust:
+    runs-on: mco-dev-large-x64
+    container:
+      image: mobilecoin/rust-base:v0.0.37
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Consensus SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: consensus
+        network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        download_path: ${{ env.CONSENSUS_ENCLAVE_CSS }}
+
+    - name: Ingest SigStruct
+      uses: ./.github/actions/download-sigstruct
+      with:
+        sigstruct: ingest
+        network: test
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        download_path: ${{ env.INGEST_ENCLAVE_CSS }}
+
+    # we don't need to cache the results, we just want an indication of test success
+    # so we can skip the next step if rust code hasn't changed
+    - name: Cache Rust Binaries
+      id: cache
+      uses: mobilecoinofficial/gh-actions/cache-rust-binaries@v0
+      with:
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        additional_keys: -testrust
+        path: .dummy
+
+    - name: Cargo Test
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        SGX_MODE: SW
+        CARGO_BACKTRACE: "1"
+      run: |
+        cargo test
+
+    - name: Success
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: touch .dummy/success
+
+  build-rust-linux:
+    needs:
+    - meta
+    strategy:
+      matrix:
+        runner:
+        - mco-dev-large-x64
+        - mco-dev-large-arm64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: mobilecoin/rust-base:v0.0.37
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+
+  build-rust-macos:
+    needs:
+    - meta
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+        - aarch64-apple-darwin
+        - x86_64-apple-darwin
+        network:
+        - main
+        - test
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Bootstrap MacOS Rust
+      uses: ./.github/actions/bootstrap-macos
+      with:
+        target: ${{ matrix.target }}
+        build_certificate_base64: ${{ secrets.APPLE_BUILD_CERTIFICATE_BASE64 }}
+        build_certificate_password: ${{ secrets.APPLE_BUILD_CERTIFICATE_PASSWORD }}
+        auth_key_base64: ${{ secrets.APPLE_AUTH_KEY_BASE64 }}
+
+    - name: Build Rust
+      uses: ./.github/actions/build-rust
+      with:
+        target: ${{ matrix.target }}
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}
+        enclave_release_tag: ${{ env.ENCLAVE_RELEASE_TAG }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        codesign_identity: ${{ secrets.APPLE_CODESIGN_IDENTITY }}
+        codesign_prefix: ${{ secrets.APPLE_CODESIGN_PREFIX }}
+        notarytool_key_id: ${{ secrets.APPLE_NOTARYTOOL_KEY_ID }}
+        notarytool_issuer: ${{ secrets.APPLE_NOTARYTOOL_ISSUER }}
+
+  build-containers:
+    needs:
+    - meta
+    - build-rust-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        runner:
+        - mco-dev-small-x64
+        - mco-dev-small-arm64
+        network:
+        - main
+        - test
+    runs-on: ${{ matrix.runner }}
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build Docker
+      uses: ./.github/actions/build-docker
+      with:
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  publish-containers:
+    needs:
+    - meta
+    - build-containers
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Merge Digests and Push Tag
+      uses: ./.github/actions/publish-docker
+      with:
+        network: ${{ matrix.network }}
+        version: ${{ needs.meta.outputs.version }}
+        docker_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        docker_password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  build-publish-charts:
+    needs:
+    - meta
+    - publish-containers
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Build and Publish Helm Charts
+      uses: ./.github/actions/build-publish-charts
+      with:
+        version: ${{ needs.meta.outputs.version }}-${{ matrix.network }}net
+        repo_username: ${{ secrets.HARBOR_USERNAME }}
+        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+
+  test-python-integration:
+    needs:
+    - meta
+    - build-publish-charts
+    strategy:
+      fail-fast: false
+      matrix:
+        network:
+        - main
+        - test
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Checkout
+      uses: mobilecoinofficial/gh-actions/checkout@v0
+
+    - name: Run Python Integration Tests
+      uses: ./.github/actions/test-python-integration
+      with:
+        version: ${{ needs.meta.outputs.version }}
+        network: ${{ matrix.network }}
+        cache_buster: ${{ vars.CACHE_BUSTER }}
+        rancher_cluster: ${{ secrets.DEV_RANCHER_CLUSTER }}
+        rancher_url: ${{ secrets.DEV_RANCHER_URL }}
+        rancher_token: ${{ secrets.DEV_RANCHER_TOKEN }}
+
+  checks-successful:
+    needs:
+    - lint-actions
+    - lint-helm
+    - lint-docker
+    - lint-rust
+    - lint-shell
+    - test-rust
+    - build-rust-macos
+    - build-publish-charts
+    - test-python-integration
+    runs-on: mco-dev-small-x64
+    steps:
+    - name: Success
+      run: echo "All checks successful"
