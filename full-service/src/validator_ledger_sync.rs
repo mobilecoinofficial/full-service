@@ -72,7 +72,7 @@ impl ValidatorLedgerSyncThread {
         validator_conn: ValidatorConnection,
         poll_interval: Duration,
         mut ledger_db: LedgerDB,
-        mut network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
+        network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: Logger,
         stop_requested: Arc<AtomicBool>,
     ) {

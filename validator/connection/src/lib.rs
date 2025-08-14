@@ -65,8 +65,8 @@ impl ValidatorConnection {
     pub fn new(uri: &ValidatorUri, chain_id: String, logger: Logger) -> Self {
         let env = Arc::new(EnvBuilder::new().name_prefix("ValidatorRPC").build());
         let ch = ChannelBuilder::new(env)
-            .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX)
+            .max_receive_message_len(i32::MAX)
+            .max_send_message_len(i32::MAX)
             .connect_to_uri(uri, &logger);
 
         let validator_api_client = ValidatorApiClient::new(ch.clone());

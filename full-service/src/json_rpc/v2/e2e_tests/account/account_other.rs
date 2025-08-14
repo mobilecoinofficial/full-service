@@ -22,8 +22,6 @@ mod e2e_account {
     use rand::{rngs::StdRng, SeedableRng};
     use serde_json::json;
 
-    use std::convert::TryFrom;
-
     #[test_with_logger]
     fn test_export_account_secrets(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);

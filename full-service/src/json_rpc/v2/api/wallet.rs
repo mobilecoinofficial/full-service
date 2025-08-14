@@ -1350,8 +1350,7 @@ where
             let membership_proofs = membership_proofs
                 .iter()
                 .map(|proof| {
-                    let proof: mc_api::external::TxOutMembershipProof =
-                        proof.try_into().map_err(format_error)?;
+                    let proof: mc_api::external::TxOutMembershipProof = proof.into();
                     let json_proof = JsonTxOutMembershipProof::from(&proof);
                     Ok(json_proof)
                 })

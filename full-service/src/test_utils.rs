@@ -65,7 +65,7 @@ pub const MOB: u64 = 1_000_000_000_000;
 pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB;
 
 /// Fog authority spki for testing, base64 encoded.
-pub const TEST_FOG_AUTHORITY_SPKI: &str ="MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==";
+pub const TEST_FOG_AUTHORITY_SPKI: &str = "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==";
 
 /// Test fog URL
 pub const TEST_FOG_URL: &str = "fog://fog.test.com";
@@ -74,6 +74,17 @@ pub struct WalletDbTestContext {
     base_url: String,
     pub db_name: String,
 }
+
+/// A factory function for creating a FogPubkeyResolvers.
+pub type FogResolverFactory =
+    Arc<dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync>;
+
+/// A ConnectionManager for MockBlockchainConnection<LedgerDB>
+pub type MockConnectionManager = ConnectionManager<MockBlockchainConnection<LedgerDB>>;
+
+/// A PollingNetworkState for MockBlockchainConnection<LedgerDB>
+pub type MockPollingNetworkState =
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>;
 
 impl Default for WalletDbTestContext {
     fn default() -> Self {
@@ -300,10 +311,7 @@ pub fn setup_peer_manager_and_network_state(
     ledger_db: LedgerDB,
     logger: Logger,
     offline: bool,
-) -> (
-    ConnectionManager<MockBlockchainConnection<LedgerDB>>,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
-) {
+) -> (MockConnectionManager, MockPollingNetworkState) {
     let (peers, node_ids) = if offline {
         (vec![], vec![])
     } else {
@@ -709,17 +717,14 @@ pub fn builder_for_random_recipient(
     (recipient, builder)
 }
 
-pub fn get_resolver_factory(
-    rng: &mut StdRng,
-) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync>, ()> {
+pub fn get_resolver_factory(rng: &mut StdRng) -> Result<FogResolverFactory, ()> {
     let fog_private_key = RistrettoPrivate::from_random(rng);
 
-    let fog_pubkey_resolver_factory: Arc<
-        dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync,
-    > = Arc::new(move |_| -> Result<TestFogPubkeyResolver, String> {
-        Ok(TestFogPubkeyResolver::new(fog_private_key))
-    });
-    Ok(fog_pubkey_resolver_factory)
+    Ok(Arc::new(
+        move |_| -> Result<TestFogPubkeyResolver, String> {
+            Ok(TestFogPubkeyResolver::new(fog_private_key))
+        },
+    ))
 }
 
 pub fn setup_wallet_service(

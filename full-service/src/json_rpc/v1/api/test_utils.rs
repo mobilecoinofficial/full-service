@@ -12,7 +12,7 @@ use crate::{
     service::{t3_sync::T3Config, WalletService},
     test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
-        TestFogPubkeyResolver, WalletDbTestContext,
+        MockPollingNetworkState, TestFogPubkeyResolver, WalletDbTestContext,
     },
     wallet::{APIKeyState, ApiKeyGuard},
 };
@@ -95,7 +95,7 @@ pub fn create_test_setup(
     rocket::Rocket<Build>,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockPollingNetworkState,
 ) {
     let db_test_context = WalletDbTestContext::default();
     let wallet_db = db_test_context.get_db_instance(logger.clone());
@@ -142,7 +142,7 @@ pub fn setup(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, logger);
@@ -164,7 +164,7 @@ pub fn setup_with_api_key(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, logger);
