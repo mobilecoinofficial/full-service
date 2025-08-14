@@ -22,7 +22,7 @@ mc-common = { path = "../mobilecoin/common", features = ["loggers"] }
 mc-util-grpc = { path = "../mobilecoin/util/grpc" }
 mc-util-uri = { path = "../mobilecoin/util/uri" }
 
-boring = "4.4"
+boring = "4.17"
 futures = "0.3"
 generic-array = "0.14"
 grpcio = "0.13"

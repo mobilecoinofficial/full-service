@@ -4,4 +4,4 @@
 	
 [submodule "ledger-mob"]
 	path = ledger-mob
-	url = git@github.com:mobilecoinofficial/ledger-mob.git
+	url = https://github.com/mobilecoinofficial/ledger-mob.git
