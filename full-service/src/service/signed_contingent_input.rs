@@ -152,7 +152,7 @@ where
         let amount = Amount::from(&sci.pseudo_output_amount);
         Ok(ValidateProofOfReserveSciResult::Valid {
             tx_out_public_key,
-            key_image: hex::encode(&sci.key_image()),
+            key_image: hex::encode(sci.key_image()),
             amount: (&amount).into(),
         })
     }
@@ -295,7 +295,7 @@ mod tests {
             service.validate_proof_of_reserve_sci(&sci_proto).unwrap(),
             ValidateProofOfReserveSciResult::Valid {
                 tx_out_public_key: hex::encode(sci.tx_in.ring[0].public_key),
-                key_image: hex::encode(&sci.key_image()),
+                key_image: hex::encode(sci.key_image()),
                 amount: (&Amount::new(1475 * MILLIMOB_TO_PICOMOB, Mob::ID)).into(),
             }
         );

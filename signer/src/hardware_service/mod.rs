@@ -27,7 +27,7 @@ pub fn get_account_id(account_info: AccountInfo) -> String {
         *account_info.view_private.as_ref(),
         *account_info.spend_public.as_ref(),
     );
-    return AccountID::from(&view_account_keys).to_string();
+    AccountID::from(&view_account_keys).to_string()
 }
 
 pub async fn sync_txos(account_id: String, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {

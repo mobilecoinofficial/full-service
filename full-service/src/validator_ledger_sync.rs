@@ -85,7 +85,7 @@ impl ValidatorLedgerSyncThread {
             }
 
             let block_data =
-                Self::get_next_blocks(&ledger_db, &validator_conn, &mut network_state, &logger);
+                Self::get_next_blocks(&ledger_db, &validator_conn, &network_state, &logger);
             if !block_data.is_empty() {
                 Self::append_safe_blocks(&mut ledger_db, &block_data, &logger);
             }

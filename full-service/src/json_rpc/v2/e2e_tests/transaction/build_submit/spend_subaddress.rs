@@ -503,14 +503,11 @@ mod e2e_transaction {
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
         log::info!(logger, "account_obj: {:?}", account_obj);
-        assert_eq!(
-            account_obj
-                .get("require_spend_subaddress")
-                .unwrap()
-                .as_bool()
-                .unwrap(),
-            true
-        );
+        assert!(account_obj
+            .get("require_spend_subaddress")
+            .unwrap()
+            .as_bool()
+            .unwrap());
 
         let body = json!({
             "jsonrpc": "2.0",
@@ -524,13 +521,10 @@ mod e2e_transaction {
         let res = dispatch(&client, body, &logger);
         let result = res.get("result").unwrap();
         let account_obj = result.get("account").unwrap();
-        assert_eq!(
-            account_obj
-                .get("require_spend_subaddress")
-                .unwrap()
-                .as_bool()
-                .unwrap(),
-            false
-        );
+        assert!(!account_obj
+            .get("require_spend_subaddress")
+            .unwrap()
+            .as_bool()
+            .unwrap());
     }
 }

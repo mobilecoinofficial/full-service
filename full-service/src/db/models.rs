@@ -64,10 +64,11 @@ pub struct NewAccount<'a> {
 }
 
 /// A transaction output entity that either was received to an Account in this
-/// wallet, or originated from an Account in this wallet. A transaction
-/// output can be in one of many states with respect to multiple accounts.
-/// Managing these relationships and states is one of the main goals of
-/// the Full-Service wallet.
+/// wallet, or originated from an Account in this wallet.
+///
+/// A transaction output can be in one of many states with respect to multiple
+/// accounts. Managing these relationships and states is one of the main goals
+/// of the Full-Service wallet.
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = txos)]

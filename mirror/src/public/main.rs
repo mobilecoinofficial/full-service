@@ -3,9 +3,10 @@
 //! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
 //! 1) A GRPC server for receiving incoming poll requests from the private side
-//! of the mirror 2) An http(s) server for receiving client requests which will
-//! then be forwarded to the    wallet service instance sitting behind the
-//! private part of the mirror.
+//!    of the mirror
+//! 2) An http(s) server for receiving client requests which will then be
+//!    forwarded to the wallet service instance sitting behind the private part
+//!    of the mirror.
 
 #![feature(decl_macro)]
 

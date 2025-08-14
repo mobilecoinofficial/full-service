@@ -204,20 +204,19 @@ pub fn append_test_block(
 ) -> u64 {
     let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
 
-    let new_block;
-    if num_blocks > 0 {
+    let new_block = if num_blocks > 0 {
         let parent = ledger_db
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
-        new_block = Block::new_with_parent(
+        Block::new_with_parent(
             BlockVersion::MAX,
             &parent,
             &Default::default(),
             &block_contents,
-        );
+        )
     } else {
-        new_block = Block::new_origin_block(&block_contents.outputs);
-    }
+        Block::new_origin_block(&block_contents.outputs)
+    };
 
     let block_metadata = make_block_metadata(new_block.id.clone(), &mut rng);
 
@@ -580,14 +579,7 @@ pub fn random_account_with_seed_values(
         .unwrap();
     }
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     account_key
 }
 
@@ -619,14 +611,7 @@ pub fn random_fog_enabled_account_with_seed_values(
         account.account_key().unwrap()
     };
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     account_key
 }
 
@@ -634,7 +619,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     wallet_db: &WalletDb,
     ledger_db: &mut LedgerDB,
     seed_values: &[u64],
-    mut rng: &mut StdRng,
+    rng: &mut StdRng,
     logger: &Logger,
 ) -> ViewAccountKey {
     let account_key = AccountKey::random(rng);
@@ -658,14 +643,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     )
     .unwrap();
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     view_account_key
 }
 

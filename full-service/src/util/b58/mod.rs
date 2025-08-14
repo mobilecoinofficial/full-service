@@ -1,6 +1,7 @@
 //! Public Address base58 encoding and decoding.
 
 pub mod errors;
+#[cfg(test)]
 mod tests;
 pub use self::errors::B58Error;
 

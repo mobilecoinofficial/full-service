@@ -65,10 +65,9 @@ mod e2e_account {
         let account_key: AccountKey = slip_10_key.into();
 
         assert_eq!(
-            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::try_from(
+            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::from(
                 &account_key
-            )
-            .unwrap()),
+            )),
             secrets["account_key"]
         );
     }
@@ -115,10 +114,9 @@ mod e2e_account {
         entropy_slice[0..32].copy_from_slice(hex::decode(entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
-            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::try_from(
+            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::from(
                 &account_key
-            )
-            .unwrap()),
+            )),
             secrets["account_key"]
         );
     }
