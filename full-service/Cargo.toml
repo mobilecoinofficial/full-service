@@ -63,34 +63,34 @@ t3-connection = { path = "../t3/connection" }
 ledger-mob = { path = "../ledger-mob/lib" }
 
 async-trait = "0.1.59"
-base64 = "0.21.5"
+base64 = "0.21"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
-clap = { version = "4.4", features = ["derive", "env"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
-diesel = { version = "2.1.0", features = ["chrono", "sqlite", "r2d2"] }
+diesel = { version = "2.1.4", features = ["chrono", "sqlite", "r2d2"] }
 diesel-derive-enum = { version = "2", features = ["sqlite"] }
 diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
-ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
+ed25519-dalek = { version = "2.1.1", default-features = false }
 grpcio = "0.13"
 hex = { version = "0.4", default-features = false }
 hex_fmt = "0.3.0"
-itertools = "0.10.5"
+itertools = "0.12"
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
-prost = "0.11"
-protobuf = "2.28.0"
+prost = "0.12"
+protobuf = "2.27.1"
 rand = { version = "0.8", default-features = false }
-rayon = "1.7"
+rayon = "1.9"
 redact = { version = "0.1.7", features = ["serde"] }
-reqwest = { version = "0.11.20", default-features = false, features = [
+reqwest = { version = "0.11", default-features = false, features = [
     "rustls-tls",
     "gzip",
 ] }
 retry = "2.0"
-rocket = { version = "0.5.0-rc.3", features = ["json"] }
-rocket_sync_db_pools = { version = "0.1.0-rc.3", features = [
+rocket = { version = "0.5.1", features = ["json"] }
+rocket_sync_db_pools = { version = "0.1.0", features = [
     "diesel_sqlite_pool",
 ] }
 serde = { version = "1.0", default-features = false, features = [
@@ -119,8 +119,8 @@ mc-transaction-builder = { path = "../mobilecoin/transaction/builder", features 
 bs58 = "0.5.0"
 httpmock = "0.7.0"
 tempdir = "0.3"
-tokio = "1.27"
-url = "2.3"
+tokio = "1"
+url = "2.5"
 
 [build-dependencies]
 anyhow = "1.0"
