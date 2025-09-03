@@ -30,7 +30,7 @@ runs:
       curl -LO https://github.com/Kitware/CMake/releases/download/v3.31.7/cmake-3.31.7-macos-universal.tar.gz
       tar -xzf cmake-3.31.7-macos-universal.tar.gz
       sudo mv cmake-3.31.7-macos-universal /opt/cmake-3.31.7
-      echo "/opt/cmake-3.31.7/bin" >> "${GITHUB_PATH}"
+      echo "/opt/cmake-3.31.7/CMake.app/Contents/bin" >> "${GITHUB_PATH}"
 
       echo "-- install rust toolchain"
       rm -rf /Users/runner/.cargo
