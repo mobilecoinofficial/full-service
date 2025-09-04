@@ -80,7 +80,7 @@ itertools = "0.10.5"
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
 prost = "0.11"
-protobuf = "2.28.0"
+protobuf = "3.0.0"
 rand = { version = "0.8", default-features = false }
 rayon = "1.7"
 redact = { version = "0.1.7", features = ["serde"] }
