@@ -22,7 +22,7 @@ mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }
 mc-full-service = { path = "../../full-service" }
 mc-ledger-db = { path = "../../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../../mobilecoin/ledger/sync" }
-mc-sgx-core-types = "0.9.0"
+mc-sgx-core-types = "0.12.0"
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
