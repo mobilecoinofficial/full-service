@@ -11,10 +11,12 @@ use crate::{
     },
     error::SyncError,
     service::{
-        models::tx_proposal::{TxProposal, UnsignedTxProposal},
+        models::{
+            transaction_memo::TransactionMemo,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
+        },
         sync::sync_account_next_chunk,
         t3_sync::T3Config,
-        transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,

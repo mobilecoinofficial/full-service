@@ -18,12 +18,10 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
-    service::{
-        models::{
-            tx_blueprint_proposal::{TxBlueprintProposal, TxBlueprintProposalTxoContext},
-            tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal},
-        },
-        transaction::TransactionMemo,
+    service::models::{
+        transaction_memo::TransactionMemo,
+        tx_blueprint_proposal::{TxBlueprintProposal, TxBlueprintProposalTxoContext},
+        tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal},
     },
     util::b58::b58_encode_public_address,
 };

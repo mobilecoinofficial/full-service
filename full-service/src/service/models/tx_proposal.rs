@@ -456,9 +456,8 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService,
-            address::AddressService,
-            transaction::{TransactionMemo, TransactionService},
+            account::AccountService, address::AddressService,
+            models::transaction_memo::TransactionMemo, transaction::TransactionService,
         },
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
