@@ -2,19 +2,29 @@
 
 //! Service for managing ledger materials and MobileCoin protocol objects.
 
-use std::convert::{TryFrom, TryInto};
-
-use ledger_mob::{DeviceHandle, Filters, LedgerHandle, LedgerProvider, Transport};
-
-use mc_account_keys::ViewAccountKey;
-use mc_common::logger::global_log;
-use mc_core::account::{ViewAccount, ViewSubaddress};
-use mc_crypto_keys::RistrettoPublic;
-use mc_transaction_core::tx::TxOut;
-use mc_transaction_signer::types::TxoSynced;
-use strum::Display;
-
 use crate::service::models::tx_proposal::{InputTxo, TxProposal, UnsignedTxProposal};
+use ledger_mob::{
+    apdu::tx::{TxMemoSig, TxMemoSign},
+    tx::TransactionHandle,
+    Device, DeviceHandle, Filters, LedgerHandle, LedgerProvider, Transport,
+};
+use mc_account_keys::{PublicAddress, ShortAddressHash, ViewAccountKey};
+use mc_common::logger::global_log;
+use mc_core::{
+    account::{RingCtAddress, ViewAccount, ViewSubaddress},
+    subaddress::Subaddress,
+};
+use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
+use mc_transaction_core::{tx::TxOut, NewMemoError};
+use mc_transaction_extra::AuthenticatedMemoHmacSigner;
+use mc_transaction_signer::types::TxoSynced;
+use std::{
+    convert::{TryFrom, TryInto},
+    fmt::Debug,
+    sync::Mutex,
+    time::Duration,
+};
+use strum::Display;
 
 /// Errors for the Address Service.
 #[derive(Display, Debug)]
@@ -156,4 +166,110 @@ pub async fn sign_tx_proposal(
         payload_txos: unsigned_tx_proposal.payload_txos,
         change_txos: unsigned_tx_proposal.change_txos,
     })
+}
+
+/// An implementation of AuthenticatedMemoHmacSigner that uses a hardware
+/// wallet. This can be used with the RTHMemoBuilder to sign memos using a
+/// hardware wallet.
+pub struct HardwareWalletAuthenticatedMemoHmacSigner {
+    /// The short address hash of the address that we are identifying as
+    address_hash: ShortAddressHash,
+    /// The subaddress index of the subaddress that we are identifying as
+    subaddress_index: u64,
+    /// The signer for the hardware wallet
+    signer: Mutex<TransactionHandle<LedgerHandle>>,
+    /// The timeout for requests to the hardware wallet
+    request_timeout: Duration,
+}
+
+impl Debug for HardwareWalletAuthenticatedMemoHmacSigner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "HardwareWalletAuthenticatedMemoHmacSigner({}, {})",
+            self.address_hash, self.subaddress_index
+        )
+    }
+}
+
+impl HardwareWalletAuthenticatedMemoHmacSigner {
+    pub fn new(
+        identify_as_address: &PublicAddress,
+        subaddress_index: u64,
+    ) -> Result<Self, HardwareWalletServiceError> {
+        let address_hash = ShortAddressHash::from(identify_as_address);
+
+        futures::executor::block_on(async {
+            let mut device_handle = get_device_handle().await?;
+
+            let hardware_wallet_pub_addr = device_handle
+                .account_keys(0)
+                .await?
+                .subaddress(subaddress_index);
+            if *identify_as_address.view_public_key() != hardware_wallet_pub_addr.view_public_key()
+                || *identify_as_address.spend_public_key()
+                    != hardware_wallet_pub_addr.spend_public_key()
+            {
+                return Err(HardwareWalletServiceError::CredentialMismatch);
+            }
+
+            // Note: We pass num_memos = 1 and num_rings = 0.
+            // The hardware wallet does not care about the number of memos we pass - this is
+            // unused in the firmware. In reality we only sign zero or one memos per
+            // transaction: the only memo that gets signed at the moment is the
+            // AuthenticatedSenderMemo, and each transaction will have at most one of these.
+            // We are not signing any rings and we will be abandoning the TransactionHandle
+            // once we are done signing memos. A new TransactionHandle will be created by
+            // `sign_tx_proposal` and that will have the correct number of rings.
+            let signer = device_handle.transaction_handle(0, 1, 0, 60).await?;
+
+            Ok(Self {
+                address_hash,
+                subaddress_index,
+                signer: Mutex::new(signer),
+                request_timeout: device_handle.request_timeout(),
+            })
+        })
+    }
+}
+
+impl AuthenticatedMemoHmacSigner for HardwareWalletAuthenticatedMemoHmacSigner {
+    fn sender_address_hash(&self) -> ShortAddressHash {
+        self.address_hash
+    }
+
+    fn compute_category1_hmac(
+        &self,
+        receiving_subaddress_view_public_key: &RistrettoPublic,
+        tx_out_public_key: &CompressedRistrettoPublic,
+        memo_type_bytes: [u8; 2],
+        memo_data_sans_hmac: &[u8; 48],
+    ) -> Result<[u8; 16], NewMemoError> {
+        let mut signer = self.signer.lock().unwrap();
+
+        futures::executor::block_on(async {
+            let mut buff = [0u8; 256];
+
+            let key: RistrettoPublic = tx_out_public_key.try_into().map_err(|e| {
+                NewMemoError::Other(format!("tx_out_pub_key conversion error: {}", e))
+            })?;
+
+            let tx_memo_sign = TxMemoSign::new(
+                self.subaddress_index,
+                key.into(),
+                (*receiving_subaddress_view_public_key).into(),
+                memo_type_bytes,
+                *memo_data_sans_hmac,
+            );
+
+            let r = signer
+                .request::<TxMemoSig>(tx_memo_sign, &mut buff, self.request_timeout)
+                .await
+                .map_err(|e| {
+                    NewMemoError::Other(format!("hardware wallet memo sign error: {}", e))
+                })?;
+
+            Ok(r.hmac)
+        })
+    }
 }
