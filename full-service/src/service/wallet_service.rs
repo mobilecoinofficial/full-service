@@ -115,15 +115,9 @@ impl<
                 )),
                 // As a companion to the account syncing, start the webhook syncing
                 // if configured
-                if let Some(wh_config) = webhook_config {
-                    Some(WebhookThread::start(
-                        wh_config,
-                        accounts_with_deposits.clone(),
-                        logger.clone(),
-                    ))
-                } else {
-                    None
-                },
+                webhook_config.map(|wh_config| {
+                    WebhookThread::start(wh_config, accounts_with_deposits.clone(), logger.clone())
+                }),
             )
         } else {
             (None, None)

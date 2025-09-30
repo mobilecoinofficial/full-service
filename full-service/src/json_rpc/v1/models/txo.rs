@@ -128,8 +128,8 @@ pub struct Txo {
     /// A normalized hash mapping account_id to account objects. Keys include
     /// "type" and "status".
     ///
-    /// * `txo_type`: With respect to this account, the Txo may be
-    /// "minted" or "received".
+    /// * `txo_type`: With respect to this account, the Txo may be "minted" or
+    ///   "received".
     ///
     /// * `txo_status`: With respect to this account, the Txo may be "unspent",
     ///   "pending", "spent", "secreted" or "orphaned". For received Txos

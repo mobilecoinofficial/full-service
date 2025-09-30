@@ -1,9 +1,10 @@
 // Copyright (c) 2020-2021 MobileCoin Inc.
 
-//! A builder for transactions from the wallet. Note that we have a
-//! TransactionBuilder in the MobileCoin transaction crate, but that is a lower
-//! level of building, once you have already obtained all of the materials that
-//! go into a transaction.
+//! A builder for transactions from the wallet.
+//!
+//! Note that we have a TransactionBuilder in the MobileCoin transaction crate,
+//! but that is a lower level of building, once you have already obtained all of
+//! the materials that go into a transaction.
 //!
 //! This module, on the other hand, builds a transaction within the context of
 //! the wallet.
@@ -1637,8 +1638,8 @@ mod tests {
 
         let fog_recipient_account_key = AccountKey::random(&mut rng).with_fog(
             account_key.fog_report_url().unwrap().to_string(),
-            account_key.fog_report_id().clone().unwrap_or_default(),
-            account_key.fog_authority_spki().unwrap().to_vec(),
+            account_key.fog_report_id().unwrap_or_default(),
+            account_key.fog_authority_spki().unwrap(),
         );
         let fog_recipient = fog_recipient_account_key.subaddress(5);
 

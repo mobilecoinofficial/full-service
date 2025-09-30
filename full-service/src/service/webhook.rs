@@ -70,17 +70,17 @@ impl WebhookThread {
                             .unwrap()
                             .clone()
                             .iter()
-                            .filter(|&(_k, &v)| v == true)
+                            .filter(|&(_k, &v)| v)
                             .map(|(k, _v)| k.clone())
                             .collect();
 
                         // Delete the keys that we're alerting on
                         for key in accounts_to_send.iter() {
                             log::debug!(logger, "Account to send: {:?}", key);
-                            accounts_with_deposits.lock().unwrap().remove(&key);
+                            accounts_with_deposits.lock().unwrap().remove(key);
                         }
 
-                        if accounts_to_send.len() > 0 {
+                        if !accounts_to_send.is_empty() {
                             // Question: will this keep the connection open? Or will it
                             // close the connection after this request?
                             match client

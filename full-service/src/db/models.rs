@@ -63,11 +63,12 @@ pub struct NewAccount<'a> {
     pub require_spend_subaddress: bool,
 }
 
-/// A transaction output entity that either was received to an Account in this
-/// wallet, or originated from an Account in this wallet. A transaction
-/// output can be in one of many states with respect to multiple accounts.
-/// Managing these relationships and states is one of the main goals of
-/// the Full-Service wallet.
+/// A transaction output entity.
+///
+/// The TXO  was either received to an Account in this wallet, or originated
+/// from an Account in this wallet. A transaction output can be in one of many
+/// states with respect to multiple accounts. Managing these relationships and
+/// states is one of the main goals of the Full-Service wallet.
 #[derive(Clone, Serialize, Identifiable, Queryable, PartialEq, Debug)]
 #[diesel(primary_key(id))]
 #[diesel(table_name = txos)]

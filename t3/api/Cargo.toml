@@ -7,9 +7,10 @@ edition = "2021"
 [dependencies]
 
 futures = "0.3"
-grpcio = "0.13"
+grpcio = { version = "0.13", default-features = false, features = ["prost-codec"] }
+mc-api = { path = "../../mobilecoin/api" }
 mc-util-uri = { path = "../../mobilecoin/util/uri" }
-protobuf = "2.28.0"
+prost = "0.11"
 
 [build-dependencies]
 

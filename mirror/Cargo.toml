@@ -26,10 +26,10 @@ mc-util-uri = { path = "../mobilecoin/util/uri" }
 boring = "4.4"
 futures = "0.3"
 generic-array = "0.14"
-grpcio = "0.13"
+grpcio = { version = "0.13", default-features = false, features = ["prost-codec"] }
 hex = "0.4"
 num_cpus = "1.16"
-protobuf = "2.28"
+prost = "0.11"
 rand = "0.8"
 reqwest = { version = "0.11", default-features = false, features = [
     "rustls-tls",

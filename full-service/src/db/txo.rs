@@ -2412,15 +2412,14 @@ mod tests {
         )
         .unwrap();
 
-        let transaction_log = TransactionLog::log_submitted(
+        TransactionLog::log_submitted(
             &tx_proposal,
             ledger_db.num_blocks().unwrap(),
             "".to_string(),
             &AccountID::from(account_key).to_string(),
             conn,
         )
-        .unwrap();
-        transaction_log
+        .unwrap()
     }
 
     /// We want to test that the conversions to and from using these methods
@@ -3350,7 +3349,7 @@ mod tests {
             let spendable_txos = Txo::list_spendable(
                 Some(&account_id_hex.to_string()),
                 None,
-                subaddress.clone(),
+                *subaddress,
                 0,
                 Mob::MINIMUM_FEE,
                 conn,
@@ -4369,7 +4368,7 @@ mod tests {
         // Create a transaction log that is inflight, should result in the
         // single txo not being spendable
         let transaction_log =
-            build_and_submit_transaction(&account_key, 1 * MOB, &mut ledger_db, &wallet_db, conn);
+            build_and_submit_transaction(&account_key, MOB, &ledger_db, &wallet_db, conn);
         let spendable_txos = Txo::list_spendable(
             Some(&account_id.to_string()),
             None,
@@ -4403,8 +4402,7 @@ mod tests {
 
         // Making a new transaction log that is inflight should result in the txo not
         // being spendable
-        let _ =
-            build_and_submit_transaction(&account_key, 1 * MOB, &mut ledger_db, &wallet_db, conn);
+        let _ = build_and_submit_transaction(&account_key, MOB, &ledger_db, &wallet_db, conn);
         let spendable_txos = Txo::list_spendable(
             Some(&account_id.to_string()),
             None,

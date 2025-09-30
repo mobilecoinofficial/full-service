@@ -2048,7 +2048,6 @@ mod tests {
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
         let account_keys = (0..3)
-            .into_iter()
             .map(|_| {
                 random_account_with_seed_values(
                     &wallet_db,
@@ -2066,12 +2065,12 @@ mod tests {
                 let (_, unsigned_tx_proposal) = create_test_unsigned_txproposal_and_log(
                     account_key.clone(),
                     account_key.default_subaddress(),
-                    1 * MOB,
+                    MOB,
                     wallet_db.clone(),
                     ledger_db.clone(),
                 );
                 let tx_proposal = unsigned_tx_proposal
-                    .sign_with_local_signer(&account_key)
+                    .sign_with_local_signer(account_key)
                     .unwrap();
 
                 let _ = TransactionLog::log_signed(

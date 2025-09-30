@@ -5,7 +5,6 @@
 use super::amount::Amount as AmountJSON;
 use crate::util::b58::{b58_encode_public_address, B58Error};
 
-use protobuf::Message;
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -104,9 +103,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
             .map_err(|_| "Error".to_string())?;
 
         let unsigned_tx_external: mc_api::external::UnsignedTx = (&src.unsigned_tx).into();
-        let unsigned_tx_proto_bytes = unsigned_tx_external
-            .write_to_bytes()
-            .map_err(|e| e.to_string())?;
+        let unsigned_tx_proto_bytes = mc_util_serial::encode(&unsigned_tx_external);
         let unsigned_tx_proto_bytes_hex = hex::encode(unsigned_tx_proto_bytes.as_slice());
 
         Ok(Self {

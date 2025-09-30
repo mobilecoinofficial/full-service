@@ -281,7 +281,7 @@ mod e2e_transaction {
             .unwrap()
             .as_array()
             .unwrap()
-            .get(0)
+            .first()
             .unwrap()
             .as_str()
             .unwrap();

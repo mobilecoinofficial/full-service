@@ -330,7 +330,7 @@ pub trait TransactionService {
     /// Build a transaction to confirm its contents before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -362,7 +362,7 @@ pub trait TransactionService {
     /// Build a transaction and sign it before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -411,7 +411,7 @@ pub trait TransactionService {
     /// Build and sign a transaction and submit it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -469,12 +469,11 @@ where
 
         exclusive_transaction(conn, |conn| {
             if Account::get(&AccountID(account_id_hex.to_string()), conn)?.require_spend_subaddress
+                && spend_subaddress.is_none()
             {
-                if spend_subaddress.is_none() {
-                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
+                return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
                         "This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()
                     )));
-                }
             }
 
             let mut builder = WalletTransactionBuilder::new(
@@ -1807,7 +1806,7 @@ mod tests {
             .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
-        assert_eq!(balance_pmob.unspent, 0 as u128);
+        assert_eq!(balance_pmob.unspent, 0_u128);
 
         // Send a transaction from Alice to Bob - this is the subaccount model where
         // Alice is spending from her balance

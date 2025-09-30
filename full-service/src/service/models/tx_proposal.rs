@@ -14,8 +14,6 @@ use mc_transaction_core::{
 };
 use mc_transaction_extra::{TxOutConfirmationNumber, UnsignedTx};
 
-use protobuf::Message;
-
 use crate::{
     db::{account::AccountModel, models::Account},
     service::{hardware_wallet, transaction::TransactionServiceError},
@@ -232,7 +230,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
         let proto_bytes =
             hex::decode(&src.unsigned_tx_proto_bytes_hex).map_err(|e| e.to_string())?;
         let unsigned_tx_external: mc_api::external::UnsignedTx =
-            Message::parse_from_bytes(proto_bytes.as_slice()).map_err(|e| e.to_string())?;
+            mc_util_serial::decode(proto_bytes.as_slice()).map_err(|e| e.to_string())?;
         let unsigned_tx = (&unsigned_tx_external)
             .try_into()
             .map_err(|e: ConversionError| e.to_string())?;
@@ -501,13 +499,13 @@ mod tests {
             &mut ledger_db,
             &vec![alice_public_address.clone()],
             100 * MOB,
-            &vec![KeyImage::from(rng.next_u64())],
+            &[KeyImage::from(rng.next_u64())],
             &mut rng,
         );
 
         manually_sync_account(
             &ledger_db,
-            &service.wallet_db.as_ref().unwrap(),
+            service.wallet_db.as_ref().unwrap(),
             &alice_account_id,
             &logger,
         );

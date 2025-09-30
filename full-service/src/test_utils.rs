@@ -70,6 +70,11 @@ pub const TEST_FOG_AUTHORITY_SPKI: &str ="MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCg
 /// Test fog URL
 pub const TEST_FOG_URL: &str = "fog://fog.test.com";
 
+pub type FogPubkeyResolverFactory =
+    Arc<dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync>;
+pub type MockBlockchainPollingNetworkState =
+    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>;
+
 pub struct WalletDbTestContext {
     base_url: String,
     pub db_name: String,
@@ -204,20 +209,19 @@ pub fn append_test_block(
 ) -> u64 {
     let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
 
-    let new_block;
-    if num_blocks > 0 {
+    let new_block = if num_blocks > 0 {
         let parent = ledger_db
             .get_block(num_blocks - 1)
             .expect("failed to get parent block");
-        new_block = Block::new_with_parent(
+        Block::new_with_parent(
             BlockVersion::MAX,
             &parent,
             &Default::default(),
             &block_contents,
-        );
+        )
     } else {
-        new_block = Block::new_origin_block(&block_contents.outputs);
-    }
+        Block::new_origin_block(&block_contents.outputs)
+    };
 
     let block_metadata = make_block_metadata(new_block.id.clone(), &mut rng);
 
@@ -303,7 +307,7 @@ pub fn setup_peer_manager_and_network_state(
     offline: bool,
 ) -> (
     ConnectionManager<MockBlockchainConnection<LedgerDB>>,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (peers, node_ids) = if offline {
         (vec![], vec![])
@@ -580,14 +584,7 @@ pub fn random_account_with_seed_values(
         .unwrap();
     }
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     account_key
 }
 
@@ -619,14 +616,7 @@ pub fn random_fog_enabled_account_with_seed_values(
         account.account_key().unwrap()
     };
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     account_key
 }
 
@@ -634,7 +624,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     wallet_db: &WalletDb,
     ledger_db: &mut LedgerDB,
     seed_values: &[u64],
-    mut rng: &mut StdRng,
+    rng: &mut StdRng,
     logger: &Logger,
 ) -> ViewAccountKey {
     let account_key = AccountKey::random(rng);
@@ -658,14 +648,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     )
     .unwrap();
 
-    add_seed_values_txos(
-        ledger_db,
-        wallet_db,
-        &account_key,
-        seed_values,
-        &mut rng,
-        logger,
-    );
+    add_seed_values_txos(ledger_db, wallet_db, &account_key, seed_values, rng, logger);
     view_account_key
 }
 
@@ -731,16 +714,13 @@ pub fn builder_for_random_recipient(
     (recipient, builder)
 }
 
-pub fn get_resolver_factory(
-    rng: &mut StdRng,
-) -> Result<Arc<dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync>, ()> {
+pub fn get_resolver_factory(rng: &mut StdRng) -> Result<FogPubkeyResolverFactory, ()> {
     let fog_private_key = RistrettoPrivate::from_random(rng);
 
-    let fog_pubkey_resolver_factory: Arc<
-        dyn Fn(&[FogUri]) -> Result<TestFogPubkeyResolver, String> + Send + Sync,
-    > = Arc::new(move |_| -> Result<TestFogPubkeyResolver, String> {
-        Ok(TestFogPubkeyResolver::new(fog_private_key))
-    });
+    let fog_pubkey_resolver_factory: FogPubkeyResolverFactory =
+        Arc::new(move |_| -> Result<TestFogPubkeyResolver, String> {
+            Ok(TestFogPubkeyResolver::new(fog_private_key))
+        });
     Ok(fog_pubkey_resolver_factory)
 }
 

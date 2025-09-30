@@ -19,8 +19,10 @@ use mc_validator_api::{
     blockchain::ArchiveBlocks,
     consensus_common::{BlocksRequest, ProposeTxResponse},
     external::Tx,
-    validator_api::{FetchFogReportRequest, FetchFogReportResponse, FetchFogReportResult},
-    validator_api_grpc::{create_validator_api, ValidatorApi as GrpcValidatorApi},
+    validator_api::{
+        create_validator_api, FetchFogReportRequest, FetchFogReportResponse, FetchFogReportResult,
+        ValidatorApi as GrpcValidatorApi,
+    },
 };
 use std::{
     convert::TryFrom,
@@ -158,13 +160,11 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
             .propose_tx(&tx, Fibonacci::from_millis(10).take(5));
 
         // Convert to GRPC response.
-        let mut result = ProposeTxResponse::new();
-
         match tx_propose_result {
-            Ok(block_count) => {
-                result.set_block_count(block_count);
-                Ok(())
-            }
+            Ok(block_count) => Ok(ProposeTxResponse {
+                block_count,
+                ..Default::default()
+            }),
 
             Err(RetryError { error, .. }) => match error {
                 err @ ConnectionError::Cipher(_) => {
@@ -173,15 +173,13 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
                 ConnectionError::Attestation(_) => {
                     Err(rpc_permissions_error("propose_tx", error, logger))
                 }
-                ConnectionError::TransactionValidation(err, _) => {
-                    result.set_result(err);
-                    Ok(())
-                }
+                ConnectionError::TransactionValidation(err, _) => Ok(ProposeTxResponse {
+                    result: err.into(),
+                    ..Default::default()
+                }),
                 err => Err(rpc_internal_error("propose_tx", format!("{err:?}"), logger)),
             },
-        }?;
-
-        Ok(result)
+        }
     }
 
     fn fetch_fog_report_impl(
@@ -189,22 +187,19 @@ impl<UTC: UserTxConnection + 'static> ValidatorApi<UTC> {
         request: FetchFogReportRequest,
         logger: &Logger,
     ) -> Result<FetchFogReportResponse, RpcStatus> {
-        let fog_uri = FogUri::from_str(request.get_uri())
+        let fog_uri = FogUri::from_str(&request.uri)
             .map_err(|_| rpc_invalid_arg_error("fetch_fog_report", "uri", logger))?;
 
         match self.fog_report_connection.fetch_fog_report(&fog_uri) {
-            Ok(report_response) => {
-                let mut response = FetchFogReportResponse::new();
-                response.set_result(FetchFogReportResult::Ok);
-                response.set_report(report_response.into());
-                Ok(response)
-            }
+            Ok(report_response) => Ok(FetchFogReportResponse {
+                result: FetchFogReportResult::Ok as i32,
+                report: Some(report_response.into()),
+            }),
 
-            Err(FogConnectionError::NoReports(_)) => {
-                let mut response = FetchFogReportResponse::new();
-                response.set_result(FetchFogReportResult::NoReports);
-                Ok(response)
-            }
+            Err(FogConnectionError::NoReports(_)) => Ok(FetchFogReportResponse {
+                result: FetchFogReportResult::NoReports as i32,
+                report: None,
+            }),
 
             // TODO do we want a special case for
             // Err(FogConnectionError::Grpc(Error::RpcFailure(status_code))) ?
