@@ -48,7 +48,7 @@ pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name              | Purpose                                                   | Notes                              |
     ///|-------------------|-----------------------------------------------------------|------------------------------------|
     ///| `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |

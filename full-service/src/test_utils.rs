@@ -1,9 +1,7 @@
-use crate::service::t3_sync::T3Config;
 // Copyright (c) 2020-2021 MobileCoin Inc.
-use crate::config::WebhookConfig;
-#[cfg(test)]
+
 use crate::{
-    config::NetworkConfig,
+    config::{NetworkConfig, WebhookConfig},
     db::{
         account::{AccountID, AccountModel},
         models::{Account, TransactionLog, Txo},
@@ -15,7 +13,8 @@ use crate::{
     service::{
         models::tx_proposal::{TxProposal, UnsignedTxProposal},
         sync::sync_account_next_chunk,
-        transaction::TransactionMemo,
+        t3_sync::T3Config,
+        transaction::{TransactionMemo, TransactionMemoSignerCredentials},
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
@@ -410,7 +409,12 @@ pub fn create_test_txo_for_recipient_with_memo(
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
 
-    let mut memo_builder = memo.memo_builder(recipient_account_key);
+    let mut memo_builder = memo
+        .memo_builder(&TransactionMemoSignerCredentials::Local(
+            recipient_account_key.clone(),
+        ))
+        .unwrap();
+
     let tx_out = TxOut::new_with_memo(
         BlockVersion::MAX,
         amount,

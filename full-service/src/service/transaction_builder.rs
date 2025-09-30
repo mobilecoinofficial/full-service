@@ -9,7 +9,6 @@
 //! This module, on the other hand, builds a transaction within the context of
 //! the wallet.
 
-use super::models::tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal};
 use crate::{
     db::{
         account::{AccountID, AccountModel},
@@ -19,7 +18,13 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
-    service::transaction::TransactionMemo,
+    service::{
+        models::{
+            tx_blueprint_proposal::{TxBlueprintProposal, TxBlueprintProposalTxoContext},
+            tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal},
+        },
+        transaction::{TransactionMemo, TransactionMemoSignerCredentials},
+    },
     util::b58::b58_encode_public_address,
 };
 use mc_account_keys::{PublicAddress, DEFAULT_SUBADDRESS_INDEX};
@@ -28,8 +33,7 @@ use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_builder::{
-    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
-    TransactionBuilder,
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
 };
 use mc_transaction_core::{
     constants::RING_SIZE,
@@ -39,7 +43,7 @@ use mc_transaction_core::{
 };
 use mc_util_uri::FogUri;
 use rand::Rng;
-use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -240,11 +244,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         Ok(fog_resolver)
     }
 
-    pub fn build(
+    pub fn build_tx_blueprint(
         &self,
         memo: TransactionMemo,
         conn: Conn,
-    ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
+    ) -> Result<TxBlueprintProposal, WalletTransactionBuilderError> {
         let mut rng = rand::thread_rng();
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
 
@@ -337,17 +341,8 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let fee_amount = Amount::new(fee, fee_token_id);
         let fog_resolver = self.get_fog_resolver(conn)?;
 
-        let memo_builder = match account.account_key() {
-            Ok(account_key) => memo.memo_builder(&account_key),
-            Err(_) => Box::<EmptyMemoBuilder>::default(),
-        };
-
-        let mut transaction_builder = TransactionBuilder::new_with_box(
-            block_version,
-            fee_amount,
-            fog_resolver,
-            memo_builder,
-        )?;
+        let mut transaction_builder =
+            TransactionBuilder::new(block_version, fee_amount, fog_resolver)?;
 
         transaction_builder.set_tombstone_block(self.tombstone);
 
@@ -476,7 +471,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut total_value_per_token = BTreeMap::new();
         total_value_per_token.insert(fee_token_id, fee as u128);
 
-        let mut payload_txos = Vec::new();
+        let mut payload_txo_contexts = Vec::new();
         for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
             total_value_per_token
                 .entry(token_id)
@@ -486,14 +481,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             let amount = Amount::new(amount, token_id);
             let tx_out_context = transaction_builder.add_output(amount, &receiver, &mut rng)?;
 
-            let payload_txo = OutputTxo {
-                tx_out: tx_out_context.tx_out,
+            payload_txo_contexts.push(TxBlueprintProposalTxoContext {
+                tx_out_context,
                 recipient_public_address: receiver,
-                confirmation_number: tx_out_context.confirmation,
                 amount,
-                shared_secret: Some(tx_out_context.shared_secret),
-            };
-            payload_txos.push(payload_txo);
+            });
         }
 
         let input_value_per_token =
@@ -513,7 +505,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     acc
                 });
 
-        let mut change_txos = Vec::new();
+        let mut change_txo_contexts = Vec::new();
         for (token_id, input_value) in input_value_per_token {
             let total_value = total_value_per_token.get(&token_id).ok_or_else(|| {
                 WalletTransactionBuilderError::MissingInputsForTokenId(token_id.to_string())
@@ -556,14 +548,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     &mut rng,
                 )?;
 
-                let change_txo = OutputTxo {
-                    tx_out: tx_out_context.tx_out,
+                change_txo_contexts.push(TxBlueprintProposalTxoContext {
+                    tx_out_context,
                     recipient_public_address: change_address,
-                    confirmation_number: tx_out_context.confirmation,
                     amount: change_amount,
-                    shared_secret: Some(tx_out_context.shared_secret),
-                };
-                change_txos.push(change_txo);
+                });
             } else {
                 // Send the change to the reserved change subaddress for the account
                 let tx_out_context = transaction_builder.add_change_output(
@@ -572,25 +561,37 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                     &mut rng,
                 )?;
 
-                let change_txo = OutputTxo {
-                    tx_out: tx_out_context.tx_out,
+                change_txo_contexts.push(TxBlueprintProposalTxoContext {
+                    tx_out_context,
                     recipient_public_address: reserved_subaddresses.change_subaddress.clone(),
-                    confirmation_number: tx_out_context.confirmation,
                     amount: change_amount,
-                    shared_secret: Some(tx_out_context.shared_secret),
-                };
-                change_txos.push(change_txo);
+                });
             }
         }
 
-        let unsigned_tx = transaction_builder.build_unsigned::<DefaultTxOutputsOrdering>()?;
+        let tx_blueprint = transaction_builder.build_blueprint()?;
 
-        Ok(UnsignedTxProposal {
-            unsigned_tx,
+        Ok(TxBlueprintProposal {
+            tx_blueprint,
+            account_id_hex: self.account_id_hex.clone(),
+            memo,
             unsigned_input_txos,
-            payload_txos,
-            change_txos,
+            payload_txo_contexts,
+            change_txo_contexts,
         })
+    }
+
+    pub fn build(
+        &self,
+        memo: TransactionMemo,
+        conn: Conn,
+    ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
+        let tx_blueprint_proposal = self.build_tx_blueprint(memo, conn)?;
+        let account = Account::get(
+            &AccountID(tx_blueprint_proposal.account_id_hex.clone()),
+            conn,
+        )?;
+        build_unsigned_tx_from_blueprint_proposal(&tx_blueprint_proposal, &(&account).try_into()?)
     }
 
     /// Get rings.
@@ -650,6 +651,83 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         Ok(rings_with_proofs)
     }
+}
+
+/// A helper function to build an unsigned tx from a blueprint proposal.
+///
+/// This isn't a method on the `WalletTransactionBuilder` struct because it's
+/// not specific to the FogResolver that `WalletTransactionBuilder` is generic
+/// over.
+pub fn build_unsigned_tx_from_blueprint_proposal(
+    tx_blueprint_proposal: &TxBlueprintProposal,
+    memo_builder_signer_credentials: &TransactionMemoSignerCredentials,
+) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
+    let memo_builder = tx_blueprint_proposal
+        .memo
+        .memo_builder(memo_builder_signer_credentials)?;
+
+    let unsigned_tx = tx_blueprint_proposal
+        .tx_blueprint
+        .to_unsigned_tx::<DefaultTxOutputsOrdering>(memo_builder)?;
+
+    let payload_txos = tx_blueprint_proposal
+        .payload_txo_contexts
+        .iter()
+        .map(|blueprint_output| {
+            let tx_out = unsigned_tx
+                .tx_prefix
+                .outputs
+                .iter()
+                .find(|tx_out| {
+                    tx_out.public_key == blueprint_output.tx_out_context.tx_out_public_key
+                })
+                .cloned()
+                .ok_or(WalletTransactionBuilderError::InvalidTxBlueprint(format!(
+                    "Payload Txo {} not found in unsigned tx",
+                    blueprint_output.tx_out_context.tx_out_public_key
+                )))?;
+            Ok(OutputTxo {
+                tx_out,
+                recipient_public_address: blueprint_output.recipient_public_address.clone(),
+                confirmation_number: blueprint_output.tx_out_context.confirmation.clone(),
+                amount: blueprint_output.amount,
+                shared_secret: Some(blueprint_output.tx_out_context.shared_secret),
+            })
+        })
+        .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
+
+    let change_txos = tx_blueprint_proposal
+        .change_txo_contexts
+        .iter()
+        .map(|blueprint_output| {
+            let tx_out = unsigned_tx
+                .tx_prefix
+                .outputs
+                .iter()
+                .find(|tx_out| {
+                    tx_out.public_key == blueprint_output.tx_out_context.tx_out_public_key
+                })
+                .cloned()
+                .ok_or(WalletTransactionBuilderError::InvalidTxBlueprint(format!(
+                    "Change Txo {} not found in unsigned tx",
+                    blueprint_output.tx_out_context.tx_out_public_key
+                )))?;
+            Ok(OutputTxo {
+                tx_out,
+                recipient_public_address: blueprint_output.recipient_public_address.clone(),
+                confirmation_number: blueprint_output.tx_out_context.confirmation.clone(),
+                amount: blueprint_output.amount,
+                shared_secret: Some(blueprint_output.tx_out_context.shared_secret),
+            })
+        })
+        .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
+
+    Ok(UnsignedTxProposal {
+        unsigned_tx,
+        unsigned_input_txos: tx_blueprint_proposal.unsigned_input_txos.clone(),
+        payload_txos,
+        change_txos,
+    })
 }
 
 // Helper which extracts FogUri from PublicAddress or returns None, or returns
@@ -1767,14 +1845,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
 
         // Verify that not setting fee results in default fee
-        let unsigned_tx_proposal = builder
-            .build(
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
-                conn,
-            )
-            .unwrap();
+        let unsigned_tx_proposal = builder.build(TransactionMemo::Empty, conn).unwrap();
 
         // Check that the change txo fog hint is correct. It should point at our default
         // subaddress.

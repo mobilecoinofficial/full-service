@@ -22,7 +22,7 @@ use crate::{
     util::b58::{b58_decode_public_address, B58Error},
 };
 
-use mc_account_keys::AccountKey;
+use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
 use mc_connection::{
@@ -225,27 +225,22 @@ impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for Trans
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 /// This represents the different types of Transaction Memos that can be used in
 /// a given transaction
-///
-/// * Empty
-///
-/// * RTH
-///
-/// * BurnRedemption
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub enum TransactionMemo {
     /// Empty Transaction Memo.
+    #[default]
     Empty,
 
-    /// Recoverable Transaction History memo with an optional u64 specifying the
-    /// subaddress index to generate the sender memo credential from
+    /// Recoverable Transaction History memo
     RTH {
         /// Optional subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: Option<u64>,
     },
 
+    /// Recoverable Transaction History memo with a payment intent id
     RTHWithPaymentIntentId {
         /// Optional subaddress index to generate the sender memo credential
         /// from.
@@ -255,6 +250,7 @@ pub enum TransactionMemo {
         payment_intent_id: u64,
     },
 
+    /// Recoverable Transaction History memo with a payment request id
     RTHWithPaymentRequestId {
         /// Optional subaddress index to generate the sender memo credential
         /// from.
@@ -271,33 +267,38 @@ pub enum TransactionMemo {
 }
 
 impl TransactionMemo {
-    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
+    pub fn memo_builder(
+        &self,
+        signer_credentials: &TransactionMemoSignerCredentials,
+    ) -> Result<Box<dyn MemoBuilder + Send + Sync>, WalletTransactionBuilderError> {
         match self {
-            Self::Empty => Box::<EmptyMemoBuilder>::default(),
+            Self::Empty => Ok(Box::<EmptyMemoBuilder>::default()),
+            Self::BurnRedemption(memo_data) => {
+                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
+                memo_builder.enable_destination_memo();
+                Ok(Box::new(memo_builder))
+            }
             Self::RTH { subaddress_index } => {
-                let memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                Box::new(memo_builder)
+                let memo_builder = generate_rth_memo_builder(subaddress_index, signer_credentials)?;
+                Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentIntentId {
                 subaddress_index,
                 payment_intent_id,
             } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
+                let mut memo_builder =
+                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_intent_id(*payment_intent_id);
-                Box::new(memo_builder)
+                Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentRequestId {
                 subaddress_index,
                 payment_request_id,
             } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
+                let mut memo_builder =
+                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_request_id(*payment_request_id);
-                Box::new(memo_builder)
-            }
-            Self::BurnRedemption(memo_data) => {
-                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
-                memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
+                Ok(Box::new(memo_builder))
             }
         }
     }
@@ -305,20 +306,57 @@ impl TransactionMemo {
 
 fn generate_rth_memo_builder(
     subaddress_index: &Option<u64>,
-    account_key: &AccountKey,
-) -> RTHMemoBuilder {
+    signer_credentials: &TransactionMemoSignerCredentials,
+) -> Result<RTHMemoBuilder, WalletTransactionBuilderError> {
+    let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
     let mut memo_builder = RTHMemoBuilder::default();
-    let sender_memo_credential = match subaddress_index {
-        Some(subaddress_index) => SenderMemoCredential::new_from_address_and_spend_private_key(
-            &account_key.subaddress(*subaddress_index),
-            account_key.subaddress_spend_private(*subaddress_index),
-        ),
-        None => SenderMemoCredential::from(account_key),
+
+    match signer_credentials {
+        TransactionMemoSignerCredentials::None => {
+            // No authenticated sender
+        }
+
+        TransactionMemoSignerCredentials::ViewOnly(_) => {
+            return Err(WalletTransactionBuilderError::RTHUnavailableForViewOnlyAccounts);
+        }
+
+        TransactionMemoSignerCredentials::Local(account_key) => {
+            memo_builder.set_sender_credential(
+                SenderMemoCredential::new_from_address_and_spend_private_key(
+                    &account_key.subaddress(subaddress_index),
+                    account_key.subaddress_spend_private(subaddress_index),
+                ),
+            );
+        }
     };
-    memo_builder.set_sender_credential(sender_memo_credential);
+
     memo_builder.enable_destination_memo();
 
-    memo_builder
+    Ok(memo_builder)
+}
+
+/// Credentials used to sign a transaction memo.
+pub enum TransactionMemoSignerCredentials {
+    /// No credentials available.
+    None,
+
+    /// Local account credentials.
+    Local(AccountKey),
+
+    /// View only account (not managed by hardware wallet)
+    ViewOnly(ViewAccountKey),
+}
+
+impl TryFrom<&Account> for TransactionMemoSignerCredentials {
+    type Error = WalletTransactionBuilderError;
+
+    fn try_from(account: &Account) -> Result<Self, Self::Error> {
+        if account.view_only {
+            Ok(Self::ViewOnly(account.view_account_key()?))
+        } else {
+            Ok(Self::Local(account.account_key()?))
+        }
+    }
 }
 
 /// Trait defining the ways in which the wallet can interact with and manage

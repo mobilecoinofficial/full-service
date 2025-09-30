@@ -185,7 +185,7 @@ pub trait TxoService {
     ///| `txo_id` | The TXO ID for which to get details. |       |
     ///
     fn get_txo(
-        &self, 
+        &self,
         txo_id: &TxoID
     ) -> Result<TxoInfo, TxoServiceError>;
 

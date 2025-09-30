@@ -3086,6 +3086,7 @@ dependencies = [
  "mc-crypto-ring-signature-signer",
  "mc-sgx-core-types",
  "mc-sgx-dcap-types",
+ "mc-transaction-builder",
  "mc-transaction-core",
  "mc-transaction-extra",
  "mc-transaction-summary",
