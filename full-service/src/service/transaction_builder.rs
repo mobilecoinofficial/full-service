@@ -657,7 +657,35 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     }
 }
 
-/// A helper function to build an unsigned tx from a blueprint proposal.
+fn blueprint_outputs_to_output_txos(
+    blueprint_outputs: &[TxBlueprintProposalTxoContext],
+    outputs: &[TxOut],
+) -> Result<Vec<OutputTxo>, WalletTransactionBuilderError> {
+    blueprint_outputs
+        .iter()
+        .map(|blueprint_output| {
+            let tx_out = outputs
+                .iter()
+                .find(|tx_out| {
+                    tx_out.public_key == blueprint_output.tx_out_context.tx_out_public_key
+                })
+                .cloned()
+                .ok_or(WalletTransactionBuilderError::InvalidTxBlueprint(format!(
+                    "Output Txo {} not found in unsigned tx",
+                    blueprint_output.tx_out_context.tx_out_public_key
+                )))?;
+            Ok(OutputTxo {
+                tx_out,
+                recipient_public_address: blueprint_output.recipient_public_address.clone(),
+                confirmation_number: blueprint_output.tx_out_context.confirmation.clone(),
+                amount: blueprint_output.amount,
+                shared_secret: Some(blueprint_output.tx_out_context.shared_secret),
+            })
+        })
+        .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()
+}
+
+/// Build an unsigned tx from a blueprint proposal.
 ///
 /// This isn't a method on the `WalletTransactionBuilder` struct because it's
 /// not specific to the FogResolver that `WalletTransactionBuilder` is generic
@@ -675,57 +703,15 @@ pub fn build_unsigned_tx_from_blueprint_proposal(
         .tx_blueprint
         .to_unsigned_tx::<DefaultTxOutputsOrdering>(memo_builder)?;
 
-    let payload_txos = tx_blueprint_proposal
-        .payload_txo_contexts
-        .iter()
-        .map(|blueprint_output| {
-            let tx_out = unsigned_tx
-                .tx_prefix
-                .outputs
-                .iter()
-                .find(|tx_out| {
-                    tx_out.public_key == blueprint_output.tx_out_context.tx_out_public_key
-                })
-                .cloned()
-                .ok_or(WalletTransactionBuilderError::InvalidTxBlueprint(format!(
-                    "Payload Txo {} not found in unsigned tx",
-                    blueprint_output.tx_out_context.tx_out_public_key
-                )))?;
-            Ok(OutputTxo {
-                tx_out,
-                recipient_public_address: blueprint_output.recipient_public_address.clone(),
-                confirmation_number: blueprint_output.tx_out_context.confirmation.clone(),
-                amount: blueprint_output.amount,
-                shared_secret: Some(blueprint_output.tx_out_context.shared_secret),
-            })
-        })
-        .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
+    let payload_txos = blueprint_outputs_to_output_txos(
+        &tx_blueprint_proposal.payload_txo_contexts,
+        &unsigned_tx.tx_prefix.outputs,
+    )?;
 
-    let change_txos = tx_blueprint_proposal
-        .change_txo_contexts
-        .iter()
-        .map(|blueprint_output| {
-            let tx_out = unsigned_tx
-                .tx_prefix
-                .outputs
-                .iter()
-                .find(|tx_out| {
-                    tx_out.public_key == blueprint_output.tx_out_context.tx_out_public_key
-                })
-                .cloned()
-                .ok_or(WalletTransactionBuilderError::InvalidTxBlueprint(format!(
-                    "Change Txo {} not found in unsigned tx",
-                    blueprint_output.tx_out_context.tx_out_public_key
-                )))?;
-            Ok(OutputTxo {
-                tx_out,
-                recipient_public_address: blueprint_output.recipient_public_address.clone(),
-                confirmation_number: blueprint_output.tx_out_context.confirmation.clone(),
-                amount: blueprint_output.amount,
-                shared_secret: Some(blueprint_output.tx_out_context.shared_secret),
-            })
-        })
-        .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()?;
+    let change_txos = blueprint_outputs_to_output_txos(
+        &tx_blueprint_proposal.change_txo_contexts,
+        &unsigned_tx.tx_prefix.outputs,
+    )?;
 
     Ok(UnsignedTxProposal {
         unsigned_tx,
