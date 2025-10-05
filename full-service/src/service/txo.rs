@@ -327,7 +327,7 @@ where
             ))
         }
 
-        let unsigned_transaction = self.build_transaction(
+        let unsigned_transaction = self.build_unsigned_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),

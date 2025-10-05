@@ -23,7 +23,9 @@ use crate::{
                 public_address::PublicAddress,
                 receiver_receipt::ReceiverReceipt,
                 transaction_log::TransactionLog,
-                tx_proposal::{TxProposal as TxProposalJSON, UnsignedTxProposal},
+                tx_proposal::{
+                    TxProposal as TxProposalJSON, UnsignedTxProposal as UnsignedTxProposalJSON,
+                },
                 txo::Txo,
                 wallet_status::WalletStatus,
             },
@@ -395,8 +397,8 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = (&service
-                .build_transaction(
+            let unsigned_tx_proposal: UnsignedTxProposalJSON = (&service
+                .build_unsigned_transaction(
                     &account_id,
                     &[(
                         b58_encode_public_address(&burn_address()).map_err(format_error)?,
@@ -446,8 +448,8 @@ where
                 None => None,
             };
 
-            let unsigned_tx_proposal: UnsignedTxProposal = (&service
-                .build_transaction(
+            let unsigned_tx_proposal: UnsignedTxProposalJSON = (&service
+                .build_unsigned_transaction(
                     &account_id,
                     &addresses_and_amounts,
                     input_txo_ids.as_ref(),
