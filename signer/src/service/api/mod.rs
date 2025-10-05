@@ -129,6 +129,42 @@ fn signer_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandRe
                 ))
             }
         },
+        JsonCommandRequest::sign_tx_blueprint {
+            mnemonic,
+            bip39_entropy,
+            tx_blueprint_proposal,
+        } => match (mnemonic, bip39_entropy) {
+            (Some(mnemonic), None) => {
+                let signed_tx = service::sign_tx_blueprint_with_mnemonic(
+                    &mnemonic,
+                    (&tx_blueprint_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
+                }
+            }
+            (None, Some(bip39_entropy)) => {
+                let signed_tx = service::sign_tx_blueprint_with_bip39_entropy(
+                    &bip39_entropy,
+                    (&tx_blueprint_proposal)
+                        .try_into()
+                        .map_err(|e: String| anyhow!(e))?,
+                )?;
+                JsonCommandResponse::sign_tx {
+                    tx_proposal: (&signed_tx).try_into().map_err(|e: String| anyhow!(e))?,
+                }
+            }
+            (None, None) => {
+                return Err(anyhow!("Either mnemonic or bip39_entropy must be provided"));
+            }
+            _ => {
+                return Err(anyhow!(
+                    "Only one of mnemonic or bip39_entropy can be provided"
+                ))
+            }
+        },
         JsonCommandRequest::sync_txos {
             mnemonic,
             bip39_entropy,
