@@ -6,7 +6,7 @@ use crate::json_rpc::{
     json_rpc_request::JsonRPCRequest,
     v2::models::{
         account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposal,
+        tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
     },
 };
 
@@ -109,6 +109,21 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
+        spend_subaddress: Option<String>,
+    },
+    build_tx_blueprint {
+        account_id: String,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
+        recipient_public_address: Option<String>,
+        amount: Option<Amount>,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
+        payment_request_id: Option<String>,
         spend_subaddress: Option<String>,
     },
     check_b58_type {
@@ -272,6 +287,9 @@ pub enum JsonCommandRequest {
     set_require_spend_subaddress {
         account_id: String,
         require_spend_subaddress: bool,
+    },
+    sign_and_submit_tx_blueprint {
+        tx_blueprint_proposal: TxBlueprintProposal,
     },
     submit_transaction {
         tx_proposal: TxProposal,
