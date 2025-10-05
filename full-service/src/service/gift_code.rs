@@ -526,7 +526,7 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let unsigned_tx_proposal = self.build_transaction(
+        let unsigned_tx_proposal = self.build_unsigned_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,

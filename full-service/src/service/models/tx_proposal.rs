@@ -531,7 +531,7 @@ mod tests {
             .unwrap();
 
         let unsigned_tx_proposal = service
-            .build_transaction(
+            .build_unsigned_transaction(
                 &alice.id,
                 &[(
                     bob_address_from_alice.public_address_b58,
