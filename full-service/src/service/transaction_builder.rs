@@ -18,23 +18,20 @@ use crate::{
         Conn,
     },
     error::WalletTransactionBuilderError,
-    service::{
-        models::{
-            tx_blueprint_proposal::{TxBlueprintProposal, TxBlueprintProposalTxoContext},
-            tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal},
-        },
-        transaction::TransactionMemo,
+    service::models::{
+        transaction_memo::{TransactionMemo, TransactionMemoSignerCredentials},
+        tx_blueprint_proposal::{TxBlueprintProposal, TxBlueprintProposalTxoContext},
+        tx_proposal::{OutputTxo, UnsignedInputTxo, UnsignedTxProposal},
     },
     util::b58::b58_encode_public_address,
 };
-use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{PublicAddress, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::{logger::global_log, HashSet};
 use mc_crypto_ring_signature_signer::OneTimeKeyDeriveData;
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_transaction_builder::{
-    DefaultTxOutputsOrdering, EmptyMemoBuilder, InputCredentials, ReservedSubaddresses,
-    TransactionBuilder,
+    DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
 };
 use mc_transaction_core::{
     constants::RING_SIZE,
@@ -44,7 +41,7 @@ use mc_transaction_core::{
 };
 use mc_util_uri::FogUri;
 use rand::Rng;
-use std::{collections::BTreeMap, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -592,10 +589,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             &AccountID(tx_blueprint_proposal.account_id_hex.clone()),
             conn,
         )?;
-        build_unsigned_tx_from_blueprint_proposal(
-            &tx_blueprint_proposal,
-            &account.account_key().ok(),
-        )
+        build_unsigned_tx_from_blueprint_proposal(&tx_blueprint_proposal, &(&account).try_into()?)
     }
 
     /// Get rings.
@@ -692,12 +686,11 @@ fn blueprint_outputs_to_output_txos(
 /// over.
 pub fn build_unsigned_tx_from_blueprint_proposal(
     tx_blueprint_proposal: &TxBlueprintProposal,
-    account_key: &Option<AccountKey>,
+    memo_builder_signer_credentials: &TransactionMemoSignerCredentials,
 ) -> Result<UnsignedTxProposal, WalletTransactionBuilderError> {
-    let memo_builder = match account_key {
-        Some(account_key) => tx_blueprint_proposal.memo.memo_builder(account_key),
-        None => Box::<EmptyMemoBuilder>::default(),
-    };
+    let memo_builder = tx_blueprint_proposal
+        .memo
+        .memo_builder(memo_builder_signer_credentials)?;
 
     let unsigned_tx = tx_blueprint_proposal
         .tx_blueprint

@@ -305,13 +305,10 @@ mod tests {
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService,
-            address::AddressService,
-            confirmation_number::ConfirmationService,
-            ledger::get_tx_out_by_public_key,
-            transaction::{TransactionMemo, TransactionService},
-            transaction_log::TransactionLogService,
-            txo::TxoService,
+            account::AccountService, address::AddressService,
+            confirmation_number::ConfirmationService, ledger::get_tx_out_by_public_key,
+            models::transaction_memo::TransactionMemo, transaction::TransactionService,
+            transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,

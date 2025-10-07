@@ -11,10 +11,12 @@ use crate::{
     },
     error::SyncError,
     service::{
-        models::tx_proposal::{TxProposal, UnsignedTxProposal},
+        models::{
+            transaction_memo::{TransactionMemo, TransactionMemoSignerCredentials},
+            tx_proposal::{TxProposal, UnsignedTxProposal},
+        },
         sync::sync_account_next_chunk,
         t3_sync::T3Config,
-        transaction::TransactionMemo,
         transaction_builder::WalletTransactionBuilder,
     },
     WalletService,
@@ -409,7 +411,11 @@ pub fn create_test_txo_for_recipient_with_memo(
     let tx_private_key = RistrettoPrivate::from_random(rng);
     let hint = EncryptedFogHint::fake_onetime_hint(rng);
 
-    let mut memo_builder = memo.memo_builder(recipient_account_key);
+    let mut memo_builder = memo
+        .memo_builder(&TransactionMemoSignerCredentials::Local(
+            recipient_account_key.clone(),
+        ))
+        .unwrap();
 
     let tx_out = TxOut::new_with_memo(
         BlockVersion::MAX,

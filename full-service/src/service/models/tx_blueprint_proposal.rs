@@ -1,4 +1,4 @@
-use crate::service::{models::tx_proposal::UnsignedInputTxo, transaction::TransactionMemo};
+use crate::service::models::{transaction_memo::TransactionMemo, tx_proposal::UnsignedInputTxo};
 use mc_account_keys::PublicAddress;
 use mc_transaction_builder::{TxBlueprint, TxOutContext};
 use mc_transaction_types::Amount;
