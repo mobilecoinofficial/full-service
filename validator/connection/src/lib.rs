@@ -17,12 +17,9 @@ use mc_util_grpc::{ConnectionUriGrpcioChannel, CHAIN_ID_GRPC_HEADER};
 use mc_util_uri::{ConnectionUri, FogUri};
 use mc_validator_api::{
     blockchain::ArchiveBlock,
-    consensus_common::{BlocksRequest, ProposeTxResult},
-    consensus_common_grpc::BlockchainApiClient,
-    empty::Empty,
+    consensus_common::{BlockchainApiClient, BlocksRequest, ProposeTxResult},
     report::ReportResponse,
-    validator_api::{FetchFogReportRequest, FetchFogReportResult},
-    validator_api_grpc::ValidatorApiClient,
+    validator_api::{FetchFogReportRequest, FetchFogReportResult, ValidatorApiClient},
     ValidatorUri,
 };
 use std::{
@@ -65,8 +62,8 @@ impl ValidatorConnection {
     pub fn new(uri: &ValidatorUri, chain_id: String, logger: Logger) -> Self {
         let env = Arc::new(EnvBuilder::new().name_prefix("ValidatorRPC").build());
         let ch = ChannelBuilder::new(env)
-            .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX)
+            .max_receive_message_len(i32::MAX)
+            .max_send_message_len(i32::MAX)
             .connect_to_uri(uri, &logger);
 
         let validator_api_client = ValidatorApiClient::new(ch.clone());
@@ -82,9 +79,7 @@ impl ValidatorConnection {
     }
 
     pub fn get_archive_blocks(&self, offset: u64, limit: u32) -> Result<Vec<ArchiveBlock>, Error> {
-        let mut request = BlocksRequest::new();
-        request.set_offset(offset);
-        request.set_limit(limit);
+        let request = BlocksRequest { offset, limit };
 
         let response = self
             .validator_api_client
@@ -98,7 +93,7 @@ impl ValidatorConnection {
                 err
             })?;
 
-        Ok(response.get_blocks().to_vec())
+        Ok(response.blocks)
     }
 
     pub fn get_blocks_data(&self, offset: u64, limit: u32) -> Result<Vec<BlockData>, Error> {
@@ -114,8 +109,9 @@ impl ValidatorConnection {
     /// Given a fog report uri, fetch its response over grpc, or return an
     /// error.
     pub fn fetch_fog_report(&self, uri: &FogUri) -> Result<ReportResponse, Error> {
-        let mut request = FetchFogReportRequest::new();
-        request.set_uri(uri.to_string());
+        let request = FetchFogReportRequest {
+            uri: uri.to_string(),
+        };
 
         let response = self
             .validator_api_client
@@ -129,10 +125,12 @@ impl ValidatorConnection {
                 err
             })?;
 
-        match response.get_result() {
-            FetchFogReportResult::Ok => Ok(response.get_report().clone()),
+        match FetchFogReportResult::from_i32(response.result) {
+            Some(FetchFogReportResult::Ok) => response.report.ok_or(Error::NoReports),
 
-            FetchFogReportResult::NoReports => Err(Error::NoReports),
+            Some(FetchFogReportResult::NoReports) => Err(Error::NoReports),
+
+            None => Err(Error::NoReports),
         }
     }
 
@@ -219,7 +217,7 @@ impl BlockchainConnection for ValidatorConnection {
     fn fetch_block_height(&mut self) -> ConnectionResult<BlockIndex> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info_opt(&Empty::new(), common_headers_call_option(&self.chain_id))
+            .get_last_block_info_opt(&(), common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -228,14 +226,14 @@ impl BlockchainConnection for ValidatorConnection {
                 );
                 err
             })?;
-        Ok(response.get_index())
+        Ok(response.index)
     }
 
     /// Retrieve the consensus node's current block height and fee
     fn fetch_block_info(&mut self) -> ConnectionResult<BlockInfo> {
         let response = self
             .blockchain_api_client
-            .get_last_block_info_opt(&Empty::new(), common_headers_call_option(&self.chain_id))
+            .get_last_block_info_opt(&(), common_headers_call_option(&self.chain_id))
             .map_err(|err| {
                 log::warn!(
                     self.logger,
@@ -257,12 +255,17 @@ impl UserTxConnection for ValidatorConnection {
                 log::warn!(self.logger, "validator propose_tx RPC call failed: {}", err);
                 err
             })?;
-        if response.get_result() == ProposeTxResult::Ok {
-            Ok(response.get_block_count())
+        if response.result == ProposeTxResult::Ok as i32 {
+            Ok(response.block_count)
         } else {
             Err(ConnectionError::TransactionValidation(
-                response.get_result(),
-                response.get_err_msg().to_owned(),
+                ProposeTxResult::from_i32(response.result).ok_or_else(|| {
+                    ConnectionError::Other(format!(
+                        "Invalid propose tx result: {}",
+                        response.result
+                    ))
+                })?,
+                response.err_msg,
             ))
         }
     }

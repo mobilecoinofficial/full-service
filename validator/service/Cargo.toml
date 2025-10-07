@@ -22,7 +22,7 @@ mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }
 mc-full-service = { path = "../../full-service" }
 mc-ledger-db = { path = "../../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../../mobilecoin/ledger/sync" }
-mc-sgx-core-types = "0.9.0"
+mc-sgx-core-types = "0.12"
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }
@@ -30,5 +30,5 @@ mc-util-uri = { path = "../../mobilecoin/util/uri" }
 mc-validator-api = { path = "../api" }
 
 clap = { version = "4.4", features = ["derive", "env"] }
-grpcio = "0.13"
+grpcio = { version = "0.13", default-features = false, features = ["prost-codec"] }
 rayon = "1.7"

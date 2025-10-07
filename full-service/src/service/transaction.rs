@@ -5,8 +5,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
-        models::{Account, TransactionLog},
+        models::{Account, AssignedSubaddress, TransactionLog},
         transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
     },
@@ -15,34 +16,27 @@ use crate::{
     service::{
         address::{AddressService, AddressServiceError},
         ledger::{LedgerService, LedgerServiceError},
-        models::tx_proposal::{TxProposal, UnsignedTxProposal},
+        models::{
+            transaction_memo::TransactionMemo,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
+        },
         transaction_builder::WalletTransactionBuilder,
         WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
-
-use mc_account_keys::AccountKey;
+use displaydoc::Display;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
 use mc_connection::{
     BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
 };
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_builder::{
-    BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
-};
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
-
-use crate::db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress};
-use displaydoc::Display;
-use serde::{Deserialize, Serialize};
-use serde_big_array::BigArray;
 use std::{convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
@@ -225,102 +219,6 @@ impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for Trans
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-/// This represents the different types of Transaction Memos that can be used in
-/// a given transaction
-///
-/// * Empty
-///
-/// * RTH
-///
-/// * BurnRedemption
-pub enum TransactionMemo {
-    /// Empty Transaction Memo.
-    Empty,
-
-    /// Recoverable Transaction History memo with an optional u64 specifying the
-    /// subaddress index to generate the sender memo credential from
-    RTH {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-    },
-
-    RTHWithPaymentIntentId {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-
-        /// The payment intent id to include in the memo.
-        payment_intent_id: u64,
-    },
-
-    RTHWithPaymentRequestId {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-
-        /// The payment request id to include in the memo.
-        payment_request_id: u64,
-    },
-
-    /// Burn Redemption memo, with an optional 64 byte redemption memo hex
-    /// string.
-    #[serde(with = "BigArray")]
-    BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
-}
-
-impl TransactionMemo {
-    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
-        match self {
-            Self::Empty => Box::<EmptyMemoBuilder>::default(),
-            Self::RTH { subaddress_index } => {
-                let memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                Box::new(memo_builder)
-            }
-            Self::RTHWithPaymentIntentId {
-                subaddress_index,
-                payment_intent_id,
-            } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                memo_builder.set_payment_intent_id(*payment_intent_id);
-                Box::new(memo_builder)
-            }
-            Self::RTHWithPaymentRequestId {
-                subaddress_index,
-                payment_request_id,
-            } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                memo_builder.set_payment_request_id(*payment_request_id);
-                Box::new(memo_builder)
-            }
-            Self::BurnRedemption(memo_data) => {
-                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
-                memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
-            }
-        }
-    }
-}
-
-fn generate_rth_memo_builder(
-    subaddress_index: &Option<u64>,
-    account_key: &AccountKey,
-) -> RTHMemoBuilder {
-    let mut memo_builder = RTHMemoBuilder::default();
-    let sender_memo_credential = match subaddress_index {
-        Some(subaddress_index) => SenderMemoCredential::new_from_address_and_spend_private_key(
-            &account_key.subaddress(*subaddress_index),
-            account_key.subaddress_spend_private(*subaddress_index),
-        ),
-        None => SenderMemoCredential::from(account_key),
-    };
-    memo_builder.set_sender_credential(sender_memo_credential);
-    memo_builder.enable_destination_memo();
-
-    memo_builder
-}
-
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 #[rustfmt::skip]
@@ -330,7 +228,7 @@ pub trait TransactionService {
     /// Build a transaction to confirm its contents before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -362,7 +260,7 @@ pub trait TransactionService {
     /// Build a transaction and sign it before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -411,7 +309,7 @@ pub trait TransactionService {
     /// Build and sign a transaction and submit it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -469,12 +367,11 @@ where
 
         exclusive_transaction(conn, |conn| {
             if Account::get(&AccountID(account_id_hex.to_string()), conn)?.require_spend_subaddress
+                && spend_subaddress.is_none()
             {
-                if spend_subaddress.is_none() {
-                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
+                return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
                         "This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()
                     )));
-                }
             }
 
             let mut builder = WalletTransactionBuilder::new(
@@ -1807,7 +1704,7 @@ mod tests {
             .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
-        assert_eq!(balance_pmob.unspent, 0 as u128);
+        assert_eq!(balance_pmob.unspent, 0_u128);
 
         // Send a transaction from Alice to Bob - this is the subaccount model where
         // Alice is spending from her balance

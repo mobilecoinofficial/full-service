@@ -30,5 +30,5 @@ extern crate diesel_migrations;
 #[macro_use]
 extern crate rocket;
 
-#[cfg(any(test, feature = "test_utils"))]
+#[cfg(test)]
 mod test_utils;

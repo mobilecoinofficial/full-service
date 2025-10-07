@@ -139,29 +139,20 @@ fn sync_txo(
     recipient_short_address_hash: Option<ShortAddressHash>,
     t3_connection: &T3Connection,
 ) -> Result<(), T3SyncError> {
-    let mut transparent_transaction = TransparentTransaction::new();
-
-    let sender_address_hash_bytes = hex::decode(&memo.sender_address_hash)?;
-    transparent_transaction.set_sender_address_hash(sender_address_hash_bytes);
-
-    // now we need to set the receiver address hash, which will require a database
-    // lookup, but only if it exists
-    if let Some(recipient_short_address_hash) = recipient_short_address_hash {
-        transparent_transaction
-            .set_recipient_address_hash(recipient_short_address_hash.as_ref().to_vec());
-    }
-
-    transparent_transaction.set_token_id(txo.token_id as u64);
-    transparent_transaction.set_amount(txo.value as u64);
-
-    let reported_direction = match txo.account_id {
-        Some(_) => ReportedDirection::REPORTED_DIRECTION_RECEIVE,
-        None => ReportedDirection::REPORTED_DIRECTION_SEND,
+    let transparent_transaction = TransparentTransaction {
+        sender_address_hash: hex::decode(&memo.sender_address_hash)?,
+        recipient_address_hash: recipient_short_address_hash
+            .map(|hash| hash.as_ref().to_vec())
+            .unwrap_or_default(),
+        token_id: txo.token_id as u64,
+        amount: txo.value as u64,
+        reported_direction: match txo.account_id {
+            Some(_) => ReportedDirection::Receive as i32,
+            None => ReportedDirection::Send as i32,
+        },
+        public_key_hex: hex::encode(txo.public_key()?.as_bytes()),
+        ..Default::default()
     };
-    transparent_transaction.set_reported_direction(reported_direction);
-
-    let public_key_bytes = txo.public_key()?.as_bytes().to_vec();
-    transparent_transaction.set_public_key_hex(hex::encode(public_key_bytes));
 
     let _ = t3_connection.create_transaction(transparent_transaction)?;
 

@@ -4,11 +4,9 @@
 
 use super::amount::Amount as AmountJSON;
 use crate::util::b58::{b58_encode_public_address, B58Error};
-
-use protobuf::Message;
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 #[derive(Deserialize, Serialize, Default, Debug, PartialEq)]
 pub struct UnsignedInputTxo {
@@ -46,6 +44,36 @@ pub struct UnsignedTxProposal {
     pub change_txos: Vec<OutputTxo>,
 }
 
+impl From<&crate::service::models::tx_proposal::UnsignedInputTxo> for UnsignedInputTxo {
+    fn from(src: &crate::service::models::tx_proposal::UnsignedInputTxo) -> Self {
+        Self {
+            tx_out_proto: hex::encode(mc_util_serial::encode(&src.tx_out)),
+            tx_out_public_key: hex::encode(src.tx_out.public_key.as_bytes()),
+            amount: AmountJSON::from(&src.amount),
+            subaddress_index: src.subaddress_index.to_string(),
+        }
+    }
+}
+
+impl TryFrom<&UnsignedInputTxo> for crate::service::models::tx_proposal::UnsignedInputTxo {
+    type Error = String;
+
+    fn try_from(src: &UnsignedInputTxo) -> Result<Self, Self::Error> {
+        let tx_out =
+            mc_util_serial::decode(&hex::decode(&src.tx_out_proto).map_err(|e| e.to_string())?)
+                .map_err(|e| e.to_string())?;
+
+        Ok(Self {
+            tx_out,
+            amount: (&src.amount).try_into()?,
+            subaddress_index: src
+                .subaddress_index
+                .parse::<u64>()
+                .map_err(|e| e.to_string())?,
+        })
+    }
+}
+
 impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for UnsignedTxProposal {
     type Error = String;
 
@@ -55,12 +83,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
         let unsigned_input_txos = src
             .unsigned_input_txos
             .iter()
-            .map(|input_txo| UnsignedInputTxo {
-                tx_out_proto: hex::encode(mc_util_serial::encode(&input_txo.tx_out)),
-                tx_out_public_key: hex::encode(input_txo.tx_out.public_key.as_bytes()),
-                amount: AmountJSON::from(&input_txo.amount),
-                subaddress_index: input_txo.subaddress_index.to_string(),
-            })
+            .map(|input_txo| input_txo.into())
             .collect();
 
         let payload_txos = src
@@ -104,9 +127,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
             .map_err(|_| "Error".to_string())?;
 
         let unsigned_tx_external: mc_api::external::UnsignedTx = (&src.unsigned_tx).into();
-        let unsigned_tx_proto_bytes = unsigned_tx_external
-            .write_to_bytes()
-            .map_err(|e| e.to_string())?;
+        let unsigned_tx_proto_bytes = mc_util_serial::encode(&unsigned_tx_external);
         let unsigned_tx_proto_bytes_hex = hex::encode(unsigned_tx_proto_bytes.as_slice());
 
         Ok(Self {
@@ -192,5 +213,35 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
             fee_amount: AmountJSON::new(src.tx.prefix.fee, src.tx.prefix.fee_token_id.into()),
             tombstone_block_index: src.tx.prefix.tombstone_block.to_string(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::create_test_txo_for_recipient;
+    use mc_account_keys::AccountKey;
+    use mc_transaction_core::{tokens::Mob, Amount, Token};
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test]
+    fn test_unsigned_input_txo_conversion() {
+        let mut rng: StdRng = SeedableRng::from_seed([1u8; 32]);
+
+        let recipient_account_key = AccountKey::random(&mut rng);
+        let amount = Amount::new(1000, Mob::ID);
+
+        let service_model = crate::service::models::tx_proposal::UnsignedInputTxo {
+            tx_out: create_test_txo_for_recipient(&recipient_account_key, 12, amount, &mut rng).0,
+            subaddress_index: 12,
+            amount,
+        };
+
+        let json_rpc_model = UnsignedInputTxo::from(&service_model);
+        let service_model_recovered =
+            crate::service::models::tx_proposal::UnsignedInputTxo::try_from(&json_rpc_model)
+                .unwrap();
+
+        assert_eq!(service_model, service_model_recovered);
     }
 }

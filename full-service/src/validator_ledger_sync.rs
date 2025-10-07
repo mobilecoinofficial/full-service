@@ -72,7 +72,7 @@ impl ValidatorLedgerSyncThread {
         validator_conn: ValidatorConnection,
         poll_interval: Duration,
         mut ledger_db: LedgerDB,
-        mut network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
+        network_state: Arc<RwLock<PollingNetworkState<ValidatorConnection>>>,
         logger: Logger,
         stop_requested: Arc<AtomicBool>,
     ) {
@@ -85,7 +85,7 @@ impl ValidatorLedgerSyncThread {
             }
 
             let block_data =
-                Self::get_next_blocks(&ledger_db, &validator_conn, &mut network_state, &logger);
+                Self::get_next_blocks(&ledger_db, &validator_conn, &network_state, &logger);
             if !block_data.is_empty() {
                 Self::append_safe_blocks(&mut ledger_db, &block_data, &logger);
             }

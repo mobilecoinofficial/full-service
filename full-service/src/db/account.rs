@@ -256,6 +256,7 @@ pub trait AccountModel {
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only_from_hardware_wallet_with_fog(
         view_account_key: &ViewAccountKey,
         name: Option<String>,
@@ -1072,10 +1073,8 @@ mod tests {
         assert_eq!(subaddresses.len(), 3);
         let subaddress_indices: HashSet<i64> =
             HashSet::from_iter(subaddresses.iter().map(|s| s.subaddress_index));
-        assert!(subaddress_indices.get(&0).is_some());
-        assert!(subaddress_indices
-            .get(&(CHANGE_SUBADDRESS_INDEX as i64))
-            .is_some());
+        assert!(subaddress_indices.contains(&0));
+        assert!(subaddress_indices.contains(&(CHANGE_SUBADDRESS_INDEX as i64)));
 
         // Verify that we can get the correct subaddress index from the spend public key
         let main_subaddress = account_key.subaddress(0);
@@ -1452,7 +1451,7 @@ mod tests {
                 .find(|s| s.subaddress_index == subaddress_index as i64)
                 .unwrap();
             let expected_subaddress = AssignedSubaddress {
-                public_address_b58: public_address_b58,
+                public_address_b58,
                 account_id: account.id.clone(),
                 subaddress_index: subaddress_index as i64,
                 comment: subaddress_name.to_string(),

@@ -12,7 +12,7 @@ use crate::{
     service::{t3_sync::T3Config, WalletService},
     test_utils::{
         get_resolver_factory, get_test_ledger, setup_peer_manager_and_network_state,
-        TestFogPubkeyResolver, WalletDbTestContext,
+        MockBlockchainPollingNetworkState, TestFogPubkeyResolver, WalletDbTestContext,
     },
     wallet::{APIKeyState, ApiKeyGuard},
 };
@@ -144,7 +144,7 @@ pub fn create_test_setup(
     rocket::Rocket<Build>,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let db_test_context = WalletDbTestContext::default();
     let wallet_db = match use_wallet_db {
@@ -200,7 +200,7 @@ pub fn setup(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, true, false, None, logger);
@@ -222,7 +222,7 @@ pub fn setup_with_webhook(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, true, false, Some(webhook_config), logger);
@@ -243,7 +243,7 @@ pub fn setup_with_watcher(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, true, true, None, logger);
@@ -264,7 +264,7 @@ pub fn setup_no_wallet_db(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, false, false, None, logger);
@@ -286,7 +286,7 @@ pub fn setup_with_api_key(
     Client,
     LedgerDB,
     WalletDbTestContext,
-    Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>,
+    MockBlockchainPollingNetworkState,
 ) {
     let (rocket_instance, ledger_db, db_test_context, network_state) =
         create_test_setup(rng, true, false, None, logger);

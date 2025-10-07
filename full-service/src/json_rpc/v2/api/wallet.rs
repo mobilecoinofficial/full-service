@@ -39,12 +39,12 @@ use crate::{
         hardware_wallet::sync_txos,
         ledger::LedgerService,
         memo::MemoService,
-        models::tx_proposal::TxProposal,
+        models::{transaction_memo::TransactionMemo, tx_proposal::TxProposal},
         network::get_token_metadata,
         payment_request::PaymentRequestService,
         receipt::ReceiptService,
         signed_contingent_input::SignedContingentInputService,
-        transaction::{TransactionMemo, TransactionService},
+        transaction::TransactionService,
         transaction_log::TransactionLogService,
         txo::TxoService,
         watcher::WatcherService,
@@ -1097,8 +1097,7 @@ where
                 .map_err(format_error)?
                 .iter()
                 .map(|proof| {
-                    let proof: mc_api::external::TxOutMembershipProof =
-                        proof.try_into().map_err(format_error)?;
+                    let proof: mc_api::external::TxOutMembershipProof = proof.into();
                     let json_proof = JsonTxOutMembershipProof::from(&proof);
                     Ok(json_proof)
                 })
@@ -1342,8 +1341,7 @@ where
             let mixins = mixins
                 .iter()
                 .map(|tx_out| {
-                    let tx_out: mc_api::external::TxOut =
-                        tx_out.try_into().map_err(format_error)?;
+                    let tx_out: mc_api::external::TxOut = tx_out.into();
                     let json_tx_out = JsonTxOut::from(&tx_out);
                     Ok(json_tx_out)
                 })
@@ -1352,8 +1350,7 @@ where
             let membership_proofs = membership_proofs
                 .iter()
                 .map(|proof| {
-                    let proof: mc_api::external::TxOutMembershipProof =
-                        proof.try_into().map_err(format_error)?;
+                    let proof: mc_api::external::TxOutMembershipProof = proof.into();
                     let json_proof = JsonTxOutMembershipProof::from(&proof);
                     Ok(json_proof)
                 })

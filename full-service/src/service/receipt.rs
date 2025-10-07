@@ -151,9 +151,12 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
     type Error = ReceiptServiceError;
 
     fn try_from(src: &mc_api::external::Receipt) -> Result<ReceiverReceipt, ReceiptServiceError> {
-        let public_key: CompressedRistrettoPublic =
-            CompressedRistrettoPublic::try_from(src.get_public_key())?;
-        let confirmation = TxOutConfirmationNumber::try_from(src.get_confirmation())?;
+        let public_key: CompressedRistrettoPublic = CompressedRistrettoPublic::try_from(
+            src.public_key.as_ref().unwrap_or(&Default::default()),
+        )?;
+        let confirmation = TxOutConfirmationNumber::try_from(
+            src.confirmation.as_ref().unwrap_or(&Default::default()),
+        )?;
 
         let one_of_masked_amount = src
             .masked_amount
@@ -165,7 +168,7 @@ impl TryFrom<&mc_api::external::Receipt> for ReceiverReceipt {
         Ok(ReceiverReceipt {
             public_key,
             confirmation,
-            tombstone_block: src.get_tombstone_block(),
+            tombstone_block: src.tombstone_block,
             amount: masked_amount,
         })
     }
@@ -177,7 +180,7 @@ pub trait ReceiptService {
     /// Check the status of the Txos in the receipts and validates confirmation numbers once the Txos have landed.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                    | Notes                            |
     ///|--------------------|--------------------------------------------|----------------------------------|
     ///| `address`          | The account's public address.              | Must be a valid account address. |
@@ -193,7 +196,7 @@ pub trait ReceiptService {
     /// Create a receipt from a given TxProposal
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name          | Purpose                         | Notes                           |
     ///|---------------|---------------------------------|---------------------------------|
     ///| `tx_proposal` | Transaction proposal to submit. | Created with build transaction. |
@@ -302,13 +305,10 @@ mod tests {
         db::{account::AccountID, models::TransactionLog, transaction_log::TransactionLogModel},
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService,
-            address::AddressService,
-            confirmation_number::ConfirmationService,
-            ledger::get_tx_out_by_public_key,
-            transaction::{TransactionMemo, TransactionService},
-            transaction_log::TransactionLogService,
-            txo::TxoService,
+            account::AccountService, address::AddressService,
+            confirmation_number::ConfirmationService, ledger::get_tx_out_by_public_key,
+            models::transaction_memo::TransactionMemo, transaction::TransactionService,
+            transaction_log::TransactionLogService, txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
@@ -346,26 +346,33 @@ mod tests {
         rng.fill_bytes(&mut confirmation_bytes);
         let confirmation_number = TxOutConfirmationNumber::from(confirmation_bytes);
 
-        let mut proto_tx_receipt = mc_api::external::Receipt::new();
-        proto_tx_receipt.set_public_key((&txo.public_key).into());
-        proto_tx_receipt.set_tombstone_block(tombstone);
-        let mut proto_confirmation = mc_api::external::TxOutConfirmationNumber::new();
-        proto_confirmation.set_hash(confirmation_number.to_vec());
-        proto_tx_receipt.set_confirmation(proto_confirmation);
-        let mut proto_commitment = mc_api::external::CompressedRistretto::new();
-        proto_commitment.set_data(
-            txo.get_masked_amount()
+        let proto_confirmation = mc_api::external::TxOutConfirmationNumber {
+            hash: confirmation_number.to_vec(),
+        };
+
+        let proto_commitment = mc_api::external::CompressedRistretto {
+            data: txo
+                .get_masked_amount()
                 .unwrap()
                 .commitment()
                 .to_bytes()
                 .to_vec(),
-        );
-        let mut proto_amount = mc_api::external::MaskedAmount::new();
-        proto_amount.set_commitment(proto_commitment);
-        proto_amount.set_masked_value(*txo.get_masked_amount().unwrap().get_masked_value());
-        proto_amount
-            .set_masked_token_id(txo.get_masked_amount().unwrap().masked_token_id().to_vec());
-        proto_tx_receipt.set_masked_amount_v2(proto_amount);
+        };
+
+        let proto_amount = mc_api::external::MaskedAmount {
+            commitment: Some(proto_commitment),
+            masked_value: *txo.get_masked_amount().unwrap().get_masked_value(),
+            masked_token_id: txo.get_masked_amount().unwrap().masked_token_id().to_vec(),
+        };
+
+        let proto_tx_receipt = mc_api::external::Receipt {
+            public_key: Some((&txo.public_key).into()),
+            tombstone_block: tombstone,
+            confirmation: Some(proto_confirmation),
+            masked_amount: Some(mc_api::external::receipt::MaskedAmount::MaskedAmountV2(
+                proto_amount,
+            )),
+        };
 
         let tx_receipt =
             ReceiverReceipt::try_from(&proto_tx_receipt).expect("Could not convert tx receipt");
