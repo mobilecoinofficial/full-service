@@ -48,7 +48,7 @@ pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name              | Purpose                                                   | Notes                              |
     ///|-------------------|-----------------------------------------------------------|------------------------------------|
     ///| `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |
@@ -126,9 +126,8 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount,
         service::{
-            account::AccountService,
-            address::AddressService,
-            transaction::{TransactionMemo, TransactionService},
+            account::AccountService, address::AddressService,
+            models::transaction_memo::TransactionMemo, transaction::TransactionService,
             transaction_log::TransactionLogService,
         },
         test_utils::{

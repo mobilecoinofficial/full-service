@@ -372,6 +372,9 @@ pub enum WalletTransactionBuilderError {
      * Change amount must be <= u64::MAX, but total change value is: {0}
      */
     ChangeLargerThanMaxValue(u128),
+
+    /// Invalid TxBlueprint: {0}
+    InvalidTxBlueprint(String),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {

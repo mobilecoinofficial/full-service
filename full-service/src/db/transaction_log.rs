@@ -152,7 +152,7 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * TransactionLog
     fn get(
-        id: &TransactionId, 
+        id: &TransactionId,
         conn: Conn
     ) -> Result<TransactionLog, WalletDbError>;
 
@@ -172,7 +172,7 @@ pub trait TransactionLogModel {
     /// Update the block index of where the associate transaction was submitted to a transaction log.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                 | Notes |
     ///|-------------------------|---------------------------------------------------------|-------|
     ///| `submitted_block_index` | The block index of where the transaction was submitted. |       |
@@ -189,7 +189,7 @@ pub trait TransactionLogModel {
     /// Update arbitrary comments to a transaction log of an associate transaction .
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name      | Purpose                                                | Notes |
     ///|-----------|--------------------------------------------------------|-------|
     ///| `comment` | The arbitrary comments of the existing transaction.    |       |
@@ -202,7 +202,7 @@ pub trait TransactionLogModel {
     /// Update encoded value of the associate transaction and the tombstone_block_index to a transaction log.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                                  | Notes                                                   |
     ///|-------------------------|--------------------------------------------------------------------------|---------------------------------------------------------|
     ///| `tx`                    | The encoded value of the associate transaction object.                   | Encoded value of a CryptoNote-style transaction object. |
@@ -219,7 +219,7 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// List all transaction logs and their associated Txos for a given account.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name              | Purpose                                                    | Notes                               |
@@ -243,7 +243,7 @@ pub trait TransactionLogModel {
     ) -> Result<Vec<(TransactionLog, AssociatedTxos, ValueMap)>, WalletDbError>;
 
     /// Log a transaction that has been built but not yet signed.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name                   | Purpose                                                 | Notes                               |
@@ -261,9 +261,9 @@ pub trait TransactionLogModel {
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Log a transaction that has been signed
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name             | Purpose                                                   | Notes                               |
     ///|------------------|-----------------------------------------------------------|-------------------------------------|
     ///| `tx_proposal`    | The signed transaction proposal that will be logged.      |                                     |
@@ -290,9 +290,9 @@ pub trait TransactionLogModel {
     /// recipient, with the rest of the minted txos designated as
     /// change. Other wallets may choose to behave differently, but
     /// our TransactionLogs Table assumes this behavior.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name             | Purpose                                                      | Notes                               |
     ///|------------------|--------------------------------------------------------------|-------------------------------------|
     ///| `tx_proposal`    | The submitted transaction proposal that will be logged.      |                                     |
@@ -312,7 +312,7 @@ pub trait TransactionLogModel {
     ) -> Result<TransactionLog, WalletDbError>;
 
     /// Remove all transaction logs for an account.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name             | Purpose                                                | Notes                               |
@@ -323,13 +323,13 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * unit
     fn delete_all_for_account(
-        account_id_hex: &str, 
+        account_id_hex: &str,
         conn: Conn
     ) -> Result<(), WalletDbError>;
 
     /// Update the finalized block index to all pending transaction logs that have an output
     /// transaction corresponding to `transaction_output_txo_id_hex`.
-    /// 
+    ///
     /// # Arguments
     /// * `transaction_output_txo_id_hex` - The txo ID for which to get all transaction logs
     ///   associated with this txo ID.
@@ -341,7 +341,7 @@ pub trait TransactionLogModel {
         finalized_block_index: u64,
         conn: Conn,
     ) -> Result<(), WalletDbError>;
-    
+
      /// Update all transaction logs that have an input transaction corresponding to
     /// `transaction_input_txo_id_hex` to failed.
     ///
@@ -359,7 +359,7 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// Set the status of a transaction log to failed if its tombstone_block_index is less than the given block index.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name          | Purpose                                                                              | Notes |
@@ -376,18 +376,18 @@ pub trait TransactionLogModel {
     ) -> Result<(), WalletDbError>;
 
     /// Retrieve the status of an associated transaction from a transaction log.
-    /// 
+    ///
     /// # Arguments
     /// * None
     ///
     /// # Returns
     /// * TxStatus
     fn status(&self) -> TxStatus;
-    
+
     /// Get the total value of transaction outputs for given token id from current transaction log instances.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     ///| Name       | Purpose                                                | Notes |
     ///|------------|--------------------------------------------------------|-------|
     ///| `token_id` | The id of a supported type of token.                   |       |
@@ -396,16 +396,16 @@ pub trait TransactionLogModel {
     /// # Returns
     /// * aggreagated value (u64)
     fn value_for_token_id(
-        &self, 
-        token_id: TokenId, 
+        &self,
+        token_id: TokenId,
         conn: Conn
     ) -> Result<u64, WalletDbError>;
-    
+
     /// Get the total value of transaction outputs for each token id from current transaction log instances.
-    /// 
+    ///
     /// # Arguments
     /// * None
-    /// 
+    ///
     /// # Returns
     /// * ValueMap<TokenId, aggreagated value (u64)>
     fn value_map(&self, conn: Conn) -> Result<ValueMap, WalletDbError>;
@@ -869,6 +869,20 @@ impl TransactionLogModel for TransactionLog {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::{
+        db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
+        service::{
+            models::transaction_memo::TransactionMemo, sync::SyncThread,
+            transaction_builder::WalletTransactionBuilder,
+        },
+        test_utils::{
+            add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
+            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
+            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
+        },
+        util::b58::b58_encode_public_address,
+    };
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
@@ -881,21 +895,6 @@ mod tests {
         collections::HashMap,
         ops::DerefMut,
         sync::{Arc, Mutex},
-    };
-
-    use super::*;
-    use crate::{
-        db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
-        service::{
-            sync::SyncThread, transaction::TransactionMemo,
-            transaction_builder::WalletTransactionBuilder,
-        },
-        test_utils::{
-            add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
-            create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
-            manually_sync_account, random_account_with_seed_values, WalletDbTestContext, MOB,
-        },
-        util::b58::b58_encode_public_address,
     };
 
     #[async_test_with_logger]
