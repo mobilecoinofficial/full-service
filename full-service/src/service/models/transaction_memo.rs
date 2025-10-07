@@ -9,7 +9,7 @@ use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
-use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
+use mc_transaction_extra::{AuthenticatedMemoHmacSigner, BurnRedemptionMemo, SenderMemoCredential};
 use mc_util_serial::BigArray;
 use serde::{Deserialize, Serialize};
 use std::{boxed::Box, convert::TryFrom, sync::Arc};
@@ -119,12 +119,12 @@ fn generate_rth_memo_builder(
         }
 
         TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
-            memo_builder.set_authenticated_sender_hmac_signer(Arc::new(Box::new(
-                HardwareWalletAuthenticatedMemoHmacSigner::new(
+            let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
+                Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
                     &view_account_key.subaddress(subaddress_index),
                     subaddress_index,
-                )?,
-            )));
+                )?));
+            memo_builder.set_authenticated_sender_hmac_signer(signer);
         }
     };
 
