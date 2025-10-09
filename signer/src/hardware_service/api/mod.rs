@@ -113,11 +113,8 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
 
             let signed_tx_proposal =
                 hardware_service::sign_tx_blueprint(tx_blueprint_proposal).await?;
-            let tx_proposal: TxProposalJSON =
-                mc_full_service::json_rpc::v2::models::tx_proposal::TxProposal::try_from(
-                    &signed_tx_proposal,
-                )
-                .map_err(|e| anyhow!(e))?;
+            let tx_proposal =
+                TxProposalJSON::try_from(&signed_tx_proposal).map_err(|e| anyhow!(e))?;
             JsonCommandResponse::sign_tx_blueprint { tx_proposal }
         }
     };
