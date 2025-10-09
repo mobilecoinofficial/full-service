@@ -170,7 +170,7 @@ poetry install
 echo "INFO: Create wallet"
 if target_mob list | grep test-wallet
 then
-    echo: "ERROR: test-wallet already exists"
+    echo "ERROR: test-wallet already exists"
     exit 1
 fi
 target_mob -y create --name test-wallet
