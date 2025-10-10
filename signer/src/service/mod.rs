@@ -4,7 +4,14 @@ use anyhow::{anyhow, Result};
 use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
 use mc_core::{account::Account, slip10::Slip10KeyGenerator};
-use mc_full_service::service::models::tx_proposal::{TxProposal, UnsignedTxProposal};
+use mc_full_service::service::{
+    models::{
+        transaction_memo::TransactionMemoSignerCredentials,
+        tx_blueprint_proposal::TxBlueprintProposal,
+        tx_proposal::{TxProposal, UnsignedTxProposal},
+    },
+    transaction_builder::build_unsigned_tx_from_blueprint_proposal,
+};
 use mc_transaction_signer::{
     traits::KeyImageComputer,
     types::{AccountInfo, TxoSynced, TxoUnsynced},
@@ -45,6 +52,7 @@ fn get_account(mnemonic: Mnemonic) -> Result<AccountInfo> {
         account_index: 0,
     })
 }
+
 pub fn sync_txos_by_mnemonic(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
     let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
     sync_txos(mnemonic, txos)
@@ -108,6 +116,44 @@ pub fn sign_tx(mnemonic: Mnemonic, unsigned_tx_proposal: UnsignedTxProposal) -> 
     unsigned_tx_proposal
         .sign_with_local_signer(&account_key)
         .map_err(|e| anyhow!(e))
+}
+
+pub fn sign_tx_blueprint_with_mnemonic(
+    mnemonic: &str,
+    tx_blueprint_proposal: TxBlueprintProposal,
+) -> Result<TxProposal> {
+    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    sign_tx_blueprint(mnemonic, tx_blueprint_proposal)
+}
+
+pub fn sign_tx_blueprint_with_bip39_entropy(
+    bip39_entropy: &str,
+    tx_blueprint_proposal: TxBlueprintProposal,
+) -> Result<TxProposal> {
+    let mut entropy = [0u8; 32];
+    hex::decode_to_slice(bip39_entropy, &mut entropy)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    sign_tx_blueprint(mnemonic, tx_blueprint_proposal)
+}
+
+pub fn sign_tx_blueprint(
+    mnemonic: Mnemonic,
+    tx_blueprint_proposal: TxBlueprintProposal,
+) -> Result<TxProposal> {
+    let account = get_account_from_mnemonic(mnemonic.clone());
+    let account_key = AccountKey::new(
+        account.spend_private_key().as_ref(),
+        account.view_private_key().as_ref(),
+    );
+
+    let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
+        &tx_blueprint_proposal,
+        &TransactionMemoSignerCredentials::Local(account_key),
+    )
+    .map_err(|e| anyhow!(e))?;
+
+    let signed_tx_proposal = sign_tx(mnemonic, unsigned_tx_proposal)?;
+    Ok(signed_tx_proposal)
 }
 
 fn get_account_from_mnemonic(mnemonic: Mnemonic) -> Account {

@@ -3,15 +3,16 @@
 use crate::{
     db::{account::AccountModel, models::Account},
     error::WalletTransactionBuilderError,
+    service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
 use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
-use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
+use mc_transaction_extra::{AuthenticatedMemoHmacSigner, BurnRedemptionMemo, SenderMemoCredential};
 use mc_util_serial::BigArray;
 use serde::{Deserialize, Serialize};
-use std::{boxed::Box, convert::TryFrom};
+use std::{boxed::Box, convert::TryFrom, sync::Arc};
 
 /// This represents the different types of Transaction Memos that can be used in
 /// a given transaction
@@ -116,6 +117,15 @@ fn generate_rth_memo_builder(
                 ),
             );
         }
+
+        TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
+            let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
+                Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
+                    &view_account_key.subaddress(subaddress_index),
+                    subaddress_index,
+                )?));
+            memo_builder.set_authenticated_sender_hmac_signer(signer);
+        }
     };
 
     memo_builder.enable_destination_memo();
@@ -131,6 +141,9 @@ pub enum TransactionMemoSignerCredentials {
     /// Local account credentials.
     Local(AccountKey),
 
+    /// Hardware wallet credentials.
+    HardwareWallet(ViewAccountKey),
+
     /// View only account (not managed by hardware wallet)
     ViewOnly(ViewAccountKey),
 }
@@ -140,7 +153,11 @@ impl TryFrom<&Account> for TransactionMemoSignerCredentials {
 
     fn try_from(account: &Account) -> Result<Self, Self::Error> {
         if account.view_only {
-            Ok(Self::ViewOnly(account.view_account_key()?))
+            if account.managed_by_hardware_wallet {
+                Ok(Self::HardwareWallet(account.view_account_key()?))
+            } else {
+                Ok(Self::ViewOnly(account.view_account_key()?))
+            }
         } else {
             Ok(Self::Local(account.account_key()?))
         }
