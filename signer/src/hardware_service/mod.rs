@@ -6,7 +6,12 @@ use mc_full_service::{
     db::account::AccountID,
     service::{
         hardware_wallet::{get_device_handle, get_view_only_account_keys, sign_tx_proposal},
-        models::tx_proposal::{TxProposal, UnsignedTxProposal},
+        models::{
+            transaction_memo::TransactionMemoSignerCredentials,
+            tx_blueprint_proposal::TxBlueprintProposal,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
+        },
+        transaction_builder::build_unsigned_tx_from_blueprint_proposal,
     },
 };
 use mc_transaction_signer::types::{AccountInfo, TxoSynced, TxoUnsynced};
@@ -77,6 +82,31 @@ pub async fn sign_tx(
         *account.view_private.as_ref(),
         *account.spend_public.as_ref(),
     );
+
+    let tx_proposal = sign_tx_proposal(unsigned_tx_proposal, &account_key)
+        .await
+        .map_err(|e| anyhow!(e))?;
+
+    Ok(tx_proposal)
+}
+
+pub async fn sign_tx_blueprint(tx_blueprint_proposal: TxBlueprintProposal) -> Result<TxProposal> {
+    let account = get_account().await?;
+    let hardware_account_id = get_account_id(account.clone());
+    if tx_blueprint_proposal.account_id_hex != hardware_account_id {
+        return Err(anyhow!("Hardware Credentials Mismatch"));
+    }
+
+    let account_key = ViewAccountKey::new(
+        *account.view_private.as_ref(),
+        *account.spend_public.as_ref(),
+    );
+
+    let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
+        &tx_blueprint_proposal,
+        &TransactionMemoSignerCredentials::HardwareWallet(account_key.clone()),
+    )
+    .map_err(|e| anyhow!(e))?;
 
     let tx_proposal = sign_tx_proposal(unsigned_tx_proposal, &account_key)
         .await

@@ -23,6 +23,9 @@ pub enum JsonCommandResponse {
     sign_tx {
         tx_proposal: TxProposal,
     },
+    sign_tx_blueprint {
+        tx_proposal: TxProposal,
+    },
     sync_txos {
         txos_synced: Vec<TxoSynced>,
     },
