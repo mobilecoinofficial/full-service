@@ -41,7 +41,7 @@ use mc_transaction_core::{
 };
 use mc_util_uri::FogUri;
 use rand::Rng;
-use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
+use std::{collections::BTreeMap, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -589,7 +589,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             &AccountID(tx_blueprint_proposal.account_id_hex.clone()),
             conn,
         )?;
-        build_unsigned_tx_from_blueprint_proposal(&tx_blueprint_proposal, &(&account).try_into()?)
+        build_unsigned_tx_from_blueprint_proposal(
+            &tx_blueprint_proposal,
+            &account.get_transaction_memo_signer_credentials(conn)?,
+        )
     }
 
     /// Get rings.

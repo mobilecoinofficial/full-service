@@ -1,18 +1,17 @@
 // Copyright (c) 2020-2025 MobileCoin Inc.
 
 use crate::{
-    db::{account::AccountModel, models::Account},
     error::WalletTransactionBuilderError,
     service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
-use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
 use mc_transaction_extra::{AuthenticatedMemoHmacSigner, BurnRedemptionMemo, SenderMemoCredential};
 use mc_util_serial::BigArray;
 use serde::{Deserialize, Serialize};
-use std::{boxed::Box, convert::TryFrom, sync::Arc};
+use std::{boxed::Box, sync::Arc};
 
 /// This represents the different types of Transaction Memos that can be used in
 /// a given transaction
@@ -118,10 +117,12 @@ fn generate_rth_memo_builder(
             );
         }
 
-        TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
+        TransactionMemoSignerCredentials::HardwareWallet(view_account_key, identify_as_address) => {
             let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
                 Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
-                    &view_account_key.subaddress(subaddress_index),
+                    identify_as_address
+                        .as_ref()
+                        .unwrap_or(&view_account_key.subaddress(subaddress_index)),
                     subaddress_index,
                 )?));
             memo_builder.set_authenticated_sender_hmac_signer(signer);
@@ -134,6 +135,7 @@ fn generate_rth_memo_builder(
 }
 
 /// Credentials used to sign a transaction memo.
+#[allow(clippy::large_enum_variant)]
 pub enum TransactionMemoSignerCredentials {
     /// No credentials available.
     None,
@@ -142,24 +144,11 @@ pub enum TransactionMemoSignerCredentials {
     Local(AccountKey),
 
     /// Hardware wallet credentials.
-    HardwareWallet(ViewAccountKey),
+    /// Allows for identifying as a specific public address, which is useful for
+    /// view-only fog accounts (since the ViewAccountKey cannot sign the fog
+    /// SPKI).
+    HardwareWallet(ViewAccountKey, Option<PublicAddress>),
 
     /// View only account (not managed by hardware wallet)
     ViewOnly(ViewAccountKey),
-}
-
-impl TryFrom<&Account> for TransactionMemoSignerCredentials {
-    type Error = WalletTransactionBuilderError;
-
-    fn try_from(account: &Account) -> Result<Self, Self::Error> {
-        if account.view_only {
-            if account.managed_by_hardware_wallet {
-                Ok(Self::HardwareWallet(account.view_account_key()?))
-            } else {
-                Ok(Self::ViewOnly(account.view_account_key()?))
-            }
-        } else {
-            Ok(Self::Local(account.account_key()?))
-        }
-    }
 }

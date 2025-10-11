@@ -40,12 +40,7 @@ use mc_transaction_core::{
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use std::{
-    boxed::Box,
-    convert::{TryFrom, TryInto},
-    ops::DerefMut,
-    sync::atomic::Ordering,
-};
+use std::{boxed::Box, convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
@@ -533,7 +528,7 @@ where
 
         Ok(build_unsigned_tx_from_blueprint_proposal(
             &tx_blueprint_proposal,
-            &(&account).try_into()?,
+            &account.get_transaction_memo_signer_credentials(conn)?,
         )?)
     }
 
@@ -588,7 +583,7 @@ where
         let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
         let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
             tx_blueprint_proposal,
-            &(&account).try_into()?,
+            &account.get_transaction_memo_signer_credentials(conn)?,
         )?;
 
         let tx_proposal = unsigned_tx_proposal.sign(&account).await?;

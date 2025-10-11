@@ -10,6 +10,7 @@ use crate::{
         txo::TxoModel,
         Conn, WalletDbError,
     },
+    service::models::transaction_memo::TransactionMemoSignerCredentials,
     util::constants::{
         DEFAULT_FIRST_BLOCK_INDEX, DEFAULT_NEXT_SUBADDRESS_INDEX, LEGACY_CHANGE_SUBADDRESS_INDEX,
         MNEMONIC_KEY_DERIVATION_VERSION, ROOT_ENTROPY_KEY_DERIVATION_VERSION,
@@ -475,6 +476,8 @@ pub trait AccountModel {
     fn update_resyncing(&self, resyncing: bool, conn: Conn) -> Result<(), WalletDbError>;
 
     fn resync_in_progress(conn: Conn) -> Result<bool, WalletDbError>;
+
+    fn get_transaction_memo_signer_credentials(&self, conn: Conn) -> Result<TransactionMemoSignerCredentials, WalletDbError>;
 }
 
 impl AccountModel for Account {
@@ -992,6 +995,44 @@ impl AccountModel for Account {
             select(exists(accounts::table.filter(accounts::resyncing.eq(true))))
                 .get_result(conn)?,
         )
+    }
+
+    fn get_transaction_memo_signer_credentials(
+        &self,
+        conn: Conn,
+    ) -> Result<TransactionMemoSignerCredentials, WalletDbError> {
+        if self.view_only {
+            // Fog-enabled view-only accounts use ViewAccountKey to store their keys, which
+            // is insufficient for deriving a fog public address (because we
+            // need the subaddress private view key to sign the fog SPKI, and deriving the
+            // subaddress private view key requires the spend private view key).
+            // As such, for fog account we use the stored b58 public address for the default
+            // subaddress and use that as the address for generating
+            // the ShortAddressHash in the memos.
+            let identify_as_address = if self.fog_enabled {
+                let assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
+                    &self.id,
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                    conn,
+                )?;
+                Some(assigned_subaddress.public_address()?)
+            } else {
+                None
+            };
+
+            if self.managed_by_hardware_wallet {
+                Ok(TransactionMemoSignerCredentials::HardwareWallet(
+                    self.view_account_key()?,
+                    identify_as_address,
+                ))
+            } else {
+                Ok(TransactionMemoSignerCredentials::ViewOnly(
+                    self.view_account_key()?,
+                ))
+            }
+        } else {
+            Ok(TransactionMemoSignerCredentials::Local(self.account_key()?))
+        }
     }
 }
 
