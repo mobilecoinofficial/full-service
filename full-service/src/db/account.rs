@@ -25,7 +25,7 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_core::slip10::Slip10KeyGenerator;
+use mc_core::{account::PublicSubaddress, slip10::Slip10KeyGenerator};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
@@ -238,8 +238,11 @@ pub trait AccountModel {
     ///| `import_block_index`    | Index of the last block in local ledger database.                       |                                                                       |
     ///| `first_block_index`     | Index of the first block when this account may have received funds.     | Defaults to 0 if not provided                                         |
     ///| `next_subaddress_index` | This index represents the next subaddress to be assigned as an address. | This is useful information in case the account is imported elsewhere. |
-    ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                       |
+    ///| `managed_by_hardware_wallet` | Whether the account is managed by a hardware wallet.                 |                                                                     |
     ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                                                        |
+    ///| `fog_enabled`           | Specifies whether this is a Fog-enabled account                         |                                                                       |
+    ///| `default_public_address` | Default public address (required if fog_enabled=true)                  | When fog_enabled is false this is derived from the keys               |
+    ///| `change_public_address` | Change public address (required if fog_enabled=true)                    | When fog_enabled is false this is derived from the keys               |
     ///| `conn`                  | An reference to the pool connection of wallet database                  |                                                                       |
     ///
     /// # Returns:
@@ -253,6 +256,9 @@ pub trait AccountModel {
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
         require_spend_subaddress: bool,
+        fog_enabled: bool,
+        default_public_address: Option<PublicAddress>,
+        change_public_address: Option<PublicAddress>,
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
@@ -391,7 +397,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * AssignedSubaddress
-    fn change_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
+    fn change_subaddress(&self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get main public address for the current account
     ///
@@ -403,7 +409,7 @@ pub trait AccountModel {
     ///
     /// # Returns:
     /// * AssignedSubaddress
-    fn main_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
+    fn main_subaddress(&self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError>;
 
     /// Get all of the token ids present for the current account.
     ///
@@ -672,9 +678,33 @@ impl AccountModel for Account {
         next_subaddress_index: Option<u64>,
         managed_by_hardware_wallet: bool,
         require_spend_subaddress: bool,
+        fog_enabled: bool,
+        default_public_address: Option<PublicAddress>,
+        change_public_address: Option<PublicAddress>,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
+
+        if let Some(default_public_address) = default_public_address.as_ref() {
+            if PublicSubaddress::from(default_public_address)
+                != PublicSubaddress::from(&view_account_key.default_subaddress())
+            {
+                return Err(WalletDbError::InvalidArgument(
+                    "default_public_address does not match view_account_key.default_subaddress()"
+                        .into(),
+                ));
+            }
+        }
+        if let Some(change_public_address) = change_public_address.as_ref() {
+            if PublicSubaddress::from(change_public_address)
+                != PublicSubaddress::from(&view_account_key.change_subaddress())
+            {
+                return Err(WalletDbError::InvalidArgument(
+                    "change_public_address does not match view_account_key.change_subaddress()"
+                        .into(),
+                ));
+            }
+        }
 
         let account_id = AccountID::from(view_account_key);
 
@@ -707,34 +737,63 @@ impl AccountModel for Account {
             .values(&new_account)
             .execute(conn)?;
 
-        AssignedSubaddress::create_for_view_only_account(
-            view_account_key,
-            DEFAULT_SUBADDRESS_INDEX,
-            "Main",
-            conn,
-        )?;
+        if fog_enabled {
+            if next_subaddress_index != DEFAULT_NEXT_SUBADDRESS_INDEX as i64 {
+                return Err(WalletDbError::InvalidArgument(
+                    "next_subaddress_index other than 2 is not supported when fog_enabled=true"
+                        .into(),
+                ));
+            }
 
-        AssignedSubaddress::create_for_view_only_account(
-            view_account_key,
-            LEGACY_CHANGE_SUBADDRESS_INDEX,
-            "Legacy Change",
-            conn,
-        )?;
-
-        AssignedSubaddress::create_for_view_only_account(
-            view_account_key,
-            CHANGE_SUBADDRESS_INDEX,
-            "Change",
-            conn,
-        )?;
-
-        for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
-            AssignedSubaddress::create_for_view_only_account(
+            AssignedSubaddress::create_for_view_only_fog_account(
                 view_account_key,
-                subaddress_index,
-                "",
+                DEFAULT_SUBADDRESS_INDEX,
+                &default_public_address.ok_or(WalletDbError::InvalidArgument(
+                    "default_public_address is required when fog_enabled=true".into(),
+                ))?,
+                "Main",
                 conn,
             )?;
+
+            AssignedSubaddress::create_for_view_only_fog_account(
+                view_account_key,
+                CHANGE_SUBADDRESS_INDEX,
+                &change_public_address.ok_or(WalletDbError::InvalidArgument(
+                    "change_public_address is required when fog_enabled=true".into(),
+                ))?,
+                "Change",
+                conn,
+            )?;
+        } else {
+            AssignedSubaddress::create_for_view_only_account(
+                view_account_key,
+                DEFAULT_SUBADDRESS_INDEX,
+                "Main",
+                conn,
+            )?;
+
+            AssignedSubaddress::create_for_view_only_account(
+                view_account_key,
+                LEGACY_CHANGE_SUBADDRESS_INDEX,
+                "Legacy Change",
+                conn,
+            )?;
+
+            AssignedSubaddress::create_for_view_only_account(
+                view_account_key,
+                CHANGE_SUBADDRESS_INDEX,
+                "Change",
+                conn,
+            )?;
+
+            for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
+                AssignedSubaddress::create_for_view_only_account(
+                    view_account_key,
+                    subaddress_index,
+                    "",
+                    conn,
+                )?;
+            }
         }
 
         Account::get(&account_id, conn)
@@ -898,11 +957,11 @@ impl AccountModel for Account {
         Ok(())
     }
 
-    fn change_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
+    fn change_subaddress(&self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(&self.id, CHANGE_SUBADDRESS_INDEX as i64, conn)
     }
 
-    fn main_subaddress(self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
+    fn main_subaddress(&self, conn: Conn) -> Result<AssignedSubaddress, WalletDbError> {
         AssignedSubaddress::get_for_account_by_index(
             &self.id,
             DEFAULT_SUBADDRESS_INDEX as i64,
@@ -1301,7 +1360,7 @@ mod tests {
     }
 
     #[test_with_logger]
-    fn test_import_view_only_account(logger: Logger) {
+    fn test_import_view_only_account_without_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1324,6 +1383,9 @@ mod tests {
                 None,
                 false,
                 false,
+                false,
+                None,
+                None,
                 conn,
             )
             .unwrap()
@@ -1358,6 +1420,27 @@ mod tests {
             require_spend_subaddress: false,
         };
         assert_eq!(expected_account, account);
+
+        {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            assert_eq!(
+                account
+                    .main_subaddress(conn)
+                    .unwrap()
+                    .public_address()
+                    .unwrap(),
+                view_account_key.default_subaddress()
+            );
+            assert_eq!(
+                account
+                    .change_subaddress(conn)
+                    .unwrap()
+                    .public_address()
+                    .unwrap(),
+                view_account_key.change_subaddress()
+            );
+        }
     }
 
     #[test_with_logger]

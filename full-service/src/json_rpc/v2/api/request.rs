@@ -10,9 +10,11 @@ use crate::json_rpc::{
     },
 };
 
+use mc_account_keys::PublicAddress;
 use mc_mobilecoind_json::data_types::JsonTxOut;
 use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -37,6 +39,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 /// Requests to the Full Service Wallet Service.
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
+#[serde_as]
 #[allow(non_camel_case_types)]
 pub enum JsonCommandRequest {
     assign_address_for_account {
@@ -263,6 +266,14 @@ pub enum JsonCommandRequest {
         next_subaddress_index: Option<String>,
         #[serde(default = "bool::default")] // default is false
         require_spend_subaddress: bool,
+        #[serde(default)]
+        fog_enabled: bool,
+        // The default public address (required when fog_enabled = true)
+        #[serde_as(as = "crate::util::b58::public_address_b58")]
+        default_public_address: Option<PublicAddress>,
+        // The change public address (required when fog_enabled = true)
+        #[serde_as(as = "crate::util::b58::public_address_b58")]
+        change_public_address: Option<PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,
