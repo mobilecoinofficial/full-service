@@ -10,6 +10,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
@@ -526,6 +527,13 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
+        let sender_credentials_identify_as = self
+            .get_address_for_account(
+                &AccountID::from(from_account_id.clone()),
+                DEFAULT_SUBADDRESS_INDEX as i64,
+            )?
+            .public_address()?;
+
         let unsigned_tx_proposal = self.build_unsigned_transaction(
             &from_account.id,
             &[(
@@ -542,6 +550,7 @@ where
             max_spendable_value.map(|f| f.to_string()),
             TransactionMemo::RTH {
                 subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                sender_credentials_identify_as,
             },
             None,
             None, /* NOTE: Assuming for now that we will not support spend_subaddress

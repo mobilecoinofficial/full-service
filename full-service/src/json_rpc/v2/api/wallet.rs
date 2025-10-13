@@ -1,6 +1,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -201,6 +202,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -212,6 +222,7 @@ where
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 
@@ -334,6 +345,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -345,6 +365,7 @@ where
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 
@@ -511,6 +532,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -522,6 +552,7 @@ where
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 

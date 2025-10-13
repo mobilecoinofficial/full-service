@@ -1,6 +1,7 @@
 use crate::{
     db::{
         account::AccountID,
+        assigned_subaddress::AssignedSubaddressModel,
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -169,6 +170,15 @@ where
                 })
                 .collect();
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let (transaction_log, associated_txos, _, tx_proposal) = service
                 .build_sign_and_submit_transaction(
                     &account_id,
@@ -181,6 +191,7 @@ where
                     comment,
                     TransactionMemo::RTH {
                         subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                        sender_credentials_identify_as,
                     },
                     None,
                     None, // Note: Not including spend_subaddress in V1 API
@@ -289,6 +300,15 @@ where
                 })
                 .collect();
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    DEFAULT_SUBADDRESS_INDEX as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let tx_proposal = service
                 .build_and_sign_transaction(
                     &account_id,
@@ -300,6 +320,7 @@ where
                     max_spendable_value,
                     TransactionMemo::RTH {
                         subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                        sender_credentials_identify_as,
                     },
                     None,
                     None, // Note: not including spend_subaddress in V1 API
