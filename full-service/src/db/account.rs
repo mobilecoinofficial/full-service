@@ -727,76 +727,79 @@ impl AccountModel for Account {
             next_block_index,
             import_block_index: Some(import_block_index as i64),
             name: &name.unwrap_or_default(),
-            fog_enabled: false,
+            fog_enabled,
             view_only: true,
             managed_by_hardware_wallet,
             require_spend_subaddress,
         };
 
-        diesel::insert_into(accounts::table)
-            .values(&new_account)
-            .execute(conn)?;
+        conn.transaction(|conn| {
+            diesel::insert_into(accounts::table)
+                .values(&new_account)
+                .execute(conn)?;
 
-        if fog_enabled {
-            if next_subaddress_index != DEFAULT_NEXT_SUBADDRESS_INDEX as i64 {
-                return Err(WalletDbError::InvalidArgument(
-                    "next_subaddress_index other than 2 is not supported when fog_enabled=true"
-                        .into(),
-                ));
-            }
+            if fog_enabled {
+                if next_subaddress_index != DEFAULT_NEXT_SUBADDRESS_INDEX as i64 {
+                    return Err(WalletDbError::InvalidArgument(
+                        "next_subaddress_index other than 2 is not supported when fog_enabled=true"
+                            .into(),
+                    ));
+                }
 
-            AssignedSubaddress::create_for_view_only_fog_account(
-                view_account_key,
-                DEFAULT_SUBADDRESS_INDEX,
-                &default_public_address.ok_or(WalletDbError::InvalidArgument(
-                    "default_public_address is required when fog_enabled=true".into(),
-                ))?,
-                "Main",
-                conn,
-            )?;
-
-            AssignedSubaddress::create_for_view_only_fog_account(
-                view_account_key,
-                CHANGE_SUBADDRESS_INDEX,
-                &change_public_address.ok_or(WalletDbError::InvalidArgument(
-                    "change_public_address is required when fog_enabled=true".into(),
-                ))?,
-                "Change",
-                conn,
-            )?;
-        } else {
-            AssignedSubaddress::create_for_view_only_account(
-                view_account_key,
-                DEFAULT_SUBADDRESS_INDEX,
-                "Main",
-                conn,
-            )?;
-
-            AssignedSubaddress::create_for_view_only_account(
-                view_account_key,
-                LEGACY_CHANGE_SUBADDRESS_INDEX,
-                "Legacy Change",
-                conn,
-            )?;
-
-            AssignedSubaddress::create_for_view_only_account(
-                view_account_key,
-                CHANGE_SUBADDRESS_INDEX,
-                "Change",
-                conn,
-            )?;
-
-            for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64 {
-                AssignedSubaddress::create_for_view_only_account(
+                AssignedSubaddress::create_for_view_only_fog_account(
                     view_account_key,
-                    subaddress_index,
-                    "",
+                    DEFAULT_SUBADDRESS_INDEX,
+                    &default_public_address.ok_or(WalletDbError::InvalidArgument(
+                        "default_public_address is required when fog_enabled=true".into(),
+                    ))?,
+                    "Main",
                     conn,
                 )?;
-            }
-        }
 
-        Account::get(&account_id, conn)
+                AssignedSubaddress::create_for_view_only_fog_account(
+                    view_account_key,
+                    CHANGE_SUBADDRESS_INDEX,
+                    &change_public_address.ok_or(WalletDbError::InvalidArgument(
+                        "change_public_address is required when fog_enabled=true".into(),
+                    ))?,
+                    "Change",
+                    conn,
+                )?;
+            } else {
+                AssignedSubaddress::create_for_view_only_account(
+                    view_account_key,
+                    DEFAULT_SUBADDRESS_INDEX,
+                    "Main",
+                    conn,
+                )?;
+
+                AssignedSubaddress::create_for_view_only_account(
+                    view_account_key,
+                    LEGACY_CHANGE_SUBADDRESS_INDEX,
+                    "Legacy Change",
+                    conn,
+                )?;
+
+                AssignedSubaddress::create_for_view_only_account(
+                    view_account_key,
+                    CHANGE_SUBADDRESS_INDEX,
+                    "Change",
+                    conn,
+                )?;
+
+                for subaddress_index in DEFAULT_NEXT_SUBADDRESS_INDEX..next_subaddress_index as u64
+                {
+                    AssignedSubaddress::create_for_view_only_account(
+                        view_account_key,
+                        subaddress_index,
+                        "",
+                        conn,
+                    )?;
+                }
+            }
+
+            Account::get(&account_id, conn)
+        })
     }
 
     fn import_view_only_from_hardware_wallet_with_fog(
@@ -1063,7 +1066,10 @@ mod tests {
     use mc_crypto_keys::RistrettoPublic;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
-    use std::{collections::HashSet, convert::TryFrom, iter::FromIterator, ops::DerefMut};
+    use std::{
+        assert_matches::assert_matches, collections::HashSet, convert::TryFrom, iter::FromIterator,
+        ops::DerefMut,
+    };
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -1360,6 +1366,60 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_import_view_only_account_with_fog_requires_correct_subaddresses(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random_with_fog(&mut rng);
+        let view_account_key = ViewAccountKey::from(&account_key);
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        for (default_subaddress, change_subaddress, expected_err) in [
+            (
+                None,
+                Some(account_key.change_subaddress()),
+                "default_public_address is required when fog_enabled=true",
+            ),
+            (
+                Some(account_key.change_subaddress()),
+                Some(account_key.change_subaddress()),
+                "default_public_address does not match view_account_key.default_subaddress()",
+            ),
+            (
+                Some(account_key.default_subaddress()),
+                None,
+                "change_public_address is required when fog_enabled=true",
+            ),
+            (
+                Some(account_key.default_subaddress()),
+                Some(account_key.default_subaddress()),
+                "change_public_address does not match view_account_key.change_subaddress()",
+            ),
+        ] {
+            assert_matches!(
+                Account::import_view_only(
+                    &view_account_key,
+                    Some("View Only Account".to_string()),
+                    12,
+                    None,
+                    None,
+                    false,
+                    false,
+                    true,
+                    default_subaddress,
+                    change_subaddress,
+                    conn,
+                ),
+                Err(WalletDbError::InvalidArgument(err)) if err == expected_err
+            );
+        }
+    }
+
+    #[test_with_logger]
     fn test_import_view_only_account_without_fog(logger: Logger) {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
@@ -1368,7 +1428,6 @@ mod tests {
 
         let view_private_key = RistrettoPrivate::from_random(&mut rng);
         let spend_public_key = RistrettoPublic::from_random(&mut rng);
-
         let view_account_key = ViewAccountKey::new(view_private_key, spend_public_key);
 
         let account = {
@@ -1400,13 +1459,12 @@ mod tests {
 
         let expected_account = Account {
             id: account.id.to_string(),
-            account_key: [
+            account_key: vec![
                 10, 34, 10, 32, 66, 186, 14, 57, 108, 119, 153, 172, 224, 25, 53, 237, 22, 219,
                 222, 137, 26, 227, 37, 43, 122, 52, 71, 153, 60, 246, 90, 102, 123, 176, 139, 11,
                 18, 34, 10, 32, 28, 19, 114, 110, 204, 131, 192, 90, 192, 83, 149, 201, 140, 112,
                 168, 124, 195, 19, 252, 208, 160, 39, 44, 28, 108, 143, 40, 149, 53, 137, 20, 47,
-            ]
-            .to_vec(),
+            ],
             entropy: None,
             key_derivation_version: 2,
             first_block_index: 0,
@@ -1439,6 +1497,87 @@ mod tests {
                     .public_address()
                     .unwrap(),
                 view_account_key.change_subaddress()
+            );
+        }
+    }
+
+    #[test_with_logger]
+    fn test_import_view_only_account_with_fog(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let account_key = AccountKey::random_with_fog(&mut rng);
+        let view_account_key = ViewAccountKey::from(&account_key);
+
+        let account = {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+
+            Account::import_view_only(
+                &view_account_key,
+                Some("View Only Account".to_string()),
+                12,
+                None,
+                None,
+                false,
+                false,
+                true,
+                Some(account_key.default_subaddress()),
+                Some(account_key.change_subaddress()),
+                conn,
+            )
+            .unwrap()
+        };
+
+        {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            let res = Account::list_all(conn, None, None).unwrap();
+            assert_eq!(res.len(), 1);
+        }
+
+        let expected_account = Account {
+            id: account.id.to_string(),
+            account_key: vec![
+                10, 34, 10, 32, 196, 169, 120, 138, 161, 213, 176, 66, 120, 21, 185, 31, 97, 238,
+                122, 201, 195, 26, 178, 199, 203, 216, 164, 31, 226, 120, 102, 137, 136, 211, 171,
+                4, 18, 34, 10, 32, 154, 128, 30, 46, 240, 122, 37, 143, 146, 84, 84, 4, 202, 125,
+                243, 71, 79, 166, 4, 168, 66, 44, 99, 105, 123, 61, 52, 177, 166, 41, 241, 43,
+            ],
+            entropy: None,
+            key_derivation_version: 2,
+            first_block_index: 0,
+            next_block_index: 0,
+            import_block_index: Some(12),
+            name: "View Only Account".to_string(),
+            fog_enabled: true,
+            view_only: true,
+            managed_by_hardware_wallet: false,
+            resyncing: false,
+            require_spend_subaddress: false,
+        };
+        assert_eq!(expected_account, account);
+
+        {
+            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+            let conn = pooled_conn.deref_mut();
+            assert_eq!(
+                account
+                    .main_subaddress(conn)
+                    .unwrap()
+                    .public_address()
+                    .unwrap(),
+                account_key.default_subaddress()
+            );
+            assert_eq!(
+                account
+                    .change_subaddress(conn)
+                    .unwrap()
+                    .public_address()
+                    .unwrap(),
+                account_key.change_subaddress()
             );
         }
     }

@@ -243,6 +243,7 @@ pub trait AccountService {
     ///| `default_public_address`   | Default public address (required if fog_enabled=true)   | When fog_enabled is false this is derived from the keys |
     ///| `change_public_address`    | Change public address (required if fog_enabled=true)    | When fog_enabled is false this is derived from the keys |
     ///
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only_account(
         &self,
         view_private_key: &RootViewPrivate,

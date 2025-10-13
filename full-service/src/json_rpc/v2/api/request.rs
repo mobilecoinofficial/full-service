@@ -41,6 +41,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[serde(tag = "method", content = "params")]
 #[serde_as]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
     assign_address_for_account {
         account_id: String,
