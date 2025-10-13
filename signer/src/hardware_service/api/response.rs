@@ -1,5 +1,6 @@
 // Copyright (c) 2020-2024 MobileCoin Inc.
 
+use mc_account_keys::PublicAddress;
 use mc_full_service::json_rpc::{
     json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
     v2::models::tx_proposal::TxProposal,
@@ -16,6 +17,10 @@ pub enum JsonCommandResponse {
     get_account {
         account_id: String,
         account_info: AccountInfo,
+        #[serde(with = "mc_full_service::util::b58::public_address_b58")]
+        default_public_address: PublicAddress,
+        #[serde(with = "mc_full_service::util::b58::public_address_b58")]
+        change_public_address: PublicAddress,
     },
     sync_txos {
         account_id: String,

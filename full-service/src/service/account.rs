@@ -786,7 +786,7 @@ where
     }
 }
 
-fn get_public_fog_address(
+pub fn get_public_fog_address(
     subaddress_keys: &ViewSubaddress,
     fog_report_url: String,
     fog_authority_spki_bytes: &[u8],

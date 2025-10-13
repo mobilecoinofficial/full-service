@@ -2,7 +2,10 @@
 
 use mc_full_service::json_rpc::{
     json_rpc_request::JsonRPCRequest,
-    v2::models::{tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::UnsignedTxProposal},
+    v2::models::{
+        account_key::FogInfo, tx_blueprint_proposal::TxBlueprintProposal,
+        tx_proposal::UnsignedTxProposal,
+    },
 };
 use mc_transaction_signer::types::TxoUnsynced;
 use serde::{Deserialize, Serialize};
@@ -33,7 +36,9 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[allow(non_camel_case_types)]
 #[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
-    get_account,
+    get_account {
+        fog_info: Option<FogInfo>,
+    },
     sync_txos {
         account_id: String,
         txos_unsynced: Vec<TxoUnsynced>,
