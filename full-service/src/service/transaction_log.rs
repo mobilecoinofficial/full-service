@@ -126,8 +126,7 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount,
         service::{
-            account::AccountService, address::AddressService,
-            models::transaction_memo::TransactionMemo, transaction::TransactionService,
+            account::AccountService, address::AddressService, transaction::TransactionService,
             transaction_log::TransactionLogService,
         },
         test_utils::{
@@ -135,7 +134,7 @@ mod tests {
             setup_wallet_service, test_rth_memo_default_from_key, MOB,
         },
     };
-    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};

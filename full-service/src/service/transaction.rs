@@ -745,7 +745,7 @@ mod tests {
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_core::account::ShortAddressHash;
     use mc_crypto_keys::RistrettoPublic;

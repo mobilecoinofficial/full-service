@@ -2376,18 +2376,15 @@ mod tests {
             models::{Account, TransactionLog},
             transaction_log::TransactionLogModel,
         },
-        service::{
-            models::transaction_memo::TransactionMemo,
-            transaction_builder::WalletTransactionBuilder,
-        },
+        service::transaction_builder::WalletTransactionBuilder,
         test_utils::{
             add_block_with_tx, add_block_with_tx_outs, create_test_minted_and_change_txos,
             create_test_received_txo, create_test_txo_for_recipient,
             create_test_txo_for_recipient_with_memo, create_test_unsigned_txproposal_and_log,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, test_rth_memo_default_from_key,
-            test_rth_memo_from_key, test_rth_memo_with_payment_intent_id,
-            test_rth_memo_with_payment_request_id, TestFogPubkeyResolver, WalletDbTestContext, MOB,
+            test_rth_memo_with_payment_intent_id, test_rth_memo_with_payment_request_id,
+            TestFogPubkeyResolver, WalletDbTestContext, MOB,
         },
         WalletDb,
     };

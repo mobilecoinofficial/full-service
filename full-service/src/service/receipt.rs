@@ -307,8 +307,8 @@ mod tests {
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, ledger::get_tx_out_by_public_key,
-            models::transaction_memo::TransactionMemo, transaction::TransactionService,
-            transaction_log::TransactionLogService, txo::TxoService,
+            transaction::TransactionService, transaction_log::TransactionLogService,
+            txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
@@ -316,7 +316,7 @@ mod tests {
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_ledger_db::Ledger;

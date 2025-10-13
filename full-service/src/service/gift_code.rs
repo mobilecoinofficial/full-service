@@ -528,10 +528,7 @@ where
         let fee_value = fee.map(|f| f.to_string());
 
         let sender_credentials_identify_as = self
-            .get_address_for_account(
-                &AccountID::from(from_account_id.clone()),
-                DEFAULT_SUBADDRESS_INDEX as i64,
-            )?
+            .get_address_for_account(from_account_id, DEFAULT_SUBADDRESS_INDEX as i64)?
             .public_address()?;
 
         let unsigned_tx_proposal = self.build_unsigned_transaction(

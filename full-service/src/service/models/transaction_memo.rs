@@ -145,7 +145,7 @@ fn generate_rth_memo_builder(
             );
         }
 
-        TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
+        TransactionMemoSignerCredentials::HardwareWallet(_view_account_key) => {
             let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
                 Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
                     sender_credentials_identify_as,
