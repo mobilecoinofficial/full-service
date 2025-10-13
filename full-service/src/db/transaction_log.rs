@@ -883,7 +883,9 @@ mod tests {
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
+    use mc_account_keys::{
+        AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
+    };
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};
@@ -947,7 +949,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1138,7 +1140,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1228,7 +1230,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1342,7 +1344,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1425,7 +1427,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1659,7 +1661,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1899,7 +1901,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )

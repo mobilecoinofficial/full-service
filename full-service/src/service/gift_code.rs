@@ -541,7 +541,7 @@ where
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             None,
             None, /* NOTE: Assuming for now that we will not support spend_subaddress

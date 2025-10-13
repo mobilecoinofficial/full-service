@@ -198,7 +198,8 @@ where
 
             let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
                 .map(|i| i.parse::<u64>().map_err(format_error))
-                .transpose()?;
+                .transpose()?
+                .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
@@ -330,7 +331,8 @@ where
 
             let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
                 .map(|i| i.parse::<u64>().map_err(format_error))
-                .transpose()?;
+                .transpose()?
+                .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
@@ -506,7 +508,8 @@ where
 
             let sender_memo_credential_subaddress_index = sender_memo_credential_subaddress_index
                 .map(|i| i.parse::<u64>().map_err(format_error))
-                .transpose()?;
+                .transpose()?
+                .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))

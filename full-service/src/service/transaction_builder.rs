@@ -794,7 +794,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -977,7 +977,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         match builder.build(
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             conn,
         ) {
@@ -1004,7 +1004,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1271,7 +1271,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1326,7 +1326,7 @@ mod tests {
         // We must set tombstone block before building
         match builder.build(
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             conn,
         ) {
@@ -1349,7 +1349,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1375,7 +1375,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1426,7 +1426,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1451,7 +1451,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1483,7 +1483,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1535,7 +1535,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1603,7 +1603,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -1720,7 +1720,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )

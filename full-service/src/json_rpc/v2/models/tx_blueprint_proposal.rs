@@ -298,7 +298,7 @@ mod tests {
             account_id_hex: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 .to_string(),
             memo: TransactionMemo::RTH {
-                subaddress_index: Some(5),
+                subaddress_index: 5,
             },
             unsigned_input_txos: vec![
                 random_unsigned_input_txo(&mut rng),

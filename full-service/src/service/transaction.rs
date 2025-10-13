@@ -745,7 +745,7 @@ mod tests {
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_core::account::ShortAddressHash;
     use mc_crypto_keys::RistrettoPublic;
@@ -848,7 +848,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -881,7 +881,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -914,7 +914,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1009,7 +1009,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1111,7 +1111,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1223,7 +1223,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1294,7 +1294,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1332,7 +1332,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -1434,7 +1434,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
+                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
                 },
                 None,
                 None,
@@ -1626,7 +1626,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTHWithPaymentRequestId {
-                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
+                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
                     payment_request_id,
                 },
                 None,
@@ -1838,7 +1838,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                    subaddress_index: alice_subaddress.subaddress_index as u64,
                 },
                 None,
                 Some(alice_subaddress.public_address_b58.clone()),
@@ -2001,7 +2001,7 @@ mod tests {
                     None,
                     None,
                     TransactionMemo::RTH {
-                        subaddress_index: Some(alice_subaddress.subaddress_index as u64),
+                        subaddress_index: alice_subaddress.subaddress_index as u64,
                     },
                     None,
                     Some(alice_subaddress.public_address_b58.clone()),

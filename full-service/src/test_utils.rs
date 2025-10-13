@@ -24,7 +24,9 @@ use crate::{
 use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
 use diesel::{Connection as DSLConnection, SqliteConnection};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
+use mc_account_keys::{
+    AccountKey, PublicAddress, RootIdentity, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
+};
 use mc_blockchain_test_utils::make_block_metadata;
 use mc_blockchain_types::{Block, BlockContents, BlockVersion};
 use mc_common::logger::{log, Logger};
@@ -498,7 +500,7 @@ pub async fn create_test_minted_and_change_txos(
     let unsigned_tx_proposal = builder
         .build(
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             conn,
         )
@@ -548,7 +550,7 @@ pub fn create_test_unsigned_txproposal_and_log(
     let unsigned_tx_proposal = builder
         .build(
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             conn,
         )

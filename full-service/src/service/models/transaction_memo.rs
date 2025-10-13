@@ -5,7 +5,7 @@ use crate::{
     error::WalletTransactionBuilderError,
     service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
-use mc_account_keys::{AccountKey, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
+use mc_account_keys::{AccountKey, ViewAccountKey};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
@@ -24,16 +24,16 @@ pub enum TransactionMemo {
 
     /// Recoverable Transaction History memo
     RTH {
-        /// Optional subaddress index to generate the sender memo credential
+        /// Subaddress index to generate the sender memo credential
         /// from.
-        subaddress_index: Option<u64>,
+        subaddress_index: u64,
     },
 
     /// Recoverable Transaction History memo with a payment intent id
     RTHWithPaymentIntentId {
-        /// Optional subaddress index to generate the sender memo credential
+        /// Subaddress index to generate the sender memo credential
         /// from.
-        subaddress_index: Option<u64>,
+        subaddress_index: u64,
 
         /// The payment intent id to include in the memo.
         payment_intent_id: u64,
@@ -41,9 +41,9 @@ pub enum TransactionMemo {
 
     /// Recoverable Transaction History memo with a payment request id
     RTHWithPaymentRequestId {
-        /// Optional subaddress index to generate the sender memo credential
+        /// Subaddress index to generate the sender memo credential
         /// from.
-        subaddress_index: Option<u64>,
+        subaddress_index: u64,
 
         /// The payment request id to include in the memo.
         payment_request_id: u64,
@@ -68,7 +68,8 @@ impl TransactionMemo {
                 Ok(Box::new(memo_builder))
             }
             Self::RTH { subaddress_index } => {
-                let memo_builder = generate_rth_memo_builder(subaddress_index, signer_credentials)?;
+                let memo_builder =
+                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
                 Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentIntentId {
@@ -76,7 +77,7 @@ impl TransactionMemo {
                 payment_intent_id,
             } => {
                 let mut memo_builder =
-                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
+                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_intent_id(*payment_intent_id);
                 Ok(Box::new(memo_builder))
             }
@@ -85,7 +86,7 @@ impl TransactionMemo {
                 payment_request_id,
             } => {
                 let mut memo_builder =
-                    generate_rth_memo_builder(subaddress_index, signer_credentials)?;
+                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
                 memo_builder.set_payment_request_id(*payment_request_id);
                 Ok(Box::new(memo_builder))
             }
@@ -94,10 +95,9 @@ impl TransactionMemo {
 }
 
 fn generate_rth_memo_builder(
-    subaddress_index: &Option<u64>,
+    subaddress_index: u64,
     signer_credentials: &TransactionMemoSignerCredentials,
 ) -> Result<RTHMemoBuilder, WalletTransactionBuilderError> {
-    let subaddress_index = subaddress_index.unwrap_or(DEFAULT_SUBADDRESS_INDEX);
     let mut memo_builder = RTHMemoBuilder::default();
 
     match signer_credentials {
