@@ -5,7 +5,7 @@ use crate::{
     error::WalletTransactionBuilderError,
     service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
-use mc_account_keys::{AccountKey, ViewAccountKey};
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
@@ -27,6 +27,10 @@ pub enum TransactionMemo {
         /// Subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: u64,
+
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::public_address_b58")]
+        sender_credentials_identify_as: PublicAddress,
     },
 
     /// Recoverable Transaction History memo with a payment intent id
@@ -161,5 +165,40 @@ impl TryFrom<&Account> for TransactionMemoSignerCredentials {
         } else {
             Ok(Self::Local(account.account_key()?))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mc_account_keys::AccountKey;
+    use mc_util_from_random::FromRandom;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test]
+    fn test_rth_memo_b58_roundtrip() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let account_key = AccountKey::from_random(&mut rng);
+        let public_address = account_key.subaddress(5);
+        let b58_address =
+            crate::util::b58::b58_encode_public_address(&public_address).expect("Failed to encode");
+
+        let memo = TransactionMemo::RTH {
+            subaddress_index: 5,
+            sender_credentials_identify_as: public_address.clone(),
+        };
+
+        let serialized = serde_json::to_string(&memo).expect("Failed to serialize");
+        
+        let expected_json = format!(
+            r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{}"}}}}"#,
+            b58_address
+        );
+        assert_eq!(serialized, expected_json, "JSON serialization did not match expected format");
+
+        let deserialized: TransactionMemo =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(memo, deserialized, "Round-trip serialization failed");
     }
 }
