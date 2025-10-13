@@ -4,7 +4,6 @@ use super::{b58_decode_public_address, b58_encode_public_address};
 use mc_account_keys::PublicAddress;
 use serde::{Deserialize, Deserializer, Serializer};
 
-/// Serialize a PublicAddress as a B58 string.
 pub fn serialize<S>(public_address: &PublicAddress, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -14,7 +13,6 @@ where
     serializer.serialize_str(&b58_string)
 }
 
-/// Deserialize a PublicAddress from a B58 string.
 pub fn deserialize<'de, D>(deserializer: D) -> Result<PublicAddress, D::Error>
 where
     D: Deserializer<'de>,
