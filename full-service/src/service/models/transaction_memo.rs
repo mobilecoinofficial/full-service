@@ -185,13 +185,12 @@ impl TryFrom<&Account> for TransactionMemoSignerCredentials {
 mod tests {
     use super::*;
     use mc_account_keys::AccountKey;
-    use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test]
     fn test_rth_memo_b58_roundtrip() {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-        let account_key = AccountKey::from_random(&mut rng);
+        let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(5);
         let b58_address =
             crate::util::b58::b58_encode_public_address(&public_address).expect("Failed to encode");

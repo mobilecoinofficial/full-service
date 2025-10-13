@@ -741,7 +741,7 @@ mod tests {
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            setup_wallet_service, test_rth_memo_default_from_key, test_rth_memo_from_key, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -847,9 +847,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -880,9 +878,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -913,9 +909,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1008,9 +1002,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1110,9 +1102,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&bob_account_key),
                 None,
                 None,
             )
@@ -1222,9 +1212,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1293,9 +1281,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1331,9 +1317,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1433,9 +1417,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
-                },
+                test_rth_memo_from_key(&alice_account_key, alice_address_from_bob.subaddress_index as u64),
                 None,
                 None,
             )
@@ -1837,9 +1819,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: alice_subaddress.subaddress_index as u64,
-                },
+                test_rth_memo_from_key(&exchange_account_key, alice_subaddress.subaddress_index as u64),
                 None,
                 Some(alice_subaddress.public_address_b58.clone()),
             )
@@ -2000,9 +1980,10 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH {
-                        subaddress_index: alice_subaddress.subaddress_index as u64,
-                    },
+                    crate::test_utils::test_rth_memo_from_key(
+                        &exchange_account_key,
+                        alice_subaddress.subaddress_index as u64,
+                    ),
                     None,
                     Some(alice_subaddress.public_address_b58.clone()),
                 )

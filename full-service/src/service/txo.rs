@@ -469,9 +469,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                crate::test_utils::test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )

@@ -312,7 +312,7 @@ mod tests {
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            setup_wallet_service, test_rth_memo_default_from_key, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -439,9 +439,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -574,9 +572,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -702,9 +698,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -850,9 +844,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )

@@ -542,9 +542,10 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
-                },
+                crate::test_utils::test_rth_memo_from_key(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
+                ),
                 None,
                 None,
             )

@@ -67,6 +67,28 @@ pub const MOB: u64 = 1_000_000_000_000;
 /// The amount each recipient gets in the test ledger.
 pub const DEFAULT_PER_RECIPIENT_AMOUNT: u64 = 5_000 * MOB;
 
+/// Test helper to create RTH memo from an AccountKey and subaddress index
+pub fn test_rth_memo_from_key(account_key: &AccountKey, subaddress_index: u64) -> TransactionMemo {
+    TransactionMemo::RTH {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+    }
+}
+
+/// Test helper to create RTH memo from an AccountKey using DEFAULT_SUBADDRESS_INDEX
+pub fn test_rth_memo_default_from_key(account_key: &AccountKey) -> TransactionMemo {
+    test_rth_memo_from_key(account_key, DEFAULT_SUBADDRESS_INDEX)
+}
+
+/// Test helper to create RTH memo from an Account and subaddress index
+pub fn test_rth_memo_from_account(
+    account: &Account,
+    subaddress_index: u64,
+) -> Result<TransactionMemo, WalletDbError> {
+    let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+    Ok(test_rth_memo_from_key(&account_key, subaddress_index))
+}
+
 /// Fog authority spki for testing, base64 encoded.
 pub const TEST_FOG_AUTHORITY_SPKI: &str ="MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0Ifnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ==";
 
@@ -499,9 +521,7 @@ pub async fn create_test_minted_and_change_txos(
 
     let unsigned_tx_proposal = builder
         .build(
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&src_account_key),
             conn,
         )
         .unwrap();
@@ -549,9 +569,7 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
         .build(
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&src_account_key),
             conn,
         )
         .unwrap();
