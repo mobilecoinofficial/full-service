@@ -1417,7 +1417,10 @@ mod tests {
                 None,
                 None,
                 None,
-                test_rth_memo_from_key(&alice_account_key, alice_address_from_bob.subaddress_index as u64),
+                test_rth_memo_from_key(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
+                ),
                 None,
                 None,
             )
@@ -1607,10 +1610,11 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTHWithPaymentRequestId {
-                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
+                crate::test_utils::test_rth_memo_with_payment_request_id(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
                     payment_request_id,
-                },
+                ),
                 None,
                 None,
             )
@@ -1819,7 +1823,10 @@ mod tests {
                 None,
                 None,
                 None,
-                test_rth_memo_from_key(&exchange_account_key, alice_subaddress.subaddress_index as u64),
+                test_rth_memo_from_key(
+                    &exchange_account_key,
+                    alice_subaddress.subaddress_index as u64,
+                ),
                 None,
                 Some(alice_subaddress.public_address_b58.clone()),
             )
