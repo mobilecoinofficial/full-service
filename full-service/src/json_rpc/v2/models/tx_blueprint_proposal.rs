@@ -297,9 +297,7 @@ mod tests {
             tx_blueprint,
             account_id_hex: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 .to_string(),
-            memo: TransactionMemo::RTH {
-                subaddress_index: 5,
-            },
+            memo: crate::test_utils::test_rth_memo_from_key(&alice, 5),
             unsigned_input_txos: vec![
                 random_unsigned_input_txo(&mut rng),
                 random_unsigned_input_txo(&mut rng),

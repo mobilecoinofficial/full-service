@@ -2385,7 +2385,8 @@ mod tests {
             create_test_received_txo, create_test_txo_for_recipient,
             create_test_txo_for_recipient_with_memo, create_test_unsigned_txproposal_and_log,
             get_resolver_factory, get_test_ledger, manually_sync_account,
-            random_account_with_seed_values, TestFogPubkeyResolver, WalletDbTestContext, MOB,
+            random_account_with_seed_values, test_rth_memo_default_from_key,
+            test_rth_memo_from_key, TestFogPubkeyResolver, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -3868,9 +3869,7 @@ mod tests {
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
             .build(
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&sender_account_key),
                 conn,
             )
             .unwrap();
@@ -4763,9 +4762,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&account_key),
         );
 
         let txo_id = Txo::create_received(
@@ -4911,9 +4908,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&account_key),
         );
 
         Txo::create_received(
@@ -4998,9 +4993,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&account_key),
         );
 
         Txo::create_received(
@@ -5086,9 +5079,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&account_key),
         );
 
         let txo_id_4 = Txo::create_received(
@@ -5215,9 +5206,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
+            test_rth_memo_default_from_key(&account_key),
         );
 
         let txo_id_1 = Txo::create_received(
