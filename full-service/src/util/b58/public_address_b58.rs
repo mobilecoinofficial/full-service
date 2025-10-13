@@ -2,14 +2,15 @@
 
 use super::{b58_decode_public_address, b58_encode_public_address};
 use mc_account_keys::PublicAddress;
-use serde::{Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer};
 
 /// Serialize a PublicAddress as a B58 string.
 pub fn serialize<S>(public_address: &PublicAddress, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    let b58_string = b58_encode_public_address(public_address).map_err(serde::ser::Error::custom)?;
+    let b58_string =
+        b58_encode_public_address(public_address).map_err(serde::ser::Error::custom)?;
     serializer.serialize_str(&b58_string)
 }
 
@@ -18,6 +19,6 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<PublicAddress, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let b58_string = String::deserialize(deserializer)?;
+    let b58_string = <String>::deserialize(deserializer)?;
     b58_decode_public_address(&b58_string).map_err(serde::de::Error::custom)
 }

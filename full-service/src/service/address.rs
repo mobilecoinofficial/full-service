@@ -79,7 +79,7 @@ pub trait AddressService {
     ///| `address_b58` | The b58 subaddress on which to perform this action. |       |
     ///
     fn get_address(
-        &self, 
+        &self,
         address_b58: &str
     ) -> Result<AssignedSubaddress, AddressServiceError>;
 
@@ -122,9 +122,9 @@ pub trait AddressService {
     ///| Name             | Purpose                                      | Notes |
     ///|------------------|----------------------------------------------|-------|
     ///| `public_address` | The address on which to perform this action. |       |
-    /// 
+    ///
     fn verify_address(
-        &self, 
+        &self,
         public_address: &str
     ) -> Result<PublicAddress, AddressServiceError>;
 }

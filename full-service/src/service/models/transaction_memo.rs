@@ -71,28 +71,40 @@ impl TransactionMemo {
                 memo_builder.enable_destination_memo();
                 Ok(Box::new(memo_builder))
             }
-            Self::RTH { subaddress_index } => {
-                let memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
+            Self::RTH {
+                subaddress_index,
+                sender_credentials_identify_as,
+            } => {
+                let memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
                 Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentIntentId {
                 subaddress_index,
                 payment_intent_id,
             } => {
-                let mut memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
-                memo_builder.set_payment_intent_id(*payment_intent_id);
-                Ok(Box::new(memo_builder))
+                todo!()
+
+                // let mut memo_builder =
+                //     generate_rth_memo_builder(*subaddress_index,
+                // signer_credentials)?; memo_builder.
+                // set_payment_intent_id(*payment_intent_id);
+                // Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentRequestId {
                 subaddress_index,
                 payment_request_id,
             } => {
-                let mut memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
-                memo_builder.set_payment_request_id(*payment_request_id);
-                Ok(Box::new(memo_builder))
+                todo!()
+
+                // let mut memo_builder =
+                //     generate_rth_memo_builder(*subaddress_index,
+                // signer_credentials)?; memo_builder.
+                // set_payment_request_id(*payment_request_id);
+                // Ok(Box::new(memo_builder))
             }
         }
     }
@@ -100,6 +112,7 @@ impl TransactionMemo {
 
 fn generate_rth_memo_builder(
     subaddress_index: u64,
+    sender_credentials_identify_as: &PublicAddress,
     signer_credentials: &TransactionMemoSignerCredentials,
 ) -> Result<RTHMemoBuilder, WalletTransactionBuilderError> {
     let mut memo_builder = RTHMemoBuilder::default();
@@ -116,7 +129,7 @@ fn generate_rth_memo_builder(
         TransactionMemoSignerCredentials::Local(account_key) => {
             memo_builder.set_sender_credential(
                 SenderMemoCredential::new_from_address_and_spend_private_key(
-                    &account_key.subaddress(subaddress_index),
+                    sender_credentials_identify_as,
                     account_key.subaddress_spend_private(subaddress_index),
                 ),
             );
@@ -125,7 +138,7 @@ fn generate_rth_memo_builder(
         TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
             let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
                 Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
-                    &view_account_key.subaddress(subaddress_index),
+                    sender_credentials_identify_as,
                     subaddress_index,
                 )?));
             memo_builder.set_authenticated_sender_hmac_signer(signer);
@@ -189,12 +202,15 @@ mod tests {
         };
 
         let serialized = serde_json::to_string(&memo).expect("Failed to serialize");
-        
+
         let expected_json = format!(
             r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{}"}}}}"#,
             b58_address
         );
-        assert_eq!(serialized, expected_json, "JSON serialization did not match expected format");
+        assert_eq!(
+            serialized, expected_json,
+            "JSON serialization did not match expected format"
+        );
 
         let deserialized: TransactionMemo =
             serde_json::from_str(&serialized).expect("Failed to deserialize");
