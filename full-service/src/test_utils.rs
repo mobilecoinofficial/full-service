@@ -75,7 +75,8 @@ pub fn test_rth_memo_from_key(account_key: &AccountKey, subaddress_index: u64) -
     }
 }
 
-/// Test helper to create RTH memo from an AccountKey using DEFAULT_SUBADDRESS_INDEX
+/// Test helper to create RTH memo from an AccountKey using
+/// DEFAULT_SUBADDRESS_INDEX
 pub fn test_rth_memo_default_from_key(account_key: &AccountKey) -> TransactionMemo {
     test_rth_memo_from_key(account_key, DEFAULT_SUBADDRESS_INDEX)
 }
@@ -87,6 +88,34 @@ pub fn test_rth_memo_from_account(
 ) -> Result<TransactionMemo, WalletDbError> {
     let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
     Ok(test_rth_memo_from_key(&account_key, subaddress_index))
+}
+
+/// Test helper to create RTH memo with payment request ID from an AccountKey
+/// and subaddress index
+pub fn test_rth_memo_with_payment_request_id(
+    account_key: &AccountKey,
+    subaddress_index: u64,
+    payment_request_id: u64,
+) -> TransactionMemo {
+    TransactionMemo::RTHWithPaymentRequestId {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+        payment_request_id,
+    }
+}
+
+/// Test helper to create RTH memo with payment intent ID from an AccountKey and
+/// subaddress index
+pub fn test_rth_memo_with_payment_intent_id(
+    account_key: &AccountKey,
+    subaddress_index: u64,
+    payment_intent_id: u64,
+) -> TransactionMemo {
+    TransactionMemo::RTHWithPaymentIntentId {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+        payment_intent_id,
+    }
 }
 
 /// Fog authority spki for testing, base64 encoded.
@@ -520,10 +549,7 @@ pub async fn create_test_minted_and_change_txos(
     let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
 
     let unsigned_tx_proposal = builder
-        .build(
-            test_rth_memo_default_from_key(&src_account_key),
-            conn,
-        )
+        .build(test_rth_memo_default_from_key(&src_account_key), conn)
         .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -568,10 +594,7 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(
-            test_rth_memo_default_from_key(&src_account_key),
-            conn,
-        )
+        .build(test_rth_memo_default_from_key(&src_account_key), conn)
         .unwrap();
 
     (

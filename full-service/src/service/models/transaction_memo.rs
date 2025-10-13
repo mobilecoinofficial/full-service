@@ -39,6 +39,10 @@ pub enum TransactionMemo {
         /// from.
         subaddress_index: u64,
 
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::public_address_b58")]
+        sender_credentials_identify_as: PublicAddress,
+
         /// The payment intent id to include in the memo.
         payment_intent_id: u64,
     },
@@ -48,6 +52,10 @@ pub enum TransactionMemo {
         /// Subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: u64,
+
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::public_address_b58")]
+        sender_credentials_identify_as: PublicAddress,
 
         /// The payment request id to include in the memo.
         payment_request_id: u64,
@@ -84,27 +92,29 @@ impl TransactionMemo {
             }
             Self::RTHWithPaymentIntentId {
                 subaddress_index,
+                sender_credentials_identify_as,
                 payment_intent_id,
             } => {
-                todo!()
-
-                // let mut memo_builder =
-                //     generate_rth_memo_builder(*subaddress_index,
-                // signer_credentials)?; memo_builder.
-                // set_payment_intent_id(*payment_intent_id);
-                // Ok(Box::new(memo_builder))
+                let mut memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
+                memo_builder.set_payment_intent_id(*payment_intent_id);
+                Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentRequestId {
                 subaddress_index,
+                sender_credentials_identify_as,
                 payment_request_id,
             } => {
-                todo!()
-
-                // let mut memo_builder =
-                //     generate_rth_memo_builder(*subaddress_index,
-                // signer_credentials)?; memo_builder.
-                // set_payment_request_id(*payment_request_id);
-                // Ok(Box::new(memo_builder))
+                let mut memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
+                memo_builder.set_payment_request_id(*payment_request_id);
+                Ok(Box::new(memo_builder))
             }
         }
     }

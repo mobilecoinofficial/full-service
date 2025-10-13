@@ -218,6 +218,7 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {
@@ -361,6 +362,7 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {
@@ -548,6 +550,7 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {

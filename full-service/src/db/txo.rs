@@ -2386,7 +2386,8 @@ mod tests {
             create_test_txo_for_recipient_with_memo, create_test_unsigned_txproposal_and_log,
             get_resolver_factory, get_test_ledger, manually_sync_account,
             random_account_with_seed_values, test_rth_memo_default_from_key,
-            test_rth_memo_from_key, TestFogPubkeyResolver, WalletDbTestContext, MOB,
+            test_rth_memo_from_key, test_rth_memo_with_payment_intent_id,
+            test_rth_memo_with_payment_request_id, TestFogPubkeyResolver, WalletDbTestContext, MOB,
         },
         WalletDb,
     };
@@ -3868,10 +3869,7 @@ mod tests {
         builder.select_txos(conn, None).unwrap();
         builder.set_tombstone(0).unwrap();
         let unsigned_tx_proposal = builder
-            .build(
-                test_rth_memo_default_from_key(&sender_account_key),
-                conn,
-            )
+            .build(test_rth_memo_default_from_key(&sender_account_key), conn)
             .unwrap();
         let proposal = unsigned_tx_proposal.sign(&sender_account).await.unwrap();
 
@@ -4794,10 +4792,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_request_id: 1000,
-            },
+            test_rth_memo_with_payment_request_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 1000),
         );
 
         let txo_id = Txo::create_received(
@@ -4829,10 +4824,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_intent_id: 2000,
-            },
+            test_rth_memo_with_payment_intent_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 2000),
         );
 
         let txo_id = Txo::create_received(
@@ -4929,10 +4921,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_request_id: 500,
-            },
+            test_rth_memo_with_payment_request_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 500),
         );
 
         Txo::create_received(
@@ -5013,10 +5002,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_request_id: 1000,
-            },
+            test_rth_memo_with_payment_request_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 1000),
         );
 
         Txo::create_received(
@@ -5037,10 +5023,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_intent_id: 2000,
-            },
+            test_rth_memo_with_payment_intent_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 2000),
         );
 
         Txo::create_received(
@@ -5099,10 +5082,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_request_id: 1000,
-            },
+            test_rth_memo_with_payment_request_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 1000),
         );
 
         let txo_id_5 = Txo::create_received(
@@ -5123,10 +5103,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_intent_id: 2000,
-            },
+            test_rth_memo_with_payment_intent_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 2000),
         );
 
         let txo_id_6 = Txo::create_received(
@@ -5226,10 +5203,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_request_id: 1000,
-            },
+            test_rth_memo_with_payment_request_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 1000),
         );
 
         let txo_id_2 = Txo::create_received(
@@ -5250,10 +5224,7 @@ mod tests {
             0,
             amount,
             &mut rng,
-            TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                payment_intent_id: 2000,
-            },
+            test_rth_memo_with_payment_intent_id(&account_key, DEFAULT_SUBADDRESS_INDEX, 2000),
         );
 
         let txo_id_3 = Txo::create_received(
