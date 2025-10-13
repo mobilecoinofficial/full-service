@@ -872,21 +872,16 @@ mod tests {
     use super::*;
     use crate::{
         db::{account::AccountID, transaction_log::TransactionId, txo::TxoStatus},
-        service::{
-            models::transaction_memo::TransactionMemo, sync::SyncThread,
-            transaction_builder::WalletTransactionBuilder,
-        },
+        service::{sync::SyncThread, transaction_builder::WalletTransactionBuilder},
         test_utils::{
             add_block_with_tx_outs, builder_for_random_recipient, create_test_txo_for_recipient,
             create_test_unsigned_txproposal_and_log, get_resolver_factory, get_test_ledger,
             manually_sync_account, random_account_with_seed_values, test_rth_memo_default_from_key,
-            test_rth_memo_from_key, WalletDbTestContext, MOB,
+            WalletDbTestContext, MOB,
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{
-        AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX, DEFAULT_SUBADDRESS_INDEX,
-    };
+    use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, CHANGE_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::Tx, Token};

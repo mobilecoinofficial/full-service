@@ -734,8 +734,8 @@ mod tests {
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
             random_fog_enabled_account_with_seed_values,
             random_view_only_fog_hardware_wallet_account_with_seed_values,
-            test_rth_memo_default_from_key, test_rth_memo_from_key, WalletDbTestContext, MOB,
-            TEST_FOG_AUTHORITY_SPKI, TEST_FOG_URL,
+            test_rth_memo_default_from_key, WalletDbTestContext, MOB, TEST_FOG_AUTHORITY_SPKI,
+            TEST_FOG_URL,
         },
     };
     use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
