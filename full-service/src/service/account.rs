@@ -601,7 +601,7 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        match fog_info {
+        let (fog_enabled, default_public_address, change_public_address) = match fog_info {
             Some(fog_info) => {
                 let fog_authority_spki =
                     general_purpose::STANDARD.decode(fog_info.authority_spki)?;
@@ -621,35 +621,30 @@ where
                     &fog_authority_spki,
                 );
 
-                exclusive_transaction(conn, |conn| {
-                    Ok(Account::import_view_only_from_hardware_wallet_with_fog(
-                        &view_account_keys,
-                        name,
-                        import_block_index,
-                        first_block_index,
-                        &default_public_address,
-                        &change_public_address,
-                        require_spend_subaddress,
-                        conn,
-                    )?)
-                })
-            }
-            None => exclusive_transaction(conn, |conn| {
-                Ok(Account::import_view_only(
-                    &view_account_keys,
-                    name,
-                    import_block_index,
-                    first_block_index,
-                    None,
+                (
                     true,
-                    false,
-                    false,
-                    None,
-                    None,
-                    conn,
-                )?)
-            }),
-        }
+                    Some(default_public_address),
+                    Some(change_public_address),
+                )
+            }
+            None => (false, None, None),
+        };
+
+        exclusive_transaction(conn, |conn| {
+            Ok(Account::import_view_only(
+                &view_account_keys,
+                name,
+                import_block_index,
+                first_block_index,
+                None,
+                true,
+                require_spend_subaddress,
+                fog_enabled,
+                default_public_address,
+                change_public_address,
+                conn,
+            )?)
+        })
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
