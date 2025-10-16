@@ -265,7 +265,7 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
-        #[serde(default = "bool::default")] // default is false
+        #[serde(default)] // default is false
         require_spend_subaddress: bool,
         #[serde(default)]
         fog_enabled: bool,
