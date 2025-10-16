@@ -685,28 +685,17 @@ impl AccountModel for Account {
     ) -> Result<Account, WalletDbError> {
         use crate::db::schema::accounts;
 
-        if let Some(default_public_address) = default_public_address.as_ref() {
-            if PublicSubaddress::from(default_public_address)
-                != PublicSubaddress::from(&view_account_key.default_subaddress())
-            {
-                return Err(WalletDbError::InvalidArgument(
-                    "default_public_address does not match view_account_key.default_subaddress()"
-                        .into(),
-                ));
-            }
-        }
-        if let Some(change_public_address) = change_public_address.as_ref() {
-            if PublicSubaddress::from(change_public_address)
-                != PublicSubaddress::from(&view_account_key.change_subaddress())
-            {
-                return Err(WalletDbError::InvalidArgument(
-                    "change_public_address does not match view_account_key.change_subaddress()"
-                        .into(),
-                ));
-            }
-        }
-
         let account_id = AccountID::from(view_account_key);
+        let default_address = validate_or_get_address(
+            default_public_address.clone(),
+            view_account_key.default_subaddress(),
+            "default_public_address",
+        )?;
+        let change_address = validate_or_get_address(
+            change_public_address.clone(),
+            view_account_key.change_subaddress(),
+            "change_public_address",
+        )?;
 
         if Account::get(&account_id, conn).is_ok() {
             return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
@@ -745,45 +734,34 @@ impl AccountModel for Account {
                             .into(),
                     ));
                 }
+                if default_public_address.is_none() || change_public_address.is_none() {
+                    return Err(WalletDbError::InvalidArgument(
+                        "default_public_address and change_public_address are required when fog_enabled=true".into(),
+                    ));
+                }
+            }
 
-                AssignedSubaddress::create_for_view_only_fog_account(
-                    view_account_key,
-                    DEFAULT_SUBADDRESS_INDEX,
-                    &default_public_address.ok_or(WalletDbError::InvalidArgument(
-                        "default_public_address is required when fog_enabled=true".into(),
-                    ))?,
-                    "Main",
-                    conn,
-                )?;
+            AssignedSubaddress::create_for_view_only_account_with_address(
+                view_account_key,
+                DEFAULT_SUBADDRESS_INDEX,
+                &default_address,
+                "Main",
+                conn,
+            )?;
 
-                AssignedSubaddress::create_for_view_only_fog_account(
-                    view_account_key,
-                    CHANGE_SUBADDRESS_INDEX,
-                    &change_public_address.ok_or(WalletDbError::InvalidArgument(
-                        "change_public_address is required when fog_enabled=true".into(),
-                    ))?,
-                    "Change",
-                    conn,
-                )?;
-            } else {
-                AssignedSubaddress::create_for_view_only_account(
-                    view_account_key,
-                    DEFAULT_SUBADDRESS_INDEX,
-                    "Main",
-                    conn,
-                )?;
+            AssignedSubaddress::create_for_view_only_account_with_address(
+                view_account_key,
+                CHANGE_SUBADDRESS_INDEX,
+                &change_address,
+                "Change",
+                conn,
+            )?;
 
+            if !fog_enabled {
                 AssignedSubaddress::create_for_view_only_account(
                     view_account_key,
                     LEGACY_CHANGE_SUBADDRESS_INDEX,
                     "Legacy Change",
-                    conn,
-                )?;
-
-                AssignedSubaddress::create_for_view_only_account(
-                    view_account_key,
-                    CHANGE_SUBADDRESS_INDEX,
-                    "Change",
                     conn,
                 )?;
 
@@ -842,7 +820,7 @@ impl AccountModel for Account {
             .values(&new_account)
             .execute(conn)?;
 
-        AssignedSubaddress::create_for_view_only_fog_account(
+        AssignedSubaddress::create_for_view_only_account_with_address(
             view_account_key,
             DEFAULT_SUBADDRESS_INDEX,
             default_public_address,
@@ -850,7 +828,7 @@ impl AccountModel for Account {
             conn,
         )?;
 
-        AssignedSubaddress::create_for_view_only_fog_account(
+        AssignedSubaddress::create_for_view_only_account_with_address(
             view_account_key,
             CHANGE_SUBADDRESS_INDEX,
             change_public_address,
@@ -1054,6 +1032,31 @@ impl AccountModel for Account {
             select(exists(accounts::table.filter(accounts::resyncing.eq(true))))
                 .get_result(conn)?,
         )
+    }
+}
+
+/// Validates the `provided` address has the same view/spend keys as
+/// the `expected` address.
+/// If the `provided` address is `None`, returns the `expected` address.
+///
+/// Returns: Err if the `provided` address is some and not equal to the
+/// `expected` address.
+fn validate_or_get_address(
+    provided: Option<PublicAddress>,
+    expected: PublicAddress,
+    name: &str,
+) -> Result<PublicAddress, WalletDbError> {
+    match provided {
+        Some(address) => {
+            if PublicSubaddress::from(&address) != PublicSubaddress::from(&expected) {
+                return Err(WalletDbError::InvalidArgument(format!(
+                    "{} does not match expected view account key address",
+                    name
+                )));
+            }
+            Ok(address)
+        }
+        None => Ok(expected),
     }
 }
 
@@ -1382,22 +1385,22 @@ mod tests {
             (
                 None,
                 Some(account_key.change_subaddress()),
-                "default_public_address is required when fog_enabled=true",
+                "default_public_address and change_public_address are required when fog_enabled=true",
             ),
             (
                 Some(account_key.change_subaddress()),
                 Some(account_key.change_subaddress()),
-                "default_public_address does not match view_account_key.default_subaddress()",
+                "default_public_address does not match expected view account key address",
             ),
             (
                 Some(account_key.default_subaddress()),
                 None,
-                "change_public_address is required when fog_enabled=true",
+                "default_public_address and change_public_address are required when fog_enabled=true",
             ),
             (
                 Some(account_key.default_subaddress()),
                 Some(account_key.default_subaddress()),
-                "change_public_address does not match view_account_key.change_subaddress()",
+                "change_public_address does not match expected view account key address",
             ),
         ] {
             assert_matches!(
