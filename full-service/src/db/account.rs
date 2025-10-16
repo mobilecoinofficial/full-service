@@ -790,53 +790,19 @@ impl AccountModel for Account {
         require_spend_subaddress: bool,
         conn: Conn,
     ) -> Result<Account, WalletDbError> {
-        use crate::db::schema::accounts;
-
-        let account_id = AccountID::from(view_account_key);
-
-        if Account::get(&account_id, conn).is_ok() {
-            return Err(WalletDbError::AccountAlreadyExists(account_id.to_string()));
-        }
-
-        let first_block_index = first_block_index.unwrap_or(DEFAULT_FIRST_BLOCK_INDEX) as i64;
-        let next_block_index = first_block_index;
-
-        let new_account = NewAccount {
-            id: &account_id.to_string(),
-            account_key: &mc_util_serial::encode(view_account_key),
-            entropy: None,
-            key_derivation_version: MNEMONIC_KEY_DERIVATION_VERSION as i32,
+        Self::import_view_only(
+            view_account_key,
+            name,
+            import_block_index,
             first_block_index,
-            next_block_index,
-            import_block_index: Some(import_block_index as i64),
-            name: &name.unwrap_or_default(),
-            fog_enabled: true,
-            view_only: true,
-            managed_by_hardware_wallet: true,
+            None,
+            true,
             require_spend_subaddress,
-        };
-
-        diesel::insert_into(accounts::table)
-            .values(&new_account)
-            .execute(conn)?;
-
-        AssignedSubaddress::create_for_view_only_account_with_address(
-            view_account_key,
-            DEFAULT_SUBADDRESS_INDEX,
-            default_public_address,
-            "Main",
+            true,
+            Some(default_public_address.clone()),
+            Some(change_public_address.clone()),
             conn,
-        )?;
-
-        AssignedSubaddress::create_for_view_only_account_with_address(
-            view_account_key,
-            CHANGE_SUBADDRESS_INDEX,
-            change_public_address,
-            "Change",
-            conn,
-        )?;
-
-        Account::get(&account_id, conn)
+        )
     }
 
     fn list_all(
