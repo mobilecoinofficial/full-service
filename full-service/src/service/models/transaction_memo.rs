@@ -198,19 +198,18 @@ mod tests {
     use rand::{rngs::StdRng, SeedableRng};
 
     #[test]
-    fn test_rth_memo_b58_roundtrip() {
+    fn rth_memo_b58_roundtrip() {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(5);
-        let b58_address =
-            crate::util::b58::b58_encode_public_address(&public_address).expect("Failed to encode");
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
 
         let memo = TransactionMemo::RTH {
             subaddress_index: 5,
             sender_credentials_identify_as: public_address.clone(),
         };
 
-        let serialized = serde_json::to_string(&memo).expect("Failed to serialize");
+        let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
             r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{}"}}}}"#,
@@ -221,19 +220,17 @@ mod tests {
             "JSON serialization did not match expected format"
         );
 
-        let deserialized: TransactionMemo =
-            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(memo, deserialized, "Round-trip serialization failed");
     }
 
     #[test]
-    fn test_rth_with_payment_intent_id_memo_b58_roundtrip() {
+    fn rth_with_payment_intent_id_memo_b58_roundtrip() {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(5);
-        let b58_address =
-            crate::util::b58::b58_encode_public_address(&public_address).expect("Failed to encode");
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
 
         let memo = TransactionMemo::RTHWithPaymentIntentId {
             subaddress_index: 5,
@@ -241,7 +238,7 @@ mod tests {
             payment_intent_id: 12345,
         };
 
-        let serialized = serde_json::to_string(&memo).expect("Failed to serialize");
+        let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
             r#"{{"RTHWithPaymentIntentId":{{"subaddress_index":5,"sender_credentials_identify_as":"{}","payment_intent_id":12345}}}}"#,
@@ -252,19 +249,17 @@ mod tests {
             "JSON serialization did not match expected format"
         );
 
-        let deserialized: TransactionMemo =
-            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(memo, deserialized, "Round-trip serialization failed");
     }
 
     #[test]
-    fn test_rth_with_payment_request_id_memo_b58_roundtrip() {
+    fn rth_with_payment_request_id_memo_b58_roundtrip() {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let account_key = AccountKey::random(&mut rng);
         let public_address = account_key.subaddress(5);
-        let b58_address =
-            crate::util::b58::b58_encode_public_address(&public_address).expect("Failed to encode");
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
 
         let memo = TransactionMemo::RTHWithPaymentRequestId {
             subaddress_index: 5,
@@ -272,7 +267,7 @@ mod tests {
             payment_request_id: 67890,
         };
 
-        let serialized = serde_json::to_string(&memo).expect("Failed to serialize");
+        let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
             r#"{{"RTHWithPaymentRequestId":{{"subaddress_index":5,"sender_credentials_identify_as":"{}","payment_request_id":67890}}}}"#,
@@ -283,8 +278,7 @@ mod tests {
             "JSON serialization did not match expected format"
         );
 
-        let deserialized: TransactionMemo =
-            serde_json::from_str(&serialized).expect("Failed to deserialize");
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
 
         assert_eq!(memo, deserialized, "Round-trip serialization failed");
     }
