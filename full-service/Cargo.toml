@@ -122,6 +122,7 @@ httpmock = "0.7.0"
 tempdir = "0.3"
 tokio = "1.27"
 url = "2.3"
+yare = "3"
 
 [build-dependencies]
 anyhow = "1.0"

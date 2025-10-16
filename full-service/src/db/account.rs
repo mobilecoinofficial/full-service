@@ -1029,7 +1029,10 @@ fn validate_or_get_address(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_utils::WalletDbTestContext, util::b58::b58_encode_public_address};
+    use crate::{
+        test_utils::{test_logger, WalletDbTestContext},
+        util::b58::b58_encode_public_address,
+    };
     use mc_account_keys::RootIdentity;
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
@@ -1039,6 +1042,7 @@ mod tests {
         assert_matches::assert_matches, collections::HashSet, convert::TryFrom, iter::FromIterator,
         ops::DerefMut,
     };
+    use yare::parameterized;
 
     #[test_with_logger]
     fn test_account_crud(logger: Logger) {
@@ -1334,8 +1338,32 @@ mod tests {
         assert_eq!(expected_account, acc);
     }
 
-    #[test_with_logger]
-    fn test_import_view_only_account_with_fog_requires_correct_subaddresses(logger: Logger) {
+    enum AddressType {
+        None,
+        Default,
+        Change,
+    }
+    impl AddressType {
+        fn to_public_address(&self, view_account_key: &ViewAccountKey) -> Option<PublicAddress> {
+            match self {
+                AddressType::None => None,
+                AddressType::Default => Some(view_account_key.default_subaddress()),
+                AddressType::Change => Some(view_account_key.change_subaddress()),
+            }
+        }
+    }
+    #[parameterized(
+        missing_default = { AddressType::None, AddressType::Change, "default_public_address and change_public_address are required when fog_enabled=true"},
+        wrong_default = { AddressType::Change, AddressType::Change, "default_public_address does not match expected view account key address"},
+        missing_change = { AddressType::Default, AddressType::None, "default_public_address and change_public_address are required when fog_enabled=true"},
+        wrong_change = { AddressType::Default, AddressType::Default, "change_public_address does not match expected view account key address"},
+    )]
+    fn test_import_view_only_account_with_fog_requires_correct_subaddresses(
+        default_address_type: AddressType,
+        change_address_type: AddressType,
+        expected_err: &str,
+    ) {
+        let logger = test_logger!();
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let db_test_context = WalletDbTestContext::default();
@@ -1347,45 +1375,22 @@ mod tests {
         let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
         let conn = pooled_conn.deref_mut();
 
-        for (default_subaddress, change_subaddress, expected_err) in [
-            (
+        assert_matches!(
+            Account::import_view_only(
+                &view_account_key,
+                Some("View Only Account".to_string()),
+                12,
                 None,
-                Some(account_key.change_subaddress()),
-                "default_public_address and change_public_address are required when fog_enabled=true",
-            ),
-            (
-                Some(account_key.change_subaddress()),
-                Some(account_key.change_subaddress()),
-                "default_public_address does not match expected view account key address",
-            ),
-            (
-                Some(account_key.default_subaddress()),
                 None,
-                "default_public_address and change_public_address are required when fog_enabled=true",
+                false,
+                false,
+                true,
+                default_address_type.to_public_address(&view_account_key),
+                change_address_type.to_public_address(&view_account_key),
+                conn,
             ),
-            (
-                Some(account_key.default_subaddress()),
-                Some(account_key.default_subaddress()),
-                "change_public_address does not match expected view account key address",
-            ),
-        ] {
-            assert_matches!(
-                Account::import_view_only(
-                    &view_account_key,
-                    Some("View Only Account".to_string()),
-                    12,
-                    None,
-                    None,
-                    false,
-                    false,
-                    true,
-                    default_subaddress,
-                    change_subaddress,
-                    conn,
-                ),
-                Err(WalletDbError::InvalidArgument(err)) if err == expected_err
-            );
-        }
+            Err(WalletDbError::InvalidArgument(err)) if err == expected_err
+        );
     }
 
     #[test_with_logger]

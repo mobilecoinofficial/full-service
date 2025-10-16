@@ -78,6 +78,19 @@ pub type FogPubkeyResolverFactory =
 pub type MockBlockchainPollingNetworkState =
     Arc<RwLock<PollingNetworkState<MockBlockchainConnection<LedgerDB>>>>;
 
+macro_rules! test_logger {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        let fn_name = name.strip_suffix("::f").unwrap_or(name);
+        mc_common::logger::create_test_logger(fn_name.to_string())
+    }};
+}
+pub(crate) use test_logger;
+
 pub struct WalletDbTestContext {
     base_url: String,
     pub db_name: String,
