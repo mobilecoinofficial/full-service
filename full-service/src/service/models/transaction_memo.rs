@@ -212,8 +212,7 @@ mod tests {
         let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
-            r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{}"}}}}"#,
-            b58_address
+            r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}"}}}}"#,
         );
         assert_eq!(
             serialized, expected_json,
@@ -241,8 +240,7 @@ mod tests {
         let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
-            r#"{{"RTHWithPaymentIntentId":{{"subaddress_index":5,"sender_credentials_identify_as":"{}","payment_intent_id":12345}}}}"#,
-            b58_address
+            r#"{{"RTHWithPaymentIntentId":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}","payment_intent_id":12345}}}}"#,
         );
         assert_eq!(
             serialized, expected_json,
@@ -270,8 +268,7 @@ mod tests {
         let serialized = serde_json::to_string(&memo).unwrap();
 
         let expected_json = format!(
-            r#"{{"RTHWithPaymentRequestId":{{"subaddress_index":5,"sender_credentials_identify_as":"{}","payment_request_id":67890}}}}"#,
-            b58_address
+            r#"{{"RTHWithPaymentRequestId":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}","payment_request_id":67890}}}}"#,
         );
         assert_eq!(
             serialized, expected_json,
