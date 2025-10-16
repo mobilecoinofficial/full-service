@@ -145,7 +145,7 @@ fn generate_rth_memo_builder(
             );
         }
 
-        TransactionMemoSignerCredentials::HardwareWallet(_view_account_key) => {
+        TransactionMemoSignerCredentials::HardwareWallet => {
             let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
                 Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
                     sender_credentials_identify_as,
@@ -169,7 +169,7 @@ pub enum TransactionMemoSignerCredentials {
     Local(AccountKey),
 
     /// Hardware wallet credentials.
-    HardwareWallet(ViewAccountKey),
+    HardwareWallet,
 
     /// View only account (not managed by hardware wallet)
     ViewOnly(ViewAccountKey),
@@ -181,7 +181,7 @@ impl TryFrom<&Account> for TransactionMemoSignerCredentials {
     fn try_from(account: &Account) -> Result<Self, Self::Error> {
         if account.view_only {
             if account.managed_by_hardware_wallet {
-                Ok(Self::HardwareWallet(account.view_account_key()?))
+                Ok(Self::HardwareWallet)
             } else {
                 Ok(Self::ViewOnly(account.view_account_key()?))
             }

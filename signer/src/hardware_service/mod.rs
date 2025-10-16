@@ -104,7 +104,7 @@ pub async fn sign_tx_blueprint(tx_blueprint_proposal: TxBlueprintProposal) -> Re
 
     let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
         &tx_blueprint_proposal,
-        &TransactionMemoSignerCredentials::HardwareWallet(account_key.clone()),
+        &TransactionMemoSignerCredentials::HardwareWallet,
     )
     .map_err(|e| anyhow!(e))?;
 
