@@ -996,9 +996,9 @@ fn validate_or_get_address(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::{test_logger, WalletDbTestContext};
+    use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{test_logger, test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
