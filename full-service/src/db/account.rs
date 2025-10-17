@@ -25,7 +25,7 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_core::{account::PublicSubaddress, slip10::Slip10KeyGenerator};
+use mc_core::slip10::Slip10KeyGenerator;
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
@@ -1014,7 +1014,11 @@ fn validate_or_get_address(
 ) -> Result<PublicAddress, WalletDbError> {
     match provided {
         Some(address) => {
-            if PublicSubaddress::from(&address) != PublicSubaddress::from(&expected) {
+            // The expected address will not contain fog information since it has been
+            // derived from a `ViewAccountKey` so we need to compare without the fog fields.
+            if address.view_public_key() != expected.view_public_key()
+                || address.spend_public_key() != expected.spend_public_key()
+            {
                 return Err(WalletDbError::InvalidArgument(format!(
                     "{} does not match expected view account key address",
                     name
