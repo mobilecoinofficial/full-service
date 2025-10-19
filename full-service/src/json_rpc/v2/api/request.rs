@@ -11,7 +11,6 @@ use crate::json_rpc::{
 };
 
 use mc_account_keys::PublicAddress;
-// use crate::util::b58::public_address_b58::deserialize_opt;
 use mc_mobilecoind_json::data_types::JsonTxOut;
 use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
