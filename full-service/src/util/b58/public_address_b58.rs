@@ -27,7 +27,9 @@ where
 {
     let opt = Option::<String>::deserialize(deserializer)?;
     match opt {
-        Some(s) if !s.is_empty() => b58_decode_public_address(&s).map(Some).map_err(serde::de::Error::custom),
+        Some(s) if !s.is_empty() => b58_decode_public_address(&s)
+            .map(Some)
+            .map_err(serde::de::Error::custom),
         _ => Ok(None),
     }
 }
