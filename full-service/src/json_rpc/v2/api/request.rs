@@ -11,6 +11,7 @@ use crate::json_rpc::{
 };
 
 use mc_account_keys::PublicAddress;
+// use crate::util::b58::public_address_b58::deserialize_opt;
 use mc_mobilecoind_json::data_types::JsonTxOut;
 use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
@@ -270,10 +271,12 @@ pub enum JsonCommandRequest {
         #[serde(default)]
         fog_enabled: bool,
         // The default public address (required when fog_enabled = true)
-        #[serde_as(as = "crate::util::b58::public_address_b58")]
+        #[serde(deserialize_with = "crate::util::b58::public_address_b58::deserialize_opt")]
+        #[serde(default)]
         default_public_address: Option<PublicAddress>,
         // The change public address (required when fog_enabled = true)
-        #[serde_as(as = "crate::util::b58::public_address_b58")]
+        #[serde(deserialize_with = "crate::util::b58::public_address_b58::deserialize_opt")]
+        #[serde(default)]
         change_public_address: Option<PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
