@@ -121,8 +121,8 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
             JsonCommandResponse::get_account {
                 account_id: hardware_account_id,
                 account_info,
-                default_public_address,
-                change_public_address,
+                default_public_address: default_public_address.into(),
+                change_public_address: change_public_address.into(),
             }
         }
         JsonCommandRequest::sync_txos {

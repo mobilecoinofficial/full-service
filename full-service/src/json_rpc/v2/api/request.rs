@@ -2,19 +2,20 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{
-    json_rpc_request::JsonRPCRequest,
-    v2::models::{
-        account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
-        tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
+use crate::{
+    json_rpc::{
+        json_rpc_request::JsonRPCRequest,
+        v2::models::{
+            account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
+            tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
+        },
     },
+    util::b58::b58_public_address::B58PublicAddress,
 };
 
-use mc_account_keys::PublicAddress;
 use mc_mobilecoind_json::data_types::JsonTxOut;
 use mc_transaction_signer::types::TxoSynced;
 use serde::{Deserialize, Serialize};
-use serde_with::serde_as;
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -39,7 +40,6 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 /// Requests to the Full Service Wallet Service.
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
-#[serde_as]
 #[allow(non_camel_case_types)]
 #[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
@@ -270,13 +270,11 @@ pub enum JsonCommandRequest {
         #[serde(default)]
         fog_enabled: bool,
         // The default public address (required when fog_enabled = true)
-        #[serde(deserialize_with = "crate::util::b58::public_address_b58::deserialize_opt")]
         #[serde(default)]
-        default_public_address: Option<PublicAddress>,
+        default_public_address: Option<B58PublicAddress>,
         // The change public address (required when fog_enabled = true)
-        #[serde(deserialize_with = "crate::util::b58::public_address_b58::deserialize_opt")]
         #[serde(default)]
-        change_public_address: Option<PublicAddress>,
+        change_public_address: Option<B58PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,

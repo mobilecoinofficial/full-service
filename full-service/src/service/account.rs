@@ -684,8 +684,8 @@ where
             next_subaddress_index: Some(account.clone().next_subaddress_index(conn)?.to_string()),
             require_spend_subaddress: account.require_spend_subaddress,
             fog_enabled: account.fog_enabled,
-            default_public_address: Some(account.main_subaddress(conn)?.public_address()?),
-            change_public_address: Some(account.change_subaddress(conn)?.public_address()?),
+            default_public_address: Some(account.main_subaddress(conn)?.public_address()?.into()),
+            change_public_address: Some(account.change_subaddress(conn)?.public_address()?.into()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);

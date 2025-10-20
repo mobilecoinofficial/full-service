@@ -2,7 +2,25 @@
 
 use super::{b58_decode_public_address, b58_encode_public_address};
 use mc_account_keys::PublicAddress;
-use serde::{Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[repr(transparent)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct B58PublicAddress(
+    #[serde(serialize_with = "serialize", deserialize_with = "deserialize")] PublicAddress,
+);
+
+impl From<PublicAddress> for B58PublicAddress {
+    fn from(public_address: PublicAddress) -> Self {
+        B58PublicAddress(public_address)
+    }
+}
+
+impl From<B58PublicAddress> for PublicAddress {
+    fn from(b58_public_address: B58PublicAddress) -> Self {
+        b58_public_address.0
+    }
+}
 
 pub fn serialize<S>(public_address: &PublicAddress, serializer: S) -> Result<S::Ok, S::Error>
 where
