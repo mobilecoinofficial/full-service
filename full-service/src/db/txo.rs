@@ -2351,6 +2351,7 @@ mod tests {
     use itertools::Itertools;
     use mc_account_keys::{
         AccountKey, PublicAddress, RootIdentity, ShortAddressHash, CHANGE_SUBADDRESS_INDEX,
+        DEFAULT_SUBADDRESS_INDEX,
     };
     use mc_common::{
         logger::{async_test_with_logger, log, test_with_logger, Logger},
@@ -3868,7 +3869,7 @@ mod tests {
         let unsigned_tx_proposal = builder
             .build(
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 conn,
             )
@@ -4763,7 +4764,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
         );
 
@@ -4797,7 +4798,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_request_id: 1000,
             },
         );
@@ -4832,7 +4833,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_intent_id: 2000,
             },
         );
@@ -4911,7 +4912,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
         );
 
@@ -4934,7 +4935,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_request_id: 500,
             },
         );
@@ -4998,7 +4999,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
         );
 
@@ -5020,7 +5021,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_request_id: 1000,
             },
         );
@@ -5044,7 +5045,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_intent_id: 2000,
             },
         );
@@ -5086,7 +5087,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
         );
 
@@ -5108,7 +5109,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_request_id: 1000,
             },
         );
@@ -5132,7 +5133,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_intent_id: 2000,
             },
         );
@@ -5215,7 +5216,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
         );
 
@@ -5237,7 +5238,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentRequestId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_request_id: 1000,
             },
         );
@@ -5261,7 +5262,7 @@ mod tests {
             amount,
             &mut rng,
             TransactionMemo::RTHWithPaymentIntentId {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 payment_intent_id: 2000,
             },
         );

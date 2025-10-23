@@ -22,6 +22,7 @@ use crate::{
     WalletService,
 };
 use displaydoc::Display;
+use mc_account_keys::DEFAULT_SUBADDRESS_INDEX;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::FeeMapError;
@@ -336,7 +337,7 @@ where
             tombstone_block,
             None,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
             },
             None,
             None,
@@ -451,7 +452,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,

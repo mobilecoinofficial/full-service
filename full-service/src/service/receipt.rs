@@ -316,7 +316,7 @@ mod tests {
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_ledger_db::Ledger;
@@ -440,7 +440,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -575,7 +575,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -703,7 +703,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,
@@ -851,7 +851,7 @@ mod tests {
                 None,
                 None,
                 TransactionMemo::RTH {
-                    subaddress_index: None,
+                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                 },
                 None,
                 None,

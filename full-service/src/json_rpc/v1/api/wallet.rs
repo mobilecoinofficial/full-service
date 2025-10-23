@@ -52,6 +52,7 @@ use crate::{
         PrintableWrapperType,
     },
 };
+use mc_account_keys::DEFAULT_SUBADDRESS_INDEX;
 use mc_common::logger::global_log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -179,7 +180,7 @@ where
                     max_spendable_value,
                     comment,
                     TransactionMemo::RTH {
-                        subaddress_index: None,
+                        subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                     },
                     None,
                     None, // Note: Not including spend_subaddress in V1 API
@@ -298,7 +299,7 @@ where
                     tombstone_block,
                     max_spendable_value,
                     TransactionMemo::RTH {
-                        subaddress_index: None,
+                        subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                     },
                     None,
                     None, // Note: not including spend_subaddress in V1 API

@@ -135,7 +135,7 @@ mod tests {
             setup_wallet_service, MOB,
         },
     };
-    use mc_account_keys::{AccountKey, PublicAddress};
+    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
@@ -207,7 +207,7 @@ mod tests {
                     None,
                     None,
                     TransactionMemo::RTH {
-                        subaddress_index: None,
+                        subaddress_index: DEFAULT_SUBADDRESS_INDEX,
                     },
                     None,
                     None,
