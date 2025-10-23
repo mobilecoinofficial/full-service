@@ -7,6 +7,7 @@ use std::ops::DerefMut;
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
         models::{Account, Txo},
         txo::TxoModel,
@@ -211,7 +212,8 @@ pub trait AccountService {
     ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                                  |
     ///| `fog_report_url`        | Fog Report server url.                                  | Applicable only if user has Fog service, empty string otherwise. |
     ///| `fog_authority_spki`    | Fog Authority Subject Public Key Info.                  | Applicable only if user has Fog service, empty string otherwise. |
-    ///| `require_spend_subaddress` | Spend only from subaddress.    | Only allow the account to spend from give subaddresses.          |
+    ///| `require_spend_subaddress` | Require that spend subaddress is specified when         |                                                         |
+    ///|                           | importing the account.                                  |                                                         |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_account_from_legacy_root_entropy(
@@ -229,14 +231,19 @@ pub trait AccountService {
     ///
     /// # Arguments
     ///
-    ///| Name                    | Purpose                                                 | Notes                                                   |
-    ///|-------------------------|---------------------------------------------------------|---------------------------------------------------------|
-    ///| `view_private_key`      | The view private key of this account                    |                                                         |
-    ///| `spend_public_key`      | The spend public key of this account                    |                                                         |
-    ///| `name`                  | A label for this account.                               | A label can have duplicates, but it is not recommended. |
-    ///| `first_block_index`     | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.      |
-    ///| `next_subaddress_index` | The next known unused subaddress index for the account. |                                                         |
+    ///| Name                       | Purpose                                                 | Notes                                                   |
+    ///|----------------------------|---------------------------------------------------------|---------------------------------------------------------|
+    ///| `view_private_key`         | The view private key of this account                    |                                                         |
+    ///| `spend_public_key`         | The spend public key of this account                    |                                                         |
+    ///| `name`                     | A label for this account.                               | A label can have duplicates, but it is not recommended. |
+    ///| `first_block_index`        | The block from which to start scanning the ledger.      | All subaddresses below this index will be created.      |
+    ///| `next_subaddress_index`    | The next known unused subaddress index for the account. |                                                         |
+    ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                             |
+    ///| `fog_enabled`              | Specifies whether this is a Fog-enabled account         |                                                         |
+    ///| `default_public_address`   | Default public address (required if fog_enabled=true)   | When fog_enabled is false this is derived from the keys |
+    ///| `change_public_address`    | Change public address (required if fog_enabled=true)    | When fog_enabled is false this is derived from the keys |
     ///
+    #[allow(clippy::too_many_arguments)]
     fn import_view_only_account(
         &self,
         view_private_key: &RootViewPrivate,
@@ -245,6 +252,9 @@ pub trait AccountService {
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         require_spend_subaddress: bool,
+        fog_enabled: bool,
+        default_public_address: Option<PublicAddress>,
+        change_public_address: Option<PublicAddress>,
     ) -> Result<Account, AccountServiceError>;
 
     async fn import_view_only_account_from_hardware_wallet(
@@ -264,7 +274,7 @@ pub trait AccountService {
     ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet as a view only account. |
     ///
     fn resync_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<(), AccountServiceError>;
 
@@ -305,7 +315,7 @@ pub trait AccountService {
     ///| `account_id` | The account on which to perform this action. | Account must exist in the wallet. |
     ///
     fn get_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<Account, AccountServiceError>;
 
@@ -377,7 +387,7 @@ pub trait AccountService {
     ///| `name`       | The new name for this account.               |                                   |
     ///
     fn remove_account(
-        &self, 
+        &self,
         account_id: &AccountID
     ) -> Result<bool, AccountServiceError>;
 
@@ -538,6 +548,9 @@ where
         first_block_index: Option<u64>,
         next_subaddress_index: Option<u64>,
         require_spend_subaddress: bool,
+        fog_enabled: bool,
+        default_public_address: Option<PublicAddress>,
+        change_public_address: Option<PublicAddress>,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -562,6 +575,9 @@ where
                 next_subaddress_index,
                 false,
                 require_spend_subaddress,
+                fog_enabled,
+                default_public_address,
+                change_public_address,
                 conn,
             )?)
         })
@@ -585,7 +601,7 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        match fog_info {
+        let (fog_enabled, default_public_address, change_public_address) = match fog_info {
             Some(fog_info) => {
                 let fog_authority_spki =
                     general_purpose::STANDARD.decode(fog_info.authority_spki)?;
@@ -605,32 +621,30 @@ where
                     &fog_authority_spki,
                 );
 
-                exclusive_transaction(conn, |conn| {
-                    Ok(Account::import_view_only_from_hardware_wallet_with_fog(
-                        &view_account_keys,
-                        name,
-                        import_block_index,
-                        first_block_index,
-                        &default_public_address,
-                        &change_public_address,
-                        require_spend_subaddress,
-                        conn,
-                    )?)
-                })
-            }
-            None => exclusive_transaction(conn, |conn| {
-                Ok(Account::import_view_only(
-                    &view_account_keys,
-                    name,
-                    import_block_index,
-                    first_block_index,
-                    None,
+                (
                     true,
-                    false,
-                    conn,
-                )?)
-            }),
-        }
+                    Some(default_public_address),
+                    Some(change_public_address),
+                )
+            }
+            None => (false, None, None),
+        };
+
+        exclusive_transaction(conn, |conn| {
+            Ok(Account::import_view_only(
+                &view_account_keys,
+                name,
+                import_block_index,
+                first_block_index,
+                None,
+                true,
+                require_spend_subaddress,
+                fog_enabled,
+                default_public_address,
+                change_public_address,
+                conn,
+            )?)
+        })
     }
 
     fn resync_account(&self, account_id: &AccountID) -> Result<(), AccountServiceError> {
@@ -664,6 +678,9 @@ where
             first_block_index: Some(account.first_block_index.to_string()),
             next_subaddress_index: Some(account.clone().next_subaddress_index(conn)?.to_string()),
             require_spend_subaddress: account.require_spend_subaddress,
+            fog_enabled: account.fog_enabled,
+            default_public_address: Some(account.main_subaddress(conn)?.public_address()?.into()),
+            change_public_address: Some(account.change_subaddress(conn)?.public_address()?.into()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -1294,6 +1311,9 @@ mod tests {
                 None,
                 None,
                 false,
+                false,
+                None,
+                None,
             )
             .unwrap();
 

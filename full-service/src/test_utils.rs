@@ -634,14 +634,17 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     let view_account_key = ViewAccountKey::from(&account_key);
 
     let conn = &mut wallet_db.get_pooled_conn().unwrap();
-    let _account = Account::import_view_only_from_hardware_wallet_with_fog(
+    let _account = Account::import_view_only(
         &view_account_key,
         Some(format!("SeedAccount{}", rng.next_u32())),
         0,
         Some(0),
-        &account_key_with_fog.default_subaddress(),
-        &account_key_with_fog.change_subaddress(),
+        None,
+        true,
         false,
+        true,
+        Some(account_key_with_fog.default_subaddress()),
+        Some(account_key_with_fog.change_subaddress()),
         conn,
     )
     .unwrap();

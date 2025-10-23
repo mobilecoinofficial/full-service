@@ -2,12 +2,15 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{
-    json_rpc_request::JsonRPCRequest,
-    v2::models::{
-        account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
-        tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
+use crate::{
+    json_rpc::{
+        json_rpc_request::JsonRPCRequest,
+        v2::models::{
+            account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
+            tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
+        },
     },
+    util::b58::b58_public_address::B58PublicAddress,
 };
 
 use mc_mobilecoind_json::data_types::JsonTxOut;
@@ -38,6 +41,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
     assign_address_for_account {
         account_id: String,
@@ -261,8 +265,16 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
-        #[serde(default = "bool::default")] // default is false
+        #[serde(default)] // default is false
         require_spend_subaddress: bool,
+        #[serde(default)]
+        fog_enabled: bool,
+        // The default public address (required when fog_enabled = true)
+        #[serde(default)]
+        default_public_address: Option<B58PublicAddress>,
+        // The change public address (required when fog_enabled = true)
+        #[serde(default)]
+        change_public_address: Option<B58PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,

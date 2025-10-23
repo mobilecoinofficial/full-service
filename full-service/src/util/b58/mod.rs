@@ -3,7 +3,7 @@
 pub mod errors;
 pub use self::errors::B58Error;
 
-pub mod public_address_b58;
+pub mod b58_public_address;
 
 #[cfg(test)]
 mod tests;
