@@ -226,11 +226,11 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
     pub fn get_fog_resolver(&self, conn: Conn) -> Result<FPR, WalletTransactionBuilderError> {
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
-        let change_subaddress = account.change_subaddress(conn)?;
-        let change_public_address = change_subaddress.public_address()?;
+        let default_subaddress = account.main_subaddress(conn)?;
+        let default_public_address = default_subaddress.public_address()?;
 
         let fog_resolver = {
-            let fog_uris = core::slice::from_ref(&change_public_address)
+            let fog_uris = core::slice::from_ref(&default_public_address)
                 .iter()
                 .chain(self.outlays.iter().map(|(receiver, _, _)| receiver))
                 .filter_map(|x| extract_fog_uri(x).transpose())
