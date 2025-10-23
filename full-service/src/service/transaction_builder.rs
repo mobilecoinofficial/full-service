@@ -263,7 +263,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 // correct fog hint). The hack we do here is to fetch the fog
                 // parameters from the default AssignedSubaddress. They are assumed to be
                 // present there because that is how
-                // `Account::import_view_only_from_hardware_wallet_with_fog` creates the
+                // `Account::import_view_only_account_from_hardware_wallet` creates the
                 // AssignedSubaddress row for DEFAULT_SUBADDRESS_INDEX.
                 let default_assigned_subaddress = AssignedSubaddress::get_for_account_by_index(
                     &self.account_id_hex,

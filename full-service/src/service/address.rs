@@ -257,6 +257,9 @@ mod tests {
                 None,
                 None,
                 false,
+                false,
+                None,
+                None,
             )
             .unwrap();
         assert_eq!(account.clone().next_subaddress_index(conn).unwrap(), 2);

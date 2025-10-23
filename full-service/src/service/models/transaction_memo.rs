@@ -29,7 +29,7 @@ pub enum TransactionMemo {
         subaddress_index: u64,
 
         /// The public address that matches the subaddress index.
-        #[serde(with = "crate::util::b58::public_address_b58")]
+        #[serde(with = "crate::util::b58::b58_public_address")]
         sender_credentials_identify_as: PublicAddress,
     },
 
@@ -40,7 +40,7 @@ pub enum TransactionMemo {
         subaddress_index: u64,
 
         /// The public address that matches the subaddress index.
-        #[serde(with = "crate::util::b58::public_address_b58")]
+        #[serde(with = "crate::util::b58::b58_public_address")]
         sender_credentials_identify_as: PublicAddress,
 
         /// The payment intent id to include in the memo.
@@ -54,7 +54,7 @@ pub enum TransactionMemo {
         subaddress_index: u64,
 
         /// The public address that matches the subaddress index.
-        #[serde(with = "crate::util::b58::public_address_b58")]
+        #[serde(with = "crate::util::b58::b58_public_address")]
         sender_credentials_identify_as: PublicAddress,
 
         /// The payment request id to include in the memo.

@@ -1,8 +1,11 @@
 // Copyright (c) 2020-2024 MobileCoin Inc.
 
-use mc_full_service::json_rpc::{
-    json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
-    v2::models::tx_proposal::TxProposal,
+use mc_full_service::{
+    json_rpc::{
+        json_rpc_response::JsonCommandResponse as JsonCommandResponseTrait,
+        v2::models::tx_proposal::TxProposal,
+    },
+    util::b58::b58_public_address::B58PublicAddress,
 };
 use mc_transaction_signer::types::{AccountInfo, TxoSynced};
 use serde::{Deserialize, Serialize};
@@ -16,6 +19,8 @@ pub enum JsonCommandResponse {
     get_account {
         account_id: String,
         account_info: AccountInfo,
+        default_public_address: B58PublicAddress,
+        change_public_address: B58PublicAddress,
     },
     sync_txos {
         account_id: String,
