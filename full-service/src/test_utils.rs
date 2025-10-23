@@ -644,6 +644,7 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
         false,
         true,
         Some(account_key_with_fog.default_subaddress()),
+        Some(account_key_with_fog.change_subaddress()),
         conn,
     )
     .unwrap();

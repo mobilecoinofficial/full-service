@@ -243,9 +243,6 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         comment: &str,
         conn: Conn,
     ) -> Result<String, WalletDbError> {
-        // TODO!
-        assert_eq!(subaddress_index, 0);
-
         use crate::db::schema::assigned_subaddresses;
         let account_id = AccountID::from(account_key);
 
