@@ -31,6 +31,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
     create_account {},
     get_account {

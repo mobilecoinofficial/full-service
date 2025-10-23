@@ -498,12 +498,7 @@ pub async fn create_test_minted_and_change_txos(
     let account = Account::get(&AccountID::from(&src_account_key), conn).unwrap();
 
     let unsigned_tx_proposal = builder
-        .build(
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
-            conn,
-        )
+        .build(test_rth_memo_default_from_key(&src_account_key), conn)
         .unwrap();
     let tx_proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
 
@@ -548,12 +543,7 @@ pub fn create_test_unsigned_txproposal_and_log(
     builder.select_txos(conn, None).unwrap();
     builder.set_tombstone(0).unwrap();
     let unsigned_tx_proposal = builder
-        .build(
-            TransactionMemo::RTH {
-                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-            },
-            conn,
-        )
+        .build(test_rth_memo_default_from_key(&src_account_key), conn)
         .unwrap();
 
     (
@@ -644,14 +634,17 @@ pub fn random_view_only_fog_hardware_wallet_account_with_seed_values(
     let view_account_key = ViewAccountKey::from(&account_key);
 
     let conn = &mut wallet_db.get_pooled_conn().unwrap();
-    let _account = Account::import_view_only_from_hardware_wallet_with_fog(
+    let _account = Account::import_view_only(
         &view_account_key,
         Some(format!("SeedAccount{}", rng.next_u32())),
         0,
         Some(0),
-        &account_key_with_fog.default_subaddress(),
-        &account_key_with_fog.change_subaddress(),
+        None,
+        true,
         false,
+        true,
+        Some(account_key_with_fog.default_subaddress()),
+        Some(account_key_with_fog.change_subaddress()),
         conn,
     )
     .unwrap();
@@ -784,6 +777,41 @@ fn setup_wallet_service_impl(
         webhook_config,
         logger,
     )
+}
+
+pub fn test_rth_memo_from_key(account_key: &AccountKey, subaddress_index: u64) -> TransactionMemo {
+    TransactionMemo::RTH {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+    }
+}
+
+pub fn test_rth_memo_default_from_key(account_key: &AccountKey) -> TransactionMemo {
+    test_rth_memo_from_key(account_key, DEFAULT_SUBADDRESS_INDEX)
+}
+
+pub fn test_rth_memo_with_payment_request_id(
+    account_key: &AccountKey,
+    subaddress_index: u64,
+    payment_request_id: u64,
+) -> TransactionMemo {
+    TransactionMemo::RTHWithPaymentRequestId {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+        payment_request_id,
+    }
+}
+
+pub fn test_rth_memo_with_payment_intent_id(
+    account_key: &AccountKey,
+    subaddress_index: u64,
+    payment_intent_id: u64,
+) -> TransactionMemo {
+    TransactionMemo::RTHWithPaymentIntentId {
+        subaddress_index,
+        sender_credentials_identify_as: account_key.subaddress(subaddress_index),
+        payment_intent_id,
+    }
 }
 
 /// A FogPubkeyResolver implementation that is used for testing.

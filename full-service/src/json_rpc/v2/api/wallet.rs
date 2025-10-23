@@ -1,6 +1,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         transaction_log::TransactionId,
         txo::{TxoID, TxoStatus},
     },
@@ -201,6 +202,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -208,10 +218,12 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 
@@ -334,6 +346,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -341,10 +362,12 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 
@@ -511,6 +534,15 @@ where
                 .transpose()?
                 .unwrap_or(DEFAULT_SUBADDRESS_INDEX);
 
+            let sender_credentials_identify_as = service
+                .get_address_for_account(
+                    &AccountID::from(account_id.clone()),
+                    sender_memo_credential_subaddress_index as i64,
+                )
+                .map_err(format_error)?
+                .public_address()
+                .map_err(format_error)?;
+
             let payment_request_id = payment_request_id
                 .map(|i| i.parse::<u64>().map_err(format_error))
                 .transpose()?;
@@ -518,10 +550,12 @@ where
             let transaction_memo = match payment_request_id {
                 Some(payment_request_id) => TransactionMemo::RTHWithPaymentRequestId {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                     payment_request_id,
                 },
                 None => TransactionMemo::RTH {
                     subaddress_index: sender_memo_credential_subaddress_index,
+                    sender_credentials_identify_as,
                 },
             };
 
@@ -1298,6 +1332,9 @@ where
             first_block_index,
             next_subaddress_index,
             require_spend_subaddress,
+            fog_enabled,
+            default_public_address,
+            change_public_address,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1328,6 +1365,9 @@ where
                     fb,
                     ns,
                     require_spend_subaddress,
+                    fog_enabled,
+                    default_public_address.map(Into::into),
+                    change_public_address.map(Into::into),
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service

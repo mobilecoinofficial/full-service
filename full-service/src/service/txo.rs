@@ -15,6 +15,7 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
+        address::{AddressService, AddressServiceError},
         ledger::LedgerServiceError,
         models::{transaction_memo::TransactionMemo, tx_proposal::TxProposal},
         transaction::{TransactionService, TransactionServiceError},
@@ -45,6 +46,9 @@ pub enum TxoServiceError {
 
     /// Error with the Transaction Service: {0}
     TransactionService(TransactionServiceError),
+
+    /// Error with the Address Service: {0}
+    AddressService(AddressServiceError),
 
     /// No account found to spend this txo
     TxoNotSpendableByAnyAccount(String),
@@ -98,6 +102,12 @@ impl From<diesel::result::Error> for TxoServiceError {
 impl From<TransactionServiceError> for TxoServiceError {
     fn from(src: TransactionServiceError) -> Self {
         Self::TransactionService(src)
+    }
+}
+
+impl From<AddressServiceError> for TxoServiceError {
+    fn from(src: AddressServiceError) -> Self {
+        Self::AddressService(src)
     }
 }
 
@@ -328,6 +338,13 @@ where
             ))
         }
 
+        let sender_credentials_identify_as = self
+            .get_address_for_account(
+                &AccountID::from(account_id_hex.clone()),
+                DEFAULT_SUBADDRESS_INDEX as i64,
+            )?
+            .public_address()?;
+
         let unsigned_transaction = self.build_unsigned_transaction(
             &account_id_hex,
             &addresses_and_amounts,
@@ -338,6 +355,7 @@ where
             None,
             TransactionMemo::RTH {
                 subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                sender_credentials_identify_as,
             },
             None,
             None,
@@ -451,9 +469,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                crate::test_utils::test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )

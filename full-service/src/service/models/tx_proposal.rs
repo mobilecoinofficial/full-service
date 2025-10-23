@@ -456,8 +456,7 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount as AmountJSON,
         service::{
-            account::AccountService, address::AddressService,
-            models::transaction_memo::TransactionMemo, transaction::TransactionService,
+            account::AccountService, address::AddressService, transaction::TransactionService,
         },
         test_utils::{
             add_block_to_ledger_db, get_test_ledger, manually_sync_account, setup_wallet_service,
@@ -542,9 +541,10 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: alice_address_from_bob.subaddress_index as u64,
-                },
+                crate::test_utils::test_rth_memo_from_key(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
+                ),
                 None,
                 None,
             )

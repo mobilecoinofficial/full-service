@@ -27,7 +27,7 @@ pub trait AssignedSubaddressModel {
     /// Assign a subaddress to an account.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name               | Purpose                                                                                            | Notes                                                                                                   |
     ///|--------------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
     ///| `account_key`      | The structure that contains some information of private key.                                       | The AccountKey contains a View keypair and a Spend keypair, used to construct and receive transactions. |
@@ -47,7 +47,7 @@ pub trait AssignedSubaddressModel {
     /// Assign a subaddress to an view only account.
     ///
     /// # Arguments
-    ///       
+    ///
     ///| Name               | Purpose                                                                                                      | Notes                                                                                                   |
     ///|--------------------|--------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
     ///| `account_key`      | The structure that contains some information of private key.                                                 | The AccountKey contains a View keypair and a Spend keypair, used to construct and receive transactions. |
@@ -64,7 +64,7 @@ pub trait AssignedSubaddressModel {
         conn: Conn,
     ) -> Result<String, WalletDbError>;
 
-    fn create_for_view_only_fog_account(
+    fn create_for_view_only_account_with_address(
         account_key: &ViewAccountKey,
         subaddress_index: u64,
         public_address: &PublicAddress,
@@ -73,7 +73,7 @@ pub trait AssignedSubaddressModel {
     ) -> Result<String, WalletDbError>;
 
     /// Create the next subaddress for a given account.
-    /// 
+    ///
     /// # Arguments
     ///
     ///| Name             | Purpose                                                            | Notes                                     |
@@ -95,7 +95,7 @@ pub trait AssignedSubaddressModel {
     /// Get the AssignedSubaddress for a given public_address_b58.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                 | Purpose                                     | Notes |
     ///|----------------------|---------------------------------------------|-------|
     ///| `public_address_b58` | The public address b58 string to query for. |       |
@@ -106,7 +106,7 @@ pub trait AssignedSubaddressModel {
 
 
     /// Get the Assigned Subaddress for a given index in an account, if it exists.
-    /// 
+    ///
     /// # Arguments
     ///| Name             | Purpose                                                | Notes                            |
     ///|------------------|--------------------------------------------------------|----------------------------------|
@@ -125,7 +125,7 @@ pub trait AssignedSubaddressModel {
     /// Find an AssignedSubaddress by the subaddress spend public key.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                          | Purpose                                                            | Notes |
     ///|-------------------------------|--------------------------------------------------------------------|-------|
     ///| `subaddress_spend_public_key` | The spend_public_key for the subaddress that needs to be returned. |       |
@@ -158,7 +158,7 @@ pub trait AssignedSubaddressModel {
     ) -> Result<Vec<AssignedSubaddress>, WalletDbError>;
 
     /// Delete all AssignedSubaddresses for a given account.
-    /// 
+    ///
     /// # Arguments
     ///| Name             | Purpose                                                | Notes                            |
     ///|------------------|--------------------------------------------------------|----------------------------------|
@@ -236,7 +236,7 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         Ok(public_address_b58)
     }
 
-    fn create_for_view_only_fog_account(
+    fn create_for_view_only_account_with_address(
         account_key: &ViewAccountKey,
         subaddress_index: u64,
         public_address: &PublicAddress,

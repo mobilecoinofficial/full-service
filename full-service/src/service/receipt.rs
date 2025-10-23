@@ -307,16 +307,16 @@ mod tests {
         service::{
             account::AccountService, address::AddressService,
             confirmation_number::ConfirmationService, ledger::get_tx_out_by_public_key,
-            models::transaction_memo::TransactionMemo, transaction::TransactionService,
-            transaction_log::TransactionLogService, txo::TxoService,
+            transaction::TransactionService, transaction_log::TransactionLogService,
+            txo::TxoService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx, get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            setup_wallet_service, test_rth_memo_default_from_key, MOB,
         },
         util::b58::b58_encode_public_address,
     };
-    use mc_account_keys::{AccountKey, PublicAddress, DEFAULT_SUBADDRESS_INDEX};
+    use mc_account_keys::{AccountKey, PublicAddress};
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_ledger_db::Ledger;
@@ -439,9 +439,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -574,9 +572,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -702,9 +698,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -850,9 +844,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: DEFAULT_SUBADDRESS_INDEX,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )

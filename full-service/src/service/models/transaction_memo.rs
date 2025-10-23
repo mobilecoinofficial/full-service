@@ -5,7 +5,7 @@ use crate::{
     error::WalletTransactionBuilderError,
     service::hardware_wallet::HardwareWalletAuthenticatedMemoHmacSigner,
 };
-use mc_account_keys::{AccountKey, ViewAccountKey};
+use mc_account_keys::{AccountKey, PublicAddress, ViewAccountKey};
 use mc_transaction_builder::{
     BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
 };
@@ -27,6 +27,10 @@ pub enum TransactionMemo {
         /// Subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: u64,
+
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::b58_public_address")]
+        sender_credentials_identify_as: PublicAddress,
     },
 
     /// Recoverable Transaction History memo with a payment intent id
@@ -34,6 +38,10 @@ pub enum TransactionMemo {
         /// Subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: u64,
+
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::b58_public_address")]
+        sender_credentials_identify_as: PublicAddress,
 
         /// The payment intent id to include in the memo.
         payment_intent_id: u64,
@@ -44,6 +52,10 @@ pub enum TransactionMemo {
         /// Subaddress index to generate the sender memo credential
         /// from.
         subaddress_index: u64,
+
+        /// The public address that matches the subaddress index.
+        #[serde(with = "crate::util::b58::b58_public_address")]
+        sender_credentials_identify_as: PublicAddress,
 
         /// The payment request id to include in the memo.
         payment_request_id: u64,
@@ -67,26 +79,40 @@ impl TransactionMemo {
                 memo_builder.enable_destination_memo();
                 Ok(Box::new(memo_builder))
             }
-            Self::RTH { subaddress_index } => {
-                let memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
+            Self::RTH {
+                subaddress_index,
+                sender_credentials_identify_as,
+            } => {
+                let memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
                 Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentIntentId {
                 subaddress_index,
+                sender_credentials_identify_as,
                 payment_intent_id,
             } => {
-                let mut memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
+                let mut memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
                 memo_builder.set_payment_intent_id(*payment_intent_id);
                 Ok(Box::new(memo_builder))
             }
             Self::RTHWithPaymentRequestId {
                 subaddress_index,
+                sender_credentials_identify_as,
                 payment_request_id,
             } => {
-                let mut memo_builder =
-                    generate_rth_memo_builder(*subaddress_index, signer_credentials)?;
+                let mut memo_builder = generate_rth_memo_builder(
+                    *subaddress_index,
+                    sender_credentials_identify_as,
+                    signer_credentials,
+                )?;
                 memo_builder.set_payment_request_id(*payment_request_id);
                 Ok(Box::new(memo_builder))
             }
@@ -96,6 +122,7 @@ impl TransactionMemo {
 
 fn generate_rth_memo_builder(
     subaddress_index: u64,
+    sender_credentials_identify_as: &PublicAddress,
     signer_credentials: &TransactionMemoSignerCredentials,
 ) -> Result<RTHMemoBuilder, WalletTransactionBuilderError> {
     let mut memo_builder = RTHMemoBuilder::default();
@@ -112,16 +139,16 @@ fn generate_rth_memo_builder(
         TransactionMemoSignerCredentials::Local(account_key) => {
             memo_builder.set_sender_credential(
                 SenderMemoCredential::new_from_address_and_spend_private_key(
-                    &account_key.subaddress(subaddress_index),
+                    sender_credentials_identify_as,
                     account_key.subaddress_spend_private(subaddress_index),
                 ),
             );
         }
 
-        TransactionMemoSignerCredentials::HardwareWallet(view_account_key) => {
+        TransactionMemoSignerCredentials::HardwareWallet => {
             let signer: Arc<Box<dyn AuthenticatedMemoHmacSigner + 'static + Send + Sync>> =
                 Arc::new(Box::new(HardwareWalletAuthenticatedMemoHmacSigner::new(
-                    &view_account_key.subaddress(subaddress_index),
+                    sender_credentials_identify_as,
                     subaddress_index,
                 )?));
             memo_builder.set_authenticated_sender_hmac_signer(signer);
@@ -142,7 +169,7 @@ pub enum TransactionMemoSignerCredentials {
     Local(AccountKey),
 
     /// Hardware wallet credentials.
-    HardwareWallet(ViewAccountKey),
+    HardwareWallet,
 
     /// View only account (not managed by hardware wallet)
     ViewOnly(ViewAccountKey),
@@ -154,12 +181,102 @@ impl TryFrom<&Account> for TransactionMemoSignerCredentials {
     fn try_from(account: &Account) -> Result<Self, Self::Error> {
         if account.view_only {
             if account.managed_by_hardware_wallet {
-                Ok(Self::HardwareWallet(account.view_account_key()?))
+                Ok(Self::HardwareWallet)
             } else {
                 Ok(Self::ViewOnly(account.view_account_key()?))
             }
         } else {
             Ok(Self::Local(account.account_key()?))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mc_account_keys::AccountKey;
+    use rand::{rngs::StdRng, SeedableRng};
+
+    #[test]
+    fn rth_memo_b58_roundtrip() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let account_key = AccountKey::random(&mut rng);
+        let public_address = account_key.subaddress(5);
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
+
+        let memo = TransactionMemo::RTH {
+            subaddress_index: 5,
+            sender_credentials_identify_as: public_address.clone(),
+        };
+
+        let serialized = serde_json::to_string(&memo).unwrap();
+
+        let expected_json = format!(
+            r#"{{"RTH":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}"}}}}"#,
+        );
+        assert_eq!(
+            serialized, expected_json,
+            "JSON serialization did not match expected format"
+        );
+
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(memo, deserialized, "Round-trip serialization failed");
+    }
+
+    #[test]
+    fn rth_with_payment_intent_id_memo_b58_roundtrip() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let account_key = AccountKey::random(&mut rng);
+        let public_address = account_key.subaddress(5);
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
+
+        let memo = TransactionMemo::RTHWithPaymentIntentId {
+            subaddress_index: 5,
+            sender_credentials_identify_as: public_address.clone(),
+            payment_intent_id: 12345,
+        };
+
+        let serialized = serde_json::to_string(&memo).unwrap();
+
+        let expected_json = format!(
+            r#"{{"RTHWithPaymentIntentId":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}","payment_intent_id":12345}}}}"#,
+        );
+        assert_eq!(
+            serialized, expected_json,
+            "JSON serialization did not match expected format"
+        );
+
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(memo, deserialized, "Round-trip serialization failed");
+    }
+
+    #[test]
+    fn rth_with_payment_request_id_memo_b58_roundtrip() {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+        let account_key = AccountKey::random(&mut rng);
+        let public_address = account_key.subaddress(5);
+        let b58_address = crate::util::b58::b58_encode_public_address(&public_address).unwrap();
+
+        let memo = TransactionMemo::RTHWithPaymentRequestId {
+            subaddress_index: 5,
+            sender_credentials_identify_as: public_address.clone(),
+            payment_request_id: 67890,
+        };
+
+        let serialized = serde_json::to_string(&memo).unwrap();
+
+        let expected_json = format!(
+            r#"{{"RTHWithPaymentRequestId":{{"subaddress_index":5,"sender_credentials_identify_as":"{b58_address}","payment_request_id":67890}}}}"#,
+        );
+        assert_eq!(
+            serialized, expected_json,
+            "JSON serialization did not match expected format"
+        );
+
+        let deserialized: TransactionMemo = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(memo, deserialized, "Round-trip serialization failed");
     }
 }
