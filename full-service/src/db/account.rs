@@ -262,18 +262,6 @@ pub trait AccountModel {
         conn: Conn,
     ) -> Result<Account, WalletDbError>;
 
-    #[allow(clippy::too_many_arguments)]
-    fn import_view_only_from_hardware_wallet_with_fog(
-        view_account_key: &ViewAccountKey,
-        name: Option<String>,
-        import_block_index: u64,
-        first_block_index: Option<u64>,
-        default_public_address: &PublicAddress,
-        change_public_address: &PublicAddress,
-        require_spend_subaddress: bool,
-        conn: Conn,
-    ) -> Result<Account, WalletDbError>;
-
     /// List all accounts from wallet DB.
     ///
     /// # Arguments
@@ -780,31 +768,6 @@ impl AccountModel for Account {
         })
     }
 
-    fn import_view_only_from_hardware_wallet_with_fog(
-        view_account_key: &ViewAccountKey,
-        name: Option<String>,
-        import_block_index: u64,
-        first_block_index: Option<u64>,
-        default_public_address: &PublicAddress,
-        change_public_address: &PublicAddress,
-        require_spend_subaddress: bool,
-        conn: Conn,
-    ) -> Result<Account, WalletDbError> {
-        Self::import_view_only(
-            view_account_key,
-            name,
-            import_block_index,
-            first_block_index,
-            None,
-            true,
-            require_spend_subaddress,
-            true,
-            Some(default_public_address.clone()),
-            Some(change_public_address.clone()),
-            conn,
-        )
-    }
-
     fn list_all(
         conn: Conn,
         offset: Option<u64>,
@@ -1033,12 +996,9 @@ fn validate_or_get_address(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        test_utils::{test_logger, WalletDbTestContext},
-        util::b58::b58_encode_public_address,
-    };
+    use crate::test_utils::WalletDbTestContext;
     use mc_account_keys::RootIdentity;
-    use mc_common::logger::{test_with_logger, Logger};
+    use mc_common::logger::{test_logger, test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPublic;
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
@@ -1557,108 +1517,6 @@ mod tests {
                     .unwrap(),
                 account_key.change_subaddress()
             );
-        }
-    }
-
-    #[test_with_logger]
-    fn test_import_view_only_from_hardware_wallet_with_fog(logger: Logger) {
-        // Test Setup
-        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
-
-        let db_test_context = WalletDbTestContext::default();
-        let wallet_db = db_test_context.get_db_instance(logger);
-
-        let account_key = AccountKey::random(&mut rng);
-        let account_key = account_key.with_fog(
-            "fog//some.fog.url".to_string(),
-            "".to_string(),
-            "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvnB9wTbTOT5uoizRYaYbw7XIEkInl8E7MGOAQj+xnC+F1rIXiCnc/t1+5IIWjbRGhWzo7RAwI5sRajn2sT4rRn9NXbOzZMvIqE4hmhmEzy1YQNDnfALAWNQ+WBbYGW+Vqm3IlQvAFFjVN1YYIdYhbLjAPdkgeVsWfcLDforHn6rR3QBZYZIlSBQSKRMY/tywTxeTCvK2zWcS0kbbFPtBcVth7VFFVPAZXhPi9yy1AvnldO6n7KLiupVmojlEMtv4FQkk604nal+j/dOplTATV8a9AJBbPRBZ/yQg57EG2Y2MRiHOQifJx0S5VbNyMm9bkS8TD7Goi59aCW6OT1gyeotWwLg60JRZTfyJ7lYWBSOzh0OnaCytRpSWtNZ6barPUeOnftbnJtE8rFhF7M4F66et0LI/cuvXYecwVwykovEVBKRF4HOK9GgSm17mQMtzrD7c558TbaucOWabYR04uhdAc3s10MkuONWG0wIQhgIChYVAGnFLvSpp2/aQEq3xrRSETxsixUIjsZyWWROkuA0IFnc8d7AmcnUBvRW7FT/5thWyk5agdYUGZ+7C1o69ihR1YxmoGh69fLMPIEOhYh572+3ckgl2SaV4uo9Gvkz8MMGRBcMIMlRirSwhCfozV2RyT5Wn1NgPpyc8zJL7QdOhL7Qxb+5WjnCVrQYHI2cCAwEAAQ=="
-        );
-        let view_account_key: ViewAccountKey = (&account_key).into();
-        let default_public_address = account_key.default_subaddress();
-        let change_public_address = account_key.change_subaddress();
-
-        // Import the account into the database
-        let account = {
-            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
-            let conn = pooled_conn.deref_mut();
-
-            Account::import_view_only_from_hardware_wallet_with_fog(
-                &view_account_key,
-                Some("View Only Account".to_string()),
-                12,
-                None,
-                &default_public_address,
-                &change_public_address,
-                false,
-                conn,
-            )
-            .unwrap()
-        };
-
-        // Check to make sure the number of accounts in the database is correct
-        {
-            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
-            let conn = pooled_conn.deref_mut();
-            let res = Account::list_all(conn, None, None).unwrap();
-            assert_eq!(res.len(), 1);
-        }
-
-        // Construct the expected account
-        let account_key_proto_bytes = mc_util_serial::encode(&view_account_key);
-        let expected_account = Account {
-            id: account.id.to_string(),
-            account_key: account_key_proto_bytes,
-            entropy: None,
-            key_derivation_version: 2,
-            first_block_index: 0,
-            next_block_index: 0,
-            import_block_index: Some(12),
-            name: "View Only Account".to_string(),
-            fog_enabled: true,
-            view_only: true,
-            managed_by_hardware_wallet: true,
-            resyncing: false,
-            require_spend_subaddress: false,
-        };
-
-        // Check to make sure the account in the database is correct
-        assert_eq!(account, expected_account);
-
-        // Check to make sure the correct number of subaddresses were created
-        let assigned_subaddresses = {
-            let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
-            let conn = pooled_conn.deref_mut();
-            AssignedSubaddress::list_all(Some(account.id.clone()), None, None, conn).unwrap()
-        };
-
-        assert_eq!(assigned_subaddresses.len(), 2);
-
-        // Check to make sure the default and change subaddresses were created correctly
-        for (subaddress_public_address, subaddress_index, subaddress_name) in [
-            (default_public_address, DEFAULT_SUBADDRESS_INDEX, "Main"),
-            (change_public_address, CHANGE_SUBADDRESS_INDEX, "Change"),
-        ] {
-            let public_address_b58 = b58_encode_public_address(&subaddress_public_address).unwrap();
-            let subaddress_spend_public_key_bytes = subaddress_public_address
-                .spend_public_key()
-                .to_bytes()
-                .to_vec();
-
-            let subaddress = assigned_subaddresses
-                .clone()
-                .into_iter()
-                .find(|s| s.subaddress_index == subaddress_index as i64)
-                .unwrap();
-            let expected_subaddress = AssignedSubaddress {
-                public_address_b58,
-                account_id: account.id.clone(),
-                subaddress_index: subaddress_index as i64,
-                comment: subaddress_name.to_string(),
-                spend_public_key: subaddress_spend_public_key_bytes,
-            };
-
-            assert_eq!(subaddress, expected_subaddress);
         }
     }
 }
