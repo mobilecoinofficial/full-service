@@ -31,8 +31,7 @@ use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
 
 use mc_account_keys::{
-    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
-    DEFAULT_SUBADDRESS_INDEX,
+    AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
 };
 use mc_common::logger::log;
 use mc_connection::{BlockchainConnection, UserTxConnection};
@@ -241,7 +240,6 @@ pub trait AccountService {
     ///| `require_spend_subaddress` | If enabled, this mode requires all transactions to spend from a provided subaddress |                             |
     ///| `fog_enabled`              | Specifies whether this is a Fog-enabled account         |                                                         |
     ///| `default_public_address`   | Default public address (required if fog_enabled=true)   | When fog_enabled is false this is derived from the keys |
-    ///| `change_public_address`    | Change public address (required if fog_enabled=true)    | When fog_enabled is false this is derived from the keys |
     ///
     #[allow(clippy::too_many_arguments)]
     fn import_view_only_account(
@@ -254,7 +252,6 @@ pub trait AccountService {
         require_spend_subaddress: bool,
         fog_enabled: bool,
         default_public_address: Option<PublicAddress>,
-        change_public_address: Option<PublicAddress>,
     ) -> Result<Account, AccountServiceError>;
 
     async fn import_view_only_account_from_hardware_wallet(
@@ -550,7 +547,6 @@ where
         require_spend_subaddress: bool,
         fog_enabled: bool,
         default_public_address: Option<PublicAddress>,
-        change_public_address: Option<PublicAddress>,
     ) -> Result<Account, AccountServiceError> {
         log::info!(
             self.logger,
@@ -577,7 +573,6 @@ where
                 require_spend_subaddress,
                 fog_enabled,
                 default_public_address,
-                change_public_address,
                 conn,
             )?)
         })
@@ -601,33 +596,22 @@ where
         let conn = pooled_conn.deref_mut();
         let import_block_index = self.ledger_db.num_blocks()? - 1;
 
-        let (fog_enabled, default_public_address, change_public_address) = match fog_info {
+        let (fog_enabled, default_public_address) = match fog_info {
             Some(fog_info) => {
                 let fog_authority_spki =
                     general_purpose::STANDARD.decode(fog_info.authority_spki)?;
                 let default_subaddress_keys =
                     get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX).await?;
-                let change_subaddress_keys =
-                    get_view_only_subaddress_keys(CHANGE_SUBADDRESS_INDEX).await?;
 
                 let default_public_address = get_public_fog_address(
                     &default_subaddress_keys,
                     fog_info.report_url.clone(),
                     &fog_authority_spki,
                 );
-                let change_public_address = get_public_fog_address(
-                    &change_subaddress_keys,
-                    fog_info.report_url,
-                    &fog_authority_spki,
-                );
 
-                (
-                    true,
-                    Some(default_public_address),
-                    Some(change_public_address),
-                )
+                (true, Some(default_public_address))
             }
-            None => (false, None, None),
+            None => (false, None),
         };
 
         exclusive_transaction(conn, |conn| {
@@ -641,7 +625,6 @@ where
                 require_spend_subaddress,
                 fog_enabled,
                 default_public_address,
-                change_public_address,
                 conn,
             )?)
         })
@@ -680,7 +663,6 @@ where
             require_spend_subaddress: account.require_spend_subaddress,
             fog_enabled: account.fog_enabled,
             default_public_address: Some(account.main_subaddress(conn)?.public_address()?.into()),
-            change_public_address: Some(account.change_subaddress(conn)?.public_address()?.into()),
         };
 
         let src_json: serde_json::Value = serde_json::json!(json_command_request);
@@ -1312,7 +1294,6 @@ mod tests {
                 None,
                 false,
                 false,
-                None,
                 None,
             )
             .unwrap();

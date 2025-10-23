@@ -20,7 +20,6 @@ pub enum JsonCommandResponse {
         account_id: String,
         account_info: AccountInfo,
         default_public_address: B58PublicAddress,
-        change_public_address: B58PublicAddress,
     },
     sync_txos {
         account_id: String,
