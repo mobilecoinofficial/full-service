@@ -683,15 +683,6 @@ impl AccountModel for Account {
         let default_public_address =
             default_public_address.unwrap_or_else(|| view_account_key.default_subaddress());
 
-        if default_public_address.view_public_key()
-            != &view_account_key.default_subaddress_view_public()
-            || default_public_address.spend_public_key()
-                != &view_account_key.default_subaddress_spend_public()
-        {
-            return Err(WalletDbError::InvalidArgument(
-                "default_public_address does not match view_account_key".into(),
-            ));
-        }
         if fog_enabled {
             if next_subaddress_index != DEFAULT_NEXT_SUBADDRESS_INDEX as i64 {
                 return Err(WalletDbError::InvalidArgument(
@@ -1283,7 +1274,8 @@ mod tests {
         None,
         DefaultWithFog,
         DefaultWithoutFog,
-        Other,
+        OtherWithFog,
+        OtherWithoutFog,
     }
     impl AddressType {
         fn to_public_address(&self, view_account_key: &ViewAccountKey) -> Option<PublicAddress> {
@@ -1300,18 +1292,28 @@ mod tests {
                     ))
                 }
                 AddressType::DefaultWithoutFog => Some(view_account_key.default_subaddress()),
-                AddressType::Other => Some(view_account_key.change_subaddress()),
+                AddressType::OtherWithFog => {
+                    let addr = view_account_key.change_subaddress();
+                    Some(PublicAddress::new_with_fog(
+                        addr.spend_public_key(),
+                        addr.view_public_key(),
+                        "http://fog-report-url.com",
+                        "".into(),
+                        vec![1u8],
+                    ))
+                }
+                AddressType::OtherWithoutFog => Some(view_account_key.change_subaddress()),
             }
         }
     }
     #[parameterized(
         fog_enabled_missing_default = { true, AddressType::None, Err("default_public_address is missing fog information but fog_enabled=true")},
         fog_enabled_default_without_fog = { true, AddressType::DefaultWithoutFog, Err("default_public_address is missing fog information but fog_enabled=true")},
-        fog_enabled_wrong_default = { true, AddressType::Other, Err("default_public_address does not match view_account_key")},
+        fog_enabled_wrong_default = { true, AddressType::OtherWithFog, Err("public_address does not match view_account_key/subaddress_index")},
         fog_enabled_ok = { true, AddressType::DefaultWithFog, Ok(())},
         fog_disabled_missing_default = { false, AddressType::None, Ok(())},
         fog_disabled_default_with_fog = { false, AddressType::DefaultWithFog, Err("default_public_address is not allowed to have fog information when fog_enabled=false")},
-        fog_disabled_wrong_default ={ false, AddressType::Other, Err("default_public_address does not match view_account_key")},
+        fog_disabled_wrong_default ={ false, AddressType::OtherWithoutFog, Err("public_address does not match view_account_key/subaddress_index")},
     )]
     fn test_import_view_only_account_requires_correct_default_subaddress(
         fog_enabled: bool,

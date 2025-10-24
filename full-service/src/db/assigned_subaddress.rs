@@ -243,8 +243,14 @@ impl AssignedSubaddressModel for AssignedSubaddress {
         comment: &str,
         conn: Conn,
     ) -> Result<String, WalletDbError> {
-        // TODO!
-        assert_eq!(subaddress_index, 0);
+        let expected_address = account_key.subaddress(subaddress_index);
+        if public_address.view_public_key() != expected_address.view_public_key()
+            || public_address.spend_public_key() != expected_address.spend_public_key()
+        {
+            return Err(WalletDbError::InvalidArgument(
+                "public_address does not match view_account_key/subaddress_index".into(),
+            ));
+        }
 
         use crate::db::schema::assigned_subaddresses;
         let account_id = AccountID::from(account_key);
