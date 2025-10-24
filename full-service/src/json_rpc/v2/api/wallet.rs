@@ -1334,7 +1334,6 @@ where
             require_spend_subaddress,
             fog_enabled,
             default_public_address,
-            change_public_address,
         } => {
             let fb = first_block_index
                 .map(|fb| fb.parse::<u64>())
@@ -1367,7 +1366,6 @@ where
                     require_spend_subaddress,
                     fog_enabled,
                     default_public_address.map(Into::into),
-                    change_public_address.map(Into::into),
                 )
                 .map_err(format_error)?;
             let next_subaddress_index = service

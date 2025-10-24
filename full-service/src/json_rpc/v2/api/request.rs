@@ -272,9 +272,6 @@ pub enum JsonCommandRequest {
         // The default public address (required when fog_enabled = true)
         #[serde(default)]
         default_public_address: Option<B58PublicAddress>,
-        // The change public address (required when fog_enabled = true)
-        #[serde(default)]
-        change_public_address: Option<B58PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,
