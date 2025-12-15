@@ -9,7 +9,7 @@ inputs:
   repo:
     description: "chart repo to publish to"
     required: false
-    default: "https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public"
+    default: "ghcr.io/mobilecoinofficial/charts"
   repo_username:
     description: "chart repo username"
     required: true
