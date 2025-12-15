@@ -1,6 +1,8 @@
 name: Build and Publish Charts
 description: Build and publish helm charts
 
+permissions:
+  packages: write
 
 inputs:
   version:
