@@ -1,6 +1,7 @@
 name: Build and Publish Charts
 description: Build and publish helm charts
 
+
 inputs:
   version:
     description: "version of the build"
@@ -22,7 +23,7 @@ runs:
   - name: Publish helm chart full-service
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
-      action: helm-publish
+      action: helm-publish-oci
       chart_app_version: ${{ inputs.version }}
       chart_path: .internal-ci/helm/full-service
       chart_repo: ${{ inputs.repo }}
@@ -33,7 +34,7 @@ runs:
   - name: Publish helm chart full-service-mirror
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
-      action: helm-publish
+      action: helm-publish-oci
       chart_app_version: ${{ inputs.version }}
       chart_path: .internal-ci/helm/full-service-mirror
       chart_repo: ${{ inputs.repo }}
