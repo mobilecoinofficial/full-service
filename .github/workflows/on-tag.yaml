@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 env:
   ENCLAVE_RELEASE_TAG: v6.0.0
@@ -135,8 +136,8 @@ jobs:
       uses: ./.github/actions/build-publish-charts
       with:
         version: ${{ github.ref_name }}-${{ matrix.network }}net
-        repo_username: ${{ secrets.HARBOR_USERNAME }}
-        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        repo_username: ${{ github.actor }}
+        repo_password: ${{ github.token }}
 
   gh-release:
     needs:

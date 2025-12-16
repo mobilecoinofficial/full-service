@@ -16,6 +16,7 @@ concurrency:
 permissions:
   pull-requests: write
   contents: read
+  packages: write
 
 env:
   ARTIFACT_NAME: placeholder
@@ -301,8 +302,8 @@ jobs:
       uses: ./.github/actions/build-publish-charts
       with:
         version: ${{ needs.meta.outputs.version }}-${{ matrix.network }}net
-        repo_username: ${{ secrets.HARBOR_USERNAME }}
-        repo_password: ${{ secrets.HARBOR_PASSWORD }}
+        repo_username: ${{ github.actor }}
+        repo_password: ${{ github.token }}
 
   test-python-integration:
     needs:
