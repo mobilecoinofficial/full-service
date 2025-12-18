@@ -63,7 +63,7 @@ t3-connection = { path = "../t3/connection" }
 ledger-mob = { path = "../ledger-mob/lib" }
 
 async-trait = "0.1.59"
-base64 = "0.21.5"
+base64 = "0.22.0"
 chrono = { version = "0.4", default-features = false, features = ["alloc"] }
 clap = { version = "4.4", features = ["derive", "env"] }
 crossbeam-channel = "0.5"
