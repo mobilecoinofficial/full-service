@@ -24,7 +24,7 @@ env:
   RUST_BIN_PATH: placeholder
   CONSENSUS_ENCLAVE_CSS: /var/tmp/consensus-enclave.css
   INGEST_ENCLAVE_CSS: /var/tmp/ingest-enclave.css
-  ENCLAVE_RELEASE_TAG: v6.0.0
+  ENCLAVE_RELEASE_TAG: v7.0.0
 
 jobs:
   meta:
