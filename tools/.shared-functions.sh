@@ -2,7 +2,7 @@
 # Copyright (c) 2018-2022 The MobileCoin Foundation
 # Set of shared functions for full-service build, test and run tools.
 
-ENCLAVE_RELEASE_TAG=${ENCLAVE_RELEASE_TAG:-"v6.0.0"}
+ENCLAVE_RELEASE_TAG=${ENCLAVE_RELEASE_TAG:-"v7.0.0"}
 GIT_BASE=$(git rev-parse --show-toplevel)
 AM_I_IN_MOB_PROMPT="no"
 

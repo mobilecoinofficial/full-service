@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 env:
-  ENCLAVE_RELEASE_TAG: v6.0.0
+  ENCLAVE_RELEASE_TAG: v7.0.0
 
 jobs:
   build-rust-linux:
