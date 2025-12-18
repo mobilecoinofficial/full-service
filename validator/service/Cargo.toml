@@ -1,6 +1,6 @@
 [package]
 name = "mc-validator-service"
-version = "2.10.7"
+version = "2.10.8"
 authors = ["MobileCoin"]
 edition = "2018"
 license = "GPL-3.0"
