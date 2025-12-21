@@ -9,9 +9,14 @@ from .client import (
     ClientSync as Client,
     WalletAPIError,
     log as client_log,
+    MAX_TOMBSTONE_BLOCKS,
 )
 from .fog import FOG_INFO
 from .token import Amount, get_token, TOKENS
+from .util import (
+    b64_public_address_to_b58_wrapper,
+    full_service_receipt_to_b64_receipt,
+)
 
 
 def main():
@@ -111,6 +116,7 @@ class CommandLineInterface:
         self.send_args = command_sp.add_parser('send', help='Send a transaction.')
         self.send_args.add_argument('--build-only', action='store_true', help='Just build the transaction, do not submit it.')
         self.send_args.add_argument('--fee', type=str, default=None, help='The fee paid to the network.')
+        self.send_args.add_argument('--base64', action='store_true', help='Address is given in base64.')
         self.send_args.add_argument('account_id', help='Source account ID.')
         self.send_args.add_argument('amount', help='Amount to send. Use "all" to automatically calculate fees and send all available funds.')
         self.send_args.add_argument('token', help='Token to send (MOB, eUSD).')
@@ -120,7 +126,8 @@ class CommandLineInterface:
         self.submit_args = command_sp.add_parser('submit', help='Submit a transaction proposal.')
         self.submit_args.add_argument('proposal', help='A tx_proposal.json file.')
         self.submit_args.add_argument('account_id', nargs='?', help='Source account ID. Only used for logging the transaction.')
-        self.submit_args.add_argument('--receipt', action='store_true', help='Also create a receiver receipt for the transaction.')
+        self.submit_args.add_argument('--receipt', action='store_true', help='Create a JSON receiver receipt for the transaction.')
+        self.submit_args.add_argument('--receipt-base64', action='store_true', help='Create a Base64 receiver receipt for the transaction.')
 
         # Address QR code.
         self.qr_args = command_sp.add_parser('qr', help='Show account address as a QR code')
@@ -227,18 +234,19 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
 
         # Show sync state.
-        if int(wallet_status['network_block_height']) == 0:
+        if network_status['network_info']['offline'] is True:
             print('Offline.')
             print('Local ledger has {} blocks.'.format(
                 wallet_status['local_block_height']))
         else:
-            print('Connected to MobileCoin network.')
+            chain_id = network_status['network_info']['chain_id']
+            print(f'Connected to MobileCoin {chain_id} network.')
             if wallet_status['is_synced_all']:
                 print('All accounts synced, {} blocks.'.format(
                     wallet_status['network_block_height']))
             else:
                 print('Syncing, {}/{} blocks completed.'.format(
-                    wallet_status['min_synced_block_index'],
+                    wallet_status['local_block_height'],
                     wallet_status['network_block_height'],
                 ))
 
@@ -526,23 +534,30 @@ class CommandLineInterface:
                 else:
                     print('    Sent to', address)
 
-    def send(self, account_id, amount, token, to_address, build_only=False, fee=None):
+    def send(self, account_id, amount, token, to_address, build_only=False, fee=None, base64=False):
         token = get_token(token)
 
         account = self._load_account_prefix(account_id)
         account_id = account['id']
+
+        if base64:
+            to_address = b64_public_address_to_b58_wrapper(to_address)
 
         account_status = self.client.get_account_status(account_id)
         try:
             balance = account_status['balance_per_token'][str(token.token_id)]
             unspent = Amount.from_storage_units(balance['unspent'], token)
             unverified = Amount.from_storage_units(balance['unverified'], token)
+            max_spendable = Amount.from_storage_units(balance['max_spendable'], token)
             available = unspent + unverified
         except KeyError:
             available = Amount.from_storage_units(0, token)
+            unverified = Amount.from_storage_units(0, token)
+            max_spendable = Amount.from_storage_units(0, token)
 
         if fee is None:
             network_status = self.client.get_network_status()
+            assert network_status is not None
             fee = Amount.from_storage_units(
                 network_status['fees'][str(token.token_id)],
                 token
@@ -552,8 +567,8 @@ class CommandLineInterface:
         assert fee is not None
 
         if amount == "all":
-            amount = available - fee
-            total_amount = available
+            amount = max_spendable
+            total_amount = amount + fee
             assert amount.value >= 0
             assert total_amount.value >= 0
         else:
@@ -638,7 +653,7 @@ class CommandLineInterface:
             fee_amount.format(),
         ))
 
-    def submit(self, proposal, account_id=None, receipt=False):
+    def submit(self, proposal, account_id=None, receipt=False, receipt_base64=False):
         if account_id is not None:
             account = self._load_account_prefix(account_id)
             account_id = account['id']
@@ -656,24 +671,37 @@ class CommandLineInterface:
         network_status = self.client.get_network_status()
         lo = int(network_status['network_block_height']) + 1
         hi = lo + MAX_TOMBSTONE_BLOCKS - 1
-        if lo >= tombstone_block:
-            print('This transaction has expired, and can no longer be submitted.')
-            return
-        if tombstone_block > hi:
-            print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
-                tombstone_block - hi))
+        # if lo >= tombstone_block:
+        #     print('This transaction has expired, and can no longer be submitted.')
+        #     return
+        # if tombstone_block > hi:
+        #     print('This transaction cannot be submitted yet. Wait for {} more blocks.'.format(
+        #         tombstone_block - hi))
 
         # Generate a receipt for the transaction.
-        if receipt:
-            receipt = self.client.create_receiver_receipts(tx_proposal)
-            path = Path('receipt.json')
-            if path.exists():
-                print(f'The file {path} already exists. Please rename the existing file and retry.')
-                return
-            else:
-                with path.open('w') as f:
-                    json.dump(receipt, f, indent=2)
-                print(f'Wrote {path}.')
+        if receipt or receipt_base64:
+            receipt_json = self.client.create_receiver_receipts(tx_proposal)
+            assert len(receipt_json) == 1
+            receipt_json = receipt_json[0]
+            if receipt:
+                path = Path('receipt.json')
+                if path.exists():
+                    print(f'The file {path} already exists. Please rename the existing file and retry.')
+                    return
+                else:
+                    with path.open('w') as f:
+                        json.dump(receipt_json, f, indent=2)
+                    print(f'Wrote {path}.')
+            if receipt_base64:
+                path = Path('receipt.base64')
+                if path.exists():
+                    print(f'The file {path} already exists. Please rename the existing file and retry.')
+                    return
+                else:
+                    receipt_b64 = full_service_receipt_to_b64_receipt(receipt_json)
+                    with path.open('w') as f:
+                        f.write(receipt_b64)
+                    print(f'Wrote {path}.')
 
         # Confirm and submit.
         if account_id is None:
@@ -1037,6 +1065,7 @@ def _format_balances(balances):
     for token_id, balance in balances.items():
         unspent = Amount.from_storage_units(balance['unspent'], token_id)
         unverified = Amount.from_storage_units(balance['unverified'], token_id)
+        max_spendable = Amount.from_storage_units(balance['max_spendable'], token_id)
         if unspent.value > 0:
             lines.append(unspent.format())
         if unverified.value > 0:

@@ -12,7 +12,7 @@ MOB = get_token('MOB')
 DEFAULT_HOST = 'http://127.0.0.1'
 DEFAULT_PORT = 9090
 
-MAX_TOMBSTONE_BLOCKS = 100
+MAX_TOMBSTONE_BLOCKS = 20160
 
 
 class WalletAPIError(Exception):
