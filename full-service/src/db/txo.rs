@@ -39,6 +39,7 @@ use mc_transaction_extra::{
     RegisteredMemoType, TxOutConfirmationNumber, UnusedMemo,
 };
 use mc_util_serial::Message;
+use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, fmt, str::FromStr};
 
 #[derive(Debug, PartialEq)]
@@ -77,6 +78,17 @@ pub enum TxoMemo {
     Unused,
     AuthenticatedSender(AuthenticatedSenderMemoModel),
     Destination(DestinationMemoModel),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct FragmentationSettings {
+    /// The minimum UTXO size to consider for fragmentation
+    pub min_value_to_fragment: u64,
+
+    /// The desired number of in-flight transactions we want to be able to
+    /// support, where each transaction can send at least
+    /// min_value_to_fragment tokens.
+    pub desired_num_in_flight_txs: usize,
 }
 
 impl fmt::Display for TxoStatus {
@@ -638,6 +650,7 @@ pub trait TxoModel {
     ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from |                                      |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
+    ///| `fragmentation_settings` | When provided, select extra spendable Txos to allow for fragmentation outouts |               |
     ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
     ///
     /// # Returns:
@@ -649,6 +662,7 @@ pub trait TxoModel {
         assigned_subaddress_b58: Option<&str>,
         token_id: u64,
         default_token_fee: u64,
+        fragmentation_settings: impl Into<Option<FragmentationSettings>>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError>;
 
@@ -1900,10 +1914,13 @@ impl TxoModel for Txo {
         assigned_subaddress_b58: Option<&str>,
         token_id: u64,
         default_token_fee: u64,
+        fragmentation_settings: impl Into<Option<FragmentationSettings>>,
         conn: Conn,
     ) -> Result<Vec<Txo>, WalletDbError> {
+        let fragmentation_settings = fragmentation_settings.into();
+
         let SpendableTxosResult {
-            mut spendable_txos,
+            spendable_txos: all_spendable_txos,
             max_spendable_in_wallet,
         } = Txo::list_spendable(
             Some(account_id_hex),
@@ -1914,7 +1931,7 @@ impl TxoModel for Txo {
             conn,
         )?;
 
-        if spendable_txos.is_empty() {
+        if all_spendable_txos.is_empty() {
             return Err(WalletDbError::NoSpendableTxos(token_id.to_string()));
         }
 
@@ -1922,7 +1939,7 @@ impl TxoModel for Txo {
         // defrag
         if target_value > max_spendable_in_wallet + default_token_fee as u128 {
             // See if we merged the UTXOs we would be able to spend this amount.
-            let total_unspent_value_in_wallet: u128 = spendable_txos
+            let total_unspent_value_in_wallet: u128 = all_spendable_txos
                 .iter()
                 .map(|utxo| (utxo.value as u64) as u128)
                 .sum();
@@ -1944,6 +1961,7 @@ impl TxoModel for Txo {
         // a large enough sum.
         let mut selected_utxos: Vec<Txo> = Vec::new();
         let mut total: u128 = 0;
+        let mut remaining_spendable_txos = all_spendable_txos.clone();
         loop {
             if total >= target_value {
                 global_log::debug!("total is greater than target value");
@@ -1951,7 +1969,7 @@ impl TxoModel for Txo {
             }
 
             // Grab the next (smallest) utxo, in order to opportunistically sweep up dust
-            let next_utxo = spendable_txos.pop().ok_or_else(|| {
+            let next_utxo = remaining_spendable_txos.pop().ok_or_else(|| {
                 WalletDbError::InsufficientFunds(format!(
                     "Not enough Txos to sum to target value: {target_value:?}"
                 ))
@@ -1970,6 +1988,53 @@ impl TxoModel for Txo {
                 // Remove the lowest utxo.
                 let removed = selected_utxos.remove(0);
                 total -= (removed.value as u64) as u128;
+            }
+        }
+
+        if let Some(fragmentation_settings) = fragmentation_settings.as_ref() {
+            let change =
+                total
+                    .checked_sub(target_value as u128)
+                    .ok_or(WalletDbError::InsufficientFunds(
+                        "Logic error, change is negative".to_string(),
+                    ))?;
+
+            // See how many remaining unspent txos we have that are above the desired
+            // minimum value. The change txo will count as one if it is above the min
+            // value.
+            let txos_at_or_above_min_value =
+                remaining_spendable_txos.partition_point(|txo| {
+                    (txo.value as u64) >= fragmentation_settings.min_value_to_fragment
+                }) + if change >= fragmentation_settings.min_value_to_fragment as u128 {
+                    1
+                } else {
+                    0
+                };
+
+            global_log::debug!("Fragmentation is desired, txos_at_or_above_min_value: {txos_at_or_above_min_value}, min_value_to_fragment: {}, desired_txs: {}", fragmentation_settings.min_value_to_fragment, fragmentation_settings.desired_num_in_flight_txs);
+
+            // If we have less than the desired number of utxos that are above the min
+            // value, we might want to change our selection strategy to select
+            // the largest txos. Depending on the total value of the largest txos,
+            // the transaction builder might be able to create more outputs of
+            // amount min_value_to_fragment.
+            if txos_at_or_above_min_value < fragmentation_settings.desired_num_in_flight_txs {
+                // We have less than the desired number of unspent txos that are >= the min
+                // value. See if by selecting the largest txos we are able to
+                // produce more fragments than we currently have.
+                let num_fragments = (max_spendable_in_wallet.saturating_sub(target_value))
+                    / fragmentation_settings.min_value_to_fragment as u128;
+
+                global_log::debug!("max_spendable_in_wallet: {max_spendable_in_wallet}, num_fragments: {num_fragments}");
+
+                if num_fragments > txos_at_or_above_min_value as u128 {
+                    global_log::debug!("Switching to selecting the largest txos, that will get us extra utxos that are above the min value");
+                    selected_utxos = all_spendable_txos
+                        .iter()
+                        .take(MAX_INPUTS as usize)
+                        .cloned()
+                        .collect();
+                }
             }
         }
 
@@ -2355,7 +2420,7 @@ mod tests {
     };
     use mc_common::{
         logger::{async_test_with_logger, log, test_with_logger, Logger},
-        HashSet,
+        test_logger, HashSet,
     };
     use mc_ledger_db::Ledger;
     use mc_rand::RngCore;
@@ -2368,6 +2433,7 @@ mod tests {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{assert_matches::assert_matches, iter::FromIterator, ops::DerefMut, time::Duration};
+    use yare::parameterized;
 
     use super::*;
     use crate::{
@@ -3408,6 +3474,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3422,6 +3489,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3439,6 +3507,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3457,6 +3526,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3579,6 +3649,7 @@ mod tests {
                 Some(subaddress),
                 0,
                 Mob::MINIMUM_FEE,
+                None,
                 conn,
             )
             .unwrap();
@@ -3595,6 +3666,7 @@ mod tests {
             Some(&alice_public_address_b58),
             0,
             Mob::MINIMUM_FEE,
+            None,
             conn,
         );
 
@@ -3648,6 +3720,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -3659,6 +3732,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -3714,6 +3788,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         match res {
@@ -4608,6 +4683,46 @@ mod tests {
         (account_id, wallet_db)
     }
 
+    fn setup_select_unspent_txos_test_with_amounts(
+        logger: Logger,
+        amounts_and_count: &[(u64, usize)],
+    ) -> (AccountID, WalletDb) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        let (account_id, _address) = Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        for (amount, count) in amounts_and_count {
+            for _ in 0..*count {
+                let (_txo_id, _txo, _key_image) = create_test_received_txo(
+                    &account_key,
+                    0,
+                    Amount::new(*amount, Mob::ID),
+                    15,
+                    &mut rng,
+                    &wallet_db,
+                );
+            }
+        }
+
+        (account_id, wallet_db)
+    }
+
     #[test_with_logger]
     fn test_select_unspent_txos_target_value_equal_max_spendable_in_account(logger: Logger) {
         let target_value = (200 * MOB - Mob::MINIMUM_FEE) as u128;
@@ -4620,6 +4735,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4639,6 +4755,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
 
@@ -4658,6 +4775,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
@@ -4675,6 +4793,7 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         );
         assert!(result.is_err());
@@ -4693,12 +4812,81 @@ mod tests {
             None,
             0,
             Mob::MINIMUM_FEE,
+            None,
             &mut wallet_db.get_pooled_conn().unwrap(),
         )
         .unwrap();
         assert_eq!(result.len(), 16);
         let sum: i64 = result.iter().map(|x| x.value).sum();
         assert_eq!(12400000000_i64, sum);
+    }
+
+    #[parameterized(
+        can_produce_more_fragments1 = {
+            &[(2000, 5)],
+            2000 * 5,
+            5,
+        },
+        can_produce_more_fragments2 = {
+            &[(1500, 5), (750, 3)],
+            1500 * 5 + 750 * 3,
+            8,
+        },
+        have_sufficient_fragments = {
+            &[(1500, 10), (5, 2)],
+            10,
+            2,
+        },
+       selecting_largest_will_not_produce_more_fragments = {
+            &[(100, 10), (5, 1)],
+            105,
+            2,
+        },
+        selecting_largest_will_not_produce_more_fragments2 = {
+            &[(2000, 14)],
+            2000,
+            1,
+        },
+        cap_at_max_inputs = {
+            &[(200, 20)],
+            200 * 16,
+            16,
+        }
+    )]
+    fn select_unspent_txos_for_value_chooses_largest_utxos_for_fragmentation(
+        amounts_and_count: &[(u64, usize)],
+        expected_total: u64,
+        expected_num_selected: usize,
+    ) {
+        let logger = test_logger!();
+        mc_common::logger::slog_scope::scope(&logger.clone(), || {
+            let (account_id, wallet_db) = setup_select_unspent_txos_test_with_amounts(
+                logger,
+                amounts_and_count
+                    .iter()
+                    .map(|&(amount, count)| (amount * MOB, count))
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+            );
+
+            let result = Txo::select_spendable_txos_for_value(
+                &account_id.to_string(),
+                10 * MOB as u128,
+                None,
+                None,
+                0,
+                Mob::MINIMUM_FEE,
+                FragmentationSettings {
+                    min_value_to_fragment: 1500 * MOB,
+                    desired_num_in_flight_txs: 10,
+                },
+                &mut wallet_db.get_pooled_conn().unwrap(),
+            )
+            .unwrap();
+            assert_eq!(result.len(), expected_num_selected);
+            let sum: i64 = result.iter().map(|x| x.value).sum();
+            assert_eq!(expected_total * MOB, sum as u64);
+        });
     }
 
     #[test_with_logger]

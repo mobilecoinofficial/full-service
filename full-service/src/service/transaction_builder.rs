@@ -178,6 +178,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 spend_subaddress.as_deref(),
                 *token_id,
                 fee_value,
+                None,
                 conn,
             )?;
         }
