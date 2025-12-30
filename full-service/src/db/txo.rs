@@ -655,6 +655,7 @@ pub trait TxoModel {
     ///
     /// # Returns:
     /// * Vector of TxoOut
+    #[allow(clippy::too_many_arguments)]
     fn select_spendable_txos_for_value(
         account_id_hex: &str,
         target_value: u128,
@@ -1994,7 +1995,7 @@ impl TxoModel for Txo {
         if let Some(fragmentation_settings) = fragmentation_settings.as_ref() {
             let change =
                 total
-                    .checked_sub(target_value as u128)
+                    .checked_sub(target_value)
                     .ok_or(WalletDbError::InsufficientFunds(
                         "Logic error, change is negative".to_string(),
                     ))?;
