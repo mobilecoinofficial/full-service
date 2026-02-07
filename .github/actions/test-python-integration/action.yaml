@@ -28,7 +28,7 @@ runs:
     shell: bash
     run: |
       sudo apt-get update
-      sudo apt-get install -y python3-pip
+      sudo apt-get install -y python3-pip python3-venv
 
   # Deploy fs chart with cloned volume
   # All tests will need to be deployed in the full-service-ledger namespace so we can clone the target PVC
