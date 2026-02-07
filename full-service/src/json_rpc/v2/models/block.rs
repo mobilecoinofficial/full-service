@@ -3,6 +3,7 @@
 //! API definition for the Block object.
 
 use mc_mobilecoind_json::data_types::{JsonTxOut, JsonTxOutMembershipElement};
+use serde::Serialize as SerdeSerialize;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug)]
@@ -39,9 +40,22 @@ impl From<&mc_blockchain_types::Block> for Block {
 }
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug)]
+pub struct WithId<T: SerdeSerialize> {
+    pub id: String,
+    #[serde(flatten)]
+    pub inner: T,
+}
+
+impl<T: SerdeSerialize> WithId<T> {
+    pub fn new(inner: T, id: String) -> Self {
+        Self { id, inner }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
 pub struct BlockContents {
     pub key_images: Vec<String>,
-    pub outputs: Vec<JsonTxOut>,
+    pub outputs: Vec<WithId<JsonTxOut>>,
 }
 
 impl BlockContents {
@@ -57,9 +71,11 @@ impl BlockContents {
                 .iter()
                 .map(|txo| {
                     let proto_txo = mc_api::external::TxOut::from(txo);
-                    JsonTxOut::from(&proto_txo)
+                    let json_txo = JsonTxOut::from(&proto_txo);
+                    let id = crate::db::txo::TxoID::from(txo).to_string();
+                    WithId::new(json_txo, id)
                 })
-                .collect::<Vec<JsonTxOut>>(),
+                .collect::<Vec<WithId<JsonTxOut>>>(),
         }
     }
 }

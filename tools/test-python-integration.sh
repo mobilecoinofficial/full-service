@@ -151,7 +151,25 @@ echo "INFO: check for poetry"
 if ! command -v poetry >/dev/null
 then
     echo "INFO: poetry not found, installing..."
-    pip install poetry
+    # check if we are in a venv
+    VENV_DIR=".venv"
+
+    # If not already inside the desired venv, ensure it exists and activate it
+    if [[ "${VIRTUAL_ENV-}" != "$(pwd)/$VENV_DIR" ]]; then
+      if [[ ! -d "$VENV_DIR" ]]; then
+        echo "Creating venv at $VENV_DIR"
+        python3 -m venv "$VENV_DIR"
+      fi
+
+      source "$VENV_DIR/bin/activate"
+    fi
+
+    python3 -m pip install -U pip
+
+    # now that we have our venv, we might have poetry, but if not, install it.
+    if ! command -v poetry >/dev/null 2>&1; then
+      python3 -m pip install poetry
+    fi
 fi
 
 pushd "${GIT_BASE:?}/python" > /dev/null
@@ -217,7 +235,7 @@ echo "INFO: look for leftover funds"
 balances=$(target_mob balance)
 while read -r b
 do
-    # split out ammount from address and token type
+    # split out amount from address and token type
     counter=0
     account=$(echo "${b}" | cut -d' ' -f1)
     amount=$(echo "${b}" | cut -d' ' -f2)
