@@ -158,17 +158,17 @@ then
     if [[ "${VIRTUAL_ENV-}" != "$(pwd)/$VENV_DIR" ]]; then
       if [[ ! -d "$VENV_DIR" ]]; then
         echo "Creating venv at $VENV_DIR"
-        python -m venv "$VENV_DIR"
+        python3 -m venv "$VENV_DIR"
       fi
 
       source "$VENV_DIR/bin/activate"
     fi
 
-    python -m pip install -U pip
+    python3 -m pip install -U pip
 
     # now that we have our venv, we might have poetry, but if not, install it.
     if ! command -v poetry >/dev/null 2>&1; then
-      python -m pip install poetry
+      python3 -m pip install poetry
     fi
 fi
 
