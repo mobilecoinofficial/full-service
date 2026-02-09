@@ -4154,8 +4154,7 @@ mod tests {
         let prefixed_hex = hex::encode(&db_txo.public_key);
         let bad_prefix = format!("0b20{}", &prefixed_hex[4..]);
 
-        let result =
-            Txo::get_by_public_key(&bad_prefix, &mut wallet_db.get_pooled_conn().unwrap());
+        let result = Txo::get_by_public_key(&bad_prefix, &mut wallet_db.get_pooled_conn().unwrap());
         assert_matches!(result, Err(WalletDbError::InvalidArgument(_)));
     }
 
