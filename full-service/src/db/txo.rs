@@ -4075,6 +4075,127 @@ mod tests {
     }
 
     #[test_with_logger]
+    fn test_get_by_public_key_accepts_prefixed_and_raw(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([21u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let (txo_id, _tx_out, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(1 * MOB, Mob::ID),
+            0,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let db_txo = Txo::get(&txo_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let prefixed_hex = hex::encode(&db_txo.public_key);
+        let raw_hex = hex::encode(db_txo.public_key().unwrap().as_bytes());
+
+        let by_prefixed =
+            Txo::get_by_public_key(&prefixed_hex, &mut wallet_db.get_pooled_conn().unwrap())
+                .unwrap();
+        let by_raw =
+            Txo::get_by_public_key(&raw_hex, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+
+        assert_eq!(by_prefixed, db_txo);
+        assert_eq!(by_raw, db_txo);
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_bad_prefix(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([22u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let (txo_id, _tx_out, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(1 * MOB, Mob::ID),
+            0,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let db_txo = Txo::get(&txo_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let prefixed_hex = hex::encode(&db_txo.public_key);
+        let bad_prefix = format!("0b20{}", &prefixed_hex[4..]);
+
+        let result =
+            Txo::get_by_public_key(&bad_prefix, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(result, Err(WalletDbError::InvalidArgument(_)));
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_invalid_length(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let result = Txo::get_by_public_key("deadbeef", &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(
+            result,
+            Err(WalletDbError::InvalidArgument(msg)) if msg.contains("wrong length")
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_invalid_hex(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let bad_hex = format!("0a20{}", "zz".repeat(32));
+        let result = Txo::get_by_public_key(&bad_hex, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(
+            result,
+            Err(WalletDbError::InvalidArgument(msg)) if msg.contains("Invalid hex encoded public key")
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_not_found(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let missing_hex = format!("0a20{}", "11".repeat(32));
+        let result =
+            Txo::get_by_public_key(&missing_hex, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(result, Err(WalletDbError::TxoNotFound(_)));
+    }
+
+    #[test_with_logger]
     fn test_delete_unreferenced_txos(logger: Logger) {
         use crate::db::schema::txos;
         use diesel::dsl::count;
