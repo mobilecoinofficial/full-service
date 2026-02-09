@@ -799,8 +799,8 @@ where
         JsonCommandRequest::get_transaction_log { transaction_log_id } => {
             // Check whether the transaction_log_id actually refers to the txo_id of a
             // received transaction.
-            let txo_id = TxoID(transaction_log_id.clone());
-            let json_tx_log = if let Ok(txo_info) = service.get_txo(&txo_id) {
+            let txo_id = transaction_log_id.clone();
+            let json_tx_log = if let Ok(txo_info) = service.get_txo(Some(txo_id), None) {
                 // A txo was found, determine which address it was received at, if any.
                 let subaddress_b58 =
                     match (&txo_info.txo.subaddress_index, &txo_info.txo.account_id) {
@@ -931,7 +931,7 @@ where
             }
         }
         JsonCommandRequest::get_txo { txo_id } => {
-            let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+            let txo_info = service.get_txo(Some(txo_id), None).map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: Txo::from(&txo_info),
             }

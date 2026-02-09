@@ -228,7 +228,8 @@ pub enum JsonCommandRequest {
         outputs: Vec<JsonTxOut>,
     },
     get_txo {
-        txo_id: String,
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
     },
     get_txos {
         account_id: Option<String>,

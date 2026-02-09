@@ -56,7 +56,7 @@ pub enum TxoServiceError {
     /// Txo Not Spendable
     TxoNotSpendable(String),
 
-    /// Must query with either an account ID or a subaddress b58.
+    /// Query is missing required parameters or has inconsistent parameters
     InvalidQuery(String),
 
     /// Error decoding
@@ -187,17 +187,19 @@ pub trait TxoService {
         limit: Option<u64>,
     ) -> Result<Vec<TxoInfo>, TxoServiceError>;
 
-    /// Get a Txo from the wallet.
+    /// Get a Txo from the wallet. Must provide exactly one of the arguments
     ///
     /// # Arguments
     ///
-    ///| Name     | Purpose                              | Notes |
-    ///|----------|--------------------------------------|-------|
-    ///| `txo_id` | The TXO ID for which to get details. |       |
+    ///| Name             | Purpose                                      | Notes       |
+    ///|------------------|----------------------------------------------|-------------|
+    ///| `txo_id`         | The TXO ID for which to get details.         | hex encoded |
+    ///| `txo_public_key` | The TXO PUBLIC KEY for which to get details. | hex encoded |
     ///
     fn get_txo(
         &self,
-        txo_id: &TxoID
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
     ) -> Result<TxoInfo, TxoServiceError>;
 
     /// Build a transaction that will split a txo into multiple output txos to the origin account.
@@ -292,10 +294,17 @@ where
         Ok(txo_infos)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoInfo, TxoServiceError> {
+    fn get_txo(&self, txo_id: Option<String>, txo_public_key: Option<String>) -> Result<TxoInfo, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        let txo = Txo::get(&txo_id.to_string(), conn)?;
+
+        let txo = match (txo_id.as_deref(), txo_public_key.as_deref()) {
+            (None, None) => return Err(TxoServiceError::InvalidQuery("missing parameter: must include one of txo_id or txo_public_key".to_string())),
+            (Some(_), Some(_)) => return Err(TxoServiceError::InvalidQuery("mutually exclusive parameters: can include only one of txo_id and txo_public_key".to_string())),
+            (None, Some(public_key)) => Txo::get_by_public_key(public_key, conn)?,
+            (Some(id), None) => Txo::get(id, conn)?,
+        };
+
         let status = txo.status(conn)?;
         let memo = txo.memo(conn)?;
         Ok(TxoInfo { txo, memo, status })
