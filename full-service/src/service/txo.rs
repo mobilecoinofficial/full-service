@@ -294,13 +294,24 @@ where
         Ok(txo_infos)
     }
 
-    fn get_txo(&self, txo_id: Option<String>, txo_public_key: Option<String>) -> Result<TxoInfo, TxoServiceError> {
+    fn get_txo(
+        &self,
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
+    ) -> Result<TxoInfo, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
 
         let txo = match (txo_id.as_deref(), txo_public_key.as_deref()) {
-            (None, None) => return Err(TxoServiceError::InvalidQuery("missing parameter: must include one of txo_id or txo_public_key".to_string())),
-            (Some(_), Some(_)) => return Err(TxoServiceError::InvalidQuery("mutually exclusive parameters: can include only one of txo_id and txo_public_key".to_string())),
+            (None, None) => {
+                return Err(TxoServiceError::InvalidQuery(
+                    "missing parameter: must include one of txo_id or txo_public_key".to_string(),
+                ))
+            }
+            (Some(_), Some(_)) => return Err(TxoServiceError::InvalidQuery(
+                "mutually exclusive parameters: can include only one of txo_id and txo_public_key"
+                    .to_string(),
+            )),
             (None, Some(public_key)) => Txo::get_by_public_key(public_key, conn)?,
             (Some(id), None) => Txo::get(id, conn)?,
         };

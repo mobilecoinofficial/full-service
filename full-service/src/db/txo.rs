@@ -1797,27 +1797,34 @@ impl TxoModel for Txo {
     fn get_by_public_key(txo_pubkey: &str, conn: Conn) -> Result<Txo, WalletDbError> {
         use crate::db::schema::txos;
 
-        // txo public_keys are 256 bits, but as *currently* stored in the db have a protobuf prefix
-        // of 0a20 prepended. We are in transition to unwrapping the protobuf notation wherever we
-        // can but for back/forward compatibility need to accept either format from the
-        // API's clients.
+        // txo public_keys are 256 bits, but as *currently* stored in the db have a
+        // protobuf prefix of 0a20 prepended. We are in transition to unwrapping
+        // the protobuf notation wherever we can but for back/forward
+        // compatibility need to accept either format from the API's clients.
         let pubkey = match txo_pubkey.len() {
             68 => {
                 if !txo_pubkey.starts_with("0a20") {
-                    return Err(WalletDbError::InvalidArgument(format!("public key {txo_pubkey} is not in a valid public key format")))
+                    return Err(WalletDbError::InvalidArgument(format!(
+                        "public key {txo_pubkey} is not in a valid public key format"
+                    )));
                 }
                 txo_pubkey.to_string()
-            },
+            }
             64 => {
                 format!("0a20{}", txo_pubkey)
-            },
+            }
             _ => {
-                return Err(WalletDbError::InvalidArgument(format!("public key {txo_pubkey} is the wrong length")))
+                return Err(WalletDbError::InvalidArgument(format!(
+                    "public key {txo_pubkey} is the wrong length"
+                )))
             }
         };
 
-        let public_key_blob: Vec<u8> = hex::decode(pubkey)
-        .map_err(|e| WalletDbError::InvalidArgument(format!("Invalid hex encoded public key: {txo_pubkey}: {e}")))?;
+        let public_key_blob: Vec<u8> = hex::decode(pubkey).map_err(|e| {
+            WalletDbError::InvalidArgument(format!(
+                "Invalid hex encoded public key: {txo_pubkey}: {e}"
+            ))
+        })?;
 
         let txo = match txos::table
             .filter(txos::public_key.eq(public_key_blob))
