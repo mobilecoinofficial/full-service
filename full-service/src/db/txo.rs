@@ -602,7 +602,7 @@ pub trait TxoModel {
     ///
     ///| Name         | Purpose                                                | Notes |
     ///|--------------|--------------------------------------------------------|-------|
-    ///| `txo_pubkey` | The TxOut publicKey from which to retrieve a TxOut     |       |
+    ///| `txo_pubkey` | The TxOut public key from which to retrieve a TxOut    |       |
     ///| `conn`       | An reference to the pool connection of wallet database |       |
     ///
     /// # Returns:
