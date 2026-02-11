@@ -4039,7 +4039,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4137,7 +4137,7 @@ dependencies = [
 
 [[package]]
 name = "mc-full-service-mirror"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "boring",
  "cargo-emit",
@@ -4472,7 +4472,7 @@ checksum = "16e47794dd20210dbb3e4c35da900328937ffde47ba0a8d5b00994e4afec6ffd"
 
 [[package]]
 name = "mc-signer"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -4943,7 +4943,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-api"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -4959,7 +4959,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-connection"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "displaydoc",
  "futures",
@@ -4978,7 +4978,7 @@ dependencies = [
 
 [[package]]
 name = "mc-validator-service"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "clap 4.5.1",
  "grpcio",
@@ -7290,7 +7290,7 @@ dependencies = [
 
 [[package]]
 name = "t3-api"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "cargo-emit",
  "futures",
@@ -7304,7 +7304,7 @@ dependencies = [
 
 [[package]]
 name = "t3-connection"
-version = "2.10.8"
+version = "2.10.9"
 dependencies = [
  "displaydoc",
  "futures",
