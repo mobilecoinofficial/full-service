@@ -1803,7 +1803,7 @@ impl TxoModel for Txo {
         // compatibility need to accept either format from the API's clients.
         let pubkey = match txo_pubkey.len() {
             68 => {
-                if !txo_pubkey.starts_with("0a20") {
+                if !txo_pubkey.to_ascii_lowercase().starts_with("0a20") {
                     return Err(WalletDbError::InvalidArgument(format!(
                         "public key {txo_pubkey} is not in a valid public key format"
                     )));
@@ -2006,7 +2006,7 @@ impl TxoModel for Txo {
         let mut total: u128 = 0;
         loop {
             if total >= target_value {
-                global_log::debug!("total is greater than target value");
+                global_log::debug!("total {} is greater than target_value {}", total, target_value);
                 break;
             }
 
@@ -4108,14 +4108,19 @@ mod tests {
         let db_txo = Txo::get(&txo_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
         let prefixed_hex = hex::encode(&db_txo.public_key);
         let raw_hex = hex::encode(db_txo.public_key().unwrap().as_bytes());
+        let prefixed_uppercase_hex = prefixed_hex.to_ascii_uppercase();
 
         let by_prefixed =
             Txo::get_by_public_key(&prefixed_hex, &mut wallet_db.get_pooled_conn().unwrap())
                 .unwrap();
+        let by_prefixed_uppercase =
+            Txo::get_by_public_key(&prefixed_uppercase_hex, &mut wallet_db.get_pooled_conn().unwrap())
+            .unwrap();
         let by_raw =
             Txo::get_by_public_key(&raw_hex, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
 
         assert_eq!(by_prefixed, db_txo);
+        assert_eq!(by_prefixed_uppercase, db_txo);
         assert_eq!(by_raw, db_txo);
     }
 
