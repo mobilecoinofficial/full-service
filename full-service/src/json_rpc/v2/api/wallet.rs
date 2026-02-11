@@ -1105,8 +1105,13 @@ where
                 transaction_log_map,
             }
         }
-        JsonCommandRequest::get_txo { txo_id } => {
-            let txo_info = service.get_txo(&TxoID(txo_id)).map_err(format_error)?;
+        JsonCommandRequest::get_txo {
+            txo_id,
+            txo_public_key,
+        } => {
+            let txo_info = service
+                .get_txo(txo_id, txo_public_key)
+                .map_err(format_error)?;
             JsonCommandResponse::get_txo {
                 txo: (&txo_info).into(),
             }

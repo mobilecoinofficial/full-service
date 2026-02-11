@@ -169,7 +169,7 @@ pub trait TxoModel {
     ///| `amount`               | The value in this TxOut                                                         | Unit in picoMob |
     ///| `received_block_index` | The index of the block at which this TxOut was received.                        |                 |
     ///| `account_id_hex`       | The account ID for the account which received this TxOut                        |                 |
-    ///| `conn`                 | An reference to the pool connection of wallet database                          |                 |
+    ///| `conn`                 | A reference to the pool connection of wallet database                           |                 |
     ///
     /// # Returns
     /// * txo_id_hex
@@ -193,7 +193,7 @@ pub trait TxoModel {
     ///| `output_txo`     | This is the transaction output TxOut that will be insert to database                  | Either a change or payload transaction output TxOut |
     ///| `is_change`      | A boolean value to indicate if this transaction output TxOut is a change or a payload | Assign if known                                     |
     ///| `transaction_id` | The transaction id at which the transaction output TxOut associates with              |                                                     |
-    ///| `conn`           | An reference to the pool connection of wallet database                                |                                                     |
+    ///| `conn`           | A reference to the pool connection of wallet database                                 |                                                     |
     ///
     /// # Returns
     /// * unit
@@ -220,7 +220,7 @@ pub trait TxoModel {
     ///| `public_key`         | The per output tx public key                                                                                    |                 |
     ///| `e_fog_hint`         | The encrypted fog hint for the fog ingest server.                                                               |                 |
     ///| `shared_secret`      | A cryptographic key shared between the sender and recipient that is used to decrypt the TxOut's amount and memo |                 |
-    ///| `conn`               | An reference to the pool connection of wallet database                                                          |                 |
+    ///| `conn`               | A reference to the pool connection of wallet database                                                           |                 |
     ///
     /// # Returns
     /// * unit
@@ -248,7 +248,7 @@ pub trait TxoModel {
     ///|---------------------|--------------------------------------------------------|-------|
     ///| `txo_id_hex`        | The id of the TxOut object that will be updated        |       |
     ///| `spent_block_index` | The index of block where the TxOut was spent           |       |
-    ///| `conn`              | An reference to the pool connection of wallet database |       |
+    ///| `conn`              | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns
     /// * unit
@@ -267,7 +267,7 @@ pub trait TxoModel {
     ///| `txo_id_hex`        | The id of the TxOut object that will be updated        |       |
     ///| `key_image`         | The fingerprint of the TxOut                           |       |
     ///| `spent_block_index` | The index of block where the TxOut was spent           |       |
-    ///| `conn`              | An reference to the pool connection of wallet database |       |
+    ///| `conn`              | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns
     /// * unit
@@ -298,7 +298,7 @@ pub trait TxoModel {
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                                                                                |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                                                                          |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                                                                          |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                                                                          |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -325,7 +325,7 @@ pub trait TxoModel {
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                                                                                |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                                                                          |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                                                                          |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                                                                          |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -354,7 +354,7 @@ pub trait TxoModel {
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                                                                                |
     ///| `token_id`                 | The id of a supported type of token to filter on              |                                                                                          |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                                                                          |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                                                                          |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -378,7 +378,7 @@ pub trait TxoModel {
     ///|------------------|--------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex` | The account id where the key images and Txos from      | Account must exist in the database. |
     ///| `token_id`       | The id of a supported type of token to filter on       |                                     |
-    ///| `conn`           | An reference to the pool connection of wallet database |                                     |
+    ///| `conn`           | A reference to the pool connection of wallet database  |                                     |
     ///
     /// # Returns
     /// * A hashmap of a KeyImage key and a TxOut id string
@@ -401,7 +401,7 @@ pub trait TxoModel {
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                                                                          |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.                                                                 |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                                                                                |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                                                                          |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                                                                          |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -430,7 +430,7 @@ pub trait TxoModel {
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.             |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                            |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                      |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                      |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -458,7 +458,7 @@ pub trait TxoModel {
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.             |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                            |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                      |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                      |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -485,7 +485,7 @@ pub trait TxoModel {
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.             |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                            |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                      |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                      |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -514,7 +514,7 @@ pub trait TxoModel {
     ///| `max_received_block_index` | The maximum block index to query for received txos, inclusive |                                      |
     ///| `offset`                   | The pagination offset. Results start at the offset index.     | Optional. Defaults to 0.             |
     ///| `limit`                    | Limit for the number of results.                              | Optional.                            |
-    ///| `conn`                     | An reference to the pool connection of wallet database        |                                      |
+    ///| `conn`                     | A reference to the pool connection of wallet database         |                                      |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -541,7 +541,7 @@ pub trait TxoModel {
     ///| `max_spendable_value`     | The upper limit for the spendable TxOut value to filter on |                                     |
     ///| `assigned_subaddress_b58` | The subaddress at which the list of Txos from              |                                     |
     ///| `token_id`                | The id of a supported type of token to filter on           |                                     |
-    ///| `conn`                    | An reference to the pool connection of wallet database     |                                     |
+    ///| `conn`                    | A reference to the pool connection of wallet database      |                                     |
     ///
     ///
     /// # Returns
@@ -563,7 +563,7 @@ pub trait TxoModel {
     ///| Name             | Purpose                                                | Notes                               |
     ///|------------------|--------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
-    ///| `conn`           | An reference to the pool connection of wallet database |                                     |
+    ///| `conn`           | A reference to the pool connection of wallet database  |                                     |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -577,7 +577,7 @@ pub trait TxoModel {
     ///|------------------|--------------------------------------------------------|-------------------------------------|
     ///| `account_id_hex` | The account id where the Txos from                     | Account must exist in the database. |
     ///| `token_id`       | The id of a supported type of token to filter on       |                                     |
-    ///| `conn`           | An reference to the pool connection of wallet database |                                     |
+    ///| `conn`           | A reference to the pool connection of wallet database  |                                     |
     ///
     /// # Returns
     /// * Vector of TxoOut
@@ -590,12 +590,24 @@ pub trait TxoModel {
     ///| Name         | Purpose                                                | Notes |
     ///|--------------|--------------------------------------------------------|-------|
     ///| `txo_id_hex` | The TxOut id from which to retrieve a TxOut            |       |
-    ///| `conn`       | An reference to the pool connection of wallet database |       |
+    ///| `conn`       | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns:
     /// * TxOut
     fn get(txo_id_hex: &str, conn: Conn) -> Result<Txo, WalletDbError>;
 
+    /// Get the details for a specific Txo using its public_key.
+    ///
+    /// # Arguments
+    ///
+    ///| Name         | Purpose                                                | Notes |
+    ///|--------------|--------------------------------------------------------|-------|
+    ///| `txo_pubkey` | The TxOut public key from which to retrieve a TxOut    |       |
+    ///| `conn`       | A reference to the pool connection of wallet database  |       |
+    ///
+    /// # Returns:
+    /// * TxOut
+    fn get_by_public_key(txo_pubkey: &str, conn: Conn) -> Result<Txo, WalletDbError>;
 
     /// Get several Txos by Txo public_keys
     ///
@@ -604,7 +616,7 @@ pub trait TxoModel {
     ///| Name          | Purpose                                                | Notes |
     ///|---------------|--------------------------------------------------------|-------|
     ///| `public_keys` | The public key where to retrieve Txos from             |       |
-    ///| `conn`        | An reference to the pool connection of wallet database |       |
+    ///| `conn`        | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns:
     /// * Vector of TxoOut
@@ -620,7 +632,7 @@ pub trait TxoModel {
     ///| Name      | Purpose                                                | Notes |
     ///|-----------|--------------------------------------------------------|-------|
     ///| `txo_ids` | The list of TxOut IDs from which to retrieve Txos      |       |
-    ///| `conn`    | An reference to the pool connection of wallet database |       |
+    ///| `conn`    | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns:
     /// * Vector of TxoOut
@@ -638,7 +650,7 @@ pub trait TxoModel {
     ///| `assigned_subaddress_b58`  | The subaddress where the spendable Txos can be sourced from |                                      |
     ///| `token_id`            | The id of a supported type of token to filter on           |                                     |
     ///| `default_token_fee`   | The default transaction fee in Mob network                 |                                     |
-    ///| `conn`                | An reference to the pool connection of wallet database     |                                     |
+    ///| `conn`                | A reference to the pool connection of wallet database      |                                     |
     ///
     /// # Returns:
     /// * Vector of TxoOut
@@ -661,7 +673,7 @@ pub trait TxoModel {
     ///| `account_id`   | The account id used to retrieve the account key                | Account must exist in the database. |
     ///| `txo_id_hex`   | The TxOut id used to retrieve the TxOut public_key             |                                     |
     ///| `confirmation` | The confirmation to valid the TxOut public_key and account key |                                     |
-    ///| `conn`         | An reference to the pool connection of wallet database         |                                     |
+    ///| `conn`         | A reference to the pool connection of wallet database          |                                     |
     ///
     /// # Returns:
     /// * Bool - true if verified
@@ -679,7 +691,7 @@ pub trait TxoModel {
     ///| Name         | Purpose                                                                               | Notes |
     ///|--------------|---------------------------------------------------------------------------------------|-------|
     ///| `account_id` | The account id needs to be removed from all Txos at which the account associates to   |       |
-    ///| `conn`       | An reference to the pool connection of wallet database                                |       |
+    ///| `conn`       | A reference to the pool connection of wallet database                                 |       |
     ///
     /// # Returns
     /// * unit
@@ -691,7 +703,7 @@ pub trait TxoModel {
     ///
     ///| Name   | Purpose                                                | Notes |
     ///|--------|--------------------------------------------------------|-------|
-    ///| `conn` | An reference to the pool connection of wallet database |       |
+    ///| `conn` | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns
     /// * unit
@@ -703,7 +715,7 @@ pub trait TxoModel {
     ///
     ///| Name   | Purpose                                                | Notes |
     ///|--------|--------------------------------------------------------|-------|
-    ///| `conn` | An reference to the pool connection of wallet database |       |
+    ///| `conn` | A reference to the pool connection of wallet database  |       |
     ///
     /// # Returns
     /// * TxoStatus
@@ -728,12 +740,12 @@ pub trait TxoModel {
     ///
     /// # Arguments
     ///
-    ///| Name        | Purpose                                                   | Notes                                     |
-    ///|-------------|-----------------------------------------------------------|-------------------------------------------|
-    ///| `public_key` | The compressed ristretto public to use to search for the txo. | |
-    ///| `key_image` | The Key Image to add to the txo. | |
-    ///| `spent_block_index` | The spent block index to update for the txo. |  |
-    ///| `conn` | A reference to the connection of wallet database |  |
+    ///| Name                | Purpose                                                       | Notes |
+    ///|---------------------|---------------------------------------------------------------|-------|
+    ///| `public_key`        | The compressed ristretto public to use to search for the txo. |       |
+    ///| `key_image`         | The Key Image to add to the txo.                              |       |
+    ///| `spent_block_index` | The spent block index to update for the txo.                  |       |
+    ///| `conn`              | A reference to the connection of wallet database              |       |
     ///
     /// # Returns
     /// * unit
@@ -1782,6 +1794,54 @@ impl TxoModel for Txo {
         Ok(txo)
     }
 
+    fn get_by_public_key(txo_pubkey: &str, conn: Conn) -> Result<Txo, WalletDbError> {
+        use crate::db::schema::txos;
+
+        // txo public_keys are 256 bits, but as *currently* stored in the db have a
+        // protobuf prefix of 0a20 prepended. We are in transition to unwrapping
+        // the protobuf notation wherever we can but for back/forward
+        // compatibility need to accept either format from the API's clients.
+        let pubkey = match txo_pubkey.len() {
+            68 => {
+                if !txo_pubkey.to_ascii_lowercase().starts_with("0a20") {
+                    return Err(WalletDbError::InvalidArgument(format!(
+                        "public key {txo_pubkey} is not in a valid public key format"
+                    )));
+                }
+                txo_pubkey.to_string()
+            }
+            64 => {
+                format!("0a20{}", txo_pubkey)
+            }
+            _ => {
+                return Err(WalletDbError::InvalidArgument(format!(
+                    "public key {txo_pubkey} is the wrong length"
+                )))
+            }
+        };
+
+        let public_key_blob: Vec<u8> = hex::decode(pubkey).map_err(|e| {
+            WalletDbError::InvalidArgument(format!(
+                "Invalid hex encoded public key: {txo_pubkey}: {e}"
+            ))
+        })?;
+
+        let txo = match txos::table
+            .filter(txos::public_key.eq(public_key_blob))
+            .get_result::<Txo>(conn)
+        {
+            Ok(t) => t,
+            Err(diesel::result::Error::NotFound) => {
+                return Err(WalletDbError::TxoNotFound(txo_pubkey.to_string()));
+            }
+            Err(e) => {
+                return Err(e.into());
+            }
+        };
+
+        Ok(txo)
+    }
+
     fn select_by_public_key(
         public_keys: &[&CompressedRistrettoPublic],
         conn: Conn,
@@ -1946,7 +2006,11 @@ impl TxoModel for Txo {
         let mut total: u128 = 0;
         loop {
             if total >= target_value {
-                global_log::debug!("total is greater than target value");
+                global_log::debug!(
+                    "total {} is greater than target_value {}",
+                    total,
+                    target_value
+                );
                 break;
             }
 
@@ -4012,6 +4076,133 @@ mod tests {
             Txo::select_by_public_key(&pubkeys[0..5], &mut wallet_db.get_pooled_conn().unwrap())
                 .expect("Could not get txos by public keys");
         assert_eq!(txos_and_status.len(), 5);
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_accepts_prefixed_and_raw(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([21u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let (txo_id, _tx_out, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(1 * MOB, Mob::ID),
+            0,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let db_txo = Txo::get(&txo_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let prefixed_hex = hex::encode(&db_txo.public_key);
+        let raw_hex = hex::encode(db_txo.public_key().unwrap().as_bytes());
+        let prefixed_uppercase_hex = prefixed_hex.to_ascii_uppercase();
+
+        let by_prefixed =
+            Txo::get_by_public_key(&prefixed_hex, &mut wallet_db.get_pooled_conn().unwrap())
+                .unwrap();
+        let by_prefixed_uppercase = Txo::get_by_public_key(
+            &prefixed_uppercase_hex,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+        let by_raw =
+            Txo::get_by_public_key(&raw_hex, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+
+        assert_eq!(by_prefixed, db_txo);
+        assert_eq!(by_prefixed_uppercase, db_txo);
+        assert_eq!(by_raw, db_txo);
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_bad_prefix(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([22u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let root_id = RootIdentity::from_random(&mut rng);
+        let account_key = AccountKey::from(&root_id);
+        Account::create_from_root_entropy(
+            &root_id.root_entropy,
+            Some(0),
+            None,
+            None,
+            "",
+            "".to_string(),
+            "".to_string(),
+            false,
+            &mut wallet_db.get_pooled_conn().unwrap(),
+        )
+        .unwrap();
+
+        let (txo_id, _tx_out, _key_image) = create_test_received_txo(
+            &account_key,
+            0,
+            Amount::new(1 * MOB, Mob::ID),
+            0,
+            &mut rng,
+            &wallet_db,
+        );
+
+        let db_txo = Txo::get(&txo_id, &mut wallet_db.get_pooled_conn().unwrap()).unwrap();
+        let prefixed_hex = hex::encode(&db_txo.public_key);
+        let bad_prefix = format!("0b20{}", &prefixed_hex[4..]);
+
+        let result = Txo::get_by_public_key(&bad_prefix, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(result, Err(WalletDbError::InvalidArgument(_)));
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_invalid_length(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let result = Txo::get_by_public_key("deadbeef", &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(
+            result,
+            Err(WalletDbError::InvalidArgument(msg)) if msg.contains("wrong length")
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_rejects_invalid_hex(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let bad_hex = format!("0a20{}", "zz".repeat(32));
+        let result = Txo::get_by_public_key(&bad_hex, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(
+            result,
+            Err(WalletDbError::InvalidArgument(msg)) if msg.contains("Invalid hex encoded public key")
+        );
+    }
+
+    #[test_with_logger]
+    fn test_get_by_public_key_not_found(logger: Logger) {
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger);
+
+        let missing_hex = format!("0a20{}", "11".repeat(32));
+        let result =
+            Txo::get_by_public_key(&missing_hex, &mut wallet_db.get_pooled_conn().unwrap());
+        assert_matches!(result, Err(WalletDbError::TxoNotFound(_)));
     }
 
     #[test_with_logger]
