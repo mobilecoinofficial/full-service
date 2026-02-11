@@ -14,7 +14,7 @@ use crate::{
         account::{AccountID, AccountModel},
         assigned_subaddress::AssignedSubaddressModel,
         models::{Account, AssignedSubaddress, Txo},
-        txo::TxoModel,
+        txo::{FragmentationSettings, TxoModel},
         Conn,
     },
     error::WalletTransactionBuilderError,
@@ -34,14 +34,19 @@ use mc_transaction_builder::{
     DefaultTxOutputsOrdering, InputCredentials, ReservedSubaddresses, TransactionBuilder,
 };
 use mc_transaction_core::{
-    constants::RING_SIZE,
+    constants::{MAX_OUTPUTS, RING_SIZE},
     tokens::Mob,
     tx::{TxOut, TxOutMembershipProof},
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_util_uri::FogUri;
-use rand::Rng;
-use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
+use rand::{CryptoRng, Rng, RngCore};
+use std::{
+    collections::{BTreeMap, HashMap},
+    convert::TryInto,
+    str::FromStr,
+    sync::Arc,
+};
 
 /// Default number of blocks used for calculating transaction tombstone block
 /// number.
@@ -81,6 +86,16 @@ pub struct WalletTransactionBuilder<FPR: FogPubkeyResolver + 'static> {
     /// Subaddress (index) from which to restrict TXOs for spending
     /// (optional).
     subaddress_index_to_spend_from: Option<u64>,
+
+    /// By default, the TransactionBuilder selects the smallest UTXOs that sum
+    /// to the target value, opportunistically sweeping dust. When
+    /// fragmentation settings are provided, the selection strategy changes
+    /// to prioritize larger UTXOs that can be split into multiple outputs.
+    ///
+    /// The TransactionBuilder will attempt to create additional outputs such
+    /// that the wallet maintains at least `desired_num_in_flight_txs`
+    /// UTXOs, each with value >= `min_value_to_fragment`.
+    fragmentation_settings: HashMap<TokenId, FragmentationSettings>,
 }
 
 impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
@@ -100,6 +115,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
             block_version: None,
             fog_resolver_factory,
             subaddress_index_to_spend_from: None,
+            fragmentation_settings: Default::default(),
         }
     }
 
@@ -110,6 +126,20 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
     ) -> Result<(), WalletTransactionBuilderError> {
         self.subaddress_index_to_spend_from = Some(subaddress_index);
         Ok(())
+    }
+
+    /// Sets the fragmentation settings.
+    pub fn set_fragmentation_settings(
+        &mut self,
+        token_id: TokenId,
+        fragmentation_settings: impl Into<Option<FragmentationSettings>>,
+    ) {
+        match fragmentation_settings.into() {
+            Some(fragmentation_settings) => self
+                .fragmentation_settings
+                .insert(token_id, fragmentation_settings),
+            None => self.fragmentation_settings.remove(&token_id),
+        };
     }
 
     /// Sets inputs to the txos associated with the given txo_ids. Only unspent
@@ -178,6 +208,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 spend_subaddress.as_deref(),
                 *token_id,
                 fee_value,
+                self.fragmentation_settings.get(&token_id).cloned(),
                 conn,
             )?;
         }
@@ -469,12 +500,19 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         let mut total_value_per_token = BTreeMap::new();
         total_value_per_token.insert(fee_token_id, fee as u128);
 
+        let mut num_outputs_per_token = BTreeMap::new();
+
         let mut payload_txo_contexts = Vec::new();
         for (receiver, amount, token_id) in self.outlays.clone().into_iter() {
             total_value_per_token
                 .entry(token_id)
                 .and_modify(|value| *value += amount as u128)
                 .or_insert(amount as u128);
+
+            num_outputs_per_token
+                .entry(token_id)
+                .and_modify(|value| *value += 1)
+                .or_insert(1u64);
 
             let amount = Amount::new(amount, token_id);
             let tx_out_context = transaction_builder.add_output(amount, &receiver, &mut rng)?;
@@ -518,12 +556,33 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
                 )));
             }
 
-            let change_value = input_value - *total_value;
-
+            let mut change_value = input_value - *total_value;
             if change_value > u64::MAX as u128 {
                 return Err(WalletTransactionBuilderError::ChangeLargerThanMaxValue(
                     change_value,
                 ));
+            }
+
+            if let Some(fragmentation_settings) = self.fragmentation_settings.get(&token_id) {
+                let num_existing_outputs = *num_outputs_per_token.get(&token_id).unwrap_or(&0);
+                let fragment_destination = if let Some(subaddress_index_to_spend_from) =
+                    self.subaddress_index_to_spend_from
+                {
+                    account.public_address(subaddress_index_to_spend_from)?
+                } else {
+                    reserved_subaddresses.primary_address.clone()
+                };
+
+                add_fragmentation_outputs(
+                    fragmentation_settings,
+                    num_existing_outputs,
+                    &fragment_destination,
+                    token_id,
+                    &mut transaction_builder,
+                    &mut payload_txo_contexts,
+                    &mut change_value,
+                    &mut rng,
+                )?;
             }
 
             let change_amount = Amount::new(change_value as u64, token_id);
@@ -679,6 +738,48 @@ fn blueprint_outputs_to_output_txos(
         .collect::<Result<Vec<_>, WalletTransactionBuilderError>>()
 }
 
+#[allow(clippy::too_many_arguments)]
+fn add_fragmentation_outputs<FPR: FogPubkeyResolver + 'static>(
+    fragmentation_settings: &FragmentationSettings,
+    num_existing_outputs: u64,
+    fragment_destination: &PublicAddress,
+    token_id: TokenId,
+    transaction_builder: &mut TransactionBuilder<FPR>,
+    payload_txo_contexts: &mut Vec<TxBlueprintProposalTxoContext>,
+    change_value: &mut u128,
+    rng: &mut (impl CryptoRng + RngCore),
+) -> Result<(), WalletTransactionBuilderError> {
+    // We remove one from MAX_OUTPUTS because we need to leave room for the change
+    // output.
+    let available_outputs = (MAX_OUTPUTS - 1).saturating_sub(num_existing_outputs);
+    let num_fragments = *change_value as u64 / fragmentation_settings.min_value_to_fragment;
+    let extra_fragment_outputs = std::cmp::min(available_outputs, num_fragments);
+    if extra_fragment_outputs == 0 {
+        return Ok(());
+    }
+
+    let fragment_value = *change_value as u64 / extra_fragment_outputs;
+
+    for _ in 0..extra_fragment_outputs {
+        let amount = Amount::new(fragment_value, token_id);
+        let tx_out_context = transaction_builder.add_output(amount, fragment_destination, rng)?;
+
+        payload_txo_contexts.push(TxBlueprintProposalTxoContext {
+            tx_out_context,
+            recipient_public_address: fragment_destination.clone(),
+            amount,
+        });
+
+        *change_value = change_value.checked_sub(fragment_value as u128).ok_or(
+            WalletTransactionBuilderError::InsufficientFunds(
+                "Logic error, adding a fragment output would result in negative change".to_string(),
+            ),
+        )?;
+    }
+
+    Ok(())
+}
+
 /// Build an unsigned tx from a blueprint proposal.
 ///
 /// This isn't a method on the `WalletTransactionBuilder` struct because it's
@@ -728,7 +829,7 @@ fn extract_fog_uri(addr: &PublicAddress) -> Result<Option<FogUri>, WalletTransac
 mod tests {
     use super::*;
     use crate::{
-        db::WalletDbError,
+        db::{txo::FragmentationSettings, WalletDbError},
         service::sync::SyncThread,
         test_utils::{
             builder_for_random_recipient, get_test_ledger, random_account_with_seed_values,
@@ -1813,5 +1914,276 @@ mod tests {
             *fog_recipient_fog_hint.get_view_pubkey(),
             fog_recipient.view_public_key().into(),
         );
+    }
+
+    #[async_test_with_logger]
+    async fn test_fragmentation_creates_correct_outputs(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[100 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        builder.add_recipient(recipient, 5 * MOB, Mob::ID).unwrap();
+        builder.set_fragmentation_settings(
+            Mob::ID,
+            FragmentationSettings {
+                min_value_to_fragment: 15 * MOB,
+                desired_num_in_flight_txs: 10,
+            },
+        );
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        let unsigned_tx_proposal = builder
+            .build(test_rth_memo_default_from_key(&account_key), conn)
+            .unwrap();
+
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
+
+        let unspent_value = 100 * MOB - 5 * MOB - Mob::MINIMUM_FEE;
+        let num_fragments = unspent_value / (15 * MOB);
+        let expected_fragment_value = unspent_value / num_fragments;
+
+        assert_eq!(proposal.payload_txos[0].amount.value, 5 * MOB);
+
+        let fragment_txos: Vec<_> = proposal.payload_txos.iter().skip(1).collect();
+        assert_eq!(fragment_txos.len(), num_fragments as usize);
+
+        for fragment_txo in &fragment_txos {
+            assert_eq!(fragment_txo.amount.value, expected_fragment_value);
+        }
+
+        assert_eq!(proposal.change_txos.len(), 1);
+
+        let total_fragment_value: u64 = fragment_txos.iter().map(|o| o.amount.value).sum();
+        let remaining_change = unspent_value - total_fragment_value;
+        assert_eq!(proposal.change_txos[0].amount.value, remaining_change);
+    }
+
+    #[async_test_with_logger]
+    async fn test_fragmentation_skipped_when_change_below_threshold(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[100 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        builder.add_recipient(recipient, 90 * MOB, Mob::ID).unwrap();
+        builder.set_fragmentation_settings(
+            Mob::ID,
+            FragmentationSettings {
+                min_value_to_fragment: 15 * MOB,
+                desired_num_in_flight_txs: 10,
+            },
+        );
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        let unsigned_tx_proposal = builder
+            .build(test_rth_memo_default_from_key(&account_key), conn)
+            .unwrap();
+
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
+
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].amount.value, 90 * MOB);
+
+        assert_eq!(proposal.change_txos.len(), 1);
+        let expected_change = 100 * MOB - 90 * MOB - Mob::MINIMUM_FEE;
+        assert_eq!(proposal.change_txos[0].amount.value, expected_change);
+    }
+
+    #[async_test_with_logger]
+    async fn test_fragmentation_skipped_when_enough_utxos_exist(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[20 * MOB, 20 * MOB, 20 * MOB, 20 * MOB, 20 * MOB, 10 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        builder.add_recipient(recipient, 5 * MOB, Mob::ID).unwrap();
+        builder.set_fragmentation_settings(
+            Mob::ID,
+            FragmentationSettings {
+                min_value_to_fragment: 20 * MOB,
+                desired_num_in_flight_txs: 5,
+            },
+        );
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        let unsigned_tx_proposal = builder
+            .build(test_rth_memo_default_from_key(&account_key), conn)
+            .unwrap();
+
+        assert_eq!(unsigned_tx_proposal.unsigned_input_txos.len(), 1);
+
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
+
+        assert_eq!(proposal.payload_txos.len(), 1);
+        assert_eq!(proposal.payload_txos[0].amount.value, 5 * MOB);
+
+        assert_eq!(proposal.change_txos.len(), 1);
+        let expected_change = 10 * MOB - 5 * MOB - Mob::MINIMUM_FEE;
+        assert_eq!(proposal.change_txos[0].amount.value, expected_change);
+    }
+
+    #[async_test_with_logger]
+    async fn test_fragmentation_capped_by_max_outputs(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
+
+        let db_test_context = WalletDbTestContext::default();
+        let wallet_db = db_test_context.get_db_instance(logger.clone());
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let _sync_thread = SyncThread::start(
+            ledger_db.clone(),
+            wallet_db.clone(),
+            Arc::new(Mutex::new(HashMap::<AccountID, bool>::new())),
+            logger.clone(),
+        );
+
+        let account_key = random_account_with_seed_values(
+            &wallet_db,
+            &mut ledger_db,
+            &[1000 * MOB],
+            &mut rng,
+            &logger,
+        );
+
+        let mut pooled_conn = wallet_db.get_pooled_conn().unwrap();
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID::from(&account_key), conn).unwrap();
+
+        let (recipient, mut builder) =
+            builder_for_random_recipient(&account_key, &ledger_db, &mut rng);
+
+        let num_recipients = 10;
+        for _ in 0..num_recipients {
+            builder
+                .add_recipient(recipient.clone(), 2 * MOB, Mob::ID)
+                .unwrap();
+        }
+        builder.set_fragmentation_settings(
+            Mob::ID,
+            FragmentationSettings {
+                min_value_to_fragment: 5 * MOB,
+                desired_num_in_flight_txs: 100,
+            },
+        );
+        builder.select_txos(conn, None).unwrap();
+        builder.set_tombstone(0).unwrap();
+
+        let unsigned_tx_proposal = builder
+            .build(test_rth_memo_default_from_key(&account_key), conn)
+            .unwrap();
+
+        let proposal = unsigned_tx_proposal.sign(&account).await.unwrap();
+
+        let num_fragment_outputs = 5;
+
+        assert_eq!(proposal.change_txos.len(), 1);
+
+        let total_outputs = proposal.tx.prefix.outputs.len();
+        assert_eq!(total_outputs, MAX_OUTPUTS as usize);
+
+        for i in 0..num_recipients {
+            assert_eq!(proposal.payload_txos[i].amount.value, 2 * MOB);
+        }
+
+        let total_sent = num_recipients as u64 * 2 * MOB;
+        let unspent_value = 1000 * MOB - total_sent - Mob::MINIMUM_FEE;
+        let fragment_value = unspent_value / num_fragment_outputs as u64;
+
+        for i in num_recipients..proposal.payload_txos.len() {
+            assert_eq!(proposal.payload_txos[i].amount.value, fragment_value);
+        }
+
+        let total_fragment_value = fragment_value * num_fragment_outputs as u64;
+        let remaining_change = unspent_value - total_fragment_value;
+        assert_eq!(proposal.change_txos[0].amount.value, remaining_change);
+
+        let total_output_value: u64 = proposal
+            .payload_txos
+            .iter()
+            .chain(proposal.change_txos.iter())
+            .map(|o| o.amount.value)
+            .sum();
+        assert_eq!(total_output_value, 1000 * MOB - Mob::MINIMUM_FEE);
     }
 }
