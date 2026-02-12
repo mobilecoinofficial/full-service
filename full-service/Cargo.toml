@@ -78,7 +78,7 @@ grpcio = { version = "0.13", default-features = false, features = ["prost-codec"
 hex = { version = "0.4", default-features = false }
 hex_fmt = "0.3.0"
 itertools = "0.10.5"
-libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.36", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
 prost = "0.11"
 rand = { version = "0.8", default-features = false }
