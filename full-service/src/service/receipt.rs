@@ -20,7 +20,7 @@ use crate::{
     WalletService,
 };
 use displaydoc::Display;
-use mc_account_keys::AccountKey;
+use mc_account_keys::ViewAccountKey;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -240,7 +240,7 @@ where
         }
 
         // Decrypt the amount to get the expected value
-        let account_key: AccountKey = mc_util_serial::decode(&account.account_key)?;
+        let account_key: ViewAccountKey = mc_util_serial::decode(&account.account_key)?;
         let public_key: RistrettoPublic = RistrettoPublic::try_from(&receiver_receipt.public_key)?;
         let shared_secret = get_tx_out_shared_secret(account_key.view_private_key(), &public_key);
         let expected_value = match receiver_receipt.amount.get_value(&shared_secret) {
