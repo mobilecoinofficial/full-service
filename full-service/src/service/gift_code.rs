@@ -10,6 +10,7 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
         gift_code::GiftCodeModel,
         models::{Account, GiftCode},
@@ -20,8 +21,8 @@ use crate::{
         account::AccountServiceError,
         address::{AddressService, AddressServiceError},
         ledger::{LedgerService, LedgerServiceError},
-        models::tx_proposal::TxProposal,
-        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
+        models::{transaction_memo::TransactionMemo, tx_proposal::TxProposal},
+        transaction::{TransactionService, TransactionServiceError},
         transaction_builder::DEFAULT_NEW_TX_BLOCK_ATTEMPTS,
         WalletService,
     },
@@ -526,7 +527,11 @@ where
 
         let fee_value = fee.map(|f| f.to_string());
 
-        let unsigned_tx_proposal = self.build_transaction(
+        let sender_credentials_identify_as = self
+            .get_address_for_account(from_account_id, DEFAULT_SUBADDRESS_INDEX as i64)?
+            .public_address()?;
+
+        let unsigned_tx_proposal = self.build_unsigned_transaction(
             &from_account.id,
             &[(
                 gift_code_account_main_subaddress_b58,
@@ -541,7 +546,8 @@ where
             tombstone_block.map(|t| t.to_string()),
             max_spendable_value.map(|f| f.to_string()),
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                sender_credentials_identify_as,
             },
             None,
             None, /* NOTE: Assuming for now that we will not support spend_subaddress
@@ -800,8 +806,7 @@ where
         memo_builder.enable_destination_memo();
         let block_version = self.get_network_block_version()?;
         let fee = Amount::new(Mob::MINIMUM_FEE, Mob::ID);
-        let mut transaction_builder =
-            TransactionBuilder::new(block_version, fee, fog_resolver, memo_builder)?;
+        let mut transaction_builder = TransactionBuilder::new(block_version, fee, fog_resolver)?;
         transaction_builder.add_input(input_credentials);
         transaction_builder.add_output(
             Amount::new(gift_value as u64 - Mob::MINIMUM_FEE, Mob::ID),
@@ -812,7 +817,7 @@ where
         let num_blocks_in_ledger = self.ledger_db.num_blocks()?;
         transaction_builder
             .set_tombstone_block(num_blocks_in_ledger + DEFAULT_NEW_TX_BLOCK_ATTEMPTS);
-        let tx = transaction_builder.build(&NoKeysRingSigner {}, &mut rng)?;
+        let tx = transaction_builder.build(&NoKeysRingSigner {}, memo_builder, &mut rng)?;
 
         let responder_ids = self.peer_manager.responder_ids();
         if responder_ids.is_empty() {

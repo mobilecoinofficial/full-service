@@ -119,7 +119,7 @@ fn rocket() -> Rocket<Build> {
 
     let webhook_config = config.deposits_webhook_url.clone().map(|wu| WebhookConfig {
         url: wu,
-        poll_interval: config.poll_interval.clone(),
+        poll_interval: config.poll_interval,
     });
 
     let rocket = if let Some(validator_uri) = config.validator.as_ref() {

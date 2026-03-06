@@ -5,6 +5,8 @@ use crate::{
     hardware_service::api::{request::JsonCommandRequest, response::JsonCommandResponse},
 };
 use anyhow::{anyhow, Result};
+use base64::{engine::general_purpose, Engine};
+use mc_account_keys::{ViewAccountKey, DEFAULT_SUBADDRESS_INDEX};
 use mc_common::logger::global_log;
 use mc_full_service::{
     json_rpc::{
@@ -12,7 +14,11 @@ use mc_full_service::{
         json_rpc_response::{format_error, format_invalid_request_error, JsonRPCResponse},
         v2::models::tx_proposal::TxProposal as TxProposalJSON,
     },
-    service::models::tx_proposal::UnsignedTxProposal,
+    service::{
+        account::get_public_fog_address,
+        hardware_wallet::get_view_only_subaddress_keys,
+        models::{tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::UnsignedTxProposal},
+    },
 };
 use rocket::{get, post, serde::json::Json};
 
@@ -69,12 +75,37 @@ pub async fn hardware_service_api(
 
 async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonCommandResponse> {
     let response = match command {
-        JsonCommandRequest::get_account {} => {
+        JsonCommandRequest::get_account { fog_info } => {
             let account_info = hardware_service::get_account().await?;
             let hardware_account_id = hardware_service::get_account_id(account_info.clone());
+
+            let default_public_address = match fog_info {
+                Some(fog_info) => {
+                    let fog_authority_spki = general_purpose::STANDARD
+                        .decode(fog_info.authority_spki)
+                        .map_err(|e| anyhow!(e))?;
+                    let default_subaddress_keys =
+                        get_view_only_subaddress_keys(DEFAULT_SUBADDRESS_INDEX)
+                            .await
+                            .map_err(|e| anyhow!(e))?;
+
+                    get_public_fog_address(
+                        &default_subaddress_keys,
+                        fog_info.report_url.clone(),
+                        &fog_authority_spki,
+                    )
+                }
+                None => ViewAccountKey::new(
+                    *account_info.view_private.as_ref(),
+                    *account_info.spend_public.as_ref(),
+                )
+                .default_subaddress(),
+            };
+
             JsonCommandResponse::get_account {
                 account_id: hardware_account_id,
                 account_info,
+                default_public_address: default_public_address.into(),
             }
         }
         JsonCommandRequest::sync_txos {
@@ -92,11 +123,8 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
             account_id,
             unsigned_tx_proposal,
         } => {
-            let unsigned_tx_proposal: UnsignedTxProposal =
-                mc_full_service::service::models::tx_proposal::UnsignedTxProposal::try_from(
-                    &unsigned_tx_proposal,
-                )
-                .map_err(|e| anyhow!(e))?;
+            let unsigned_tx_proposal =
+                UnsignedTxProposal::try_from(&unsigned_tx_proposal).map_err(|e| anyhow!(e))?;
             let signed_tx_proposal =
                 hardware_service::sign_tx(account_id.clone(), unsigned_tx_proposal).await?;
             let tx_proposal: TxProposalJSON =
@@ -105,6 +133,18 @@ async fn hardware_service_api_inner(command: JsonCommandRequest) -> Result<JsonC
                 )
                 .map_err(|e| anyhow!(e))?;
             JsonCommandResponse::sign_tx { tx_proposal }
+        }
+        JsonCommandRequest::sign_tx_blueprint {
+            tx_blueprint_proposal,
+        } => {
+            let tx_blueprint_proposal: TxBlueprintProposal =
+                TxBlueprintProposal::try_from(&tx_blueprint_proposal).map_err(|e| anyhow!(e))?;
+
+            let signed_tx_proposal =
+                hardware_service::sign_tx_blueprint(tx_blueprint_proposal).await?;
+            let tx_proposal =
+                TxProposalJSON::try_from(&signed_tx_proposal).map_err(|e| anyhow!(e))?;
+            JsonCommandResponse::sign_tx_blueprint { tx_proposal }
         }
     };
 

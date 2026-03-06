@@ -11,13 +11,12 @@ use mc_connection::{
 use mc_ledger_db::LedgerDB;
 use mc_transaction_core::{tokens::Mob, Token};
 use mc_util_grpc::{rpc_logger, rpc_precondition_error, send_result};
-use mc_validator_api::{
-    consensus_common::{BlocksRequest, BlocksResponse, LastBlockInfoResponse},
-    consensus_common_grpc::{create_blockchain_api, BlockchainApi as GrpcBlockchainApi},
-    empty::Empty,
+use mc_validator_api::consensus_common::{
+    create_blockchain_api, BlockchainApi as GrpcBlockchainApi, BlocksRequest, BlocksResponse,
+    LastBlockInfoResponse,
 };
 use rayon::prelude::*; // For par_iter
-use std::{collections::HashMap, iter::FromIterator};
+use std::{collections::BTreeMap, iter::FromIterator};
 
 pub struct BlockchainApi<BC: BlockchainConnection + 'static> {
     /// Ledger DB.
@@ -89,24 +88,22 @@ impl<BC: BlockchainConnection + 'static> BlockchainApi<BC> {
             ));
         }
 
-        let mut resp = LastBlockInfoResponse::new();
-
-        resp.set_index(latest_network_block.block_index);
-        resp.set_network_block_version(latest_network_block.network_block_version);
-
-        // Use minimum fee information from the network (which we previously verified
-        // all nodes agree on).
-        resp.set_mob_minimum_fee(
-            latest_network_block
+        #[allow(deprecated)] // mob_minimum_fee is deprecated
+        let resp = LastBlockInfoResponse {
+            index: latest_network_block.block_index,
+            network_block_version: latest_network_block.network_block_version,
+            // Use minimum fee information from the network (which we previously verified
+            // all nodes agree on).
+            mob_minimum_fee: latest_network_block
                 .minimum_fee_or_none(&Mob::ID)
                 .unwrap_or(Mob::MINIMUM_FEE),
-        );
-        resp.set_minimum_fees(HashMap::from_iter(
-            latest_network_block
-                .minimum_fees
-                .iter()
-                .map(|(token_id, fee)| (**token_id, *fee)),
-        ));
+            minimum_fees: BTreeMap::from_iter(
+                latest_network_block
+                    .minimum_fees
+                    .iter()
+                    .map(|(token_id, fee)| (**token_id, *fee)),
+            ),
+        };
 
         Ok(resp)
     }
@@ -116,7 +113,7 @@ impl<BC: BlockchainConnection + 'static> GrpcBlockchainApi for BlockchainApi<BC>
     fn get_last_block_info(
         &mut self,
         ctx: RpcContext,
-        _request: Empty,
+        _request: (),
         sink: UnarySink<LastBlockInfoResponse>,
     ) {
         mc_common::logger::scoped_global_logger(&rpc_logger(&ctx, &self.logger), |logger| {

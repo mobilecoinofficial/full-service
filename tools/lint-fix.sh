@@ -15,8 +15,8 @@ source "${location}/.shared-functions.sh"
 debug "RELEASE_DIR: ${RELEASE_DIR:?}"
 
 SGX_MODE=SW
-CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/consensus-enclave.css")
-INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${RELEASE_DIR}/ingest-enclave.css")
+CONSENSUS_ENCLAVE_CSS=$(get_css_file "${net}" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/consensus-enclave.css")
+INGEST_ENCLAVE_CSS=$(get_css_file "${net}" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/ingest-enclave.css")
 export SGX_MODE CONSENSUS_ENCLAVE_CSS INGEST_ENCLAVE_CSS
 
 # Find all Cargo.toml files with a workspace and run cargo fmt and cargo clippy on them

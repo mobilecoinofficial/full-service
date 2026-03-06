@@ -14,6 +14,7 @@ pub mod public_address;
 pub mod receiver_receipt;
 pub mod signed_contingent_input;
 pub mod transaction_log;
+pub mod tx_blueprint_proposal;
 pub mod tx_proposal;
 pub mod txo;
 pub mod wallet_status;

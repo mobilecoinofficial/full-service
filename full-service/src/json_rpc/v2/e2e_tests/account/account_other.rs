@@ -12,17 +12,14 @@ mod e2e_account {
         util::b58::b58_decode_public_address,
     };
 
+    use bip39::{Language, Mnemonic};
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_core::slip10::Slip10KeyGenerator;
     use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
-
-    use bip39::{Language, Mnemonic};
     use rand::{rngs::StdRng, SeedableRng};
     use serde_json::json;
-
-    use std::convert::TryFrom;
 
     #[test_with_logger]
     fn test_export_account_secrets(logger: Logger) {
@@ -65,10 +62,9 @@ mod e2e_account {
         let account_key: AccountKey = slip_10_key.into();
 
         assert_eq!(
-            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::try_from(
+            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::from(
                 &account_key
-            )
-            .unwrap()),
+            )),
             secrets["account_key"]
         );
     }
@@ -115,10 +111,9 @@ mod e2e_account {
         entropy_slice[0..32].copy_from_slice(hex::decode(entropy).unwrap().as_slice());
         let account_key = AccountKey::from(&RootIdentity::from(&RootEntropy::from(&entropy_slice)));
         assert_eq!(
-            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::try_from(
+            serde_json::json!(json_rpc::v2::models::account_key::AccountKey::from(
                 &account_key
-            )
-            .unwrap()),
+            )),
             secrets["account_key"]
         );
     }

@@ -1,9 +1,8 @@
 use crate::query::QueryManager;
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
-use mc_full_service_mirror::{
-    wallet_service_mirror_api::{PollRequest, PollResponse},
-    wallet_service_mirror_api_grpc::{create_wallet_service_mirror, WalletServiceMirror},
+use mc_full_service_mirror::wallet_service_mirror_api::{
+    create_wallet_service_mirror, PollRequest, PollResponse, WalletServiceMirror,
 };
 use mc_util_grpc::{rpc_logger, send_result};
 
@@ -30,7 +29,7 @@ impl MirrorService {
 
     fn poll_impl(&self, request: PollRequest, logger: &Logger) -> Result<PollResponse, RpcStatus> {
         // Go over any responses we may have received and attempt to resolve them.
-        for (query_id, query_response) in request.get_query_responses().iter() {
+        for (query_id, query_response) in request.query_responses.iter() {
             match self.query_manager.resolve_query(query_id, query_response) {
                 Ok(()) => log::info!(logger, "Query {} resolved", query_id),
                 Err(err) => log::error!(logger, "Query {} failed resolving: {}", query_id, err),
@@ -43,13 +42,13 @@ impl MirrorService {
         log::debug!(
             logger,
             "Polled with {} returned responses and {} new requests",
-            request.get_query_responses().len(),
+            request.query_responses.len(),
             pending_requests.len()
         );
 
-        let mut response = PollResponse::new();
-        response.set_query_requests(pending_requests);
-        Ok(response)
+        Ok(PollResponse {
+            query_requests: pending_requests.into_iter().collect(),
+        })
     }
 }
 

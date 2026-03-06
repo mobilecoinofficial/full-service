@@ -760,7 +760,6 @@ mod e2e_transaction {
         );
 
         let tx_log_id_and_proposals = (0..2)
-            .into_iter()
             .map(|_| {
                 let body = json!({
                     "jsonrpc": "2.0",

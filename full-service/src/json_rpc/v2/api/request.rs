@@ -2,12 +2,15 @@
 
 //! The JSON RPC 2.0 Requests to the Wallet API for Full Service.
 
-use crate::json_rpc::{
-    json_rpc_request::JsonRPCRequest,
-    v2::models::{
-        account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
-        tx_proposal::TxProposal,
+use crate::{
+    json_rpc::{
+        json_rpc_request::JsonRPCRequest,
+        v2::models::{
+            account_key::FogInfo, amount::Amount, receiver_receipt::ReceiverReceipt,
+            tx_blueprint_proposal::TxBlueprintProposal, tx_proposal::TxProposal,
+        },
     },
+    util::b58::b58_public_address::B58PublicAddress,
 };
 
 use mc_mobilecoind_json::data_types::JsonTxOut;
@@ -38,6 +41,7 @@ impl TryFrom<&JsonRPCRequest> for JsonCommandRequest {
 #[derive(Deserialize, Serialize, EnumIter, Debug)]
 #[serde(tag = "method", content = "params")]
 #[allow(non_camel_case_types)]
+#[allow(clippy::large_enum_variant)]
 pub enum JsonCommandRequest {
     assign_address_for_account {
         account_id: String,
@@ -109,6 +113,21 @@ pub enum JsonCommandRequest {
         tombstone_block: Option<String>,
         max_spendable_value: Option<String>,
         block_version: Option<String>,
+        spend_subaddress: Option<String>,
+    },
+    build_tx_blueprint {
+        account_id: String,
+        addresses_and_amounts: Option<Vec<(String, Amount)>>,
+        recipient_public_address: Option<String>,
+        amount: Option<Amount>,
+        input_txo_ids: Option<Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        block_version: Option<String>,
+        sender_memo_credential_subaddress_index: Option<String>,
+        payment_request_id: Option<String>,
         spend_subaddress: Option<String>,
     },
     check_b58_type {
@@ -209,7 +228,8 @@ pub enum JsonCommandRequest {
         outputs: Vec<JsonTxOut>,
     },
     get_txo {
-        txo_id: String,
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
     },
     get_txos {
         account_id: Option<String>,
@@ -256,8 +276,13 @@ pub enum JsonCommandRequest {
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
-        #[serde(default = "bool::default")] // default is false
+        #[serde(default)] // default is false
         require_spend_subaddress: bool,
+        #[serde(default)]
+        fog_enabled: bool,
+        // The default public address (required when fog_enabled = true)
+        #[serde(default)]
+        default_public_address: Option<B58PublicAddress>,
     },
     import_view_only_account_from_hardware_wallet {
         name: Option<String>,
@@ -282,6 +307,9 @@ pub enum JsonCommandRequest {
     set_require_spend_subaddress {
         account_id: String,
         require_spend_subaddress: bool,
+    },
+    sign_and_submit_tx_blueprint {
+        tx_blueprint_proposal: TxBlueprintProposal,
     },
     submit_transaction {
         tx_proposal: TxProposal,

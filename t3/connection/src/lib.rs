@@ -15,8 +15,8 @@ use std::{
     sync::Arc,
 };
 use t3_api::{
-    external::CompressedRistretto, t3_grpc::TransactionServiceClient, CreateTransactionRequest,
-    FindTransactionsRequest, ListTransactionsRequest, T3Uri, TestErrorRequest,
+    external::CompressedRistretto, CreateTransactionRequest, FindTransactionsRequest,
+    ListTransactionsRequest, T3Uri, TestErrorRequest, TransactionServiceClient,
     TransparentTransaction,
 };
 
@@ -41,8 +41,8 @@ impl T3Connection {
     pub fn new(uri: &T3Uri, api_key: String, logger: Logger) -> Self {
         let env = Arc::new(EnvBuilder::new().name_prefix("T3RPC").build());
         let ch = ChannelBuilder::new(env)
-            .max_receive_message_len(std::i32::MAX)
-            .max_send_message_len(std::i32::MAX)
+            .max_receive_message_len(i32::MAX)
+            .max_send_message_len(i32::MAX)
             .connect_to_uri(uri, &logger);
 
         let transaction_service_client = TransactionServiceClient::new(ch);
@@ -60,55 +60,55 @@ impl T3Connection {
         public_keys: Vec<CompressedRistretto>,
         public_key_hex: Vec<String>,
     ) -> Result<Vec<TransparentTransaction>, Error> {
-        let mut request = FindTransactionsRequest::new();
-        request.set_address_hashes(address_hashes.into());
-        request.set_public_keys(public_keys.into());
-        request.set_public_key_hex(public_key_hex.into());
+        let request = FindTransactionsRequest {
+            address_hashes,
+            public_keys,
+            public_key_hex,
+            addresses: vec![],
+        };
 
         let response = self
             .transaction_service_client
-            .find_transactions_opt(&request, common_headers_call_option(&self.api_key));
+            .find_transactions_opt(&request, common_headers_call_option(&self.api_key))?;
 
-        Ok(response.map(|mut response| response.take_transactions().to_vec())?)
+        Ok(response.transactions)
     }
 
     pub fn list_transactions(
         &self,
         created_since: u64,
     ) -> Result<Vec<TransparentTransaction>, Error> {
-        let mut request = ListTransactionsRequest::new();
-        request.set_created_since(created_since);
+        let request = ListTransactionsRequest { created_since };
 
         let response = self
             .transaction_service_client
-            .list_transactions_opt(&request, common_headers_call_option(&self.api_key));
+            .list_transactions_opt(&request, common_headers_call_option(&self.api_key))?;
 
-        Ok(response.map(|mut response| response.take_transactions().to_vec())?)
+        Ok(response.transactions)
     }
 
     pub fn create_transaction(
         &self,
         transparent_transaction: TransparentTransaction,
     ) -> Result<TransparentTransaction, Error> {
-        let mut request = CreateTransactionRequest::new();
-        request.set_transaction(transparent_transaction);
+        let request = CreateTransactionRequest {
+            transaction: Some(transparent_transaction),
+        };
 
         let response = self
             .transaction_service_client
-            .create_transaction_opt(&request, common_headers_call_option(&self.api_key));
+            .create_transaction_opt(&request, common_headers_call_option(&self.api_key))?;
 
-        Ok(response.map(|mut response| response.take_transaction())?)
+        Ok(response.transaction.unwrap_or_default())
     }
 
     pub fn test_error(&self, code: i32) -> Result<(), Error> {
-        let mut request = TestErrorRequest::new();
-        request.set_code(code);
+        let request = TestErrorRequest { code };
 
-        let response = self
-            .transaction_service_client
-            .test_error_opt(&request, common_headers_call_option(&self.api_key));
+        self.transaction_service_client
+            .test_error_opt(&request, common_headers_call_option(&self.api_key))?;
 
-        Ok(response.map(|_| ())?)
+        Ok(())
     }
 }
 

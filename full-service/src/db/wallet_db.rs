@@ -213,13 +213,34 @@ impl WalletDb {
             //
             // If the spend public key is already raw bytes, we can assume the rest of the
             // subaddresses are too, so we can return early.
+            //
+            // To future-proof this for other changes to key format, specifically check for
+            // pre v2.0.0 protobuf spend public keys which will be length 34 and start with
+            // 0x0a20. and if not that format, skip the conversion.
+            //
+            // for our current keys, the raw bytes will be 32 bytes long but may
+            // coincidentally start with a pattern that a protobuf parser would
+            // recognize as a valid prefix, so the length check is necessary to
+            // prevent false positive conversions.
+            if assigned_subaddress.spend_public_key.len() != 34
+                || assigned_subaddress.spend_public_key[0..2] != [0x0a, 0x20]
+            {
+                global_log::debug!(
+                    "Assigned subaddress proto conversion already done, skipping..."
+                );
+                return;
+            }
+
             let spend_public_key_bytes = match mc_util_serial::decode::<RistrettoPublic>(
                 &assigned_subaddress.spend_public_key,
             ) {
                 Ok(spend_public_key) => spend_public_key.to_bytes().to_vec(),
-                Err(_) => {
-                    global_log::debug!(
-                        "Assigned subaddress proto conversion already done, skipping..."
+                Err(e) => {
+                    global_log::error!(
+                        "Assigned subaddress_index {} of account_id {} proto conversion failed: {:?}, discontinuing scan", 
+                        assigned_subaddress.subaddress_index,
+                        assigned_subaddress.account_id,
+                        e
                     );
                     return;
                 }

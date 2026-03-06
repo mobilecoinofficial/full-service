@@ -15,13 +15,15 @@ use crate::{
     error::WalletTransactionBuilderError,
     json_rpc::v2::models::amount::Amount,
     service::{
+        address::{AddressService, AddressServiceError},
         ledger::LedgerServiceError,
-        models::tx_proposal::TxProposal,
-        transaction::{TransactionMemo, TransactionService, TransactionServiceError},
+        models::{transaction_memo::TransactionMemo, tx_proposal::TxProposal},
+        transaction::{TransactionService, TransactionServiceError},
     },
     WalletService,
 };
 use displaydoc::Display;
+use mc_account_keys::DEFAULT_SUBADDRESS_INDEX;
 use mc_connection::{BlockchainConnection, UserTxConnection};
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::FeeMapError;
@@ -45,13 +47,16 @@ pub enum TxoServiceError {
     /// Error with the Transaction Service: {0}
     TransactionService(TransactionServiceError),
 
+    /// Error with the Address Service: {0}
+    AddressService(AddressServiceError),
+
     /// No account found to spend this txo
     TxoNotSpendableByAnyAccount(String),
 
     /// Txo Not Spendable
     TxoNotSpendable(String),
 
-    /// Must query with either an account ID or a subaddress b58.
+    /// Query is missing required parameters or has inconsistent parameters
     InvalidQuery(String),
 
     /// Error decoding
@@ -97,6 +102,12 @@ impl From<diesel::result::Error> for TxoServiceError {
 impl From<TransactionServiceError> for TxoServiceError {
     fn from(src: TransactionServiceError) -> Self {
         Self::TransactionService(src)
+    }
+}
+
+impl From<AddressServiceError> for TxoServiceError {
+    fn from(src: AddressServiceError) -> Self {
+        Self::AddressService(src)
     }
 }
 
@@ -176,17 +187,19 @@ pub trait TxoService {
         limit: Option<u64>,
     ) -> Result<Vec<TxoInfo>, TxoServiceError>;
 
-    /// Get a Txo from the wallet.
+    /// Get a Txo from the wallet. Must provide exactly one of the arguments
     ///
     /// # Arguments
     ///
-    ///| Name     | Purpose                              | Notes |
-    ///|----------|--------------------------------------|-------|
-    ///| `txo_id` | The TXO ID for which to get details. |       |
+    ///| Name             | Purpose                                      | Notes       |
+    ///|------------------|----------------------------------------------|-------------|
+    ///| `txo_id`         | The TXO ID for which to get details.         | hex encoded |
+    ///| `txo_public_key` | The TXO PUBLIC KEY for which to get details. | hex encoded |
     ///
     fn get_txo(
-        &self, 
-        txo_id: &TxoID
+        &self,
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
     ) -> Result<TxoInfo, TxoServiceError>;
 
     /// Build a transaction that will split a txo into multiple output txos to the origin account.
@@ -281,10 +294,28 @@ where
         Ok(txo_infos)
     }
 
-    fn get_txo(&self, txo_id: &TxoID) -> Result<TxoInfo, TxoServiceError> {
+    fn get_txo(
+        &self,
+        txo_id: Option<String>,
+        txo_public_key: Option<String>,
+    ) -> Result<TxoInfo, TxoServiceError> {
         let mut pooled_conn = self.get_pooled_conn()?;
         let conn = pooled_conn.deref_mut();
-        let txo = Txo::get(&txo_id.to_string(), conn)?;
+
+        let txo = match (txo_id.as_deref(), txo_public_key.as_deref()) {
+            (None, None) => {
+                return Err(TxoServiceError::InvalidQuery(
+                    "missing parameter: must include one of txo_id or txo_public_key".to_string(),
+                ))
+            }
+            (Some(_), Some(_)) => return Err(TxoServiceError::InvalidQuery(
+                "mutually exclusive parameters: can include only one of txo_id and txo_public_key"
+                    .to_string(),
+            )),
+            (None, Some(public_key)) => Txo::get_by_public_key(public_key, conn)?,
+            (Some(id), None) => Txo::get(id, conn)?,
+        };
+
         let status = txo.status(conn)?;
         let memo = txo.memo(conn)?;
         Ok(TxoInfo { txo, memo, status })
@@ -327,7 +358,14 @@ where
             ))
         }
 
-        let unsigned_transaction = self.build_transaction(
+        let sender_credentials_identify_as = self
+            .get_address_for_account(
+                &AccountID::from(account_id_hex.clone()),
+                DEFAULT_SUBADDRESS_INDEX as i64,
+            )?
+            .public_address()?;
+
+        let unsigned_transaction = self.build_unsigned_transaction(
             &account_id_hex,
             &addresses_and_amounts,
             Some(&[txo_id.to_string()].to_vec()),
@@ -336,7 +374,8 @@ where
             tombstone_block,
             None,
             TransactionMemo::RTH {
-                subaddress_index: None,
+                subaddress_index: DEFAULT_SUBADDRESS_INDEX,
+                sender_credentials_identify_as,
             },
             None,
             None,
@@ -450,9 +489,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                crate::test_utils::test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -488,5 +525,79 @@ mod tests {
         assert_eq!(balance_pmob.pending, 100 * MOB as u128);
         assert_eq!(balance_pmob.spent, 0);
         assert_eq!(balance_pmob.orphaned, 0);
+    }
+
+    #[async_test_with_logger]
+    async fn test_get_txo_by_id_and_public_key(logger: Logger) {
+        let mut rng: StdRng = SeedableRng::from_seed([21u8; 32]);
+
+        let known_recipients: Vec<PublicAddress> = Vec::new();
+        let mut ledger_db = get_test_ledger(5, &known_recipients, 12, &mut rng);
+
+        let service = setup_wallet_service(ledger_db.clone(), None, logger.clone());
+        let alice = service
+            .create_account(
+                Some("Alice's Main Account".to_string()),
+                "".to_string(),
+                "".to_string(),
+                false,
+            )
+            .unwrap();
+
+        let alice_account_key: AccountKey = mc_util_serial::decode(&alice.account_key).unwrap();
+        let alice_account_id = AccountID::from(&alice_account_key);
+        let alice_public_address = alice_account_key.default_subaddress();
+        add_block_to_ledger_db(
+            &mut ledger_db,
+            &vec![alice_public_address],
+            100 * MOB,
+            &[KeyImage::from(rng.next_u64())],
+            &mut rng,
+        );
+
+        manually_sync_account(
+            &ledger_db,
+            service.wallet_db.as_ref().unwrap(),
+            &alice_account_id,
+            &logger,
+        );
+
+        let txos = service
+            .list_txos(
+                Some(alice_account_id.to_string()),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .unwrap();
+        assert_eq!(txos.len(), 1);
+        let txo_id = txos[0].txo.id.clone();
+        let txo_public_key = hex::encode(&txos[0].txo.public_key);
+
+        let by_id = service.get_txo(Some(txo_id.clone()), None).unwrap();
+        assert_eq!(by_id.txo.id, txo_id);
+
+        let by_public_key = service.get_txo(None, Some(txo_public_key.clone())).unwrap();
+        assert_eq!(by_public_key.txo.id, txo_id);
+
+        match service.get_txo(None, None) {
+            Err(TxoServiceError::InvalidQuery(msg)) => assert_eq!(
+                msg,
+                "missing parameter: must include one of txo_id or txo_public_key"
+            ),
+            other => panic!("Expected InvalidQuery error, got: {:?}", other),
+        }
+
+        match service.get_txo(Some(txo_id), Some(txo_public_key)) {
+            Err(TxoServiceError::InvalidQuery(msg)) => assert_eq!(
+                msg,
+                "mutually exclusive parameters: can include only one of txo_id and txo_public_key"
+            ),
+            other => panic!("Expected InvalidQuery error, got: {:?}", other),
+        }
     }
 }

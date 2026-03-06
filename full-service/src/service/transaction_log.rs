@@ -48,7 +48,7 @@ pub trait TransactionLogService {
     /// List all transactions associated with the given Account ID.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name              | Purpose                                                   | Notes                              |
     ///|-------------------|-----------------------------------------------------------|------------------------------------|
     ///| `account_id`      | The account id to scan for transaction logs               | Account must exist in the database |
@@ -126,14 +126,12 @@ mod tests {
         db::account::AccountID,
         json_rpc::v2::models::amount::Amount,
         service::{
-            account::AccountService,
-            address::AddressService,
-            transaction::{TransactionMemo, TransactionService},
+            account::AccountService, address::AddressService, transaction::TransactionService,
             transaction_log::TransactionLogService,
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            setup_wallet_service, test_rth_memo_default_from_key, MOB,
         },
     };
     use mc_account_keys::{AccountKey, PublicAddress};
@@ -207,9 +205,7 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH {
-                        subaddress_index: None,
-                    },
+                    test_rth_memo_default_from_key(&alice_account_key),
                     None,
                     None,
                 )

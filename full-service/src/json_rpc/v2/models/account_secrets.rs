@@ -99,11 +99,7 @@ impl TryFrom<&Account> for AccountSecrets {
                 entropy,
                 mnemonic,
                 key_derivation_version: src.key_derivation_version.to_string(),
-                account_key: Secret::new(Some(AccountKey::try_from(&account_key).map_err(
-                    |err| {
-                        format!("Could not convert account_key to json_rpc representation: {err:?}")
-                    },
-                )?)),
+                account_key: Secret::new(Some(AccountKey::from(&account_key))),
                 view_account_key: Secret::new(None),
                 require_spend_subaddress: src.require_spend_subaddress,
             })

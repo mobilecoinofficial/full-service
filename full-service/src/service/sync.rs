@@ -372,10 +372,11 @@ pub fn decode_subaddress_index(
         .map(|(idx, _b58)| idx as u64)
 }
 
-/// Attempt to match the target address with one of our subaddresses. This
-/// should only be done on tx-outs that have already had their amounts decoded.
-/// If this fails, then the transaction is "orphaned", meaning we haven't
-/// generated the correct subaddress yet.
+/// Attempt to match the target address with one of our subaddresses.
+///
+/// This should only be done on tx-outs that have already had their amounts
+/// decoded. If this fails, then the transaction is "orphaned", meaning we
+/// haven't generated the correct subaddress yet.
 ///
 /// Key images will only be generated if the `account_key` is provided.
 pub fn decode_subaddress_and_key_image(

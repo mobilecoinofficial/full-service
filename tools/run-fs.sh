@@ -91,7 +91,7 @@ case "${net}" in
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${RELEASE_DIR}/ingest-enclave.css")
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "test" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/ingest-enclave.css")
         fi
         ;;
     main)
@@ -105,7 +105,7 @@ case "${net}" in
         then
             MC_PEER="mc://node1.${domain_name}/,mc://node2.${domain_name}/"
             MC_TX_SOURCE_URL="${tx_source_base}/node1.${domain_name}/,${tx_source_base}/node2.${domain_name}/"
-            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${RELEASE_DIR}/ingest-enclave.css")
+            MC_FOG_INGEST_ENCLAVE_CSS=$(get_css_file "prod" "${ENCLAVE_RELEASE_TAG}" "${RELEASE_DIR}/ingest-enclave.css")
         fi
         ;;
     alpha)

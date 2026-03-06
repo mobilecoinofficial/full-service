@@ -5,8 +5,9 @@
 use crate::{
     db::{
         account::{AccountID, AccountModel},
+        assigned_subaddress::AssignedSubaddressModel,
         exclusive_transaction,
-        models::{Account, TransactionLog},
+        models::{Account, AssignedSubaddress, TransactionLog},
         transaction_log::{AssociatedTxos, TransactionLogModel, ValueMap},
         WalletDbError,
     },
@@ -15,35 +16,36 @@ use crate::{
     service::{
         address::{AddressService, AddressServiceError},
         ledger::{LedgerService, LedgerServiceError},
-        models::tx_proposal::{TxProposal, UnsignedTxProposal},
-        transaction_builder::WalletTransactionBuilder,
+        models::{
+            transaction_memo::TransactionMemo,
+            tx_blueprint_proposal::TxBlueprintProposal,
+            tx_proposal::{TxProposal, UnsignedTxProposal},
+        },
+        transaction_builder::{
+            build_unsigned_tx_from_blueprint_proposal, WalletTransactionBuilder,
+        },
         WalletService,
     },
     util::b58::{b58_decode_public_address, B58Error},
 };
-
-use mc_account_keys::AccountKey;
+use displaydoc::Display;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
 use mc_connection::{
     BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
 };
 use mc_fog_report_validation::FogPubkeyResolver;
-use mc_transaction_builder::{
-    BurnRedemptionMemoBuilder, EmptyMemoBuilder, MemoBuilder, RTHMemoBuilder,
-};
 use mc_transaction_core::{
     constants::{MAX_INPUTS, MAX_OUTPUTS},
     tokens::Mob,
     Amount, Token, TokenId,
 };
-use mc_transaction_extra::{BurnRedemptionMemo, SenderMemoCredential};
-
-use crate::db::{assigned_subaddress::AssignedSubaddressModel, models::AssignedSubaddress};
-use displaydoc::Display;
-use serde::{Deserialize, Serialize};
-use serde_big_array::BigArray;
-use std::{convert::TryFrom, ops::DerefMut, sync::atomic::Ordering};
+use std::{
+    boxed::Box,
+    convert::{TryFrom, TryInto},
+    ops::DerefMut,
+    sync::atomic::Ordering,
+};
 
 /// Errors for the Transaction Service.
 #[derive(Display, Debug)]
@@ -225,112 +227,17 @@ impl From<crate::service::hardware_wallet::HardwareWalletServiceError> for Trans
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-/// This represents the different types of Transaction Memos that can be used in
-/// a given transaction
-///
-/// * Empty
-///
-/// * RTH
-///
-/// * BurnRedemption
-pub enum TransactionMemo {
-    /// Empty Transaction Memo.
-    Empty,
-
-    /// Recoverable Transaction History memo with an optional u64 specifying the
-    /// subaddress index to generate the sender memo credential from
-    RTH {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-    },
-
-    RTHWithPaymentIntentId {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-
-        /// The payment intent id to include in the memo.
-        payment_intent_id: u64,
-    },
-
-    RTHWithPaymentRequestId {
-        /// Optional subaddress index to generate the sender memo credential
-        /// from.
-        subaddress_index: Option<u64>,
-
-        /// The payment request id to include in the memo.
-        payment_request_id: u64,
-    },
-
-    /// Burn Redemption memo, with an optional 64 byte redemption memo hex
-    /// string.
-    #[serde(with = "BigArray")]
-    BurnRedemption([u8; BurnRedemptionMemo::MEMO_DATA_LEN]),
-}
-
-impl TransactionMemo {
-    pub fn memo_builder(&self, account_key: &AccountKey) -> Box<dyn MemoBuilder + Send + Sync> {
-        match self {
-            Self::Empty => Box::<EmptyMemoBuilder>::default(),
-            Self::RTH { subaddress_index } => {
-                let memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                Box::new(memo_builder)
-            }
-            Self::RTHWithPaymentIntentId {
-                subaddress_index,
-                payment_intent_id,
-            } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                memo_builder.set_payment_intent_id(*payment_intent_id);
-                Box::new(memo_builder)
-            }
-            Self::RTHWithPaymentRequestId {
-                subaddress_index,
-                payment_request_id,
-            } => {
-                let mut memo_builder = generate_rth_memo_builder(subaddress_index, account_key);
-                memo_builder.set_payment_request_id(*payment_request_id);
-                Box::new(memo_builder)
-            }
-            Self::BurnRedemption(memo_data) => {
-                let mut memo_builder = BurnRedemptionMemoBuilder::new(*memo_data);
-                memo_builder.enable_destination_memo();
-                Box::new(memo_builder)
-            }
-        }
-    }
-}
-
-fn generate_rth_memo_builder(
-    subaddress_index: &Option<u64>,
-    account_key: &AccountKey,
-) -> RTHMemoBuilder {
-    let mut memo_builder = RTHMemoBuilder::default();
-    let sender_memo_credential = match subaddress_index {
-        Some(subaddress_index) => SenderMemoCredential::new_from_address_and_spend_private_key(
-            &account_key.subaddress(*subaddress_index),
-            account_key.subaddress_spend_private(*subaddress_index),
-        ),
-        None => SenderMemoCredential::from(account_key),
-    };
-    memo_builder.set_sender_credential(sender_memo_credential);
-    memo_builder.enable_destination_memo();
-
-    memo_builder
-}
-
 /// Trait defining the ways in which the wallet can interact with and manage
 /// transactions.
 #[rustfmt::skip]
 #[async_trait]
 pub trait TransactionService {
-
-    /// Build a transaction to confirm its contents before submitting it to the network.
+    /// Build a transaction blueprint.
+    /// A transaction blueprint contains all the information needed to build an unsigned transaction, with the exception of
+    /// account private keys (that are used to produce RTH authenticated sender memos and later sign the transaction).
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -345,7 +252,39 @@ pub trait TransactionService {
     ///| `spend_subaddress` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
     ///
     #[allow(clippy::too_many_arguments)]
-    fn build_transaction(
+    fn build_tx_blueprint(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
+        block_version: Option<BlockVersion>,
+        spend_subaddress: Option<String>,
+    ) -> Result<TxBlueprintProposal, TransactionServiceError>;
+
+    /// Build an unsigned transaction. An unsigned transaction needs to be signed before it can be submitted to the network.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                           | Notes                                                                                             |
+    ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
+    ///| `addresses_and_amounts` | An array of public addresses and Amounts as a tuple               | addresses are b58-encoded public addresses                                                        |
+    ///| `input_txo_ids`         | Specific TXOs to use as inputs to this transaction                | TXO IDs (obtain from get_txos_for_account)                                                        |
+    ///| `fee_value`             | The fee value to submit with this transaction                     | If not provided, uses MINIMUM_FEE of the first outputs token_id, if available, or defaults to MOB |
+    ///| `fee_token_id`          | The fee token_id to submit with this transaction                  | If not provided, uses token_id of first output, if available, or defaults to MOB                  |
+    ///| `tombstone_block`       | The block after which this transaction expires                    | If not provided, uses current height + 10                                                         |
+    ///| `max_spendable_value`   | The maximum amount for an input TXO selected for this transaction |                                                                                                   |
+    ///| `memo`                  | Memo for the transaction                                          |                                                                                                   |
+    ///| `block_version`         | The block version to build this transaction for.                  | Defaults to the network block version                                                             |
+    ///| `spend_subaddress` | The subaddress index to spend from.                            | (optional) ONLY use this parameter if you will ALWAYS use this parameter when spending, or else you may get unexpected balances because normal spending can pull any account txos no matter which subaddress they were received at |
+    ///
+    #[allow(clippy::too_many_arguments)]
+    fn build_unsigned_transaction(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -362,7 +301,7 @@ pub trait TransactionService {
     /// Build a transaction and sign it before submitting it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -411,7 +350,7 @@ pub trait TransactionService {
     /// Build and sign a transaction and submit it to the network.
     ///
     /// # Arguments
-    /// 
+    ///
     ///| Name                    | Purpose                                                           | Notes                                                                                             |
     ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
     ///| `account_id_hex`        | The account on which to perform this action                       | Account must exist in the wallet                                                                  |
@@ -440,6 +379,19 @@ pub trait TransactionService {
         block_version: Option<BlockVersion>,
         spend_subaddress: Option<String>,
     ) -> Result<(TransactionLog, AssociatedTxos, ValueMap, TxProposal), TransactionServiceError>;
+
+    /// Sign and submit a transaction blueprint proposal.
+    ///
+    /// # Arguments
+    ///
+    ///| Name                    | Purpose                                                           | Notes                                                                                             |
+    ///|-------------------------|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|
+    ///| `tx_blueprint_proposal` | Transaction blueprint proposal to sign and submit                 | Created with build_tx_blueprint                                                                   |
+    ///
+    async fn sign_and_submit_tx_blueprint(
+        &self,
+        tx_blueprint_proposal: &TxBlueprintProposal,
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError>;
 }
 
 #[async_trait]
@@ -448,7 +400,7 @@ where
     T: BlockchainConnection + UserTxConnection + 'static,
     FPR: FogPubkeyResolver + Send + Sync + 'static,
 {
-    fn build_transaction(
+    fn build_tx_blueprint(
         &self,
         account_id_hex: &str,
         addresses_and_amounts: &[(String, AmountJSON)],
@@ -460,7 +412,7 @@ where
         memo: TransactionMemo,
         block_version: Option<BlockVersion>,
         spend_subaddress: Option<String>,
-    ) -> Result<UnsignedTxProposal, TransactionServiceError> {
+    ) -> Result<TxBlueprintProposal, TransactionServiceError> {
         validate_number_inputs(input_txo_ids.unwrap_or(&Vec::new()).len() as u64)?;
         validate_number_outputs(addresses_and_amounts.len() as u64)?;
 
@@ -469,12 +421,11 @@ where
 
         exclusive_transaction(conn, |conn| {
             if Account::get(&AccountID(account_id_hex.to_string()), conn)?.require_spend_subaddress
+                && spend_subaddress.is_none()
             {
-                if spend_subaddress.is_none() {
-                    return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
+                return Err(TransactionServiceError::TransactionBuilder(WalletTransactionBuilderError::NullSubaddress(
                         "This account requires subaddresses be specified when spending. Please provide a subaddress to spend from.".to_string()
                     )));
-                }
             }
 
             let mut builder = WalletTransactionBuilder::new(
@@ -543,10 +494,47 @@ where
                 builder.select_txos(conn, max_spendable)?;
             }
 
-            let unsigned_tx_proposal = builder.build(memo, conn)?;
-
-            Ok(unsigned_tx_proposal)
+            Ok(builder.build_tx_blueprint(memo, conn)?)
         })
+    }
+
+    fn build_unsigned_transaction(
+        &self,
+        account_id_hex: &str,
+        addresses_and_amounts: &[(String, AmountJSON)],
+        input_txo_ids: Option<&Vec<String>>,
+        fee_value: Option<String>,
+        fee_token_id: Option<String>,
+        tombstone_block: Option<String>,
+        max_spendable_value: Option<String>,
+        memo: TransactionMemo,
+        block_version: Option<BlockVersion>,
+        spend_subaddress: Option<String>,
+    ) -> Result<UnsignedTxProposal, TransactionServiceError> {
+        let tx_blueprint_proposal = self.build_tx_blueprint(
+            account_id_hex,
+            addresses_and_amounts,
+            input_txo_ids,
+            fee_value,
+            fee_token_id,
+            tombstone_block,
+            max_spendable_value,
+            memo,
+            block_version,
+            spend_subaddress,
+        )?;
+
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+        let account = Account::get(
+            &AccountID(tx_blueprint_proposal.account_id_hex.clone()),
+            conn,
+        )?;
+
+        Ok(build_unsigned_tx_from_blueprint_proposal(
+            &tx_blueprint_proposal,
+            &(&account).try_into()?,
+        )?)
     }
 
     async fn build_and_sign_transaction(
@@ -562,7 +550,7 @@ where
         block_version: Option<BlockVersion>,
         spend_subaddress: Option<String>,
     ) -> Result<TxProposal, TransactionServiceError> {
-        let unsigned_tx_proposal = self.build_transaction(
+        let unsigned_tx_proposal = self.build_unsigned_transaction(
             account_id_hex,
             addresses_and_amounts,
             input_txo_ids,
@@ -586,6 +574,31 @@ where
             TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
             Ok(tx_proposal)
         })
+    }
+
+    async fn sign_and_submit_tx_blueprint(
+        &self,
+        tx_blueprint_proposal: &TxBlueprintProposal,
+    ) -> Result<Option<(TransactionLog, AssociatedTxos, ValueMap)>, TransactionServiceError> {
+        let account_id_hex = &tx_blueprint_proposal.account_id_hex;
+
+        let mut pooled_conn = self.get_pooled_conn()?;
+        let conn = pooled_conn.deref_mut();
+
+        let account = Account::get(&AccountID(account_id_hex.to_string()), conn)?;
+        let unsigned_tx_proposal = build_unsigned_tx_from_blueprint_proposal(
+            tx_blueprint_proposal,
+            &(&account).try_into()?,
+        )?;
+
+        let tx_proposal = unsigned_tx_proposal.sign(&account).await?;
+
+        exclusive_transaction(conn, |conn| -> Result<(), TransactionServiceError> {
+            TransactionLog::log_signed(tx_proposal.clone(), "".to_string(), account_id_hex, conn)?;
+            Ok(())
+        })?;
+
+        self.submit_transaction(&tx_proposal, None, Some(account_id_hex.to_string()))
     }
 
     fn submit_transaction(
@@ -728,7 +741,7 @@ mod tests {
         },
         test_utils::{
             add_block_to_ledger_db, add_block_with_tx_outs, get_test_ledger, manually_sync_account,
-            setup_wallet_service, MOB,
+            setup_wallet_service, test_rth_memo_default_from_key, test_rth_memo_from_key, MOB,
         },
         util::b58::b58_encode_public_address,
     };
@@ -834,9 +847,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -867,9 +878,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -900,9 +909,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -995,9 +1002,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1097,9 +1102,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&bob_account_key),
                 None,
                 None,
             )
@@ -1209,9 +1212,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1280,9 +1281,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1318,9 +1317,7 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: None,
-                },
+                test_rth_memo_default_from_key(&alice_account_key),
                 None,
                 None,
             )
@@ -1420,9 +1417,10 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
-                },
+                test_rth_memo_from_key(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
+                ),
                 None,
                 None,
             )
@@ -1612,10 +1610,11 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTHWithPaymentRequestId {
-                    subaddress_index: Some(alice_address_from_bob.subaddress_index as u64),
+                crate::test_utils::test_rth_memo_with_payment_request_id(
+                    &alice_account_key,
+                    alice_address_from_bob.subaddress_index as u64,
                     payment_request_id,
-                },
+                ),
                 None,
                 None,
             )
@@ -1807,7 +1806,7 @@ mod tests {
             .get_balance_for_address(&bob_subaddress.public_address_b58)
             .unwrap();
         let balance_pmob = balance.get(&Mob::ID).unwrap();
-        assert_eq!(balance_pmob.unspent, 0 as u128);
+        assert_eq!(balance_pmob.unspent, 0_u128);
 
         // Send a transaction from Alice to Bob - this is the subaccount model where
         // Alice is spending from her balance
@@ -1824,9 +1823,10 @@ mod tests {
                 None,
                 None,
                 None,
-                TransactionMemo::RTH {
-                    subaddress_index: Some(alice_subaddress.subaddress_index as u64),
-                },
+                test_rth_memo_from_key(
+                    &exchange_account_key,
+                    alice_subaddress.subaddress_index as u64,
+                ),
                 None,
                 Some(alice_subaddress.public_address_b58.clone()),
             )
@@ -1987,9 +1987,10 @@ mod tests {
                     None,
                     None,
                     None,
-                    TransactionMemo::RTH {
-                        subaddress_index: Some(alice_subaddress.subaddress_index as u64),
-                    },
+                    crate::test_utils::test_rth_memo_from_key(
+                        &exchange_account_key,
+                        alice_subaddress.subaddress_index as u64,
+                    ),
                     None,
                     Some(alice_subaddress.public_address_b58.clone()),
                 )

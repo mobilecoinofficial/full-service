@@ -14,14 +14,16 @@ use boring::{pkey::Private, rsa::Rsa};
 use grpcio::ChannelBuilder;
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service_mirror::{
+    query_request,
+    query_response::{self, Response},
     uri::WalletServiceMirrorUri,
     wallet_service_mirror_api::{
         EncryptedResponse, PollRequest, QueryRequest, QueryResponse, UnencryptedResponse,
+        WalletServiceMirrorClient,
     },
-    wallet_service_mirror_api_grpc::WalletServiceMirrorClient,
 };
 use mc_util_grpc::ConnectionUriGrpcioChannel;
-use std::{collections::HashMap, str::FromStr, sync::Arc, thread::sleep, time::Duration};
+use std::{collections::BTreeMap, str::FromStr, sync::Arc, thread::sleep, time::Duration};
 use structopt::StructOpt;
 
 const SUPPORTED_ENDPOINTS: &[&str] = &[
@@ -125,12 +127,13 @@ fn main() {
     // Main polling loop.
     log::debug!(logger, "Entering main loop");
 
-    let mut pending_responses: HashMap<String, QueryResponse> = HashMap::new();
+    let mut pending_responses = BTreeMap::new();
 
     loop {
         // Communicate with the public side of the mirror.
-        let mut request = PollRequest::new();
-        request.set_query_responses(pending_responses.clone());
+        let request = PollRequest {
+            query_responses: pending_responses.clone(),
+        };
 
         log::debug!(
             logger,
@@ -168,9 +171,9 @@ fn main() {
                                     err
                                 );
 
-                                let mut err_query_response = QueryResponse::new();
-                                err_query_response.set_error(err);
-                                err_query_response
+                                QueryResponse {
+                                    response: Some(Response::Error(err)),
+                                }
                             })
                         } else {
                             process_unencrypted_request(
@@ -185,9 +188,9 @@ fn main() {
                                     err
                                 );
 
-                                let mut err_query_response = QueryResponse::new();
-                                err_query_response.set_error(err);
-                                err_query_response
+                                QueryResponse {
+                                    response: Some(Response::Error(err)),
+                                }
                             })
                         }
                     };
@@ -220,11 +223,11 @@ fn process_unencrypted_request(
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> Result<QueryResponse, String> {
-    if !query_request.has_unencrypted_request() {
+    let Some(query_request::Request::UnencryptedRequest(unencrypted_request)) =
+        query_request.request.as_ref()
+    else {
         return Err("Only processing unencrypted requests".into());
-    }
-
-    let unencrypted_request = query_request.get_unencrypted_request();
+    };
 
     log::debug!(
         logger,
@@ -237,8 +240,11 @@ fn process_unencrypted_request(
         Ok(true) => (),
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
-            let mut err_query_response = QueryResponse::new();
-            err_query_response.set_error(format!("Error parsing JSON request: {err}"));
+            let err_query_response = QueryResponse {
+                response: Some(query_response::Response::Error(format!(
+                    "Error parsing JSON request: {err}"
+                ))),
+            };
             return Ok(err_query_response);
         }
     }
@@ -256,11 +262,13 @@ fn process_unencrypted_request(
         .map_err(|e| e.to_string())?;
     let json_response = res.text().map_err(|e| e.to_string())?;
 
-    let mut unencrypted_response = UnencryptedResponse::new();
-    unencrypted_response.set_json_response(json_response);
+    let unencrypted_response = UnencryptedResponse { json_response };
 
-    let mut mirror_response = QueryResponse::new();
-    mirror_response.set_unencrypted_response(unencrypted_response);
+    let mirror_response = QueryResponse {
+        response: Some(query_response::Response::UnencryptedResponse(
+            unencrypted_response,
+        )),
+    };
     Ok(mirror_response)
 }
 
@@ -270,11 +278,11 @@ fn process_encrypted_request(
     query_request: &QueryRequest,
     logger: &Logger,
 ) -> Result<QueryResponse, String> {
-    if !query_request.has_encrypted_request() {
+    let Some(query_request::Request::EncryptedRequest(encrypted_request)) =
+        query_request.request.as_ref()
+    else {
         return Err("Only processing encrypted requests".into());
-    }
-
-    let encrypted_request = query_request.get_encrypted_request();
+    };
 
     // Decrypt the request.
     let json_request = match decrypt(mirror_key, &encrypted_request.payload)
@@ -284,8 +292,9 @@ fn process_encrypted_request(
         }) {
         Ok(json_request) => json_request,
         Err(err) => {
-            let mut err_query_response = QueryResponse::new();
-            err_query_response.set_error(err);
+            let err_query_response = QueryResponse {
+                response: Some(query_response::Response::Error(err)),
+            };
             return Ok(err_query_response);
         }
     };
@@ -297,8 +306,11 @@ fn process_encrypted_request(
         Ok(true) => (),
         Ok(false) => return Err("Unsupported request".into()),
         Err(err) => {
-            let mut err_query_response = QueryResponse::new();
-            err_query_response.set_error(format!("Error parsing JSON request: {err}"));
+            let err_query_response = QueryResponse {
+                response: Some(query_response::Response::Error(format!(
+                    "Error parsing JSON request: {err}"
+                ))),
+            };
             return Ok(err_query_response);
         }
     }
@@ -319,12 +331,15 @@ fn process_encrypted_request(
     let encrypted_payload =
         encrypt(mirror_key, json_response.as_bytes()).map_err(|_e| "Encryption failed")?;
 
-    let mut encrypted_response = EncryptedResponse::new();
-    encrypted_response.set_payload(encrypted_payload);
+    let encrypted_response = EncryptedResponse {
+        payload: encrypted_payload,
+    };
 
-    let mut mirror_response = QueryResponse::new();
-    mirror_response.set_encrypted_response(encrypted_response);
-    Ok(mirror_response)
+    Ok(QueryResponse {
+        response: Some(query_response::Response::EncryptedResponse(
+            encrypted_response,
+        )),
+    })
 }
 
 fn parse_duration_in_milliseconds(src: &str) -> Result<Duration, std::num::ParseIntError> {

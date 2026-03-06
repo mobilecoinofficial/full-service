@@ -3,9 +3,10 @@
 //! The public side of wallet-service-mirror.
 //! This program opens two listening ports:
 //! 1) A GRPC server for receiving incoming poll requests from the private side
-//! of the mirror 2) An http(s) server for receiving client requests which will
-//! then be forwarded to the    wallet service instance sitting behind the
-//! private part of the mirror.
+//!    of the mirror
+//! 2) An http(s) server for receiving client requests which will then be
+//!    forwarded to the wallet service instance sitting behind the private part
+//!    of the mirror.
 
 #![feature(decl_macro)]
 
@@ -17,6 +18,7 @@ use mirror_service::MirrorService;
 
 use mc_common::logger::{create_app_logger, log, o, Logger};
 use mc_full_service_mirror::{
+    query_request, query_response,
     uri::WalletServiceMirrorUri,
     wallet_service_mirror_api::{EncryptedRequest, QueryRequest, UnencryptedRequest},
 };
@@ -128,41 +130,47 @@ async fn unencrypted_request(
 
     log::debug!(state.logger, "Enqueueing UnencryptedRequest({})", &request);
 
-    let mut unencrypted_request = UnencryptedRequest::new();
-    unencrypted_request.set_json_request(request.clone());
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_unencrypted_request(unencrypted_request);
+    let unencrypted_request =
+        mc_full_service_mirror::query_request::Request::UnencryptedRequest(UnencryptedRequest {
+            json_request: request.clone(),
+        });
+    let query_request = QueryRequest {
+        request: Some(unencrypted_request),
+    };
 
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
 
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "UnencryptedRequest({}) failed: {}",
-            request,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_unencrypted_response() {
-        log::error!(
-            state.logger,
-            "UnencryptedRequest({}) returned incorrect response type",
-            request,
-        );
-        return Err("Incorrect response type received".into());
-    }
+    match query_response.response {
+        Some(query_response::Response::Error(error)) => {
+            log::error!(
+                state.logger,
+                "UnencryptedRequest({}) failed: {}",
+                request,
+                error,
+            );
+            Err(error.into())
+        }
 
-    log::info!(
-        state.logger,
-        "UnencryptedRequest({}) completed successfully",
-        request,
-    );
+        Some(query_response::Response::UnencryptedResponse(unencrypted_response)) => {
+            log::info!(
+                state.logger,
+                "UnencryptedRequest({}) completed successfully",
+                request,
+            );
 
-    let response = query_response.get_unencrypted_response();
-    Ok(response.get_json_response().to_string())
+            Ok(unencrypted_response.json_response.to_string())
+        }
+
+        _ => {
+            log::error!(
+                state.logger,
+                "UnencryptedRequest({}) returned incorrect response type",
+                request,
+            );
+            Err("Incorrect response type received".into())
+        }
+    }
 }
 
 #[post(
@@ -182,11 +190,10 @@ async fn encrypted_request(
     }
     let payload_len = payload.len();
 
-    let mut encrypted_request = EncryptedRequest::new();
-    encrypted_request.set_payload(payload);
-
-    let mut query_request = QueryRequest::new();
-    query_request.set_encrypted_request(encrypted_request);
+    let encrypted_request = EncryptedRequest { payload };
+    let query_request = QueryRequest {
+        request: Some(query_request::Request::EncryptedRequest(encrypted_request)),
+    };
 
     log::debug!(
         state.logger,
@@ -196,32 +203,36 @@ async fn encrypted_request(
     let query = state.query_manager.enqueue_query(query_request);
     let query_response = query.wait()?;
 
-    if query_response.has_error() {
-        log::error!(
-            state.logger,
-            "EncryptedRequest({} bytes) failed: {}",
-            payload_len,
-            query_response.get_error()
-        );
-        return Err(query_response.get_error().into());
-    }
-    if !query_response.has_encrypted_response() {
-        log::error!(
-            state.logger,
-            "EncryptedRequest({} bytes) returned incorrect response type",
-            payload_len,
-        );
-        return Err("Incorrect response type received".into());
-    }
+    match query_response.response {
+        Some(query_response::Response::Error(error)) => {
+            log::error!(
+                state.logger,
+                "EncryptedRequest({} bytes) failed: {}",
+                payload_len,
+                error,
+            );
+            Err(error.into())
+        }
 
-    log::info!(
-        state.logger,
-        "EncryptedRequest({} bytes) completed successfully",
-        payload_len,
-    );
+        Some(query_response::Response::EncryptedResponse(encrypted_response)) => {
+            log::info!(
+                state.logger,
+                "EncryptedRequest({} bytes) completed successfully",
+                payload_len,
+            );
 
-    let response = query_response.get_encrypted_response();
-    Ok(response.get_payload().to_vec())
+            Ok(encrypted_response.payload)
+        }
+
+        _ => {
+            log::error!(
+                state.logger,
+                "EncryptedRequest({} bytes) returned incorrect response type",
+                payload_len,
+            );
+            Err("Incorrect response type received".into())
+        }
+    }
 }
 
 #[rocket::main]

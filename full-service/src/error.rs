@@ -7,9 +7,9 @@ use crate::{
     service::{
         account::AccountServiceError, balance::BalanceServiceError,
         confirmation_number::ConfirmationServiceError, gift_code::GiftCodeServiceError,
-        ledger::LedgerServiceError, payment_request::PaymentRequestServiceError,
-        transaction::TransactionServiceError, transaction_log::TransactionLogServiceError,
-        txo::TxoServiceError,
+        hardware_wallet::HardwareWalletServiceError, ledger::LedgerServiceError,
+        payment_request::PaymentRequestServiceError, transaction::TransactionServiceError,
+        transaction_log::TransactionLogServiceError, txo::TxoServiceError,
     },
     util::b58::B58Error,
 };
@@ -372,6 +372,12 @@ pub enum WalletTransactionBuilderError {
      * Change amount must be <= u64::MAX, but total change value is: {0}
      */
     ChangeLargerThanMaxValue(u128),
+
+    /// Hardware wallet service: {0}
+    HardwareWalletService(HardwareWalletServiceError),
+
+    /// Invalid TxBlueprint: {0}
+    InvalidTxBlueprint(String),
 }
 
 impl From<mc_transaction_core::AmountError> for WalletTransactionBuilderError {
@@ -437,5 +443,11 @@ impl From<hex::FromHexError> for WalletTransactionBuilderError {
 impl From<mc_transaction_core::TxOutConversionError> for WalletTransactionBuilderError {
     fn from(src: mc_transaction_core::TxOutConversionError) -> Self {
         Self::TxOutConversion(src)
+    }
+}
+
+impl From<HardwareWalletServiceError> for WalletTransactionBuilderError {
+    fn from(src: HardwareWalletServiceError) -> Self {
+        Self::HardwareWalletService(src)
     }
 }

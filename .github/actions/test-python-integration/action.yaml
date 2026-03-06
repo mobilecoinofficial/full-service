@@ -28,7 +28,7 @@ runs:
     shell: bash
     run: |
       sudo apt-get update
-      sudo apt-get install -y python3-pip
+      sudo apt-get install -y python3-pip python3-venv
 
   # Deploy fs chart with cloned volume
   # All tests will need to be deployed in the full-service-ledger namespace so we can clone the target PVC
@@ -54,8 +54,8 @@ runs:
   - name: Deploy Full-Service
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
-      action: helm-deploy
-      chart_repo: https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public
+      action: helm-deploy-oci
+      chart_repo: ghcr.io/mobilecoinofficial/charts
       chart_name: full-service
       chart_version: ${{ inputs.version }}-${{ inputs.network }}net
       chart_values: .mob/${{ inputs.network }}.values.yaml

@@ -119,7 +119,7 @@ mod account_key_tests {
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
 
         let account_key1 = mc_account_keys::AccountKey::random(&mut rng);
-        let json_rpc_account_key1 = AccountKey::try_from(&account_key1).unwrap();
+        let json_rpc_account_key1 = AccountKey::from(&account_key1);
         let json_account_key = serde_json::json!(json_rpc_account_key1);
 
         let json_rpc_account_key2: AccountKey = serde_json::from_value(json_account_key).unwrap();

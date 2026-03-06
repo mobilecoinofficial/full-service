@@ -1,6 +1,9 @@
 name: Build and Publish Charts
 description: Build and publish helm charts
 
+permissions:
+  packages: write
+
 inputs:
   version:
     description: "version of the build"
@@ -8,7 +11,7 @@ inputs:
   repo:
     description: "chart repo to publish to"
     required: false
-    default: "https://harbor.mobilecoin.com/chartrepo/mobilecoinofficial-public"
+    default: "ghcr.io/mobilecoinofficial/charts"
   repo_username:
     description: "chart repo username"
     required: true
@@ -22,7 +25,7 @@ runs:
   - name: Publish helm chart full-service
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
-      action: helm-publish
+      action: helm-publish-oci
       chart_app_version: ${{ inputs.version }}
       chart_path: .internal-ci/helm/full-service
       chart_repo: ${{ inputs.repo }}
@@ -33,7 +36,7 @@ runs:
   - name: Publish helm chart full-service-mirror
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
-      action: helm-publish
+      action: helm-publish-oci
       chart_app_version: ${{ inputs.version }}
       chart_path: .internal-ci/helm/full-service-mirror
       chart_repo: ${{ inputs.repo }}
