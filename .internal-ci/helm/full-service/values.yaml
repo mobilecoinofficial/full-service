@@ -64,6 +64,18 @@ fullService:
   secret:
     name: full-service
     stringData: {}
+  startupProbe:
+    failureThreshold: 1440 # 4 hours with a 10 second period
+    initialDelaySeconds: 10
+    periodSeconds: 10
+  readinessProbe:
+    failureThreshold: 2
+    initialDelaySeconds: 5
+    periodSeconds: 5
+  livenessProbe:
+    failureThreshold: 10
+    initialDelaySeconds: 5
+    periodSeconds: 5
 
 backupsSidecar:
   enabled: false

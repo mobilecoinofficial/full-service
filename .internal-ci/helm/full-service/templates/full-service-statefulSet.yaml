@@ -56,23 +56,23 @@ spec:
           httpGet:
             path: /health
             port: full-service
-          failureThreshold: 300
-          initialDelaySeconds: 10
-          periodSeconds: 5
+          failureThreshold: {{ .Values.fullService.startupProbe.failureThreshold }}
+          initialDelaySeconds: {{ .Values.fullService.startupProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.fullService.startupProbe.periodSeconds }}
         readinessProbe:
           httpGet:
             path: /health
             port: full-service
-          failureThreshold: 2
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          failureThreshold: {{ .Values.fullService.readinessProbe.failureThreshold }}
+          initialDelaySeconds: {{ .Values.fullService.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.fullService.readinessProbe.periodSeconds }}
         livenessProbe:
           httpGet:
             path: /health
             port: full-service
-          failureThreshold: 10
-          initialDelaySeconds: 5
-          periodSeconds: 5
+          failureThreshold: {{ .Values.fullService.livenessProbe.failureThreshold }}
+          initialDelaySeconds: {{ .Values.fullService.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.fullService.livenessProbe.periodSeconds }}
         volumeMounts:
         - name: data
           mountPath: /data
