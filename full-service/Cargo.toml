@@ -105,6 +105,17 @@ strum_macros = "0.25.1"
 tiny-bip39 = "1.0"
 uuid = { version = "1.4.1", features = ["serde", "v4"] }
 
+[build-dependencies]
+anyhow = "1.0"
+vergen = { version = "8.2.6", features = [
+    "build",
+    "cargo",
+    "git",
+    "gitcl",
+    "rustc",
+    "si",
+] }
+
 [dev-dependencies]
 mc-blockchain-test-utils = { path = "../mobilecoin/blockchain/test-utils" }
 mc-connection-test-utils = { path = "../mobilecoin/connection/test-utils" }
@@ -122,14 +133,3 @@ tempdir = "0.3"
 tokio = "1.27"
 url = "2.3"
 yare = "3"
-
-[build-dependencies]
-anyhow = "1.0"
-vergen = { version = "8.2.6", features = [
-    "build",
-    "cargo",
-    "git",
-    "gitcl",
-    "rustc",
-    "si",
-] }

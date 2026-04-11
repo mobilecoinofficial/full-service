@@ -97,12 +97,16 @@ jobs:
         additional_keys: -lintrust
         path: .dummy
 
+    - name: Install 1.85.0 toolchain (for cargo-sort only)
+      run: |
+        rustup toolchain install 1.85.0 --no-self-update --profile minimal
+
     - name: Cargo sort
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
-        # pin cargo sort to version 1.0.9 because v2.x require newer rustc than we use
-        cargo install cargo-sort --version 1.0.9 --force
+        # the latest cargo-sort and clap_lex require at rust 1.85.0, which we aren't ready to use for building
+        cargo +1.85.0 install cargo-sort
         cargo sort --workspace --grouped --check
 
     - name: Cargo fmt
