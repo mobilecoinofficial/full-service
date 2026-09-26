@@ -64,7 +64,7 @@ jobs:
   lint-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.38
     env:
       SGX_MODE: SW
     steps:
@@ -129,7 +129,7 @@ jobs:
   test-rust:
     runs-on: mco-dev-large-x64
     container:
-      image: mobilecoin/rust-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.38
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -187,7 +187,7 @@ jobs:
         - test
     runs-on: ${{ matrix.runner }}
     container:
-      image: mobilecoin/rust-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.38
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
