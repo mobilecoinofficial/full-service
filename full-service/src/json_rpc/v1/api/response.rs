@@ -27,6 +27,7 @@ use crate::{
     util::b58::PrintableWrapperType,
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut};
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::HashMap;
@@ -46,7 +47,8 @@ pub enum JsonCommandResponse {
     },
     build_gift_code {
         tx_proposal: TxProposal,
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
     },
     build_split_txo_transaction {
         tx_proposal: TxProposal,

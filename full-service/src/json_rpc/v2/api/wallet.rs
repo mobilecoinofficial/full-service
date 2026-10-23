@@ -582,6 +582,7 @@ where
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
+            let b58_code = b58_code.expose_secret().clone();
             let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
             let mut b58_data = HashMap::new();
             match b58_type {
@@ -690,7 +691,8 @@ where
             JsonCommandResponse::create_view_only_account_import_request {
                 json_rpc_request: service
                     .get_view_only_account_import_request(&AccountID(account_id))
-                    .map_err(format_error)?,
+                    .map_err(format_error)?
+                    .into(),
             }
         }
         JsonCommandRequest::create_view_only_account_sync_request { account_id } => {
@@ -1172,18 +1174,10 @@ where
                 )
                 .map_err(format_error)?;
 
-            let txo_map = Map::from_iter(
-                txos_and_statuses
-                    .iter()
-                    .map(|txo_info| {
-                        (
-                            txo_info.txo.id.clone(),
-                            serde_json::to_value(Txo::from(txo_info))
-                                .expect("Could not get json value"),
-                        )
-                    })
-                    .collect::<Vec<(String, serde_json::Value)>>(),
-            );
+            let txo_map = txos_and_statuses
+                .iter()
+                .map(|txo_info| (txo_info.txo.id.clone(), Txo::from(txo_info)))
+                .collect();
 
             JsonCommandResponse::get_txos {
                 txo_ids: txos_and_statuses
@@ -1253,7 +1247,7 @@ where
 
             let account = service
                 .import_account(
-                    mnemonic,
+                    mnemonic.expose_secret().clone(),
                     name,
                     fb,
                     ns,
@@ -1302,7 +1296,7 @@ where
 
             let account = service
                 .import_account_from_legacy_root_entropy(
-                    entropy,
+                    entropy.expose_secret().clone(),
                     name,
                     fb,
                     ns,
@@ -1350,8 +1344,11 @@ where
                 .map_err(format_error)?;
 
             let mut view_private_key_bytes = [0u8; 32];
-            hex::decode_to_slice(view_private_key, &mut view_private_key_bytes)
-                .map_err(format_error)?;
+            hex::decode_to_slice(
+                view_private_key.expose_secret(),
+                &mut view_private_key_bytes,
+            )
+            .map_err(format_error)?;
             let view_private_key: RistrettoPrivate =
                 (&view_private_key_bytes).try_into().map_err(format_error)?;
 

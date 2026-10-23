@@ -33,12 +33,14 @@ pub struct OutputTxo {
     pub amount: AmountJSON,
     pub recipient_public_address_b58: String,
     pub confirmation_number: String,
-    pub shared_secret: Option<String>,
+    #[serde(default, serialize_with = "expose_secret")]
+    pub shared_secret: Secret<Option<String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, PartialEq)]
 pub struct UnsignedTxProposal {
-    pub unsigned_tx_proto_bytes_hex: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub unsigned_tx_proto_bytes_hex: Secret<String>,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,
     pub payload_txos: Vec<OutputTxo>,
     pub change_txos: Vec<OutputTxo>,
@@ -100,7 +102,8 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
                     shared_secret: output_txo
                         .shared_secret
-                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes()))
+                        .into(),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -120,7 +123,8 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
                     shared_secret: output_txo
                         .shared_secret
-                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes()))
+                        .into(),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -131,7 +135,7 @@ impl TryFrom<&crate::service::models::tx_proposal::UnsignedTxProposal> for Unsig
         let unsigned_tx_proto_bytes_hex = hex::encode(unsigned_tx_proto_bytes.as_slice());
 
         Ok(Self {
-            unsigned_tx_proto_bytes_hex,
+            unsigned_tx_proto_bytes_hex: unsigned_tx_proto_bytes_hex.into(),
             unsigned_input_txos,
             payload_txos,
             change_txos,
@@ -179,7 +183,8 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
                     shared_secret: output_txo
                         .shared_secret
-                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes()))
+                        .into(),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()
@@ -199,7 +204,8 @@ impl TryFrom<&crate::service::models::tx_proposal::TxProposal> for TxProposal {
                     confirmation_number: hex::encode(output_txo.confirmation_number.as_ref()),
                     shared_secret: output_txo
                         .shared_secret
-                        .map(|shared_secret| hex::encode(shared_secret.to_bytes())),
+                        .map(|shared_secret| hex::encode(shared_secret.to_bytes()))
+                        .into(),
                 })
             })
             .collect::<Result<Vec<OutputTxo>, B58Error>>()

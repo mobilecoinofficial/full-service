@@ -637,16 +637,13 @@ where
         &self,
         gift_code_b58: &EncodedGiftCode,
     ) -> Result<(GiftCodeStatus, Option<i64>, String), GiftCodeServiceError> {
-        log::info!(self.logger, "encoded_gift_code: {:?}", gift_code_b58);
-
         let transfer_payload = decode_transfer_payload(gift_code_b58)?;
         let gift_account_key = transfer_payload.account_key;
 
         log::info!(
             self.logger,
-            "transfer_payload.pubKey: {:?}, account_key: {:?}",
-            transfer_payload.txo_public_key,
-            gift_account_key
+            "transfer_payload.pubKey: {:?}",
+            transfer_payload.txo_public_key
         );
 
         // Check if the GiftCode is in the local ledger.
