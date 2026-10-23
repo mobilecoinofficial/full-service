@@ -159,7 +159,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
                     let shared_secret_bytes =
                         hex::decode(shared_secret).map_err(|e| e.to_string())?;
@@ -203,7 +203,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
                     let shared_secret_bytes =
                         hex::decode(shared_secret).map_err(|e| e.to_string())?;
@@ -227,8 +227,8 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
             change_txos.push(output_txo);
         }
 
-        let proto_bytes =
-            hex::decode(&src.unsigned_tx_proto_bytes_hex).map_err(|e| e.to_string())?;
+        let proto_bytes = hex::decode(src.unsigned_tx_proto_bytes_hex.expose_secret())
+            .map_err(|e| e.to_string())?;
         let unsigned_tx_external: mc_api::external::UnsignedTx =
             mc_util_serial::decode(proto_bytes.as_slice()).map_err(|e| e.to_string())?;
         let unsigned_tx = (&unsigned_tx_external)
@@ -373,7 +373,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
                     let shared_secret_bytes =
                         hex::decode(shared_secret).map_err(|e| e.to_string())?;
@@ -417,7 +417,7 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
                     let shared_secret_bytes =
                         hex::decode(shared_secret).map_err(|e| e.to_string())?;

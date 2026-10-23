@@ -4,6 +4,7 @@
 
 use crate::service::gift_code::DecodedGiftCode;
 
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 
 /// An gift code created by this wallet to share.
@@ -16,13 +17,16 @@ pub struct GiftCode {
     pub object: String,
 
     /// The base58-encoded gift code string to share.
-    pub gift_code_b58: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub gift_code_b58: Secret<String>,
 
     /// The root entropy for the account in this gift code.
-    pub root_entropy: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub root_entropy: Secret<String>,
 
     /// The entropy mnemonic for the account in this gift code.
-    pub bip39_entropy: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub bip39_entropy: Secret<String>,
 
     /// The amount of MOB contained in the gift code account.
     pub value_pmob: String,
@@ -35,17 +39,19 @@ impl From<&DecodedGiftCode> for GiftCode {
     fn from(src: &DecodedGiftCode) -> GiftCode {
         GiftCode {
             object: "gift_code".to_string(),
-            gift_code_b58: src.gift_code_b58.clone(),
+            gift_code_b58: src.gift_code_b58.clone().into(),
             root_entropy: src
                 .root_entropy
                 .as_ref()
                 .map(hex::encode)
-                .unwrap_or_default(),
+                .unwrap_or_default()
+                .into(),
             bip39_entropy: src
                 .bip39_entropy
                 .as_ref()
                 .map(hex::encode)
-                .unwrap_or_default(),
+                .unwrap_or_default()
+                .into(),
             value_pmob: src.value.to_string(),
             memo: src.memo.clone(),
         }

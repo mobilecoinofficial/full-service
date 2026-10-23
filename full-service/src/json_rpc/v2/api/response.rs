@@ -33,6 +33,7 @@ use crate::{
 };
 use mc_mobilecoind_json::data_types::{JsonTx, JsonTxOut, JsonTxOutMembershipProof};
 use mc_transaction_signer::types::TxoSyncReq;
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Map;
 use std::collections::HashMap;
@@ -88,7 +89,8 @@ pub enum JsonCommandResponse {
         receiver_receipts: Vec<ReceiverReceipt>,
     },
     create_view_only_account_import_request {
-        json_rpc_request: JsonRPCRequest,
+        #[serde(serialize_with = "expose_secret")]
+        json_rpc_request: Secret<JsonRPCRequest>,
     },
     create_view_only_account_sync_request {
         txo_sync_request: TxoSyncReq,
@@ -174,7 +176,7 @@ pub enum JsonCommandResponse {
     },
     get_txos {
         txo_ids: Vec<String>,
-        txo_map: Map<String, serde_json::Value>,
+        txo_map: HashMap<String, Txo>,
     },
     get_txo_membership_proofs {
         outputs: Vec<JsonTxOut>,

@@ -15,6 +15,7 @@ use crate::{
 
 use mc_mobilecoind_json::data_types::JsonTxOut;
 use mc_transaction_signer::types::TxoSynced;
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -131,7 +132,8 @@ pub enum JsonCommandRequest {
         spend_subaddress: Option<String>,
     },
     check_b58_type {
-        b58_code: String,
+        #[serde(serialize_with = "expose_secret")]
+        b58_code: Secret<String>,
     },
     check_receiver_receipt_status {
         address: String,
@@ -243,7 +245,8 @@ pub enum JsonCommandRequest {
     },
     get_wallet_status,
     import_account_from_legacy_root_entropy {
-        entropy: String,
+        #[serde(serialize_with = "expose_secret")]
+        entropy: Secret<String>,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
@@ -252,7 +255,8 @@ pub enum JsonCommandRequest {
         require_spend_subaddress: bool,
     },
     import_account {
-        mnemonic: String,
+        #[serde(serialize_with = "expose_secret")]
+        mnemonic: Secret<String>,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
@@ -261,7 +265,8 @@ pub enum JsonCommandRequest {
         require_spend_subaddress: bool,
     },
     import_view_only_account {
-        view_private_key: String,
+        #[serde(serialize_with = "expose_secret")]
+        view_private_key: Secret<String>,
         spend_public_key: String,
         name: Option<String>,
         first_block_index: Option<String>,

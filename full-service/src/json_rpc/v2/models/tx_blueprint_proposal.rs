@@ -10,6 +10,7 @@ use crate::{
 use mc_crypto_keys::{CompressedRistrettoPublic, RistrettoPublic};
 use mc_transaction_builder::{TxBlueprint, TxOutContext};
 use mc_transaction_extra::TxOutConfirmationNumber;
+use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
@@ -17,7 +18,8 @@ use std::convert::{TryFrom, TryInto};
 pub struct TxBlueprintProposalTxoContext {
     pub tx_out_public_key: String,
     pub confirmation_number: String,
-    pub shared_secret: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub shared_secret: Secret<String>,
     pub recipient_public_address_b58: String,
     pub amount: AmountJSON,
 }
@@ -33,7 +35,7 @@ impl TryFrom<&crate::service::models::tx_blueprint_proposal::TxBlueprintProposal
         Ok(Self {
             tx_out_public_key: hex::encode(src.tx_out_context.tx_out_public_key.as_bytes()),
             confirmation_number: hex::encode(src.tx_out_context.confirmation.as_ref()),
-            shared_secret: hex::encode(src.tx_out_context.shared_secret.to_bytes()),
+            shared_secret: hex::encode(src.tx_out_context.shared_secret.to_bytes()).into(),
             recipient_public_address_b58: b58_encode_public_address(&src.recipient_public_address)
                 .map_err(|e| e.to_string())?,
             amount: AmountJSON::from(&src.amount),
@@ -65,7 +67,7 @@ impl TryFrom<&TxBlueprintProposalTxoContext>
                 .map_err(|e| e.to_string())?,
                 confirmation,
                 shared_secret: RistrettoPublic::try_from(
-                    hex::decode(&src.shared_secret)
+                    hex::decode(src.shared_secret.expose_secret())
                         .map_err(|e| e.to_string())?
                         .as_slice(),
                 )
@@ -80,7 +82,8 @@ impl TryFrom<&TxBlueprintProposalTxoContext>
 
 #[derive(Deserialize, Serialize, Debug, Default, PartialEq)]
 pub struct TxBlueprintProposal {
-    pub tx_blueprint_proto_bytes_hex: String,
+    #[serde(serialize_with = "expose_secret")]
+    pub tx_blueprint_proto_bytes_hex: Secret<String>,
     pub account_id_hex: String,
     pub memo: TransactionMemo,
     pub unsigned_input_txos: Vec<UnsignedInputTxo>,
@@ -101,7 +104,7 @@ impl TryFrom<&crate::service::models::tx_blueprint_proposal::TxBlueprintProposal
         let tx_blueprint_proto_bytes_hex = hex::encode(tx_blueprint_proto_bytes.as_slice());
 
         Ok(Self {
-            tx_blueprint_proto_bytes_hex,
+            tx_blueprint_proto_bytes_hex: tx_blueprint_proto_bytes_hex.into(),
             account_id_hex: src.account_id_hex.clone(),
             memo: src.memo.clone(),
             unsigned_input_txos: src
@@ -130,7 +133,8 @@ impl TryFrom<&TxBlueprintProposal>
 
     fn try_from(src: &TxBlueprintProposal) -> Result<Self, Self::Error> {
         let tx_blueprint_proto_bytes =
-            hex::decode(&src.tx_blueprint_proto_bytes_hex).map_err(|e| e.to_string())?;
+            hex::decode(src.tx_blueprint_proto_bytes_hex.expose_secret())
+                .map_err(|e| e.to_string())?;
         let tx_blueprint_external: mc_api::external::TxBlueprint =
             mc_util_serial::decode(tx_blueprint_proto_bytes.as_slice())
                 .map_err(|e| e.to_string())?;

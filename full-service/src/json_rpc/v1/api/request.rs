@@ -6,6 +6,7 @@ use crate::json_rpc::{
     json_rpc_request::JsonRPCRequest,
     v1::models::{receiver_receipt::ReceiverReceipt, tx_proposal::TxProposal},
 };
+use redact::{expose_secret, Secret};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use strum::IntoEnumIterator;
@@ -83,17 +84,20 @@ pub enum JsonCommandRequest {
         log_tx_proposal: Option<bool>,
     },
     check_b58_type {
-        b58_code: String,
+        #[serde(serialize_with = "expose_secret")]
+        b58_code: Secret<String>,
     },
     check_gift_code_status {
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
     },
     check_receiver_receipt_status {
         address: String,
         receiver_receipt: ReceiverReceipt,
     },
     claim_gift_code {
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
         account_id: String,
         address: Option<String>,
     },
@@ -152,7 +156,8 @@ pub enum JsonCommandRequest {
         transaction_log_id: String,
     },
     get_gift_code {
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
     },
     get_mc_protocol_transaction {
         transaction_log_id: String,
@@ -182,7 +187,8 @@ pub enum JsonCommandRequest {
     },
     get_wallet_status,
     import_account {
-        mnemonic: String,
+        #[serde(serialize_with = "expose_secret")]
+        mnemonic: Secret<String>,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
@@ -191,7 +197,8 @@ pub enum JsonCommandRequest {
         fog_authority_spki: Option<String>,
     },
     import_account_from_legacy_root_entropy {
-        entropy: String,
+        #[serde(serialize_with = "expose_secret")]
+        entropy: Secret<String>,
         name: Option<String>,
         first_block_index: Option<String>,
         next_subaddress_index: Option<String>,
@@ -203,11 +210,13 @@ pub enum JsonCommandRequest {
         account_id: String,
     },
     remove_gift_code {
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
     },
     submit_gift_code {
         from_account_id: String,
-        gift_code_b58: String,
+        #[serde(serialize_with = "expose_secret")]
+        gift_code_b58: Secret<String>,
         tx_proposal: TxProposal,
     },
     submit_transaction {
