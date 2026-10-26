@@ -68,7 +68,7 @@ impl TryFrom<&TxBlueprintProposalTxoContext>
                 confirmation,
                 shared_secret: RistrettoPublic::try_from(
                     hex::decode(src.shared_secret.expose_secret())
-                        .map_err(|e| e.to_string())?
+                        .map_err(|_| "invalid hex in shared_secret".to_string())?
                         .as_slice(),
                 )
                 .map_err(|e| e.to_string())?,
@@ -134,7 +134,7 @@ impl TryFrom<&TxBlueprintProposal>
     fn try_from(src: &TxBlueprintProposal) -> Result<Self, Self::Error> {
         let tx_blueprint_proto_bytes =
             hex::decode(src.tx_blueprint_proto_bytes_hex.expose_secret())
-                .map_err(|e| e.to_string())?;
+                .map_err(|_| "invalid hex in tx_blueprint_proto_bytes_hex".to_string())?;
         let tx_blueprint_external: mc_api::external::TxBlueprint =
             mc_util_serial::decode(tx_blueprint_proto_bytes.as_slice())
                 .map_err(|e| e.to_string())?;

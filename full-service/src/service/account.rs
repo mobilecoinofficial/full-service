@@ -53,7 +53,7 @@ pub enum AccountServiceError {
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Error decoding from hex: {0}
+    /// Error decoding from hex
     HexDecode(hex::FromHexError),
 
     /// Diesel error: {0}
