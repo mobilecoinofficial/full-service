@@ -129,6 +129,17 @@ runs:
       rancher_url: ${{ inputs.rancher_url }}
       rancher_token: ${{ inputs.rancher_token }}
 
+  - name: Cleanup Volume Snapshot
+    if: always()
+    uses: mobilecoinofficial/gha-k8s-toolbox@v1
+    with:
+      action: kubectl-exec
+      rancher_cluster: ${{ inputs.rancher_cluster }}
+      rancher_url: ${{ inputs.rancher_url }}
+      rancher_token: ${{ inputs.rancher_token }}
+      command: |
+        kubectl -n full-service-ledger delete -f .mob/volume-snapshot.yaml
+
   - name: Cleanup PVC
     if: always()
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
