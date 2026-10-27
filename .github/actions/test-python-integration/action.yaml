@@ -119,6 +119,7 @@ runs:
       ./tools/test-python-integration.sh ${{ inputs.network }}
 
   - name: Cleanup helm chart
+    if: always()
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
       action: helm-release-delete
@@ -129,6 +130,7 @@ runs:
       rancher_token: ${{ inputs.rancher_token }}
 
   - name: Cleanup PVC
+    if: always()
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
       action: pvc-delete
