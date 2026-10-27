@@ -238,7 +238,7 @@ where
                 .map_err(format_error)?;
             JsonCommandResponse::build_gift_code {
                 tx_proposal: TxProposal::try_from(&tx_proposal).map_err(format_error)?,
-                gift_code_b58: gift_code_b58.to_string(),
+                gift_code_b58: gift_code_b58.to_string().into(),
             }
         }
         JsonCommandRequest::build_split_txo_transaction {
@@ -336,6 +336,7 @@ where
             }
         }
         JsonCommandRequest::check_b58_type { b58_code } => {
+            let b58_code = b58_code.expose_secret().clone();
             let b58_type = b58_printable_wrapper_type(b58_code.clone()).map_err(format_error)?;
             let mut b58_data = HashMap::new();
             match b58_type {
@@ -361,7 +362,7 @@ where
         }
         JsonCommandRequest::check_gift_code_status { gift_code_b58 } => {
             let (status, value, memo) = service
-                .check_gift_code_status(&EncodedGiftCode(gift_code_b58))
+                .check_gift_code_status(&EncodedGiftCode(gift_code_b58.expose_secret().clone()))
                 .map_err(format_error)?;
             JsonCommandResponse::check_gift_code_status {
                 gift_code_status: status,
@@ -390,7 +391,7 @@ where
         } => {
             let tx = service
                 .claim_gift_code(
-                    &EncodedGiftCode(gift_code_b58),
+                    &EncodedGiftCode(gift_code_b58.expose_secret().clone()),
                     &AccountID(account_id),
                     address,
                 )
@@ -770,7 +771,7 @@ where
         JsonCommandRequest::get_gift_code { gift_code_b58 } => JsonCommandResponse::get_gift_code {
             gift_code: GiftCode::from(
                 &service
-                    .get_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .get_gift_code(&EncodedGiftCode(gift_code_b58.expose_secret().clone()))
                     .map_err(format_error)?,
             ),
         },
@@ -1027,7 +1028,7 @@ where
 
             let account = service
                 .import_account(
-                    mnemonic,
+                    mnemonic.expose_secret().clone(),
                     name,
                     fb,
                     ns,
@@ -1068,7 +1069,7 @@ where
 
             let account = service
                 .import_account_from_legacy_root_entropy(
-                    entropy,
+                    entropy.expose_secret().clone(),
                     name,
                     fb,
                     ns,
@@ -1097,7 +1098,7 @@ where
         JsonCommandRequest::remove_gift_code { gift_code_b58 } => {
             JsonCommandResponse::remove_gift_code {
                 removed: service
-                    .remove_gift_code(&EncodedGiftCode(gift_code_b58))
+                    .remove_gift_code(&EncodedGiftCode(gift_code_b58.expose_secret().clone()))
                     .map_err(format_error)?,
             }
         }
@@ -1109,7 +1110,7 @@ where
             let gift_code = service
                 .submit_gift_code(
                     &AccountID(from_account_id),
-                    &EncodedGiftCode(gift_code_b58),
+                    &EncodedGiftCode(gift_code_b58.expose_secret().clone()),
                     &service::models::tx_proposal::TxProposal::try_from(&tx_proposal)
                         .map_err(format_error)?,
                 )

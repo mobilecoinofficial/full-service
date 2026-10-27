@@ -14,8 +14,8 @@ use displaydoc::Display;
 
 #[derive(Display, Debug)]
 pub enum GiftCodeDbError {
-    /// Could not get gift code: {0}
-    GiftCodeNotFound(String),
+    /// Could not get gift code
+    GiftCodeNotFound,
 }
 
 #[rustfmt::skip]
@@ -121,9 +121,7 @@ impl GiftCodeModel for GiftCode {
         {
             Ok(a) => Ok(a),
             // Match on NotFound to get a more informative NotFound Error
-            Err(diesel::result::Error::NotFound) => {
-                Err(GiftCodeDbError::GiftCodeNotFound(gift_code_b58.to_string()).into())
-            }
+            Err(diesel::result::Error::NotFound) => Err(GiftCodeDbError::GiftCodeNotFound.into()),
             Err(e) => Err(e.into()),
         }
     }

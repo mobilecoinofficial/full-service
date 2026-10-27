@@ -53,7 +53,7 @@ pub enum AccountServiceError {
     /// Error with LedgerDB: {0}
     LedgerDB(mc_ledger_db::Error),
 
-    /// Error decoding from hex: {0}
+    /// Error decoding from hex
     HexDecode(hex::FromHexError),
 
     /// Diesel error: {0}
@@ -65,8 +65,8 @@ pub enum AccountServiceError {
     /// Unknown key version version: {0}
     UnknownKeyDerivation(u8),
 
-    /// Invalid BIP39 english mnemonic: {0}
-    InvalidMnemonic(String),
+    /// Invalid BIP39 english mnemonic
+    InvalidMnemonic,
 
     /// Error decoding base64: {0}
     Base64DecodeError(String),
@@ -468,11 +468,7 @@ where
         // Get mnemonic from phrase
         let mnemonic = match Mnemonic::from_phrase(&mnemonic_phrase, Language::English) {
             Ok(m) => m,
-            Err(_) => {
-                return Err(AccountServiceError::InvalidMnemonic(
-                    mnemonic_phrase.to_string(),
-                ))
-            }
+            Err(_) => return Err(AccountServiceError::InvalidMnemonic),
         };
 
         // We record the local highest block index because that is the earliest we could
@@ -655,7 +651,7 @@ where
         let spend_public_key = RistrettoPublic::from(account_key.spend_private_key());
 
         let json_command_request = JsonCommandRequest::import_view_only_account {
-            view_private_key: hex::encode(view_private_key.to_bytes()),
+            view_private_key: hex::encode(view_private_key.to_bytes()).into(),
             spend_public_key: hex::encode(spend_public_key.to_bytes()),
             name: Some(account.name.clone()),
             first_block_index: Some(account.first_block_index.to_string()),

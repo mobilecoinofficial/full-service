@@ -14,7 +14,7 @@ pub fn vec_to_hex(key: &[u8]) -> String {
 }
 
 pub fn hex_to_vec(key: &str) -> Result<Vec<u8>, String> {
-    hex::decode(key).map_err(|err| format!("Could not decode string to vector: {err:?}"))
+    hex::decode(key).map_err(|_| "Could not decode string to vector".to_string())
 }
 
 pub fn vec_to_ristretto(key: &[u8]) -> Result<RistrettoPrivate, String> {

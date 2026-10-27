@@ -159,10 +159,10 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
-                    let shared_secret_bytes =
-                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    let shared_secret_bytes = hex::decode(shared_secret)
+                        .map_err(|_| "invalid hex in shared_secret".to_string())?;
                     Some(
                         RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
                             format!("error converting shared secret to RistrettoPublic: {e}")
@@ -203,10 +203,10 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
-                    let shared_secret_bytes =
-                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    let shared_secret_bytes = hex::decode(shared_secret)
+                        .map_err(|_| "invalid hex in shared_secret".to_string())?;
                     Some(
                         RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
                             format!("error converting shared secret to RistrettoPublic: {e}")
@@ -227,8 +227,8 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::UnsignedTxProposal> for 
             change_txos.push(output_txo);
         }
 
-        let proto_bytes =
-            hex::decode(&src.unsigned_tx_proto_bytes_hex).map_err(|e| e.to_string())?;
+        let proto_bytes = hex::decode(src.unsigned_tx_proto_bytes_hex.expose_secret())
+            .map_err(|_| "invalid hex in unsigned_tx_proto_bytes_hex".to_string())?;
         let unsigned_tx_external: mc_api::external::UnsignedTx =
             mc_util_serial::decode(proto_bytes.as_slice()).map_err(|e| e.to_string())?;
         let unsigned_tx = (&unsigned_tx_external)
@@ -333,8 +333,8 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
             .input_txos
             .iter()
             .map(|input_txo| {
-                let key_image_bytes =
-                    hex::decode(input_txo.key_image.expose_secret()).map_err(|e| e.to_string())?;
+                let key_image_bytes = hex::decode(input_txo.key_image.expose_secret())
+                    .map_err(|_| "invalid hex in key_image".to_string())?;
                 Ok(InputTxo {
                     tx_out: mc_util_serial::decode(
                         hex::decode(&input_txo.tx_out_proto)
@@ -373,10 +373,10 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
-                    let shared_secret_bytes =
-                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    let shared_secret_bytes = hex::decode(shared_secret)
+                        .map_err(|_| "invalid hex in shared_secret".to_string())?;
                     Some(
                         RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
                             format!("error converting shared secret to RistrettoPublic: {e}")
@@ -417,10 +417,10 @@ impl TryFrom<&crate::json_rpc::v2::models::tx_proposal::TxProposal> for TxPropos
 
             let amount = Amount::try_from(&txo.amount)?;
 
-            let shared_secret = match &txo.shared_secret {
+            let shared_secret = match txo.shared_secret.expose_secret() {
                 Some(shared_secret) => {
-                    let shared_secret_bytes =
-                        hex::decode(shared_secret).map_err(|e| e.to_string())?;
+                    let shared_secret_bytes = hex::decode(shared_secret)
+                        .map_err(|_| "invalid hex in shared_secret".to_string())?;
                     Some(
                         RistrettoPublic::try_from(shared_secret_bytes.as_slice()).map_err(|e| {
                             format!("error converting shared secret to RistrettoPublic: {e}")
