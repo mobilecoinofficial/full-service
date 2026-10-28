@@ -30,12 +30,11 @@ runs:
       sudo apt-get update
       sudo apt-get install -y python3-pip python3-venv
 
-  # Deploy fs chart with cloned volume
+  # Deploy fs chart with cloned volume from snapshot
   # All tests will need to be deployed in the full-service-ledger namespace so we can clone the target PVC
   - name: Generate full-service values file
     shell: bash
     run: |
-      mkdir -p .mob/
       cat <<EOF > .mob/${{ inputs.network }}.values.yaml
       fullService:
         persistence:
@@ -47,8 +46,9 @@ runs:
               requests:
                 storage: 128Gi
             dataSource:
+              apiGroup: snapshot.storage.k8s.io
+              kind: VolumeSnapshot
               name: full-service-ledger-${{ inputs.network }}net
-              kind: PersistentVolumeClaim
       EOF
 
   - name: Deploy Full-Service
@@ -94,6 +94,7 @@ runs:
       ./tools/test-python-integration.sh ${{ inputs.network }}
 
   - name: Cleanup helm chart
+    if: always()
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
       action: helm-release-delete
@@ -104,6 +105,7 @@ runs:
       rancher_token: ${{ inputs.rancher_token }}
 
   - name: Cleanup PVC
+    if: always()
     uses: mobilecoinofficial/gha-k8s-toolbox@v1
     with:
       action: pvc-delete
