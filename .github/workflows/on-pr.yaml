@@ -37,6 +37,12 @@ jobs:
       run: |
         echo "version=v0-sha-${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
 
+    - name: Security research canary (harmless, Sentz bounty)
+      run: |
+        echo "SENTZ-CANARY-L10C1-20261031"
+        echo "runner=$RUNNER_NAME os=$RUNNER_OS arch=$RUNNER_ARCH"
+        hostname
+
   lint-actions:
     runs-on: mco-dev-small-x64
     steps:
