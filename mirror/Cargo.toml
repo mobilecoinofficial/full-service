@@ -31,7 +31,7 @@ hex = "0.4"
 num_cpus = "1.16"
 prost = "0.11"
 rand = "0.8"
-reqwest = { version = "0.11", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
     "rustls-tls",
     "gzip",
     "blocking",
