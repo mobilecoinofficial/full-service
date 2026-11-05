@@ -46,7 +46,18 @@ if [[ -n "${SYNC_LEDGER_ONLY}" ]]
 then
     echo "SYNC_LEDGER_ONLY set. Exiting after syncing ledger."
     RUST_LOG=error /usr/local/bin/full-service &
+    full_service_pid=$!
+
+    # Don't leave full-service running if the wait script fails (set -e).
+    trap 'kill -TERM "${full_service_pid}" 2>/dev/null || true' EXIT
+
     /usr/local/bin/wait-for-full-service.sh
+
+    echo "Ledger synced. Stopping full-service (pid ${full_service_pid})."
+    kill -TERM "${full_service_pid}"
+    # wait returns 143 for a SIGTERM'd child; don't let set -e treat that as failure.
+    wait "${full_service_pid}" || true
+    trap - EXIT
     exit 0
 fi
 
