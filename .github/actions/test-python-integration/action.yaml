@@ -38,6 +38,12 @@ runs:
       mkdir -p .mob
       cat <<EOF > .mob/${{ inputs.network }}.values.yaml
       fullService:
+        resources:
+          limits:
+            memory: 10Gi
+          requests:
+            cpu: 1
+            memory: 10Gi
         persistence:
           enabled: true
           spec:
