@@ -54,7 +54,7 @@ pub fn b58_encode_public_address(public_address: &PublicAddress) -> Result<Strin
     let wrapper = PrintableWrapper {
         wrapper: Some(Wrapper::PublicAddress(public_address.into())),
     };
-    Ok(wrapper.b58_encode()?)
+    Ok(wrapper.b58_encode())
 }
 
 pub fn b58_decode_public_address(public_address_b58_code: &str) -> Result<PublicAddress, B58Error> {
@@ -84,7 +84,7 @@ pub fn b58_encode_payment_request(
         wrapper: Some(Wrapper::PaymentRequest(payment_request)),
     };
 
-    Ok(wrapper.b58_encode()?)
+    Ok(wrapper.b58_encode())
 }
 
 pub fn b58_decode_payment_request(
@@ -128,7 +128,7 @@ pub fn b58_encode_transfer_payload(
         wrapper: Some(Wrapper::TransferPayload(transfer_payload)),
     };
 
-    Ok(wrapper.b58_encode()?)
+    Ok(wrapper.b58_encode())
 }
 
 // Needed because root_entropy is deprecated
