@@ -35,6 +35,7 @@ runs:
   - name: Generate full-service values file
     shell: bash
     run: |
+      mkdir -p .mob
       cat <<EOF > .mob/${{ inputs.network }}.values.yaml
       fullService:
         persistence:
