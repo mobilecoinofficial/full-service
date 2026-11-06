@@ -51,3 +51,7 @@ mc-transaction-signer = { path = "./mobilecoin/transaction/signer" }
 mc-transaction-summary = { path = "./mobilecoin/transaction/summary" }
 mc-transaction-types = { path = "./mobilecoin/transaction/types" }
 mc-util-from-random = { path = "./mobilecoin/util/from-random" }
+
+# patches for updates to the rust-ledger repo that have not yet been merged
+ledger-proto = { git = "https://github.com/ryan-sentz/rust-ledger.git", branch = "ryan/everything" }
+ledger-lib = { git = "https://github.com/ryan-sentz/rust-ledger.git", branch = "ryan/everything" }

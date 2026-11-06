@@ -306,6 +306,7 @@ These are the parameters to the full-service executable.
 | `listen-host`  | Host to listen on.           | Default: 127.0.0.1 |
 | `listen-port`  | Port to start webserver on.  | Default: 9090 |
 | `ledger-db-bootstrap` | Path to existing ledger_db that contains the origin block, <br /> used when initializing new ledger dbs. |  |
+| `ledger-db-no-readahead` | Open the ledger db with LMDB's `NO_READAHEAD` flag <br /> (`MC_LEDGER_DB_NO_READAHEAD=1`). Reduces wasted disk I/O <br /> when the ledger doesn't fit in RAM. | Default: off |
 | `quorum-set` | Quorum set for ledger syncing. | Default includes all `peers` |
 | `poll-interval` | How many seconds to wait between polling for new blocks. | Default: 5 |
 | `offline` | Use Full Service in offline mode. This mode does not download new blocks or submit transactions. | |
