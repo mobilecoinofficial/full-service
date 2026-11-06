@@ -44,11 +44,11 @@ jobs:
       matrix:
         target:
         - aarch64-apple-darwin
-        - x86_64-apple-darwin
+        # - x86_64-apple-darwin
         network:
         - main
         - test
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -174,7 +174,6 @@ jobs:
           - [Linux ARM64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz)
           - [Linux X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz)
           - [MacOS ARM64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
-          - [MacOS X64 TestNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz)
 
           #### Docker Images (amd64, arm64)
           - [Docker Image TestNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-testnet)
@@ -185,7 +184,6 @@ jobs:
           - [Linux ARM64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz)
           - [Linux X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz)
           - [MacOS ARM64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz)
-          - [MacOS X64 MainNet](https://github.com/mobilecoinofficial/full-service/releases/download/${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz)
 
           #### Docker Images (amd64, arm64)
           - [Docker Image MainNet](https://hub.docker.com/r/mobilecoin/full-service/tags?name=${{ github.ref_name }}-mainnet)
@@ -211,7 +209,7 @@ jobs:
           ```bash
           # MainNet Example
           docker run -it -p 127.0.0.1:9090:9090 \
-            --volume $(pwd)/testnet/fs-data:/data \
+            --volume $(pwd)/mainnet/fs-data:/data \
             mobilecoin/full-service:${{ github.ref_name }}-mainnet
           ```
 
@@ -252,8 +250,7 @@ jobs:
           build_artifacts/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}/full-service-mainnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-Linux-X64-${{ github.ref_name }}/full-service-mainnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}/full-service-mainnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
-          build_artifacts/full-service-mainnet-macOS-X64-${{ github.ref_name }}/full-service-mainnet-macOS-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-Linux-ARM64-${{ github.ref_name }}/full-service-testnet-Linux-ARM64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-Linux-X64-${{ github.ref_name }}/full-service-testnet-Linux-X64-${{ github.ref_name }}.tar.gz
           build_artifacts/full-service-testnet-macOS-ARM64-${{ github.ref_name }}/full-service-testnet-macOS-ARM64-${{ github.ref_name }}.tar.gz
-          build_artifacts/full-service-testnet-macOS-X64-${{ github.ref_name }}/full-service-testnet-macOS-X64-${{ github.ref_name }}.tar.gz
+

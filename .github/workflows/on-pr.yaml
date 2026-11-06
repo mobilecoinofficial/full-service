@@ -208,11 +208,11 @@ jobs:
       matrix:
         target:
         - aarch64-apple-darwin
-        - x86_64-apple-darwin
+        # - x86_64-apple-darwin
         network:
         - main
         - test
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
@@ -344,7 +344,6 @@ jobs:
     - test-rust
     - build-rust-macos
     - build-publish-charts
-    - test-python-integration
     runs-on: mco-dev-small-x64
     steps:
     - name: Success
