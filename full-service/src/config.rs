@@ -312,6 +312,12 @@ pub struct LedgerDbConfig {
     /// initializing new ledger dbs.
     #[clap(long, env = "MC_LEDGER_DB_BOOTSTRAP")]
     pub ledger_db_bootstrap: Option<String>,
+
+    /// Open the ledger db with LMDB's NO_READAHEAD flag. Ledger lookups are
+    /// random (hash-keyed), so OS readahead mostly reads pages that are never
+    /// used; disabling it helps when the ledger is larger than available RAM.
+    #[clap(long, env = "MC_LEDGER_DB_NO_READAHEAD")]
+    pub ledger_db_no_readahead: bool,
 }
 
 impl LedgerDbConfig {
@@ -329,7 +335,9 @@ impl LedgerDbConfig {
         }
 
         // Attempt to open the ledger and see if it has anything in it.
-        if let Ok(ledger_db) = LedgerDB::open(&self.ledger_db) {
+        if let Ok(ledger_db) =
+            LedgerDB::open_with_options(&self.ledger_db, self.ledger_db_no_readahead)
+        {
             if let Ok(num_blocks) = ledger_db.num_blocks() {
                 if num_blocks > 0 {
                     // Successfully opened a ledger that has blocks in it.
@@ -385,7 +393,9 @@ impl LedgerDbConfig {
                     );
                     let block_data = get_origin_block_and_transactions()
                         .expect("Failed to download initial transactions");
-                    let mut db = LedgerDB::open(&self.ledger_db).expect("Could not open ledger_db");
+                    let mut db =
+                        LedgerDB::open_with_options(&self.ledger_db, self.ledger_db_no_readahead)
+                            .expect("Could not open ledger_db");
                     db.append_block_data(&block_data)
                         .expect("Failed to append initial transactions");
                     log::info!(logger, "Bootstrapping completed!");
@@ -395,7 +405,7 @@ impl LedgerDbConfig {
 
         // Open ledger and verify it has (at least) the origin block.
         log::debug!(logger, "Opening Ledger DB {:?}", self.ledger_db);
-        let ledger_db = LedgerDB::open(&self.ledger_db)
+        let ledger_db = LedgerDB::open_with_options(&self.ledger_db, self.ledger_db_no_readahead)
             .unwrap_or_else(|_| panic!("Could not open ledger db inside {:?}", self.ledger_db));
 
         let num_blocks = ledger_db
