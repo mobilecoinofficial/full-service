@@ -40,10 +40,10 @@ runs:
       fullService:
         resources:
           limits:
-            memory: 20Gi
+            memory: 10Gi
           requests:
             cpu: 1
-            memory: 20Gi
+            memory: 10Gi
         persistence:
           enabled: true
           spec:
@@ -51,7 +51,7 @@ runs:
             - ReadWriteOnce
             resources:
               requests:
-                storage: 128Gi
+                storage: 256Gi
             dataSource:
               apiGroup: snapshot.storage.k8s.io
               kind: VolumeSnapshot

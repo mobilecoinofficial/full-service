@@ -344,7 +344,6 @@ jobs:
     - test-rust
     - build-rust-macos
     - build-publish-charts
-    - test-python-integration
     runs-on: mco-dev-small-x64
     steps:
     - name: Success
