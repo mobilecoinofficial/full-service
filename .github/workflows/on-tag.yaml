@@ -25,7 +25,7 @@ jobs:
         - test
     runs-on: ${{ matrix.runner }}
     container:
-      image: mobilecoin/rust-base:v0.0.37
+      image: mobilecoin/rust-base:v0.0.38
     steps:
     - name: Checkout
       uses: mobilecoinofficial/gh-actions/checkout@v0
