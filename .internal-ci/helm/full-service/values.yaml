@@ -57,7 +57,7 @@ fullService:
         - "ReadWriteOnce"
       resources:
         requests:
-          storage: 128Gi
+          storage: 256Gi
   configMap:
     name: full-service
     data: {}
