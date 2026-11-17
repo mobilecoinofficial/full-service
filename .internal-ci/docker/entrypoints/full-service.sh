@@ -58,6 +58,7 @@ then
     # wait returns 143 for a SIGTERM'd child; don't let set -e treat that as failure.
     wait "${full_service_pid}" || true
     trap - EXIT
+    sync
     exit 0
 fi
 
