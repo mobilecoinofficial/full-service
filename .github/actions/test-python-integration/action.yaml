@@ -52,7 +52,7 @@ runs:
             resources:
               requests:
                 storage: 256Gi
-            storageClassName: disk.csi.azure.com-premium
+            storageClassName: disk.csi.azure.com-premium-minreadahead
             dataSource:
               kind: PersistentVolumeClaim
               name: full-service-ledger-${{ inputs.network }}net
