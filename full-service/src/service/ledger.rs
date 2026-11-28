@@ -17,8 +17,8 @@ use crate::{
 use mc_blockchain_types::{Block, BlockContents, BlockVersion, BlockVersionError};
 use mc_common::HashSet;
 use mc_connection::{
-    BlockInfo, BlockchainConnection, RetryableBlockchainConnection, UserTxConnection,
-    _retry::delay::Fibonacci,
+    _retry::delay::Fibonacci, BlockInfo, BlockchainConnection, RetryableBlockchainConnection,
+    UserTxConnection,
 };
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_fog_report_validation::FogPubkeyResolver;
@@ -30,7 +30,7 @@ use mc_transaction_core::{
     FeeMap, FeeMapError,
 };
 use mc_watcher::error::WatcherDBError;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::db::WalletDbError;
 use displaydoc::Display;
@@ -484,10 +484,10 @@ where
             return Err(LedgerServiceError::InsufficientTxOuts);
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < num_mixins {
-            let index = rng.gen_range(0..num_txos);
+            let index = rng.random_range(0..num_txos);
             if excluded_indices.contains(&index) {
                 continue;
             }

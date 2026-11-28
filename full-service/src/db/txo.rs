@@ -2422,7 +2422,6 @@ mod tests {
         HashSet,
     };
     use mc_ledger_db::Ledger;
-    use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, Amount, Token, TokenId};
     use mc_transaction_extra::{
         BurnRedemptionMemo, DefragmentationMemo, DestinationMemo,
@@ -2430,8 +2429,8 @@ mod tests {
         GiftCodeCancellationMemo, GiftCodeFundingMemo, GiftCodeSenderMemo,
     };
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
-    use std::{assert_matches::assert_matches, iter::FromIterator, ops::DerefMut, time::Duration};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use std::{assert_matches, iter::FromIterator, ops::DerefMut, time::Duration};
 
     use super::*;
     use crate::{

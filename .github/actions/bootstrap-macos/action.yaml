@@ -40,7 +40,7 @@ runs:
       echo "-- install rust toolchain"
       rm -rf /Users/runner/.cargo
       rm -rf /Users/runner/.rustup
-      rustup toolchain install "$(cat rust-toolchain)" --target ${{ inputs.target }}
+      rustup toolchain install "$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain)" --target ${{ inputs.target }}
 
       echo "-- add cargo to path"
       rustup_cargo=$(rustup which cargo)

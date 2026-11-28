@@ -2,10 +2,12 @@
 
 //! transaction signer implementation
 
-use bip39::{Language, Mnemonic};
 use clap::Parser;
 use mc_common::logger::{create_app_logger, log, o};
-use mc_core::{account::Account, slip10::Slip10KeyGenerator};
+use mc_core::{
+    account::Account,
+    slip10::{Mnemonic, Slip10KeyGenerator},
+};
 use mc_crypto_ring_signature_signer::LocalRingSigner;
 use mc_signer::service;
 use mc_transaction_core::AccountKey;
@@ -73,7 +75,7 @@ fn main() -> anyhow::Result<()> {
         Actions::Signer(operation) => {
             // Load account secrets
             let secrets: AccountSecrets = read_input(&args.account_secrets_file)?;
-            let mnemonic = Mnemonic::from_phrase(&secrets.mnemonic, Language::English)?;
+            let mnemonic = Mnemonic::from_phrase(&secrets.mnemonic)?;
 
             // Perform SLIP-0010 derivation
             let account_index = operation.account_index();

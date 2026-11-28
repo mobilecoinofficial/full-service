@@ -13,9 +13,8 @@ mod e2e_account {
 
     use mc_common::logger::{test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use serde_json::json;
 
     #[test_with_logger]

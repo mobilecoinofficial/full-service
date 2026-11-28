@@ -101,7 +101,7 @@ impl UnsignedTxProposal {
             .collect::<Result<Vec<InputTxo>, TransactionServiceError>>()?;
 
         let signer = LocalRingSigner::from(account_key);
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let tx = self.unsigned_tx.sign(&signer, None, &mut rng)?;
 
         Ok(TxProposal {
@@ -465,8 +465,7 @@ mod tests {
     };
 
     use mc_common::logger::{test_with_logger, Logger};
-    use mc_rand::RngCore;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
 
     use super::*;
 

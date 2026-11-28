@@ -5,8 +5,8 @@
 use grpcio::{EnvBuilder, RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::{log, Logger};
 use mc_connection::{
-    ConnectionManager, Error as ConnectionError, RetryError, RetryableUserTxConnection,
-    UserTxConnection, _retry::delay::Fibonacci,
+    _retry::delay::Fibonacci, ConnectionManager, Error as ConnectionError, RetryError,
+    RetryableUserTxConnection, UserTxConnection,
 };
 use mc_fog_report_connection::{Error as FogConnectionError, GrpcFogReportConnection};
 use mc_ledger_db::{Ledger, LedgerDB};

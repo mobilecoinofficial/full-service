@@ -24,7 +24,7 @@ use mc_connection_test_utils::MockBlockchainConnection;
 use mc_crypto_keys::Ed25519Pair;
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
-use mc_rand::{CryptoRng, RngCore};
+use mc_rand::CryptoRng;
 use mc_util_from_random::FromRandom;
 use mc_watcher::watcher_db::WatcherDB;
 
@@ -99,7 +99,7 @@ pub const BASE_TEST_BLOCK_HEIGHT: usize = 12;
 fn create_test_watcher_db(
     ledger_db: &LedgerDB,
     logger: &Logger,
-    rng: &mut (impl RngCore + CryptoRng),
+    rng: &mut impl CryptoRng,
 ) -> WatcherDB {
     let url1 = Url::parse("http://www.my_url1.com").unwrap();
     let url2 = Url::parse("http://www.my_url2.com").unwrap();

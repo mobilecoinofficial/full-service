@@ -889,7 +889,7 @@ mod tests {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{
-        assert_matches::assert_matches,
+        assert_matches,
         collections::HashMap,
         ops::DerefMut,
         sync::{Arc, Mutex},
@@ -1952,7 +1952,7 @@ mod tests {
 
     #[test]
     fn test_try_from_vec_output_txo_for_transaction_id() {
-        let mut rng: StdRng = SeedableRng::from_entropy();
+        let mut rng: StdRng = rand::make_rng();
         let root_id = RootIdentity::from_random(&mut rng);
         let recipient_account_key = AccountKey::from(&root_id);
         let amount = 77;

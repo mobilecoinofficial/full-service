@@ -14,7 +14,7 @@ mc-account-keys = { path = "../mobilecoin/account-keys" }
 mc-api = { path = "../mobilecoin/api" }
 mc-attest-core = { path = "../mobilecoin/attest/core", default-features = false }
 mc-attest-verifier = { path = "../mobilecoin/attest/verifier", default-features = false }
-mc-attestation-verifier = "0.4"
+mc-attestation-verifier = "0.5"
 mc-blockchain-types = { path = "../mobilecoin/blockchain/types" }
 mc-common = { path = "../mobilecoin/common", default-features = false, features = [
     "loggers",
@@ -38,8 +38,8 @@ mc-ledger-sync = { path = "../mobilecoin/ledger/sync" }
 mc-mobilecoind = { path = "../mobilecoin/mobilecoind" }
 mc-mobilecoind-api = { path = "../mobilecoin/mobilecoind/api" }
 mc-mobilecoind-json = { path = "../mobilecoin/mobilecoind-json" }
-mc-rand = "1"
-mc-sgx-core-types = "0.12"
+mc-rand = "2"
+mc-sgx-core-types = "0.14"
 mc-sgx-css = { path = "../mobilecoin/sgx/css" }
 mc-transaction-builder = { path = "../mobilecoin/transaction/builder" }
 mc-transaction-core = { path = "../mobilecoin/transaction/core" }
@@ -72,7 +72,7 @@ diesel-derive-enum = { version = "2", features = ["sqlite"] }
 diesel_migrations = { version = "2.1.0", features = ["sqlite"] }
 displaydoc = { version = "0.2", default-features = false }
 dotenv = "0.15.0"
-ed25519-dalek = { version = "2.0.0-pre.0", default-features = false }
+ed25519-dalek = { version = "3", default-features = false }
 futures = "0.3"
 grpcio = { version = "0.13", default-features = false, features = ["prost-codec"] }
 hex = { version = "0.4", default-features = false }
@@ -81,12 +81,17 @@ itertools = "0.10.5"
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 num_cpus = "1.16"
 prost = "0.11"
-rand = { version = "0.8", default-features = false }
+rand = { version = "0.10", default-features = false, features = [
+    "std",
+    "std_rng",
+    "thread_rng",
+] }
 rayon = "1.7"
 redact = { version = "0.1.7", features = ["serde"] }
-reqwest = { version = "0.11.20", default-features = false, features = [
-    "rustls-tls",
+reqwest = { version = "0.13", default-features = false, features = [
+    "blocking",
     "gzip",
+    "rustls",
 ] }
 retry = "2.0"
 rocket = { version = "0.5.0-rc.3", features = ["json"] }
@@ -102,7 +107,6 @@ serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 strum = { version = "0.25.0", features = ["derive"] }
 strum_macros = "0.25.1"
-tiny-bip39 = "1.0"
 uuid = { version = "1.4.1", features = ["serde", "v4"] }
 
 [build-dependencies]

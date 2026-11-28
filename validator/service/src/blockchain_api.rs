@@ -5,8 +5,8 @@
 use grpcio::{RpcContext, RpcStatus, Service, UnarySink};
 use mc_common::logger::Logger;
 use mc_connection::{
-    BlockchainConnection, ConnectionManager, RetryableBlockchainConnection,
-    _retry::delay::Fibonacci,
+    _retry::delay::Fibonacci, BlockchainConnection, ConnectionManager,
+    RetryableBlockchainConnection,
 };
 use mc_ledger_db::LedgerDB;
 use mc_transaction_core::{tokens::Mob, Token};

@@ -320,11 +320,10 @@ mod tests {
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_crypto_keys::{ReprBytes, RistrettoPrivate, RistrettoPublic};
     use mc_ledger_db::Ledger;
-    use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
 
     // The receipt should convert between the rust and proto representations.
     #[test]

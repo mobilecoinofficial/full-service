@@ -37,7 +37,7 @@ use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_fog_report_validation::{FogPubkeyError, FogPubkeyResolver, FullyValidatedFogPubkey};
 use mc_ledger_db::{Ledger, LedgerDB};
 use mc_ledger_sync::PollingNetworkState;
-use mc_rand::{CryptoRng, RngCore};
+use mc_rand::CryptoRng;
 use mc_transaction_core::{
     encrypted_fog_hint::EncryptedFogHint,
     onetime_keys::{create_tx_out_target_key, recover_onetime_private_key},
@@ -48,7 +48,7 @@ use mc_transaction_core::{
 };
 use mc_util_from_random::FromRandom;
 use mc_util_uri::{ConnectionUri, FogUri};
-use rand::{distributions::Alphanumeric, rngs::StdRng, thread_rng, Rng, SeedableRng};
+use rand::{distr::Alphanumeric, rngs::StdRng, Rng, RngExt, SeedableRng};
 use std::{
     collections::BTreeMap,
     convert::TryFrom,
@@ -87,7 +87,7 @@ impl Default for WalletDbTestContext {
     fn default() -> Self {
         let db_name: String = format!(
             "test_{}",
-            thread_rng()
+            rand::rng()
                 .sample_iter(&Alphanumeric)
                 .take(10)
                 .map(char::from)
@@ -126,7 +126,7 @@ pub fn generate_n_blocks_on_ledger(
     num_random_recipients: u32,
     known_recipients: &[PublicAddress],
     num_blocks: usize,
-    mut rng: &mut (impl CryptoRng + RngCore),
+    mut rng: &mut impl CryptoRng,
     ledger_db: &mut LedgerDB,
 ) {
     let mut public_addresses: Vec<PublicAddress> = (0..num_random_recipients)
@@ -166,7 +166,7 @@ pub fn get_test_ledger(
     num_random_recipients: u32,
     known_recipients: &[PublicAddress],
     num_blocks: usize,
-    mut rng: &mut (impl CryptoRng + RngCore),
+    mut rng: &mut impl CryptoRng,
 ) -> LedgerDB {
     let mut ledger_db = get_empty_test_ledger();
     generate_n_blocks_on_ledger(
@@ -208,7 +208,7 @@ pub fn generate_ledger_db(path: &str) -> LedgerDB {
 pub fn append_test_block(
     ledger_db: &mut LedgerDB,
     block_contents: BlockContents,
-    mut rng: &mut (impl CryptoRng + RngCore),
+    mut rng: &mut impl CryptoRng,
 ) -> u64 {
     let num_blocks = ledger_db.num_blocks().expect("failed to get block height");
 
@@ -249,7 +249,7 @@ pub fn add_block_to_ledger_db(
     recipients: &[PublicAddress],
     output_value: u64,
     key_images: &[KeyImage],
-    rng: &mut (impl CryptoRng + RngCore),
+    rng: &mut impl CryptoRng,
 ) -> u64 {
     let outputs: Vec<_> = recipients
         .iter()
@@ -275,11 +275,7 @@ pub fn add_block_to_ledger_db(
     append_test_block(ledger_db, block_contents, rng)
 }
 
-pub fn add_block_with_tx(
-    ledger_db: &mut LedgerDB,
-    tx: Tx,
-    rng: &mut (impl CryptoRng + RngCore),
-) -> u64 {
+pub fn add_block_with_tx(ledger_db: &mut LedgerDB, tx: Tx, rng: &mut impl CryptoRng) -> u64 {
     let block_contents = BlockContents {
         key_images: tx.key_images(),
         outputs: tx.prefix.outputs,
@@ -293,7 +289,7 @@ pub fn add_block_with_tx_outs(
     ledger_db: &mut LedgerDB,
     outputs: &[TxOut],
     key_images: &[KeyImage],
-    rng: &mut (impl CryptoRng + RngCore),
+    rng: &mut impl CryptoRng,
 ) -> u64 {
     let block_contents = BlockContents {
         key_images: key_images.to_vec(),

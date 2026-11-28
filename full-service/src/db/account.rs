@@ -16,7 +16,6 @@ use crate::{
     },
 };
 use base64::engine::{general_purpose::STANDARD as BASE64_ENGINE, Engine};
-use bip39::Mnemonic;
 use diesel::{
     dsl::{exists, select},
     prelude::*,
@@ -25,7 +24,7 @@ use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, RootIdentity, ViewAccountKey, CHANGE_SUBADDRESS_INDEX,
     DEFAULT_SUBADDRESS_INDEX,
 };
-use mc_core::slip10::Slip10KeyGenerator;
+use mc_core::slip10::{Mnemonic, Slip10KeyGenerator};
 use mc_crypto_digestible::{Digestible, MerlinTranscript};
 use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
 use mc_transaction_core::{get_tx_out_shared_secret, TokenId};
@@ -971,8 +970,7 @@ mod tests {
     use mc_util_from_random::FromRandom;
     use rand::{rngs::StdRng, SeedableRng};
     use std::{
-        assert_matches::assert_matches, collections::HashSet, convert::TryFrom, iter::FromIterator,
-        ops::DerefMut,
+        assert_matches, collections::HashSet, convert::TryFrom, iter::FromIterator, ops::DerefMut,
     };
     use yare::parameterized;
 

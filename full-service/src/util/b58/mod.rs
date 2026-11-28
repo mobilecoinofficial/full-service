@@ -8,12 +8,11 @@ pub mod b58_public_address;
 #[cfg(test)]
 mod tests;
 
-use bip39::{Language, Mnemonic};
 use mc_account_keys::{AccountKey, PublicAddress, RootEntropy, RootIdentity};
 use mc_api::printable::{
     printable_wrapper::Wrapper, PaymentRequest, PrintableWrapper, TransferPayload,
 };
-use mc_core::slip10::Slip10KeyGenerator;
+use mc_core::slip10::{Mnemonic, Slip10KeyGenerator};
 use mc_crypto_keys::CompressedRistrettoPublic;
 use mc_transaction_core::Amount;
 use serde::{Deserialize, Serialize};
@@ -157,7 +156,7 @@ pub fn b58_decode_transfer_payload(
     // mnemonic.
     let mut bip39_entropy = None;
     if !transfer_payload.bip39_entropy.is_empty() {
-        match Mnemonic::from_entropy(transfer_payload.bip39_entropy.as_slice(), Language::English) {
+        match Mnemonic::from_entropy(transfer_payload.bip39_entropy.as_slice()) {
             Ok(mnemonic) => {
                 bip39_entropy = Some(transfer_payload.bip39_entropy.clone());
 

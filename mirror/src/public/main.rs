@@ -8,8 +8,6 @@
 //!    forwarded to the wallet service instance sitting behind the private part
 //!    of the mirror.
 
-#![feature(decl_macro)]
-
 mod mirror_service;
 mod query;
 mod utils;

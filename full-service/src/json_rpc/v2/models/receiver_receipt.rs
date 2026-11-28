@@ -78,11 +78,10 @@ mod tests {
     use super::*;
     use mc_account_keys::AccountKey;
     use mc_crypto_keys::{RistrettoPrivate, RistrettoPublic};
-    use mc_rand::RngCore;
     use mc_transaction_core::{tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
 
     #[test]
     fn test_rpc_receipt_round_trip() {

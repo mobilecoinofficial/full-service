@@ -7,7 +7,7 @@ use crate::{
     json_rpc::v1::models::account_key::{AccountKey, ViewAccountKey},
 };
 
-use bip39::{Language, Mnemonic};
+use mc_core::slip10::Mnemonic;
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -84,7 +84,7 @@ impl TryFrom<&Account> for AccountSecrets {
                 2 => {
                     let entropy = src.entropy.as_ref().ok_or("No entropy found")?;
                     Some(
-                        Mnemonic::from_entropy(entropy, Language::English)
+                        Mnemonic::from_entropy(entropy.as_slice())
                             .map_err(|err| {
                                 format!("Could not decode mnemonic from entropy: {err:?}")
                             })?

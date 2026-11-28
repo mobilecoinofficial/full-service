@@ -15,10 +15,10 @@ mod e2e_account {
     use mc_account_keys::{AccountKey, RootEntropy, RootIdentity};
     use mc_common::logger::{test_with_logger, Logger};
     use mc_core::slip10::Slip10KeyGenerator;
-    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
+    use rand::Rng;
 
-    use bip39::{Language, Mnemonic};
+    use mc_core::slip10::Mnemonic;
     use rand::{rngs::StdRng, SeedableRng};
     use serde_json::json;
 
@@ -58,7 +58,7 @@ mod e2e_account {
         assert_eq!(secrets["key_derivation_version"], serde_json::json!("2"));
 
         // Test that the mnemonic serializes correctly back to an AccountKey object
-        let mnemonic = Mnemonic::from_phrase(phrase, Language::English).unwrap();
+        let mnemonic = Mnemonic::from_phrase(phrase).unwrap();
         let slip_10_key = mnemonic.derive_slip10_key(0);
         let account_key: AccountKey = slip_10_key.into();
 

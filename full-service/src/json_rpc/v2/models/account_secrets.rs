@@ -7,7 +7,7 @@ use crate::{
     json_rpc::v2::models::account_key::{AccountKey, ViewAccountKey},
 };
 
-use bip39::{Language, Mnemonic};
+use mc_core::slip10::Mnemonic;
 use redact::{expose_secret, Secret};
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -83,8 +83,7 @@ impl TryFrom<&Account> for AccountSecrets {
             let mnemonic = match src.key_derivation_version {
                 2 => Secret::new(Some(
                     Mnemonic::from_entropy(
-                        src.entropy.as_ref().ok_or("No entropy found")?,
-                        Language::English,
+                        src.entropy.as_ref().ok_or("No entropy found")?.as_slice(),
                     )
                     .map_err(|err| format!("Could not create mnemonic: {err:?}"))?
                     .phrase()

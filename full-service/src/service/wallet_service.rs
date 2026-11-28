@@ -22,9 +22,9 @@ use mc_connection::{
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_ledger_db::LedgerDB;
 use mc_ledger_sync::PollingNetworkState;
-use mc_rand::rand_core::RngCore;
 use mc_util_uri::FogUri;
 use mc_watcher::watcher_db::WatcherDB;
+use rand::Rng;
 use std::{
     collections::HashMap,
     sync::{atomic::AtomicUsize, Arc, Mutex, RwLock},
@@ -139,7 +139,7 @@ impl<
             None
         };
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         WalletService {
             wallet_db,
             ledger_db,

@@ -2,7 +2,6 @@
 
 //! MobileCoin wallet service
 
-#![feature(proc_macro_hygiene, decl_macro)]
 use clap::Parser;
 use diesel::{connection::SimpleConnection, prelude::*, SqliteConnection};
 use dotenv::dotenv;

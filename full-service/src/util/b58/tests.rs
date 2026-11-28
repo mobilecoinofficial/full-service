@@ -6,19 +6,18 @@ use crate::{
         b58_printable_wrapper_type, B58Error, PrintableWrapperType,
     },
 };
-use bip39::{Language, Mnemonic};
 use mc_account_keys::{AccountKey, PublicAddress};
-use mc_core::slip10::Slip10KeyGenerator;
+use mc_core::slip10::{Mnemonic, Slip10KeyGenerator};
 use mc_transaction_core::{tokens::Mob, Amount, Token};
-use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
+use rand::{rngs::StdRng, CryptoRng, SeedableRng};
 
-fn get_public_address<T: RngCore + CryptoRng>(rng: &mut T) -> PublicAddress {
+fn get_public_address<T: CryptoRng>(rng: &mut T) -> PublicAddress {
     let account_key = AccountKey::random(rng);
     account_key.default_subaddress()
 }
 
 fn get_account_and_entropy_bytes() -> (AccountKey, Vec<u8>) {
-    let mnemonic = Mnemonic::from_phrase("rabbit private camp deliver word waste skill loan giant spirit auction brief possible defense spin combine butter satisfy cruise capital depth oval trim inch", Language::English).unwrap();
+    let mnemonic = Mnemonic::from_phrase("rabbit private camp deliver word waste skill loan giant spirit auction brief possible defense spin combine butter satisfy cruise capital depth oval trim inch").unwrap();
     let bip39_entropy_bytes = mnemonic.entropy().to_vec();
     let slip10_key = mnemonic.derive_slip10_key(0);
     let account_key = AccountKey::from(slip10_key);

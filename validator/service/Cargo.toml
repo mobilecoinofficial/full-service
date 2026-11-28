@@ -12,7 +12,7 @@ path = "src/bin/main.rs"
 [dependencies]
 mc-attest-core = { path = "../../mobilecoin/attest/core", default-features = false }
 mc-attest-verifier = { path = "../../mobilecoin/attest/verifier" }
-mc-attestation-verifier = "0.4.1"
+mc-attestation-verifier = "0.5"
 mc-common = { path = "../../mobilecoin/common", default-features = false, features = [
     "loggers",
 ] }
@@ -22,7 +22,7 @@ mc-fog-report-connection = { path = "../../mobilecoin/fog/report/connection" }
 mc-full-service = { path = "../../full-service" }
 mc-ledger-db = { path = "../../mobilecoin/ledger/db" }
 mc-ledger-sync = { path = "../../mobilecoin/ledger/sync" }
-mc-sgx-core-types = "0.12"
+mc-sgx-core-types = "0.14"
 mc-transaction-core = { path = "../../mobilecoin/transaction/core" }
 mc-util-grpc = { path = "../../mobilecoin/util/grpc" }
 mc-util-parse = { path = "../../mobilecoin/util/parse" }

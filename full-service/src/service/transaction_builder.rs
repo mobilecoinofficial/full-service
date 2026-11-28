@@ -40,7 +40,7 @@ use mc_transaction_core::{
     Amount, BlockVersion, Token, TokenId,
 };
 use mc_util_uri::FogUri;
-use rand::Rng;
+use rand::RngExt;
 use std::{collections::BTreeMap, convert::TryInto, str::FromStr, sync::Arc};
 
 /// Default number of blocks used for calculating transaction tombstone block
@@ -247,7 +247,7 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
         memo: TransactionMemo,
         conn: Conn,
     ) -> Result<TxBlueprintProposal, WalletTransactionBuilderError> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let account = Account::get(&AccountID(self.account_id_hex.clone()), conn)?;
 
         let view_account_key = account.view_account_key()?;
@@ -614,10 +614,10 @@ impl<FPR: FogPubkeyResolver + 'static> WalletTransactionBuilder<FPR> {
 
         // Randomly sample `num_requested` TxOuts, without replacement and convert into
         // a Vec<u64>
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < num_requested {
-            let index = rng.gen_range(0..num_txos);
+            let index = rng.random_range(0..num_txos);
             if excluded_tx_out_indices.contains(&index) {
                 continue;
             }

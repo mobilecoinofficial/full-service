@@ -21,11 +21,10 @@ mod e2e_transaction {
     use mc_common::logger::{test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
     use mc_ledger_db::Ledger;
-    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, tx::TxOut, Amount, Token};
     use mc_transaction_types::BlockVersion;
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use redact::Secret;
     use serde_json::json;
 

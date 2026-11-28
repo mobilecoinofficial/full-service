@@ -17,9 +17,8 @@ mod e2e_webhook {
     use httpmock::{Method::POST, MockServer};
     use mc_common::logger::{log, test_with_logger, Logger};
     use mc_ledger_db::Ledger;
-    use mc_rand::RngCore;
     use mc_transaction_core::ring_signature::KeyImage;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use reqwest::{
         blocking::Client,
         header::{HeaderMap, HeaderValue, CONTENT_TYPE},

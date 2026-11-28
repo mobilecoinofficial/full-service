@@ -26,17 +26,20 @@ strip = "symbols"
 
 [patch.crates-io]
 # Fork and rename to use "OG" dalek-cryptography with latest dependencies.
-bulletproofs-og = { git = "https://github.com/mobilecoinfoundation/bulletproofs.git", rev = "9abfdc054d9ba65f1e185ea1e6eff3947ce879dc" }
+bulletproofs-og = { git = "https://github.com/mobilecoinfoundation/bulletproofs.git", rev = "e7ba85f847fd2beaa67448711de60d6dfd6ac052" }
 
 # mbedtls patched to allow certificate verification with a profile
-mbedtls = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "f82523478a1dd813ca381c190175355d249a8123" }
-mbedtls-sys-auto = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "f82523478a1dd813ca381c190175355d249a8123" }
+mbedtls = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "0bddacc981ac782ca2e2f8aa5ffa25ce0e3d8273" }
+mbedtls-sys-auto = { git = "https://github.com/mobilecoinfoundation/rust-mbedtls.git", rev = "0bddacc981ac782ca2e2f8aa5ffa25ce0e3d8273" }
 
 # Override lmdb-rkv for a necessary bugfix (see https://github.com/mozilla/lmdb-rs/pull/80)
 lmdb-rkv = { git = "https://github.com/mozilla/lmdb-rs", rev = "df1c2f5" }
 
-# Fork and rename to use "OG" dalek-cryptography.
-schnorrkel-og = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git", rev = "049bf9d30f3bbe072e2ad1b5eefdf0f3c851215e" }
+# curve25519-dalek 5 and rand 0.10 support are not yet published upstream.
+schnorrkel = { git = "https://github.com/mobilecoinfoundation/schnorrkel.git", rev = "65300ab0d2efaf7853f6eaa8cf6930116850e30a" }
+
+# Additional rand 0.10 compatibility patches.
+merlin = { git = "https://github.com/mobilecoinofficial/merlin.git", rev = "0bf3a40f3bc6a7e1fba59988fc3ed563093c69c5" }
 
 # Patch mc lib for git dependencies in ledger-mob
 mc-core = { path = "./mobilecoin/core" }

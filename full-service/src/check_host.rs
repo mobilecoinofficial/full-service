@@ -44,7 +44,7 @@ impl From<reqwest::Error> for CheckHostError {
 ///
 /// Note, both of these services are free tier and rate-limited.
 pub fn check_host_is_allowed_country_and_region() -> Result<(), CheckHostError> {
-    let client = Client::builder().gzip(true).use_rustls_tls().build()?;
+    let client = Client::builder().gzip(true).tls_backend_rustls().build()?;
     let mut json_headers = HeaderMap::new();
     json_headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     let response = match client

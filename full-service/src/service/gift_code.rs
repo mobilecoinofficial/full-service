@@ -53,9 +53,9 @@ use mc_transaction_core::{
 use mc_transaction_extra::SenderMemoCredential;
 use mc_util_uri::FogUri;
 
-use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
-use rand::Rng;
+use mc_core::slip10::{Count, Mnemonic};
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -507,7 +507,7 @@ where
         // subaddress, either something went terribly wrong and we
         // messed up, or someone is being very dumb and using a gift
         // account as a place to store their personal MOB.
-        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+        let mnemonic = Mnemonic::generate(Count::Words24);
         let gift_code_bip39_entropy_bytes = mnemonic.entropy().to_vec();
 
         let key = mnemonic.derive_slip10_key(0);
@@ -743,7 +743,7 @@ where
             .get_tx_out_index_by_public_key(&transfer_payload.txo_public_key)?;
 
         let mut ring: Vec<TxOut> = Vec::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let fog_resolver = {
             let fog_uri = recipient_public_address
@@ -761,7 +761,7 @@ where
         let num_txos = self.ledger_db.num_txos()?;
         let mut sampled_indices: HashSet<u64> = HashSet::default();
         while sampled_indices.len() < RING_SIZE - 1 {
-            let index = rng.gen_range(0..num_txos);
+            let index = rng.random_range(0..num_txos);
             if index == gift_txo_index {
                 continue;
             }
@@ -873,9 +873,8 @@ mod tests {
     };
     use mc_account_keys::PublicAddress;
     use mc_common::logger::{async_test_with_logger, Logger};
-    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Token};
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
 
     #[async_test_with_logger]
     async fn test_gift_code_lifecycle(logger: Logger) {

@@ -32,7 +32,7 @@ use displaydoc::Display;
 use mc_blockchain_types::BlockVersion;
 use mc_common::logger::log;
 use mc_connection::{
-    BlockchainConnection, RetryableUserTxConnection, UserTxConnection, _retry::delay::Fibonacci,
+    _retry::delay::Fibonacci, BlockchainConnection, RetryableUserTxConnection, UserTxConnection,
 };
 use mc_fog_report_validation::FogPubkeyResolver;
 use mc_transaction_core::{
@@ -749,14 +749,13 @@ mod tests {
     use mc_common::logger::{async_test_with_logger, Logger};
     use mc_core::account::ShortAddressHash;
     use mc_crypto_keys::RistrettoPublic;
-    use mc_rand::rand_core::RngCore;
     use mc_transaction_core::{
         get_tx_out_shared_secret, ring_signature::KeyImage, tokens::Mob, Token,
     };
     use mc_transaction_extra::{
         AuthenticatedSenderMemo, AuthenticatedSenderWithPaymentRequestIdMemo, DestinationMemo,
     };
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use std::convert::TryFrom;
 
     #[async_test_with_logger]

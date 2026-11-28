@@ -1,9 +1,11 @@
 // Copyright (c) 2020-2023 MobileCoin Inc.
 
 use anyhow::{anyhow, Result};
-use bip39::{Language, Mnemonic, MnemonicType};
 use mc_account_keys::AccountKey;
-use mc_core::{account::Account, slip10::Slip10KeyGenerator};
+use mc_core::{
+    account::Account,
+    slip10::{Count, Mnemonic, Slip10KeyGenerator},
+};
 use mc_full_service::service::{
     models::{
         transaction_memo::TransactionMemoSignerCredentials,
@@ -20,7 +22,7 @@ use mc_transaction_signer::{
 pub mod api;
 
 pub fn create_account() -> (Mnemonic, AccountInfo) {
-    let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+    let mnemonic = Mnemonic::generate(Count::Words24);
     let account = get_account_from_mnemonic(mnemonic.clone());
     let account_info = AccountInfo {
         view_private: account.view_private_key().clone(),
@@ -32,14 +34,14 @@ pub fn create_account() -> (Mnemonic, AccountInfo) {
 }
 
 pub fn get_account_by_mnemonic(mnemonic: &str) -> Result<AccountInfo> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    let mnemonic = Mnemonic::from_phrase(mnemonic)?;
     get_account(mnemonic)
 }
 
 pub fn get_account_by_bip39_entropy(bip39_entropy: &str) -> Result<AccountInfo> {
     let mut entropy = [0u8; 32];
     hex::decode_to_slice(bip39_entropy, &mut entropy)?;
-    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
     get_account(mnemonic)
 }
 
@@ -54,7 +56,7 @@ fn get_account(mnemonic: Mnemonic) -> Result<AccountInfo> {
 }
 
 pub fn sync_txos_by_mnemonic(mnemonic: &str, txos: Vec<TxoUnsynced>) -> Result<Vec<TxoSynced>> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    let mnemonic = Mnemonic::from_phrase(mnemonic)?;
     sync_txos(mnemonic, txos)
 }
 
@@ -64,7 +66,7 @@ pub fn sync_txos_by_bip39_entropy(
 ) -> Result<Vec<TxoSynced>> {
     let mut entropy = [0u8; 32];
     hex::decode_to_slice(bip39_entropy, &mut entropy)?;
-    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
     sync_txos(mnemonic, txos)
 }
 
@@ -92,7 +94,7 @@ pub fn sign_tx_with_mnemonic(
     mnemonic: &str,
     unsigned_tx_proposal: UnsignedTxProposal,
 ) -> Result<TxProposal> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    let mnemonic = Mnemonic::from_phrase(mnemonic)?;
     sign_tx(mnemonic, unsigned_tx_proposal)
 }
 
@@ -102,7 +104,7 @@ pub fn sign_tx_with_bip39_entropy(
 ) -> Result<TxProposal> {
     let mut entropy = [0u8; 32];
     hex::decode_to_slice(bip39_entropy, &mut entropy)?;
-    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
     sign_tx(mnemonic, unsigned_tx_proposal)
 }
 
@@ -122,7 +124,7 @@ pub fn sign_tx_blueprint_with_mnemonic(
     mnemonic: &str,
     tx_blueprint_proposal: TxBlueprintProposal,
 ) -> Result<TxProposal> {
-    let mnemonic = Mnemonic::from_phrase(mnemonic, Language::English)?;
+    let mnemonic = Mnemonic::from_phrase(mnemonic)?;
     sign_tx_blueprint(mnemonic, tx_blueprint_proposal)
 }
 
@@ -132,7 +134,7 @@ pub fn sign_tx_blueprint_with_bip39_entropy(
 ) -> Result<TxProposal> {
     let mut entropy = [0u8; 32];
     hex::decode_to_slice(bip39_entropy, &mut entropy)?;
-    let mnemonic = Mnemonic::from_entropy(&entropy, Language::English)?;
+    let mnemonic = Mnemonic::from_entropy(&entropy)?;
     sign_tx_blueprint(mnemonic, tx_blueprint_proposal)
 }
 

@@ -182,13 +182,10 @@ mod tests {
     use mc_transaction_extra::SignedContingentInputError;
     use mc_transaction_types::{constants::MILLIMOB_TO_PICOMOB, BlockVersion, TokenId};
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, CryptoRng, RngCore, SeedableRng};
+    use rand::{rngs::StdRng, CryptoRng, Rng, SeedableRng};
     use std::convert::TryFrom;
 
-    fn get_input_credentials_with_custom_ring_size<
-        RNG: CryptoRng + RngCore,
-        FPR: FogPubkeyResolver,
-    >(
+    fn get_input_credentials_with_custom_ring_size<RNG: CryptoRng, FPR: FogPubkeyResolver>(
         ring_size: usize,
         block_version: BlockVersion,
         amount: Amount,

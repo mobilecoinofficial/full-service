@@ -27,8 +27,8 @@ use crate::{
 };
 
 use base64::{engine::general_purpose, Engine};
-use bip39::{Language, Mnemonic, MnemonicType};
 use displaydoc::Display;
+use mc_core::slip10::{Count, Mnemonic};
 
 use mc_account_keys::{
     AccountKey, PublicAddress, RootEntropy, ViewAccountKey, DEFAULT_SUBADDRESS_INDEX,
@@ -407,7 +407,7 @@ where
         log::info!(self.logger, "Creating account {:?}", name,);
 
         // Generate entropy for the account
-        let mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+        let mnemonic = Mnemonic::generate(Count::Words24);
 
         // Determine bounds for account syncing. If we are offline, assume the network
         // has at least as many blocks as our local ledger.
@@ -466,7 +466,7 @@ where
         );
 
         // Get mnemonic from phrase
-        let mnemonic = match Mnemonic::from_phrase(&mnemonic_phrase, Language::English) {
+        let mnemonic = match Mnemonic::from_phrase(&mnemonic_phrase) {
             Ok(m) => m,
             Err(_) => return Err(AccountServiceError::InvalidMnemonic),
         };
@@ -823,10 +823,9 @@ mod tests {
     use mc_account_keys::{AccountKey, PublicAddress, RootIdentity, ViewAccountKey};
     use mc_common::logger::{async_test_with_logger, test_with_logger, Logger};
     use mc_crypto_keys::RistrettoPrivate;
-    use mc_rand::RngCore;
     use mc_transaction_core::{ring_signature::KeyImage, tokens::Mob, Amount, Token};
     use mc_util_from_random::FromRandom;
-    use rand::{rngs::StdRng, SeedableRng};
+    use rand::{rngs::StdRng, Rng, SeedableRng};
     use std::convert::{TryFrom, TryInto};
 
     #[test]
@@ -976,7 +975,7 @@ mod tests {
             },
         };
         use diesel::prelude::*;
-        use rand::{seq::SliceRandom, thread_rng};
+        use rand::seq::SliceRandom;
 
         let mut rng: StdRng = SeedableRng::from_seed([20u8; 32]);
         let entropy_a = RootEntropy::from_random(&mut rng);
@@ -1088,7 +1087,7 @@ mod tests {
         // something bogus
         let corrupted_txo_amount = expected_txo_amount << 4;
         let mut corrupted_target_key = expected_target_key.clone();
-        corrupted_target_key.shuffle(&mut thread_rng());
+        corrupted_target_key.shuffle(&mut rand::rng());
         assert_ne!(expected_txo_amount, corrupted_txo_amount);
         assert_ne!(expected_target_key, corrupted_target_key);
         diesel::update(&associated_txos.outputs[0].0)
